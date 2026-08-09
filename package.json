@@ -1,0 +1,31 @@
+{
+  "name": "nio-launcher",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt typecheck && nuxt build",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "tauri": "tauri",
+    "tauri:build": "tauri build",
+    "tauri:appimage": "NO_STRIP=true tauri build --bundles appimage"
+  },
+  "dependencies": {
+    "@fontsource/monaspace-neon": "^5.3.0",
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.0.0",
+    "@tauri-apps/plugin-opener": "^2.0.0",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "autoprefixer": "^10.4.20",
+    "nuxt": "^3.15.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.6.3",
+    "vue-tsc": "^2.1.0"
+  }
+}

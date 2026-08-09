@@ -1,0 +1,60 @@
+name: Build Launcher
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "launcher-v*"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: "--bundles nsis"
+          - platform: macos-latest
+            args: "--bundles dmg"
+          - platform: ubuntu-22.04
+            args: "--bundles appimage,deb,rpm"
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Установить Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Установить Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Linux deps (webkit2gtk)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Запустить тесты типов
+        run: npm run build
+
+      - name: Собрать лаунчер
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: launcher-v__VERSION__
+          releaseName: "Launcher v__VERSION__"
+          releaseDraft: true
+          releaseBody: "Фирменный лаунчер сборки NIO."
+          args: ${{ matrix.args }}
+          prerelease: false
