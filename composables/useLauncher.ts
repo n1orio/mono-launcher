@@ -1,4 +1,6 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { check as checkAppUpdate, type Update as AppUpdate } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import {
   checkForUpdates,
   clearLaunchLog,
@@ -114,6 +116,55 @@ export function useLauncher() {
   const msFlow = ref<MsDeviceCodeInfo | null>(null);
   const msPolling = ref(false);
   const ISSUES_URL = "https://github.com/n1orio/nio-launcher/issues/new";
+  const appUpdate = ref<{ version: string; notes: string } | null>(null);
+  const appUpdating = ref(false);
+  const appUpdateProgress = ref<number | null>(null);
+  let pendingAppUpdate: AppUpdate | null = null;
+
+  /** Проверяет обновление лаунчера (шаблон обновления из GitHub Releases). */
+  async function checkAppUpdates() {
+    if (!isTauri()) return;
+    try {
+      const u = await checkAppUpdate();
+      if (u) {
+        pendingAppUpdate = u;
+        appUpdate.value = { version: u.version, notes: u.body ?? "" };
+      }
+    } catch {
+      // Нет сети/нет latest.json — молча пропускаем, не мешаем работе.
+    }
+  }
+
+  /** Скачивает и ставит обновление лаунчера, затем перезапускается. */
+  async function installAppUpdate() {
+    if (!pendingAppUpdate || appUpdating.value) return;
+    appUpdating.value = true;
+    appUpdateProgress.value = 0;
+    try {
+      let contentLength = 0;
+      let downloaded = 0;
+      await pendingAppUpdate.downloadAndInstall((event) => {
+        if (event.event === "Started") {
+          contentLength = event.data.contentLength ?? 0;
+        } else if (event.event === "Progress") {
+          downloaded += event.data.chunkLength;
+          if (contentLength > 0) {
+            appUpdateProgress.value = Math.min(
+              100,
+              Math.round((downloaded / contentLength) * 100)
+            );
+          }
+        }
+      });
+      appUpdate.value = null;
+      await relaunch();
+    } catch (e) {
+      notify(`Ошибка обновления лаунчера: ${e}`);
+    } finally {
+      appUpdating.value = false;
+      appUpdateProgress.value = null;
+    }
+  }
 
   function notify(text: string, type: Notice["type"] = "error") {
     const id = ++noticeSeq;
@@ -331,6 +382,7 @@ export function useLauncher() {
     launcherVersion()
       .then((v) => (launcherVer.value = v))
       .catch(() => {});
+    setTimeout(() => checkAppUpdates(), 4000);
   });
 
   onUnmounted(() => {
@@ -564,5 +616,9 @@ export function useLauncher() {
     notify,
     dismissNotification,
     reportError,
+    appUpdate,
+    appUpdating,
+    appUpdateProgress,
+    installAppUpdate,
   };
 }

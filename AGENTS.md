@@ -28,5 +28,7 @@ There is **no test framework**; the only automated check is the TypeScript typec
 - When you add/rename a Rust command, update `lib/bridge.ts` AND the `generate_handler!` list in `src-tauri/src/lib.rs`.
 - Tauri 2 IPC commands are invoked camelCase on the JS/Vue side → snake_case in Rust (`launch_game_command`).
 - Port 1420 must stay fixed — Tauri devUrl depends on it (`vite.server.strictPort`).
+- `bundle.createUpdaterArtifacts: true` in `tauri.conf.json` — билд требует подписи minisign, иначе падает. Локально: `export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/nio-launcher.key)"` и `TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$(cut -d= -f2 ~/.tauri/nio-launcher.passphrase)"` (ключ в `~/.tauri/`, дубликат в GitHub secrets репо — НЕ коммитить).
+- Автообновление лаунчера: `tauri-plugin-updater` + статический `latest.json` в релизе. `scripts/make-updater-json.mjs` собирает его из ассетов (нужны `.sig` рядом с бандлами); джоба `update-manifest` в CI делает это после сборки. Endpoint `releases/latest/download/latest.json` — работает только когда релиз опубликован (не draft).
 - Don't rely on git here — this directory has `.github/` but is not currently a git repo.
 - Version the launcher with `launcher-v*` tags (`.github/workflows/build-launcher.yml`). The pack `.mrpack` is built manually in Prism Launcher and uploaded to GitHub Releases by hand.

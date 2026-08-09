@@ -54,6 +54,56 @@
         </div>
       </TransitionGroup>
     </div>
+    <!-- Карточка обновления лаунчера -->
+    <div
+      v-if="appUpdate && !appUpdating"
+      class="fixed bottom-4 right-4 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-[#1f6beb]/50 bg-[#161b22] p-3.5 shadow-lg shadow-black/40"
+    >
+      <div class="flex items-start gap-2.5">
+        <svg viewBox="0 0 16 16" class="mt-0.5 h-4 w-4 shrink-0 fill-[#58a6ff]">
+          <path d="M8 1.5a.75.75 0 0 1 .75.75V2.5H14a1 1 0 0 1 1 1v2.75A1.75 1.75 0 0 1 13.25 8H8.75v5.75a1.75 1.75 0 0 1-3.5 0V8H2A1.75 1.75 0 0 1 .25 6.25V3.5a1 1 0 0 1 1-1h5.25v-.25A.75.75 0 0 1 8 1.5Z"/>
+        </svg>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs font-semibold text-[#f0f6fc]">
+            Обновление лаунчера
+          </div>
+          <div class="mt-0.5 truncate text-[11px] text-[#8b949e]">
+            Версия {{ appUpdate.version }}
+          </div>
+          <p v-if="appUpdate.notes" class="mt-1 max-h-12 overflow-hidden text-[11px] leading-snug text-[#c9d1d9]">
+            {{ appUpdate.notes.slice(0, 180) }}{{ appUpdate.notes.length > 180 ? "…" : "" }}
+          </p>
+          <button
+            type="button"
+            class="mt-2.5 w-full rounded-md bg-[#1f6beb] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#388bfd]"
+            @click="installAppUpdate"
+          >
+            Обновить
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- Прогресс обновления лаунчера -->
+    <div
+      v-if="appUpdating"
+      class="fixed bottom-4 right-4 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-[#1f6beb]/50 bg-[#161b22] p-3.5 shadow-lg shadow-black/40"
+    >
+      <div class="mb-1.5 flex items-center justify-between text-[11px]">
+        <span class="font-medium text-[#c9d1d9]">Установка обновления…</span>
+        <span class="tabular-nums font-mono text-[10px] text-[#8b949e]">
+          {{ appUpdateProgress ?? 0 }}%
+        </span>
+      </div>
+      <div class="h-1.5 w-full overflow-hidden rounded-full bg-[#21262d]">
+        <div
+          class="h-full bg-[#2f81f7] transition-all duration-200"
+          :style="{ width: `${appUpdateProgress ?? 0}%` }"
+        />
+      </div>
+      <div class="mt-1.5 text-[10px] text-[#8b949e]">
+        Лаунчер перезапустится автоматически.
+      </div>
+    </div>
     <!-- ==== Боковая панель ==== -->
     <aside class="flex w-64 shrink-0 flex-col border-r border-[#30363d] bg-[#161b22]">
       <!-- Выбор сборки (стилизован под репозиторий GitHub) -->
@@ -576,6 +626,10 @@ const {
   notifications,
   dismissNotification,
   reportError,
+  appUpdate,
+  appUpdating,
+  appUpdateProgress,
+  installAppUpdate,
 } = useLauncher();
 
 const expanded = ref<Record<string, boolean>>({});
