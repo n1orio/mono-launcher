@@ -1,6 +1,6 @@
 # NIO Launcher
 
-Фирменный моно-лаунчер для сборки Minecraft, распространяемой в формате `.mrpack` через GitHub Releases.
+Моно-лаунчер для сборки Minecraft, распространяемой в формате `.mrpack` через GitHub Releases.
 
 ## Стек
 - **Backend:** Rust + [Tauri 2.0](https://tauri.app)
@@ -37,7 +37,7 @@ npm run tauri:appimage # Linux AppImage (с NO_STRIP=true)
 
 ## Как распространяется сборка
 1. Новая версия собирается в `.mrpack` вручную (Prism Launcher) и выкладывается на GitHub Releases
-   с прикреплённым файлом `Untold.legends.mrpack`.
+   с прикреплённым файлом `Untold legends.mrpack`.
 2. `versionId` в `modrinth.index.json` — версия сборки; в UI она выбирается по тегу релиза.
 3. Ченджлог релиза показывается прямо из его заметок.
 
