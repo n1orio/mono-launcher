@@ -471,7 +471,7 @@ async fn run_neoforge_installer(
         tokio::fs::write(&profiles, "{\"profiles\":{}}").await?;
     }
 
-    let java = find_java()?;
+    let (java, _java_arch) = find_java()?;
     let log_file = config::launch_log_file().ok();
     if let Some(path) = &log_file {
         if let Some(parent) = path.parent() {
@@ -679,21 +679,30 @@ pub async fn launch_game(
     let versions_dir = root.join("versions-libs");
 
     // Проверяем Java ДО скачиваний: без неё нечего качать сотни мегабайт.
-    let java = find_java()?;
-    let java_ok = tokio::process::Command::new(&java)
-        .arg("-version")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .await
-        .map(|s| s.success())
-        .unwrap_or(false);
-    if !java_ok {
+    // Авто-детект выбирает 64-битную; 32-битную куча ограничена ~3-4G.
+    let (java, java_arch) = find_java()?;
+    if java_arch == JavaArch::Unknown {
         return Err(anyhow!(
-            "Java не найдена. Установите Java 17+ (например OpenJDK 21) или положите \
-             Java в папку {}",
+            "Java не найдена. Установите 64-битную Java 17+ (например OpenJDK 21) или \
+             положите Java в папку {}",
             config::java_root()?.display()
         ));
+    }
+    let mut heap_gb = ram_gb.max(1);
+    if java_arch == JavaArch::Bit32 {
+        if heap_gb > 3 {
+            emit_log(
+                &app,
+                "sys",
+                &format!(
+                    "Найдена 32-битная Java — куча ограничена 3G (запрошено {heap_gb}G). \
+                     Для большего объёма стоит поставить 64-битную Java."
+                ),
+            );
+            heap_gb = 3;
+        }
+    } else {
+        emit_log(&app, "sys", &format!("Java: {java}, куча {heap_gb}G"));
     }
 
     // 1. Определяем версию Minecraft и модлоадер из активной установленной версии.
@@ -871,8 +880,13 @@ pub async fn launch_game(
     // 8. Собираем финальные аргументы процесса.
     let mut final_args = Vec::new();
     final_args.push(java);
-    final_args.push(format!("-Xmx{}G", ram_gb));
-    final_args.push(format!("-Xms{}G", (ram_gb / 2).max(1)));
+    final_args.push(format!("-Xmx{}G", heap_gb));
+    let xms_gb = if java_arch == JavaArch::Bit32 {
+        (heap_gb / 2).min(1)
+    } else {
+        (heap_gb / 2).max(1)
+    };
+    final_args.push(format!("-Xms{}G", xms_gb));
 
     for a in jvm_args {
         // `-XstartOnFirstThread` — macOS-специфичный флаг; на Linux/Windows он падает.
@@ -1042,16 +1056,213 @@ fn replace_placeholders(arg: &str, map: &HashMap<String, String>) -> String {
     out
 }
 
-/// Ищет Java: сначала встроенную в лаунчер, затем из PATH.
-fn find_java() -> Result<String> {
-    let bundled = config::java_root()?.join(
-        #[cfg(target_os = "windows")]
-        "bin/java.exe",
-        #[cfg(not(target_os = "windows"))]
-        "bin/java",
-    );
-    if bundled.exists() {
-        return Ok(bundled.to_string_lossy().to_string());
+fn java_exe_name() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "java.exe"
+    } else {
+        "java"
     }
-    Ok("java".into())
+}
+
+/// Возвращает (майор, минор) из имени папки вроде jdk-21.0.2 / 21.0.2 / jdk1.8.0_402:
+/// берёт первый версионный токен (хвост вроде _402 игнорируется), legacy 1.x считает как x.
+fn java_version_from_name(dir_name: &str) -> Option<(u32, u32)> {
+    let name = dir_name.to_ascii_lowercase();
+    let bytes = name.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i].is_ascii_digit() {
+            let start = i;
+            while i < bytes.len() && (bytes[i].is_ascii_digit() || bytes[i] == b'.') {
+                i += 1;
+            }
+            let token = &name[start..i];
+            let parts: Vec<&str> = token.split('.').collect();
+            if parts.is_empty() || parts[0].is_empty() {
+                continue;
+            }
+            let (major, minor) = if parts[0] == "1" {
+                (
+                    parts.get(1).and_then(|p| p.parse::<u32>().ok()).unwrap_or(1),
+                    parts.get(2).and_then(|p| p.parse::<u32>().ok()).unwrap_or(0),
+                )
+            } else {
+                (
+                    parts[0].parse::<u32>().unwrap_or(1),
+                    parts.get(1).and_then(|p| p.parse::<u32>().ok()).unwrap_or(0),
+                )
+            };
+            return Some((major, minor));
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Кандидаты в установленную Java (папки с bin/java), без проверки работоспособности.
+/// Сканирует распространённые места установки: JAVA_HOME и штатные каталоги JDK.
+fn java_candidates() -> Vec<PathBuf> {
+    let mut roots: Vec<PathBuf> = Vec::new();
+    if let Ok(home) = std::env::var("JAVA_HOME") {
+        if !home.is_empty() {
+            roots.push(PathBuf::from(home).join("bin").join(java_exe_name()));
+        }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        for var in ["PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"] {
+            if let Ok(base) = std::env::var(var) {
+                roots.push(PathBuf::from(base).join("Programs"));
+                roots.push(PathBuf::from(base));
+            }
+        }
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        roots.extend([
+            PathBuf::from("/usr/lib/jvm"),
+            PathBuf::from("/usr/lib64/jvm"),
+            PathBuf::from("/opt"),
+        ]);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        roots.push(PathBuf::from("/Library/Java/JavaVirtualMachines"));
+        if let Ok(home) = std::process::Command::new("/usr/libexec/java_home")
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        {
+            if !home.is_empty() {
+                roots.push(PathBuf::from(home).join("bin").join(java_exe_name()));
+            }
+        }
+    }
+
+    let mut found: Vec<PathBuf> = Vec::new();
+    let bat = java_exe_name();
+    for entry in roots.clone() {
+        // Уже конкретный бинарь (JAVA_HOME / java_home) — не сканируем, а добавляем как есть.
+        if entry.file_name().map(|n| n == bat).unwrap_or(false) {
+            if entry.exists() {
+                found.push(entry);
+            }
+            continue;
+        }
+        // Один уровень вложенности ниже корня: Java обычно лежит в <root>/<vendor>/<jdk>/bin
+        let Ok(dirs) = std::fs::read_dir(&entry) else { continue };
+        for dir in dirs.flatten() {
+            let jdk_dir = dir.path();
+            let bin = jdk_dir.join("bin").join(bat);
+            if bin.exists() {
+                found.push(bin);
+                continue;
+            }
+            let Ok(subs) = std::fs::read_dir(&jdk_dir) else { continue };
+            for sub in subs.flatten() {
+                let sub_bin = sub.path().join("bin").join(bat);
+                if sub_bin.exists() {
+                    found.push(sub_bin);
+                }
+            }
+        }
+    }
+
+    found.sort_by(|a, b| {
+        let ka = a
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+            .and_then(|n| java_version_from_name(&n))
+            .unwrap_or((1, 0));
+        let kb = b
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+            .and_then(|n| java_version_from_name(&n))
+            .unwrap_or((1, 0));
+        kb.cmp(&ka)
+    });
+
+    let mut seen = std::collections::HashSet::new();
+    found.retain(|p| seen.insert(p.to_string_lossy().to_string()));
+    found
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum JavaArch {
+    Bit64,
+    Bit32,
+    Unknown,
+}
+
+/// Проверяет, что java реально запускается (`-version`), и определяет разрядность
+/// (64-битные VM пишут в вывод «64-Bit»). Не работает — вернёт None.
+fn probe_java(java: &Path) -> Option<JavaArch> {
+    let out = std::process::Command::new(java)
+        .arg("-version")
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let mut text = String::from_utf8_lossy(&out.stdout).into_owned();
+    text.push_str(&String::from_utf8_lossy(&out.stderr));
+    let text = text.to_lowercase();
+    if text.contains("64-bit") {
+        Some(JavaArch::Bit64)
+    } else if text.contains("hotspot") || text.contains("openjdk") || text.contains("jvm") {
+        // Запустилась, но не 64-битная — это 32-битная VM (у неё потолок кучи ~3-4G).
+        Some(JavaArch::Bit32)
+    } else {
+        Some(JavaArch::Unknown)
+    }
+}
+
+/// Ищет Java: встроенную в лаунчер → авто-детект установленных → из PATH («java»).
+/// Приоритет: сначала рабочие 64-битные (свежие по версии), затем 32-битные.
+/// Возвращает путь и разрядность (для ограничения -Xmx).
+fn find_java() -> Result<(String, JavaArch)> {
+    let bundled = config::java_root()?.join("bin").join(java_exe_name());
+    if bundled.exists() {
+        if let Some(arch) = probe_java(&bundled) {
+            return Ok((bundled.to_string_lossy().to_string(), arch));
+        }
+    }
+    let mut best_32: Option<(String, JavaArch)> = None;
+    for cand in java_candidates() {
+        let Some(arch) = probe_java(&cand) else { continue };
+        let path = cand.to_string_lossy().to_string();
+        if arch == JavaArch::Bit64 {
+            return Ok((path, arch));
+        }
+        if best_32.is_none() {
+            best_32 = Some((path, arch));
+        }
+    }
+    if let Some((path, arch)) = best_32 {
+        return Ok((path, arch));
+    }
+    if let Some(arch) = probe_java(Path::new("java")) {
+        return Ok(("java".into(), arch));
+    }
+    Ok(("java".into(), JavaArch::Unknown))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::java_version_from_name;
+
+    #[test]
+    fn parses_jdk_dir_names() {
+        assert_eq!(java_version_from_name("jdk-21.0.2"), Some((21, 0)));
+        assert_eq!(java_version_from_name("21.0.5"), Some((21, 0)));
+        assert_eq!(java_version_from_name("jdk1.8.0_402"), Some((8, 0)));
+        assert_eq!(java_version_from_name("zulu-17.52"), Some((17, 52)));
+        assert_eq!(java_version_from_name("temurin-11.0.23"), Some((11, 0)));
+        assert_eq!(java_version_from_name("java-17-openjdk"), Some((17, 0)));
+        assert_eq!(java_version_from_name("jre-1.8"), Some((8, 0)));
+        assert_eq!(java_version_from_name("no-java-here"), None);
+    }
 }
