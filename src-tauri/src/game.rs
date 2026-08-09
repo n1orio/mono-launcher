@@ -678,6 +678,24 @@ pub async fn launch_game(
     let libraries_dir = root.join("libraries");
     let versions_dir = root.join("versions-libs");
 
+    // Проверяем Java ДО скачиваний: без неё нечего качать сотни мегабайт.
+    let java = find_java()?;
+    let java_ok = tokio::process::Command::new(&java)
+        .arg("-version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .await
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !java_ok {
+        return Err(anyhow!(
+            "Java не найдена. Установите Java 17+ (например OpenJDK 21) или положите \
+             Java в папку {}",
+            config::java_root()?.display()
+        ));
+    }
+
     // 1. Определяем версию Minecraft и модлоадер из активной установленной версии.
     let game_dir = config::active_game_dir(pack_id)?;
     let index_path = game_dir.join(".nio-index.json");
@@ -693,6 +711,7 @@ pub async fn launch_game(
 
     // 2. Получаем manifest и ванильный version json.
     let client = reqwest::Client::new();
+    emit_log(&app, "sys", "Получение манифеста версий Minecraft…");
     let manifest: VersionManifest = fetch_json(
         &client,
         "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
@@ -780,6 +799,7 @@ pub async fn launch_game(
     }
 
     // 5. Скачиваем библиотеки, ассеты и клиентский jar.
+    emit_log(&app, "sys", "Скачивание библиотек и ассетов (первый запуск — долго)…");
     let libs = resolve_libraries(&client, &VersionJson { libraries: merged_libraries, ..vanilla.clone() }, &libraries_dir).await?;
     let asset_index_id = resolve_assets(&client, &vanilla, &assets_root).await?;
     let client_jar = if matches!(loader.as_ref(), Some((name, _)) if name == "neoforge") {
@@ -821,8 +841,6 @@ pub async fn launch_game(
         .map(|p| p.to_string_lossy().to_string())
         .collect::<Vec<_>>()
         .join(&path_sep().to_string());
-
-    let java = find_java()?;
 
     // 7. Плейсхолдеры.
     let mut placeholders: HashMap<String, String> = HashMap::new();
@@ -959,7 +977,15 @@ pub async fn launch_game(
                 },
             );
         }
-        let msg = if exit.success() {
+        let success = exit.success();
+        let _ = app2.emit(
+            "game-exited",
+            GameExited {
+                success,
+                code: exit.code().unwrap_or(i32::MIN),
+            },
+        );
+        let msg = if success {
             "Процесс Minecraft завершился (код 0)".to_string()
         } else {
             format!("Процесс Minecraft завершился с ошибкой: {exit}")
@@ -986,6 +1012,12 @@ pub struct LogLine {
 pub struct PlaytimeUpdate {
     pub version_id: String,
     pub total_seconds: u64,
+}
+
+#[derive(serde::Serialize, Clone)]
+pub struct GameExited {
+    pub success: bool,
+    pub code: i32,
 }
 
 fn emit_log(app: &AppHandle, stream: &str, line: &str) {

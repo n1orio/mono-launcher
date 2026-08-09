@@ -7,13 +7,15 @@ import {
   getSystemInfo,
   installMrpack,
   isTauri,
-  launchGame,
+launchGame,
   launcherVersion,
   listPacks,
   listVersions,
-  loginMicrosoft,
   loginOffline,
+  msDeviceCode,
+  msPoll,
   onDownloadProgress,
+  onGameExited,
   onLaunchLog,
   onPlaytimeUpdated,
   openExternal,
@@ -24,6 +26,7 @@ import type {
   AppStatus,
   DownloadProgress,
   LaunchLogEntry,
+  MsDeviceCodeInfo,
   PackDescriptor,
   SystemInfo,
   UpdateInfo,
@@ -108,6 +111,8 @@ export function useLauncher() {
   const notifications = ref<Notice[]>([]);
   let noticeSeq = 0;
   const launcherVer = ref("");
+  const msFlow = ref<MsDeviceCodeInfo | null>(null);
+  const msPolling = ref(false);
   const ISSUES_URL = "https://github.com/n1orio/nio-launcher/issues/new";
 
   function notify(text: string, type: Notice["type"] = "error") {
@@ -184,6 +189,7 @@ export function useLauncher() {
   let unlistenSync: (() => void) | undefined;
   let unlistenLogSync: (() => void) | undefined;
   let unlistenPlaytimeSync: (() => void) | undefined;
+  let unlistenGameExitedSync: (() => void) | undefined;
 
   // Буфер логов: Java может выдавать тысячи строк в секунду —
   // рендерим консоль порциями, чтобы не ронять UI.
@@ -312,6 +318,16 @@ export function useLauncher() {
         versions.value.installed = versions.value.installed.slice();
       }
     }).then((fn) => (unlistenPlaytimeSync = fn));
+    onGameExited((e) => {
+      if (!e.success) {
+        const code =
+          e.code > 0 ? ` (код ${e.code})` : e.code === 0 ? "" : " (аварийно)";
+        notify(
+          `Игра завершилась с ошибкой${code}. Подробности — в консоли внизу.`,
+          "error"
+        );
+      }
+    }).then((fn) => (unlistenGameExitedSync = fn));
     launcherVersion()
       .then((v) => (launcherVer.value = v))
       .catch(() => {});
@@ -321,6 +337,7 @@ export function useLauncher() {
     unlistenSync?.();
     unlistenLogSync?.();
     unlistenPlaytimeSync?.();
+    unlistenGameExitedSync?.();
   });
 
   watch(
@@ -412,11 +429,27 @@ export function useLauncher() {
   async function handleMicrosoft() {
     if (!isTauri()) return;
     try {
-      const s = await loginMicrosoft();
+      const info = await msDeviceCode();
+      msFlow.value = info;
+      msPolling.value = true;
+      const s = await msPoll(info.device_code, info.interval, info.expires_in);
       session.value = s;
+      msFlow.value = null;
       await load();
     } catch (e) {
       notify(`Ошибка Microsoft: ${e}`);
+    } finally {
+      msPolling.value = false;
+      msFlow.value = null;
+    }
+  }
+
+  async function openMsAuthPage() {
+    if (!isTauri() || !msFlow.value) return;
+    try {
+      await openExternal(msFlow.value.verification_uri);
+    } catch {
+      notify(`Не удалось открыть страницу: ${msFlow.value.verification_uri}`, "info");
     }
   }
 
@@ -519,6 +552,9 @@ export function useLauncher() {
     handleSelectVersion,
     handleOffline,
     handleMicrosoft,
+    openMsAuthPage,
+    msFlow,
+    msPolling,
     handlePlay,
     handleClearLog,
     handleCopyLog,

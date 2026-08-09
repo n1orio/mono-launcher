@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 use sysinfo::System;
 
-use crate::auth::{login_microsoft, login_offline, save_session, UserSession};
+use crate::auth::{login_offline, save_session, UserSession};
 use crate::config::{default_pack_id, pack_by_id, PackDef};
 
 /// Глобальное состояние лаунчера (HTTP-клиент).
@@ -263,16 +263,17 @@ async fn install_mrpack(
         .timeout(Duration::from_secs(600))
         .build()
         .map_err(|e| e.to_string())?;
-    let url = match &tag {
-        Some(t) => mrpack_url_for_tag(pack, t),
+    let (url, install_tag) = match &tag {
+        Some(t) => (mrpack_url_for_tag(pack, t), Some(t.clone())),
         // latest в GitHub не перенаправляет на пререлизы, поэтому берём
-        // самый свежий релиз из API (включая пререлизы).
+        // самый свежий релиз из API (включая пререлизы). А tag записываем
+        // в маркер установки — иначе лаунчер будет вечно «обнаруживать обновление».
         None => match fetch_releases(&client, pack).await.into_iter().next() {
-            Some(r) => r.url,
-            None => pack.url.to_string(),
+            Some(r) => (r.url, Some(r.tag)),
+            None => (pack.url.to_string(), None),
         },
     };
-    mrpack::install_mrpack(app, &client, pack.id, &url, tag.as_deref())
+    mrpack::install_mrpack(app, &client, pack.id, &url, install_tag.as_deref())
         .await
         .map_err(|e| e.to_string())
 }
@@ -344,10 +345,26 @@ async fn login_offline_command(username: String) -> Result<UserSession, String> 
     Ok(session)
 }
 
-/// Логин через Microsoft OAuth2.
+/// Microsoft OAuth2, фаза 1: запрашиваем device code для показа в UI.
 #[tauri::command]
-async fn login_microsoft_command(state: State<'_, AppState>) -> Result<UserSession, String> {
-    let session = login_microsoft(&state.client)
+async fn ms_device_code_command(
+    state: State<'_, AppState>,
+) -> Result<auth::MsDeviceCodeInfo, String> {
+    auth::ms_device_code(&state.client)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Microsoft OAuth2, фаза 2: поллим подтверждение и проходим
+/// цепочку Xbox Live → XSTS → Minecraft, возвращаем игровую сессию.
+#[tauri::command]
+async fn ms_poll_command(
+    state: State<'_, AppState>,
+    device_code: String,
+    interval: u64,
+    expires_in: u64,
+) -> Result<UserSession, String> {
+    let session = auth::ms_poll(&state.client, &device_code, interval, expires_in)
         .await
         .map_err(|e| e.to_string())?;
     save_session(&session).map_err(|e| e.to_string())?;
@@ -426,7 +443,8 @@ pub fn run() {
             install_mrpack,
             get_status,
             login_offline_command,
-            login_microsoft_command,
+            ms_device_code_command,
+            ms_poll_command,
             launch_game_command,
             get_launch_log,
             clear_launch_log,

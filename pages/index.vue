@@ -429,11 +429,37 @@
                 <button
                   type="button"
                   class="w-full rounded-md border border-[#30363d] bg-[#21262d] py-1.5 text-xs font-medium text-[#c9d1d9] hover:bg-[#30363d] disabled:opacity-50"
-                  :disabled="busy"
+                  :disabled="busy || msPolling"
                   @click="handleMicrosoft"
                 >
-                  Войти через Microsoft
+                  {{ msPolling ? "Ожидание подтверждения…" : "Войти через Microsoft" }}
                 </button>
+
+                <!-- Device code flow: показать код и ссылку -->
+                <div
+                  v-if="msFlow"
+                  class="rounded-md border border-[#1f6beb]/40 bg-[#0d1117]/60 p-3 space-y-2"
+                >
+                  <p class="text-[11px] text-[#8b949e]">
+                    Откройте страницу и введите код:
+                  </p>
+                  <p class="font-mono text-2xl font-bold tracking-[0.3em] text-[#79c0ff] select-text">
+                    {{ msFlow.user_code }}
+                  </p>
+                  <button
+                    type="button"
+                    class="rounded-md border border-[#1f6beb]/50 bg-[#1f6beb]/20 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#1f6beb]/40"
+                    @click="openMsAuthPage"
+                  >
+                    Открыть страницу {{ msFlow.verification_uri.replace(/^https?:\/\//, "") }}
+                  </button>
+                  <p v-if="msPolling" class="flex items-center gap-2 text-[11px] text-[#8b949e]">
+                    <svg class="h-3 w-3 animate-spin fill-[#58a6ff]" viewBox="0 0 16 16">
+                      <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                    </svg>
+                    Ждём подтверждения в браузере…
+                  </p>
+                </div>
               </div>
             </section>
 
@@ -539,6 +565,9 @@ const {
   handleSelectVersion,
   handleOffline,
   handleMicrosoft,
+  openMsAuthPage,
+  msFlow,
+  msPolling,
   handlePlay,
   handleClearLog,
   handleCopyLog,

@@ -4,6 +4,7 @@ import type {
   AppStatus,
   DownloadProgress,
   LaunchLogEntry,
+  MsDeviceCodeInfo,
   PackDescriptor,
   PackInfo,
   SystemInfo,
@@ -47,8 +48,16 @@ export function loginOffline(username: string): Promise<UserSession> {
   return invoke("login_offline_command", { username });
 }
 
-export function loginMicrosoft(): Promise<UserSession> {
-  return invoke("login_microsoft_command");
+export function msDeviceCode(): Promise<MsDeviceCodeInfo> {
+  return invoke("ms_device_code_command");
+}
+
+export function msPoll(
+  deviceCode: string,
+  interval: number,
+  expiresIn: number
+): Promise<UserSession> {
+  return invoke("ms_poll_command", { deviceCode, interval, expiresIn });
 }
 
 export function launchGame(
@@ -78,6 +87,19 @@ export function onPlaytimeUpdated(
   cb: (p: PlaytimeUpdate) => void
 ): Promise<UnlistenFn> {
   return listen<PlaytimeUpdate>("playtime-updated", (event) =>
+    cb(event.payload)
+  );
+}
+
+export interface GameExitedPayload {
+  success: boolean;
+  code: number;
+}
+
+export function onGameExited(
+  cb: (e: GameExitedPayload) => void
+): Promise<UnlistenFn> {
+  return listen<GameExitedPayload>("game-exited", (event) =>
     cb(event.payload)
   );
 }

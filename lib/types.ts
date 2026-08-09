@@ -79,3 +79,16 @@ export interface LaunchLogEntry {
   stream: "out" | "err" | "sys";
   line: string;
 }
+
+export interface MsDeviceCodeInfo {
+  user_code: string;
+  verification_uri: string;
+  device_code: string;
+  interval: number;
+  expires_in: number;
+}
+
+export interface GameExited {
+  success: boolean;
+  code: number;
+}
