@@ -1112,8 +1112,9 @@ fn java_candidates() -> Vec<PathBuf> {
     {
         for var in ["PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"] {
             if let Ok(base) = std::env::var(var) {
-                roots.push(PathBuf::from(base).join("Programs"));
-                roots.push(PathBuf::from(base));
+                let base = PathBuf::from(&base);
+                roots.push(base.join("Programs"));
+                roots.push(base);
             }
         }
     }
