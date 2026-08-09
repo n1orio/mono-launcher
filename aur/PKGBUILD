@@ -1,0 +1,43 @@
+# Maintainer: NIO <nio@users.noreply.github.com>
+# Contributor: NIO <nio@users.noreply.github.com>
+
+pkgname=nio-launcher
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Фирменный монолаунчер для Minecraft-сборки NIO (.mrpack)"
+arch=('x86_64')
+url="https://github.com/n1orio/nio-launcher"
+license=('custom')
+depends=(
+  'gcc-libs'
+  'glibc'
+  'gtk3'
+  'librsvg'
+  'webkit2gtk-4.1'
+  'libayatana-appindicator'
+)
+makedepends=(
+  'cargo'
+  'rust'
+  'nodejs'
+  'npm'
+)
+source=("$pkgname-$pkgver.tar.gz::https://github.com/n1orio/nio-launcher/archive/refs/tags/launcher-v$pkgver.tar.gz")
+sha256sums=('0d7f252dc4439bece3063a34341d7726e479e75dd04db9e73e9915a7e23302b2')
+
+build() {
+  cd "$srcdir/$pkgname-$pkgver"
+  npm ci
+  npm run build
+  cargo build --release --manifest-path src-tauri/Cargo.toml
+}
+
+package() {
+  cd "$srcdir/$pkgname-$pkgver"
+
+  install -Dm755 src-tauri/target/release/nio-launcher "$pkgdir/usr/bin/nio-launcher"
+  install -Dm644 src-tauri/icons/128x128.png "$pkgdir/usr/share/icons/hicolor/128x128/apps/nio-launcher.png"
+  install -Dm644 src-tauri/icons/32x32.png "$pkgdir/usr/share/icons/hicolor/32x32/apps/nio-launcher.png"
+  install -Dm644 src-tauri/icons/128x128@2x.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/nio-launcher.png"
+  install -Dm644 "$srcdir/$pkgname-$pkgver/aur/nio-launcher.desktop" "$pkgdir/usr/share/applications/nio-launcher.desktop"
+}

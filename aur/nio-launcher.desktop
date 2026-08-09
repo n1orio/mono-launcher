@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=NIO Launcher
+GenericName=Minecraft Modpack Launcher
+Comment=Фирменный монолаунчер для Minecraft-сборки NIO
+Exec=nio-launcher
+Icon=nio-launcher
+Terminal=false
+Categories=Game;
+StartupNotify=false
