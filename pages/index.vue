@@ -1,5 +1,59 @@
 <template>
   <div class="flex h-full w-full select-none overflow-hidden bg-[#0d1117] text-[#c9d1d9] font-sans">
+    <!-- Уведомления (тосты) -->
+    <div class="pointer-events-none fixed right-4 top-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2">
+      <TransitionGroup name="toast">
+        <div
+          v-for="n in notifications"
+          :key="n.id"
+          class="pointer-events-auto flex items-start gap-2.5 rounded-md border bg-[#161b22] px-3.5 py-2.5 text-xs shadow-lg shadow-black/40"
+          :class="{
+            'border-[#f85149]/50': n.type === 'error',
+            'border-[#1f6beb]/50': n.type === 'info',
+            'border-[#238636]/50': n.type === 'success',
+          }"
+        >
+          <svg
+            viewBox="0 0 16 16"
+            class="mt-0.5 h-3.5 w-3.5 shrink-0 fill-current"
+            :class="{
+              'text-[#f85149]': n.type === 'error',
+              'text-[#58a6ff]': n.type === 'info',
+              'text-[#3fb950]': n.type === 'success',
+            }"
+          >
+            <path v-if="n.type === 'error'" d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM4.97 4.97a.749.749 0 0 0-1.06 1.06L6.94 8l-3.03 3.03a.749.749 0 1 0 1.06 1.06L8 9.06l3.03 3.03a.749.749 0 1 0 1.06-1.06L9.06 8l3.03-3.03a.749.749 0 0 0-1.06-1.06L8 6.94Z"/>
+            <path v-else-if="n.type === 'info'" d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM7.25 3.5a.75.75 0 0 0 0 1.5h.008a.75.75 0 0 0 0-1.5ZM7 7.25a.75.75 0 0 0 0 1.5h.25V12H7a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .75-.75v-5.5A.75.75 0 0 0 7.5 6.5H7a.75.75 0 0 0 0 .75Z"/>
+            <path v-else d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0Zm3.03 5.03a.75.75 0 0 0-1.06-1.06L6.5 7.44l-1.47-1.47a.75.75 0 0 0-1.06 1.06l2 2a.75.75 0 0 0 1.06 0Z"/>
+          </svg>
+          <p class="min-w-0 break-words leading-relaxed text-[#c9d1d9]">{{ n.text }}</p>
+          <div class="ml-auto flex shrink-0 items-center gap-1.5">
+            <button
+              v-if="n.reportable"
+              type="button"
+              class="flex items-center gap-1 rounded border border-[#f85149]/40 bg-[#f85149]/10 px-2 py-0.5 text-[10px] font-semibold text-[#f85149] transition-colors hover:bg-[#f85149]/20"
+              title="Открыть GitHub Issues с этим сообщением и логом запуска"
+              @click="reportError(n.text)"
+            >
+              <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+              </svg>
+              GitHub Issue
+            </button>
+            <button
+              type="button"
+              class="shrink-0 text-[#8b949e] transition-colors hover:text-[#f0f6fc]"
+              title="Закрыть"
+              @click="dismissNotification(n.id)"
+            >
+              <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.06 1.06L9.06 8l3.22 3.22a.749.749 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.749.749 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.749.749 0 0 1 0-1.06Z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </TransitionGroup>
+    </div>
     <!-- ==== Боковая панель ==== -->
     <aside class="flex w-64 shrink-0 flex-col border-r border-[#30363d] bg-[#161b22]">
       <!-- Выбор сборки (стилизован под репозиторий GitHub) -->
@@ -230,6 +284,13 @@
                   <span class="text-[11px] text-[#8b949e]">
                     {{ formatDate(r.published_at) }}
                   </span>
+                  <span
+                    v-if="playtimeForRelease(r.tag) > 0"
+                    class="font-mono text-[11px] text-[#d29922]"
+                    title="Наиграно в этом экземпляре"
+                  >
+                    {{ formatPlaytime(playtimeForRelease(r.tag)) }}
+                  </span>
                   <button
                     type="button"
                     class="rounded-md border border-[#30363d] bg-[#21262d] px-2.5 py-1 text-xs font-medium text-[#c9d1d9] transition-colors hover:bg-[#30363d] hover:text-white disabled:opacity-50"
@@ -248,18 +309,18 @@
 
               <!-- Ченджлог -->
               <div class="p-4 text-xs text-[#c9d1d9] space-y-1.5">
-                <div v-if="changelogLines(r.body).length > 0" class="space-y-1 font-sans">
+                <div
+                  v-if="changelogLines(r.body).length > 0"
+                  class="changelog space-y-1 font-sans"
+                  @click="onChangelogLinkClick"
+                >
                   <template v-for="(line, idx) in visibleLines(r.body)" :key="idx">
                     <div v-if="line.type === 'bullet'" class="flex items-start gap-2 text-[#c9d1d9]">
                       <span class="text-[#8b949e] select-none">•</span>
-                      <span>{{ line.text }}</span>
+                      <span v-html="renderInline(line.text)"></span>
                     </div>
-                    <div v-else-if="line.type === 'body'" class="font-semibold text-[#f0f6fc] pt-1.5">
-                      {{ line.text }}
-                    </div>
-                    <div v-else class="text-[#8b949e]">
-                      {{ line.text }}
-                    </div>
+                    <div v-else-if="line.type === 'body'" class="font-semibold text-[#f0f6fc] pt-1.5" v-html="renderInline(line.text)"></div>
+                    <div v-else class="text-[#8b949e]" v-html="renderInline(line.text)"></div>
                   </template>
                 </div>
                 <p v-else class="text-[#8b949e] italic">Нет описания изменений в этом релизе.</p>
@@ -400,6 +461,41 @@
                 </p>
               </div>
             </section>
+
+            <!-- Размер окна игры -->
+            <section class="rounded-md border border-[#30363d] bg-[#161b22] overflow-hidden">
+              <div class="border-b border-[#30363d] bg-[#21262d]/50 px-4 py-2.5 flex justify-between items-center">
+                <h3 class="text-xs font-semibold text-[#f0f6fc]">Размер окна игры</h3>
+                <span class="font-mono text-xs font-semibold text-[#58a6ff]">{{ windowWidth }}×{{ windowHeight }}</span>
+              </div>
+              <div class="p-4 space-y-2">
+                <div class="flex items-center gap-3">
+                  <label class="w-16 text-[11px] text-[#8b949e]" for="win-width">Ширина</label>
+                  <input
+                    id="win-width"
+                    type="number"
+                    min="320"
+                    max="7680"
+                    step="1"
+                    v-model.number="windowWidth"
+                    class="flex-1 rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-1.5 text-xs text-[#c9d1d9] focus:border-[#58a6ff] focus:outline-none"
+                  />
+                  <label class="w-16 text-[11px] text-[#8b949e]" for="win-height">Высота</label>
+                  <input
+                    id="win-height"
+                    type="number"
+                    min="240"
+                    max="4320"
+                    step="1"
+                    v-model.number="windowHeight"
+                    class="flex-1 rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-1.5 text-xs text-[#c9d1d9] focus:border-[#58a6ff] focus:outline-none"
+                  />
+                </div>
+                <p class="text-[11px] text-[#8b949e]">
+                  Применяется при следующем запуске игры.
+                </p>
+              </div>
+            </section>
           </div>
           </div>
         </template>
@@ -410,6 +506,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { isTauri, openExternal } from "~/lib/bridge";
 import { useLauncher } from "~/composables/useLauncher";
 
 const {
@@ -418,6 +515,8 @@ const {
   ram,
   maxRam,
   systemRam,
+  windowWidth,
+  windowHeight,
   session,
   busy,
   progress,
@@ -433,6 +532,7 @@ const {
   loaderLabel,
   formatBytes,
   formatDate,
+  formatPlaytime,
   isInstalledVersion,
   handleInstall,
   handleUpdate,
@@ -444,6 +544,9 @@ const {
   handleCopyLog,
   handleOpenPackDir,
   selectPack,
+  notifications,
+  dismissNotification,
+  reportError,
 } = useLauncher();
 
 const expanded = ref<Record<string, boolean>>({});
@@ -493,6 +596,62 @@ function isActiveRelease(tag: string): boolean {
   const active = v?.active;
   if (!active) return false;
   return v.installed.some((iv) => iv.version_id === active && iv.source_tag === tag) ?? false;
+}
+
+function playtimeForRelease(tag: string): number {
+  return (
+    versions.value?.installed.find((iv) => iv.source_tag === tag)?.total_seconds ?? 0
+  );
+}
+
+// --- Рендер inline-markdown в ченджлоге (ссылки, жирный, код, зачёркнутый) ---
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function inlineStyle(s: string): string {
+  return s
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/~~([^~]+)~~/g, "<del>$1</del>");
+}
+
+function renderInline(raw: string): string {
+  let t = escapeHtml(raw.trim());
+  t = inlineStyle(t);
+  // Ссылки [текст](http...)
+  t = t.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)"<>]+)\)/g,
+    (_, text: string, url: string) => `<a href="${url}">${text}</a>`
+  );
+  // Голые ссылки (минуя href уже вставленных <a>)
+  t = t.replace(/(https?:\/\/[^\s)"<>]+)/g, (m: string, _g: string, offset: number) => {
+    const before = t.slice(0, offset);
+    const opens = before.match(/<a /g)?.length ?? 0;
+    const closes = before.match(/<\/a>/g)?.length ?? 0;
+    return opens > closes ? m : `<a href="${m}">${m}</a>`;
+  });
+  return t;
+}
+
+function onChangelogLinkClick(e: MouseEvent) {
+  const target = e.target as HTMLElement;
+  const anchor = target.closest("a");
+  if (!anchor) return;
+  const href = anchor.getAttribute("href");
+  if (!href || !/^https?:\/\//i.test(href)) return;
+  e.preventDefault();
+  if (isTauri()) {
+    openExternal(href).catch(() => window.open(href, "_blank"));
+  } else {
+    window.open(href, "_blank");
+  }
 }
 
 function onPackChange(e: Event) {

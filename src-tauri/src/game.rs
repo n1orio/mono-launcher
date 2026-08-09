@@ -13,6 +13,38 @@ use tauri::{AppHandle, Emitter};
 use crate::auth::UserSession;
 use crate::config;
 
+/// GET + JSON с проверкой Content-Type и понятными ошибками.
+/// На случай, когда сервер отдаёт HTML/пустую страницу вместо JSON
+/// (Mojang иногда отдаёт HTML с 200) — reqwest тогда падал бы
+/// с «error decoding response body».
+async fn fetch_json<T: serde::de::DeserializeOwned>(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<T> {
+    let resp = client
+        .get(url)
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .with_context(|| format!("Не удалось получить ответ от {url}"))?
+        .error_for_status()
+        .with_context(|| format!("Сервер {url} вернул ошибку"))?;
+    let ct = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    if !ct.to_lowercase().contains("json") {
+        return Err(anyhow!(
+            "Сервер {url} ответил не JSON (тип: {ct}). Возможно, CDN/Mojang временно недоступны — попробуйте позже."
+        ));
+    }
+    resp.json::<T>()
+        .await
+        .with_context(|| format!("Не удалось разобрать JSON от {url}"))
+}
+
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 struct VersionManifest {
@@ -376,15 +408,13 @@ async fn fetch_loader_profile(
             let url = format!(
                 "https://meta.fabricmc.net/v2/versions/loader/{mc_version}/{loader_version}/{loader_version}/profile/json"
             );
-            let resp = client.get(&url).send().await?.error_for_status()?;
-            Ok(Some(resp.json().await?))
+            fetch_json::<VersionJson>(client, &url).await.map(Some)
         }
         "quilt" => {
             let url = format!(
                 "https://meta.quiltmc.org/v3/versions/loader/{mc_version}/{loader_version}/profile/json"
             );
-            let resp = client.get(&url).send().await?.error_for_status()?;
-            Ok(Some(resp.json().await?))
+            fetch_json::<VersionJson>(client, &url).await.map(Some)
         }
         _ => Ok(None),
     }
@@ -417,13 +447,11 @@ async fn run_neoforge_installer(
     let mc_json = mc_dir.join(format!("{mc_version}.json"));
     let mc_jar = mc_dir.join(format!("{mc_version}.jar"));
     if !mc_json.exists() {
-        let manifest: VersionManifest = client
-            .get("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await?;
+        let manifest: VersionManifest = fetch_json(
+            &client,
+            "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
+        )
+        .await?;
         let entry = manifest
             .versions
             .iter()
@@ -637,7 +665,14 @@ fn split_args(args: &[serde_json::Value]) -> Vec<String> {
 }
 
 /// Собирает и запускает процесс Java для Minecraft.
-pub async fn launch_game(pack_id: &str, ram_gb: u32, session: UserSession, app: AppHandle) -> Result<()> {
+pub async fn launch_game(
+    pack_id: &str,
+    ram_gb: u32,
+    session: UserSession,
+    app: AppHandle,
+    width: u32,
+    height: u32,
+) -> Result<()> {
     let root = config::launcher_root()?;
     let assets_root = root.join("assets");
     let libraries_dir = root.join("libraries");
@@ -658,26 +693,18 @@ pub async fn launch_game(pack_id: &str, ram_gb: u32, session: UserSession, app: 
 
     // 2. Получаем manifest и ванильный version json.
     let client = reqwest::Client::new();
-    let manifest: VersionManifest = client
-        .get("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
+    let manifest: VersionManifest = fetch_json(
+        &client,
+        "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
+    )
+    .await?;
     let entry = manifest
         .versions
         .iter()
         .find(|v| v.id == minecraft_version)
         .ok_or_else(|| anyhow!("Версия {} не найдена в манифесте", minecraft_version))?;
 
-    let vanilla: VersionJson = client
-        .get(&entry.url)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
+    let vanilla: VersionJson = fetch_json(&client, &entry.url).await?;
 
     // 3. Профиль модлоадера (если есть). Он наследует ванильный профиль,
     //    поэтому библиотеки и аргументы объединяются.
@@ -722,7 +749,12 @@ pub async fn launch_game(pack_id: &str, ram_gb: u32, session: UserSession, app: 
     // Early Display FML требует размеры окна (иначе NoSuchElementException
     // в DisplayWindow.updateModuleReads). Prism всегда передаёт width/height.
     if !game_args.iter().any(|a| a == "--width") {
-        game_args.extend(["--width".into(), "854".into(), "--height".into(), "480".into()]);
+        game_args.extend([
+            "--width".into(),
+            width.to_string(),
+            "--height".into(),
+            height.to_string(),
+        ]);
     }
     let main_class = if let Some(lp) = &loader_profile {
         if !lp.main_class.is_empty() {
@@ -893,9 +925,40 @@ pub async fn launch_game(pack_id: &str, ram_gb: u32, session: UserSession, app: 
         });
     }
 
+    // Учёт времени игры в экземпляре: пишем в .nio-playtime.json каждые 30 секунд
+    // и финально при завершении процесса.
+    let version_id = game_dir
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let pack_id_owned = pack_id.to_string();
     let app2 = app.clone();
     tokio::spawn(async move {
-        let exit = child.wait().await.unwrap_or_default();
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
+        let mut last = std::time::Instant::now();
+        let exit = loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    let delta = last.elapsed().as_secs();
+                    last = std::time::Instant::now();
+                    if !version_id.is_empty() && delta > 0 {
+                        crate::mrpack::add_playtime(&pack_id_owned, &version_id, delta);
+                    }
+                }
+                status = child.wait() => break status.unwrap_or_default(),
+            }
+        };
+        let delta = last.elapsed().as_secs();
+        if !version_id.is_empty() && delta >= 1 {
+            let total = crate::mrpack::add_playtime(&pack_id_owned, &version_id, delta);
+            let _ = app2.emit(
+                "playtime-updated",
+                PlaytimeUpdate {
+                    version_id: version_id.clone(),
+                    total_seconds: total,
+                },
+            );
+        }
         let msg = if exit.success() {
             "Процесс Minecraft завершился (код 0)".to_string()
         } else {
@@ -917,6 +980,12 @@ pub async fn launch_game(pack_id: &str, ram_gb: u32, session: UserSession, app: 
 pub struct LogLine {
     pub stream: String,
     pub line: String,
+}
+
+#[derive(serde::Serialize, Clone)]
+pub struct PlaytimeUpdate {
+    pub version_id: String,
+    pub total_seconds: u64,
 }
 
 fn emit_log(app: &AppHandle, stream: &str, line: &str) {

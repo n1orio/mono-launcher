@@ -8,12 +8,15 @@ import {
   installMrpack,
   isTauri,
   launchGame,
+  launcherVersion,
   listPacks,
   listVersions,
   loginMicrosoft,
   loginOffline,
   onDownloadProgress,
   onLaunchLog,
+  onPlaytimeUpdated,
+  openExternal,
   openPackDir,
   switchVersion,
 } from "~/lib/bridge";
@@ -38,8 +41,17 @@ export interface ProgressState {
   currentFile: string;
 }
 
+export interface Notice {
+  id: number;
+  type: "error" | "info" | "success";
+  text: string;
+  reportable?: boolean;
+}
+
 const PACK_KEY = "nio.pack";
 const RAM_KEY = "nio.ram";
+const WIN_W_KEY = "nio.win.w";
+const WIN_H_KEY = "nio.win.h";
 const CONSOLE_LIMIT = 2000;
 
 function formatBytes(bytes: number): string {
@@ -47,6 +59,13 @@ function formatBytes(bytes: number): string {
   const units = ["Б", "КБ", "МБ", "ГБ"];
   const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+function formatPlaytime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h} ч ${m} мин`;
+  return `${m} мин`;
 }
 
 function formatDate(iso: string | null): string {
@@ -72,6 +91,12 @@ export function useLauncher() {
   const ram = ref(Number.isFinite(savedRam) ? savedRam : 16);
   const maxRam = ref(16);
   const systemRam = ref<SystemInfo | null>(null);
+  const windowWidth = ref(
+    Number(localStorage.getItem(WIN_W_KEY)) || 854
+  );
+  const windowHeight = ref(
+    Number(localStorage.getItem(WIN_H_KEY)) || 480
+  );
   const session = ref<UserSession | null>(null);
   const busy = ref(false);
   const progress = ref<ProgressState | null>(null);
@@ -80,6 +105,76 @@ export function useLauncher() {
   const logEntries = ref<LaunchLogEntry[]>([]);
   const logRef = ref<HTMLElement | null>(null);
   const tab = ref<"play" | "settings">("play");
+  const notifications = ref<Notice[]>([]);
+  let noticeSeq = 0;
+  const launcherVer = ref("");
+  const ISSUES_URL = "https://github.com/n1orio/nio-launcher/issues/new";
+
+  function notify(text: string, type: Notice["type"] = "error") {
+    const id = ++noticeSeq;
+    notifications.value.push({ id, type, text, reportable: type === "error" });
+    if (notifications.value.length > 5) notifications.value.shift();
+    if (type === "error") console.error(text);
+    setTimeout(() => dismissNotification(id), type === "error" ? 20000 : 7000);
+  }
+
+  function dismissNotification(id: number) {
+    notifications.value = notifications.value.filter((n) => n.id !== id);
+  }
+
+  function detectOS(): string {
+    const ua = navigator.userAgent;
+    if (/Windows/i.test(ua)) return "Windows";
+    if (/Mac/i.test(ua)) return "macOS";
+    if (/Linux/i.test(ua) || /X11/i.test(ua)) return "Linux";
+    return ua.slice(0, 80);
+  }
+
+  /** Собирает тикет с ошибкой и логом запуска и открывает форму GitHub Issues. */
+  async function reportError(errorText: string) {
+    let log = "";
+    try {
+      log = await getLaunchLog();
+    } catch {
+      log = "";
+    }
+    const body = [
+      "**Описание ошибки:**",
+      "```",
+      (errorText || "(пусто)").slice(0, 3000),
+      "```",
+      "",
+      "**Окружение:**",
+      `- Лаунчер: v${launcherVer.value || "?"}`,
+      `- ОС: ${detectOS()}`,
+      `- Сборка: ${activePack.value?.name ?? (packId.value || "—")}`,
+      `- Установлена: ${status.value?.installed ? "да" : "нет"}`,
+      status.value?.active_source_tag
+        ? `- Активная версия: ${status.value.active_source_tag}`
+        : null,
+      status.value?.minecraft_version
+        ? `- Minecraft: ${status.value.minecraft_version}${status.value.loader ? ` / ${status.value.loader}` : ""}`
+        : null,
+      "",
+      "**Лог запуска:**",
+      "```",
+      (log || "(лог пуст)").slice(-50000),
+      "```",
+    ]
+      .filter((l): l is string => l !== null)
+      .join("\n");
+    const title = `[Автоотчёт] ${(errorText || "Ошибка лаунчера").slice(0, 80)}`;
+    const url = `${ISSUES_URL}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+    try {
+      if (isTauri()) {
+        await openExternal(url);
+      } else {
+        window.open(url, "_blank");
+      }
+    } catch {
+      window.open(url, "_blank");
+    }
+  }
 
   const packs = ref<PackDescriptor[]>([]);
   const packId = ref("");
@@ -88,6 +183,7 @@ export function useLauncher() {
   let speed = 0;
   let unlistenSync: (() => void) | undefined;
   let unlistenLogSync: (() => void) | undefined;
+  let unlistenPlaytimeSync: (() => void) | undefined;
 
   // Буфер логов: Java может выдавать тысячи строк в секунду —
   // рендерим консоль порциями, чтобы не ронять UI.
@@ -206,11 +302,25 @@ export function useLauncher() {
     onLaunchLog((entry: LaunchLogEntry) => {
       pushLog([entry]);
     }).then((fn) => (unlistenLogSync = fn));
+    onPlaytimeUpdated((p) => {
+      if (!versions.value) return;
+      const idx = versions.value.installed.findIndex(
+        (v) => v.version_id === p.version_id
+      );
+      if (idx >= 0) {
+        versions.value.installed[idx].total_seconds = p.total_seconds;
+        versions.value.installed = versions.value.installed.slice();
+      }
+    }).then((fn) => (unlistenPlaytimeSync = fn));
+    launcherVersion()
+      .then((v) => (launcherVer.value = v))
+      .catch(() => {});
   });
 
   onUnmounted(() => {
     unlistenSync?.();
     unlistenLogSync?.();
+    unlistenPlaytimeSync?.();
   });
 
   watch(
@@ -219,6 +329,16 @@ export function useLauncher() {
       if (typeof localStorage !== "undefined") {
         localStorage.setItem(RAM_KEY, String(v));
       }
+    },
+    { flush: "post" }
+  );
+
+  watch(
+    [windowWidth, windowHeight],
+    ([w, h]) => {
+      if (typeof localStorage === "undefined") return;
+      localStorage.setItem(WIN_W_KEY, String(w));
+      localStorage.setItem(WIN_H_KEY, String(h));
     },
     { flush: "post" }
   );
@@ -242,7 +362,7 @@ export function useLauncher() {
       await load();
       refreshVersions();
     } catch (e) {
-      alert(`Ошибка установки: ${e}`);
+      notify(`Ошибка установки: ${e}`);
     } finally {
       busy.value = false;
       lastBytes = { value: 0, at: 0 };
@@ -267,7 +387,7 @@ export function useLauncher() {
         await load();
         refreshVersions();
       } catch (e) {
-        alert(`Ошибка переключения: ${e}`);
+        notify(`Ошибка переключения: ${e}`);
       }
     } else {
       await handleInstall(tag);
@@ -277,7 +397,7 @@ export function useLauncher() {
   async function handleOffline() {
     if (!isTauri()) return;
     if (!username.value.trim()) {
-      alert("Введите никнейм");
+      notify("Введите никнейм", "info");
       return;
     }
     try {
@@ -285,7 +405,7 @@ export function useLauncher() {
       session.value = s;
       await load();
     } catch (e) {
-      alert(`Ошибка входа: ${e}`);
+      notify(`Ошибка входа: ${e}`);
     }
   }
 
@@ -296,23 +416,29 @@ export function useLauncher() {
       session.value = s;
       await load();
     } catch (e) {
-      alert(`Ошибка Microsoft: ${e}`);
+      notify(`Ошибка Microsoft: ${e}`);
     }
   }
 
   async function handlePlay() {
     if (!isTauri() || !packId.value) return;
     if (!session.value) {
-      alert("Войдите в аккаунт перед запуском");
+      notify("Войдите в аккаунт перед запуском", "info");
       return;
     }
     busy.value = true;
     logEntries.value = [];
     pendingLog.length = 0;
     try {
-      await launchGame(packId.value, ram.value, session.value);
+      await launchGame(
+      packId.value,
+      ram.value,
+      session.value,
+      windowWidth.value,
+      windowHeight.value
+    );
     } catch (e) {
-      alert(`Ошибка запуска: ${e}`);
+      notify(`Ошибка запуска: ${e}`);
     } finally {
       busy.value = false;
     }
@@ -329,7 +455,7 @@ export function useLauncher() {
     try {
       await openPackDir(packId.value);
     } catch (e) {
-      alert(`Не удалось открыть папку сборки: ${e}`);
+      notify(`Не удалось открыть папку сборки: ${e}`);
     }
   }
 
@@ -369,6 +495,8 @@ export function useLauncher() {
     ram,
     maxRam,
     systemRam,
+    windowWidth,
+    windowHeight,
     session,
     busy,
     progress,
@@ -384,6 +512,7 @@ export function useLauncher() {
     loaderLabel,
     formatBytes,
     formatDate,
+    formatPlaytime,
     isInstalledVersion,
     handleInstall,
     handleUpdate,
@@ -395,5 +524,9 @@ export function useLauncher() {
     handleCopyLog,
     handleOpenPackDir,
     selectPack,
+    notifications,
+    notify,
+    dismissNotification,
+    reportError,
   };
 }

@@ -134,12 +134,13 @@ pub async fn download_mrpack(app: &AppHandle, client: &Client, pack_id: &str, ur
 }
 
 /// Распаковывает `.mrpack` во временную папку и возвращает её путь.
-pub async fn extract_mrpack(mrpack_path: &Path) -> Result<PathBuf> {
+pub async fn extract_mrpack(app: &AppHandle, mrpack_path: &Path) -> Result<PathBuf> {
     let tmp_dir = std::env::temp_dir().join(format!("nio-mrpack-{}", uuid::Uuid::new_v4()));
     fs::create_dir_all(&tmp_dir)?;
 
     let file = fs::File::open(mrpack_path)?;
     let mut archive = zip::ZipArchive::new(file).context("Не удалось открыть .mrpack как zip")?;
+    let total = archive.len();
 
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i)?;
@@ -147,6 +148,19 @@ pub async fn extract_mrpack(mrpack_path: &Path) -> Result<PathBuf> {
             .enclosed_name()
             .ok_or_else(|| anyhow!("Некорректное имя файла в архиве"))?;
         let out_path = tmp_dir.join(entry_name);
+
+        emit_progress(
+            app,
+            &DownloadProgress {
+                phase: "Распаковка архива".into(),
+                current: i as u64,
+                total: total as u64,
+                file_index: i,
+                file_total: total,
+                current_file: entry.name().to_string(),
+                bytes_per_sec: 0,
+            },
+        );
 
         if entry.is_dir() {
             fs::create_dir_all(&out_path)?;
@@ -396,30 +410,51 @@ pub async fn download_all_files(
     Ok(())
 }
 
-/// Копирует папку `overrides` из распакованного архива в папку игры.
-pub fn apply_overrides(extract_dir: &Path, game_dir: &Path) -> Result<()> {
+/// Копирует папку `overrides` из распакованного архива в папку игры
+/// с показом прогресса (фаза «Применение overrides»).
+pub fn apply_overrides(app: &AppHandle, extract_dir: &Path, game_dir: &Path) -> Result<()> {
     let overrides = extract_dir.join("overrides");
     if !overrides.exists() {
         return Ok(());
     }
-    copy_dir_recursive(&overrides, game_dir)?;
+    let mut files: Vec<PathBuf> = Vec::new();
+    collect_files(&overrides, Path::new(""), &mut files);
+    let total = files.len();
+    for (i, rel) in files.iter().enumerate() {
+        let src = overrides.join(rel);
+        let dst = game_dir.join(rel);
+        if let Some(parent) = dst.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::copy(&src, &dst)?;
+        emit_progress(
+            app,
+            &DownloadProgress {
+                phase: "Применение overrides".into(),
+                current: i as u64,
+                total: total as u64,
+                file_index: i,
+                file_total: total,
+                current_file: rel.to_string_lossy().to_string(),
+                bytes_per_sec: 0,
+            },
+        );
+    }
     Ok(())
 }
 
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    fs::create_dir_all(dst)?;
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
+/// Собирает относительные пути всех файлов (без каталогов) в `src`.
+fn collect_files(src: &Path, prefix: &Path, out: &mut Vec<PathBuf>) {
+    let Ok(rd) = fs::read_dir(src) else { return };
+    for entry in rd.flatten() {
         let path = entry.path();
-        let target = dst.join(entry.file_name());
+        let rel = prefix.join(entry.file_name());
         if path.is_dir() {
-            copy_dir_recursive(&path, &target)?;
-        } else {
-            fs::create_dir_all(target.parent().unwrap())?;
-            fs::copy(&path, &target)?;
+            collect_files(&path, &rel, out);
+        } else if path.is_file() {
+            out.push(rel);
         }
     }
-    Ok(())
 }
 
 /// Маркер установки: файл с версией в папке игры.
@@ -431,6 +466,43 @@ pub struct InstalledVersion {
     pub version_id: String,
     pub name: String,
     pub source_tag: Option<String>,
+    pub total_seconds: u64,
+}
+
+const PLAYTIME_FILE: &str = ".nio-playtime.json";
+
+/// Накопленное время игры в версии (секунды).
+pub fn read_playtime(dir: &Path) -> u64 {
+    let path = dir.join(PLAYTIME_FILE);
+    let Ok(raw) = fs::read_to_string(&path) else {
+        return 0;
+    };
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&raw) else {
+        return 0;
+    };
+    json["totalSeconds"].as_u64().unwrap_or(0)
+}
+
+/// Записывает суммарное время игры для версии.
+pub fn write_playtime(pack_id: &str, version_id: &str, total_seconds: u64) -> Result<()> {
+    let dir = config::version_dir(pack_id, version_id)?;
+    fs::create_dir_all(&dir)?;
+    fs::write(
+        dir.join(PLAYTIME_FILE),
+        serde_json::json!({ "totalSeconds": total_seconds }).to_string(),
+    )?;
+    Ok(())
+}
+
+/// Добавляет секунды к накопленному времени и возвращает новое значение.
+pub fn add_playtime(pack_id: &str, version_id: &str, seconds: u64) -> u64 {
+    let dir = match config::version_dir(pack_id, version_id) {
+        Ok(d) => d,
+        Err(_) => return 0,
+    };
+    let total = read_playtime(&dir) + seconds;
+    let _ = write_playtime(pack_id, version_id, total);
+    total
 }
 
 /// Список установленных версий (папки с маркером) для конкретной сборки.
@@ -464,10 +536,12 @@ pub fn installed_details(pack_id: &str) -> Vec<InstalledVersion> {
                             .filter(|s| !s.is_empty());
                     }
                 }
+                let total_seconds = read_playtime(&dir);
                 out.push(InstalledVersion {
                     version_id,
                     name,
                     source_tag: tag,
+                    total_seconds,
                 });
             }
         }
@@ -545,7 +619,7 @@ pub async fn install_mrpack(
             ..Default::default()
         },
     );
-    let extract_dir = extract_mrpack(&mrpack_path).await?;
+    let extract_dir = extract_mrpack(&app, &mrpack_path).await?;
     let (index, info) = parse_index(&extract_dir)?;
 
     // Своя папка на каждую версию, чтобы можно было переключаться.
@@ -559,7 +633,7 @@ pub async fn install_mrpack(
             ..Default::default()
         },
     );
-    apply_overrides(&extract_dir, &game_dir)?;
+    apply_overrides(&app, &extract_dir, &game_dir)?;
 
     // Маркер установки + копия индекса в папке версии.
     write_install_marker(&game_dir, &index, source_tag)?;

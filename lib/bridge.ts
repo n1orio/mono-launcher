@@ -54,15 +54,30 @@ export function loginMicrosoft(): Promise<UserSession> {
 export function launchGame(
   packId: string,
   ramGb: number,
-  session: UserSession
+  session: UserSession,
+  width: number,
+  height: number
 ): Promise<void> {
-  return invoke("launch_game_command", { packId, ramGb, session });
+  return invoke("launch_game_command", { packId, ramGb, session, width, height });
 }
 
 export function onDownloadProgress(
   cb: (p: DownloadProgress) => void
 ): Promise<UnlistenFn> {
   return listen<DownloadProgress>("download-progress", (event) =>
+    cb(event.payload)
+  );
+}
+
+export interface PlaytimeUpdate {
+  version_id: string;
+  total_seconds: number;
+}
+
+export function onPlaytimeUpdated(
+  cb: (p: PlaytimeUpdate) => void
+): Promise<UnlistenFn> {
+  return listen<PlaytimeUpdate>("playtime-updated", (event) =>
     cb(event.payload)
   );
 }
@@ -83,4 +98,12 @@ export function clearLaunchLog(): Promise<void> {
 
 export function openPackDir(packId: string): Promise<void> {
   return invoke("open_pack_dir", { packId });
+}
+
+export function launcherVersion(): Promise<string> {
+  return invoke("launcher_version");
+}
+
+export function openExternal(url: string): Promise<void> {
+  return invoke("open_url", { url });
 }

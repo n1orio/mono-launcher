@@ -61,6 +61,7 @@ export interface InstalledVersion {
   version_id: string;
   name: string;
   source_tag: string | null;
+  total_seconds: number;
 }
 
 export interface VersionsInfo {

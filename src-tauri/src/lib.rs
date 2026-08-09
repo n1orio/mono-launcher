@@ -3,6 +3,7 @@ mod config;
 mod game;
 mod mrpack;
 
+use std::time::Duration;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
@@ -257,10 +258,19 @@ async fn install_mrpack(
     tag: Option<String>,
 ) -> Result<mrpack::PackInfo, String> {
     let pack = resolve_pack(pack_id)?;
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(600))
+        .build()
+        .map_err(|e| e.to_string())?;
     let url = match &tag {
         Some(t) => mrpack_url_for_tag(pack, t),
-        None => pack.url.to_string(),
+        // latest в GitHub не перенаправляет на пререлизы, поэтому берём
+        // самый свежий релиз из API (включая пререлизы).
+        None => match fetch_releases(&client, pack).await.into_iter().next() {
+            Some(r) => r.url,
+            None => pack.url.to_string(),
+        },
     };
     mrpack::install_mrpack(app, &client, pack.id, &url, tag.as_deref())
         .await
@@ -301,8 +311,8 @@ async fn get_status(pack_id: Option<String>) -> Result<AppStatus, String> {
     Ok(status)
 }
 
-/// Открывает в системном проводнике папку активной версии сборки
-/// (или корень версий, если ничего не установлено).
+/// Открывает в системном проводнике папку активной версии сборки.
+/// Если сборка ещё не установлена — открывает (создавая) папку данных сборки.
 #[tauri::command]
 fn open_pack_dir(app: AppHandle, pack_id: Option<String>) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
@@ -312,8 +322,15 @@ fn open_pack_dir(app: AppHandle, pack_id: Option<String>) -> Result<(), String> 
         .filter(|v| !v.is_empty())
         .and_then(|v| config::version_dir(pack.id, &v).ok())
         .filter(|d| d.exists())
-        .or_else(|| config::versions_root(pack.id).ok().filter(|d| d.exists()))
-        .unwrap_or_else(|| std::env::temp_dir());
+        .or_else(|| {
+            config::versions_root(pack.id)
+                .ok()
+                .filter(|d| d.exists())
+        })
+        .or_else(|| config::pack_dir(pack.id).ok())
+        .unwrap_or_else(|| config::launcher_root().unwrap_or_else(|_| std::env::temp_dir()));
+    // Если папки нет (сборка не установлена) — создаём, чтобы проводник открыл её.
+    let _ = std::fs::create_dir_all(&dir);
     app.opener()
         .open_path(dir.to_string_lossy().to_string(), None::<&str>)
         .map_err(|e| e.to_string())
@@ -344,9 +361,11 @@ async fn launch_game_command(
     pack_id: Option<String>,
     ram_gb: u32,
     session: UserSession,
+    width: u32,
+    height: u32,
 ) -> Result<(), String> {
     let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
-    game::launch_game(&pack_id, ram_gb, session, app)
+    game::launch_game(&pack_id, ram_gb, session, app, width.max(320), height.max(240))
         .await
         .map_err(|e| e.to_string())
 }
@@ -373,6 +392,21 @@ fn clear_launch_log() -> Result<(), String> {
     Ok(())
 }
 
+/// Версия лаунчера (из Cargo.toml) — для отчётов об ошибках.
+#[tauri::command]
+fn launcher_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+/// Открывает URL во внешнем браузере.
+#[tauri::command]
+fn open_url(app: AppHandle, url: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url(&url, None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let state = AppState {
@@ -397,6 +431,8 @@ pub fn run() {
             get_launch_log,
             clear_launch_log,
             open_pack_dir,
+            launcher_version,
+            open_url,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
