@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NIO Launcher — открыть сборку</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1f1b4d, #0b0f1a 60%);
+    color: #c9d1d9;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    padding: 24px;
+  }
+  .card {
+    width: 100%; max-width: 440px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 32px 28px;
+    text-align: center;
+  }
+  .logo {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #7c5cff, #388bfd);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800;
+    color: #fff;
+    font-size: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 6px 24px rgba(124, 92, 255, .35);
+  }
+  h1 { font-size: 20px; color: #f0f6fc; margin-bottom: 6px; word-break: break-word; }
+  .sub { font-size: 13px; color: #8b949e; margin-bottom: 24px; }
+  .status { font-size: 13px; color: #8b949e; min-height: 18px; margin-bottom: 16px; }
+  .btn {
+    display: block; width: 100%;
+    border: none; border-radius: 8px;
+    padding: 12px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+    color: #fff; text-decoration: none;
+    transition: transform .1s, background .15s;
+  }
+  .btn:active { transform: translateY(1px); }
+  .primary { background: #1f6beb; margin-bottom: 10px; }
+  .primary:hover { background: #388bfd; }
+  .secondary { background: #21262d; border: 1px solid #30363d; }
+  .secondary:hover { background: #30363d; }
+  .pulse { animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(31, 107, 235, .5); }
+    50% { box-shadow: 0 0 0 8px rgba(31, 107, 235, 0); }
+  }
+  .foot { margin-top: 18px; font-size: 11px; color: #484f58; }
+  .foot a { color: #58a6ff; text-decoration: none; }
+  .repo { margin-top: 14px; font-size: 10px; color: #484f58; word-break: break-all; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">NIO</div>
+    <h1 id="title">Сборка для NIO Launcher</h1>
+    <p class="sub">Модпак для NIO Launcher</p>
+    <p class="status" id="status">Открываем лаунчер…</p>
+    <button class="btn primary" id="open" type="button">Открыть в лаунчере</button>
+    <a class="btn secondary" id="download" href="https://github.com/n1orio/nio-launcher/releases/latest">Скачать NIO Launcher</a>
+    <p class="repo" id="repo"></p>
+    <p class="foot">
+      Как опубликовать свою сборку — в
+      <a href="https://github.com/n1orio/nio-launcher/blob/main/README.md">README лаунчера</a>.
+    </p>
+  </div>
+<script>
+  var params = new URLSearchParams(window.location.search);
+  var PACK_URL = params.get("url") || "";
+  var PACK_NAME = params.get("name") || "";
+  var LAUNCHER_URL = "https://github.com/n1orio/nio-launcher/releases/latest";
+  var opened = false;
+
+  var title = document.getElementById("title");
+  if (PACK_NAME) title.textContent = PACK_NAME;
+  document.getElementById("repo").textContent = PACK_URL;
+
+  function deepLink() {
+    return "niol://add-pack?url=" + encodeURIComponent(PACK_URL);
+  }
+
+  function openInLauncher() {
+    if (opened) return;
+    opened = true;
+    var status = document.getElementById("status");
+    if (!PACK_URL) {
+      status.textContent = "Ссылка повреждена: в ней нет адреса сборки (?url=...).";
+      document.getElementById("open").style.display = "none";
+      document.getElementById("download").classList.add("pulse");
+      return;
+    }
+    status.textContent = "Запускаем лаунчер…";
+    window.location.href = deepLink();
+    setTimeout(function () {
+      status.textContent = "Если лаунчер не открылся — установите его:";
+      document.getElementById("download").classList.add("pulse");
+    }, 1500);
+  }
+
+  document.getElementById("open").addEventListener("click", openInLauncher);
+
+  window.addEventListener("load", function () {
+    setTimeout(openInLauncher, 300);
+  });
+</script>
+</body>
+</html>
