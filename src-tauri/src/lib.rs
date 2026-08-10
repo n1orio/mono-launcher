@@ -1,9 +1,14 @@
 mod auth;
 mod config;
+mod discord_rp;
+mod files;
 mod game;
+mod jre;
 mod mrpack;
 
-use std::time::Duration;
+use std::collections::HashMap;
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
@@ -28,6 +33,7 @@ pub struct AppStatus {
     pub active_version: Option<String>,
     pub active_source_tag: Option<String>,
     pub installed_versions: Vec<String>,
+    pub discord_rp_enabled: bool,
 }
 
 /// Публичное описание сборки для фронтенда.
@@ -45,7 +51,7 @@ pub struct UpdateInfo {
 }
 
 /// Релиз сборки на GitHub.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct GhVersion {
     pub tag: String,
     pub name: String,
@@ -61,6 +67,21 @@ pub struct VersionsInfo {
     pub github: Vec<GhVersion>,
     pub installed: Vec<mrpack::InstalledVersion>,
     pub active: Option<String>,
+}
+
+/// Один элемент ленты новостей: обновление сборки (релиз) или пост (discussion).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewsItem {
+    pub kind: String,
+    pub pack_id: String,
+    pub pack_name: String,
+    pub title: String,
+    pub body: String,
+    pub url: String,
+    pub tag: Option<String>,
+    pub category: Option<String>,
+    pub date: Option<String>,
 }
 
 /// Информация о системе для ползунка RAM.
@@ -117,6 +138,96 @@ fn mrpack_url_for_tag(pack: &PackDef, tag: &str) -> String {
     format!("https://github.com/{owner}/{repo}/releases/download/{tag}/{file}")
 }
 
+const API_HIT_TTL: Duration = Duration::from_secs(15 * 60);
+const API_FAIL_RETRY: Duration = Duration::from_secs(60);
+
+/// Кэш GitHub API: успешные ответы живут 15 минут, ошибки (в т.ч. rate limit)
+/// не дают долбить API чаще раза в минуту.
+struct ApiCache {
+    releases: HashMap<String, (Instant, Vec<GhVersion>)>,
+    discussions: HashMap<String, (Instant, Vec<NewsItem>)>,
+    failures: HashMap<String, Instant>,
+}
+
+static API_CACHE: OnceLock<std::sync::Mutex<ApiCache>> = OnceLock::new();
+
+fn api_cache() -> &'static std::sync::Mutex<ApiCache> {
+    API_CACHE.get_or_init(|| {
+        std::sync::Mutex::new(ApiCache {
+            releases: HashMap::new(),
+            discussions: HashMap::new(),
+            failures: HashMap::new(),
+        })
+    })
+}
+
+fn repo_key(pack: &PackDef) -> Option<String> {
+    parse_github_repo(pack).map(|(o, r)| format!("{o}/{r}"))
+}
+
+/// `fetch_releases` с кэшем: повторные запросы в течение TTL не ходят в сеть,
+/// а при сбое (403 rate limit, нет сети) повторная попытка — не раньше чем через минуту.
+async fn fetch_releases_cached(client: &reqwest::Client, pack: &PackDef) -> Vec<GhVersion> {
+    let Some(key) = repo_key(pack) else {
+        return Vec::new();
+    };
+    {
+        let cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((at, v)) = cache.releases.get(&key) {
+            if at.elapsed() < API_HIT_TTL {
+                return v.clone();
+            }
+        } else if let Some(at) = cache.failures.get(&key) {
+            if at.elapsed() < API_FAIL_RETRY {
+                return Vec::new();
+            }
+        }
+    }
+    let fetched = fetch_releases(client, pack).await;
+    let mut cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
+    if fetched.is_empty() {
+        cache.failures.insert(key, Instant::now());
+    } else {
+        cache.releases.insert(key.clone(), (Instant::now(), fetched.clone()));
+        cache.failures.remove(&key);
+    }
+    fetched
+}
+
+/// `fetch_discussions` с тем же кэшем, что и релизы.
+async fn fetch_discussions_cached(
+    client: &reqwest::Client,
+    owner: &str,
+    repo: &str,
+    kind: &str,
+    pack_id: &str,
+    pack_name: &str,
+) -> Vec<NewsItem> {
+    let key = format!("disc/{owner}/{repo}");
+    {
+        let cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((at, v)) = cache.discussions.get(&key) {
+            if at.elapsed() < API_HIT_TTL {
+                return v.clone();
+            }
+        } else if let Some(at) = cache.failures.get(&key) {
+            if at.elapsed() < API_FAIL_RETRY {
+                return Vec::new();
+            }
+        }
+    }
+    let fetched =
+        fetch_discussions(client, owner, repo, kind, pack_id, pack_name).await;
+    let mut cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
+    if fetched.is_empty() {
+        cache.failures.insert(key, Instant::now());
+    } else {
+        cache.discussions.insert(key.clone(), (Instant::now(), fetched.clone()));
+        cache.failures.remove(&key);
+    }
+    fetched
+}
+
 /// Релизы сборки с GitHub (тег + ченджлог + дата).
 async fn fetch_releases(client: &reqwest::Client, pack: &PackDef) -> Vec<GhVersion> {
     let Some((owner, repo)) = parse_github_repo(pack) else {
@@ -162,6 +273,59 @@ async fn fetch_releases(client: &reqwest::Client, pack: &PackDef) -> Vec<GhVersi
     out
 }
 
+/// Hub-репозиторий с глобальными постами/новостями (GitHub Discussions).
+/// Посты также считываются из репозиториев каждой сборки.
+const NEWS_REPO: (&str, &str) = ("n1orio", "nio-launcher");
+
+/// Посты (обсуждения) из репозитория. Discussions должны быть включены,
+/// иначе репозиторий просто не даёт постов — не ошибка.
+async fn fetch_discussions(
+    client: &reqwest::Client,
+    owner: &str,
+    repo: &str,
+    kind: &str,
+    pack_id: &str,
+    pack_name: &str,
+) -> Vec<NewsItem> {
+    let url = format!("https://api.github.com/repos/{owner}/{repo}/discussions?per_page=100");
+    let Ok(resp) = client
+        .get(&url)
+        .header("User-Agent", "nio-launcher")
+        .send()
+        .await
+    else {
+        return Vec::new();
+    };
+    if !resp.status().is_success() {
+        return Vec::new();
+    }
+    let Ok(json) = resp.json::<serde_json::Value>().await else {
+        return Vec::new();
+    };
+    let Some(arr) = json.as_array() else {
+        return Vec::new();
+    };
+    arr.iter()
+        .filter_map(|d| {
+            let title = d["title"].as_str().unwrap_or("").trim().to_string();
+            if title.is_empty() {
+                return None;
+            }
+            Some(NewsItem {
+                kind: kind.into(),
+                pack_id: pack_id.to_string(),
+                pack_name: pack_name.to_string(),
+                title,
+                body: d["body"].as_str().unwrap_or("").to_string(),
+                url: d["html_url"].as_str().unwrap_or("").to_string(),
+                tag: None,
+                category: d["category"]["name"].as_str().map(|s| s.to_string()),
+                date: d["created_at"].as_str().map(|s| s.to_string()),
+            })
+        })
+        .collect()
+}
+
 /// Список поддерживаемых сборок.
 #[tauri::command]
 fn list_packs() -> Vec<PackDescriptor> {
@@ -183,12 +347,105 @@ async fn list_versions(
     let pack = resolve_pack(pack_id)?;
     let installed = mrpack::installed_details(pack.id);
     let active = config::active_version(pack.id).ok().filter(|v| !v.is_empty());
-    let github = fetch_releases(&state.client, pack).await;
+    let github = fetch_releases_cached(&state.client, pack).await;
     Ok(VersionsInfo {
         github,
         installed,
         active,
     })
+}
+
+/// Список файлов папки игры (моды/ресурспаки/шейдеры/миры) с состоянием.
+#[tauri::command]
+fn list_game_files_command(
+    pack_id: Option<String>,
+    folder: String,
+) -> Result<Vec<files::GameFileEntry>, String> {
+    let pack = resolve_pack(pack_id)?;
+    files::list_files(pack.id, &folder).map_err(|e| e.to_string())
+}
+
+/// Включает/выключает файл (мод/ресурспак/шейдер) переименованием в *.disabled.
+#[tauri::command]
+fn toggle_game_file_command(
+    pack_id: Option<String>,
+    folder: String,
+    name: String,
+    enabled: bool,
+) -> Result<(), String> {
+    let pack = resolve_pack(pack_id)?;
+    files::toggle_file(pack.id, &folder, &name, enabled).map_err(|e| e.to_string())
+}
+
+/// Иконка файла/папки (data-URL PNG) для отображения в списках.
+#[tauri::command]
+fn get_game_file_icon_command(
+    pack_id: Option<String>,
+    folder: String,
+    name: String,
+) -> Result<Option<String>, String> {
+    let pack = resolve_pack(pack_id)?;
+    files::file_icon(pack.id, &folder, &name).map_err(|e| e.to_string())
+}
+
+/// Иконки пачки файлов одним вызовом (data-URL PNG или None).
+#[tauri::command]
+fn get_game_file_icons_command(
+    pack_id: Option<String>,
+    folder: String,
+    names: Vec<String>,
+) -> Result<Vec<files::GameFileIcon>, String> {
+    let pack = resolve_pack(pack_id)?;
+    Ok(files::file_icons(pack.id, &folder, &names))
+}
+
+/// Лента новостей: релизы (обновления) + посты всех сборок и глобальные посты
+/// hub-репозитория лаунчера, свежие сверху.
+#[tauri::command]
+async fn get_news_command(state: State<'_, AppState>) -> Result<Vec<NewsItem>, String> {
+    let mut items: Vec<NewsItem> = Vec::new();
+    // Глобальные посты лаунчера.
+    items.extend(
+        fetch_discussions_cached(
+            &state.client,
+            NEWS_REPO.0,
+            NEWS_REPO.1,
+            "post",
+            "launcher",
+            "NIO Launcher",
+        )
+        .await,
+    );
+    for pack in config::PACKS {
+        for rel in fetch_releases_cached(&state.client, pack).await {
+            items.push(NewsItem {
+                kind: "update".into(),
+                pack_id: pack.id.to_string(),
+                pack_name: pack.name.to_string(),
+                title: rel.name,
+                body: rel.body,
+                url: rel.url,
+                tag: Some(rel.tag),
+                category: None,
+                date: rel.published_at,
+            });
+        }
+        // Посты из репозитория сборки (если там включены Discussions).
+        if let Some((owner, repo)) = parse_github_repo(pack) {
+            items.extend(
+                fetch_discussions_cached(&state.client, &owner, &repo, "post", pack.id, pack.name)
+                    .await,
+            );
+        }
+    }
+    // Свежие сверху (без даты — вниз).
+    items.sort_by(|a, b| match (&b.date, &a.date) {
+        (Some(x), Some(y)) => x.cmp(y),
+        (Some(_), None) => std::cmp::Ordering::Greater,
+        (None, Some(_)) => std::cmp::Ordering::Less,
+        (None, None) => std::cmp::Ordering::Equal,
+    });
+    Ok(items)
 }
 
 /// Переключает активную версию сборки (по тегу GitHub или versionId).
@@ -237,7 +494,7 @@ async fn check_for_updates(
 ) -> Result<UpdateInfo, String> {
     let pack = resolve_pack(pack_id)?;
     let current = active_installed_tag(pack.id);
-    let releases = fetch_releases(&state.client, pack).await;
+    let releases = fetch_releases_cached(&state.client, pack).await;
     let latest = releases.first().map(|r| r.tag.clone());
     Ok(UpdateInfo {
         current_version: current.clone(),
@@ -268,7 +525,7 @@ async fn install_mrpack(
         // latest в GitHub не перенаправляет на пререлизы, поэтому берём
         // самый свежий релиз из API (включая пререлизы). А tag записываем
         // в маркер установки — иначе лаунчер будет вечно «обнаруживать обновление».
-        None => match fetch_releases(&client, pack).await.into_iter().next() {
+        None => match fetch_releases_cached(&client, pack).await.into_iter().next() {
             Some(r) => (r.url, Some(r.tag)),
             None => (pack.url.to_string(), None),
         },
@@ -287,6 +544,7 @@ async fn get_status(pack_id: Option<String>) -> Result<AppStatus, String> {
         active_version: config::active_version(pack.id).ok().filter(|v| !v.is_empty()),
         active_source_tag: active_installed_tag(pack.id),
         installed_versions: mrpack::installed_versions(pack.id),
+        discord_rp_enabled: config::discord_rp_enabled(),
         ..Default::default()
     };
 
@@ -424,6 +682,104 @@ fn open_url(app: AppHandle, url: String) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Список найденных Java (встроенная + системные + PATH) с флагом выбранной.
+#[tauri::command]
+fn list_java_command() -> Vec<jre::JavaInfo> {
+    jre::list_javas()
+}
+
+/// Сохраняет выбранную Java (путь к бинарю) в конфиг. None — авто.
+#[tauri::command]
+fn set_java_path_command(path: Option<String>) -> Result<(), String> {
+    config::set_java_selection(path.as_deref()).map_err(|e| e.to_string())
+}
+
+/// Скачивает и распаковывает встроенную JRE 21 (если её ещё нет).
+#[tauri::command]
+async fn ensure_java_command(app: AppHandle, state: State<'_, AppState>) -> Result<String, String> {
+    jre::ensure_bundled_java(&app, &state.client)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Проверка целостности файлов активной версии сборки.
+#[tauri::command]
+fn verify_game_command(pack_id: Option<String>) -> Result<mrpack::VerifyResult, String> {
+    let pack = resolve_pack(pack_id)?;
+    mrpack::verify_pack(pack.id).map_err(|e| e.to_string())
+}
+
+/// Открывает служебную папку игры: mods / screenshots / resourcepacks / shaderpacks / saves / logs.
+#[tauri::command]
+fn open_game_folder_command(
+    app: AppHandle,
+    pack_id: Option<String>,
+    folder: String,
+) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let pack = resolve_pack(pack_id)?;
+    let sub = match folder.as_str() {
+        "mods" | "screenshots" | "resourcepacks" | "shaderpacks" | "saves" | "logs" => {
+            folder.clone()
+        }
+        _ => return Err("Неизвестная папка".into()),
+    };
+    let dir = config::active_game_dir(pack.id)
+        .map_err(|e| e.to_string())?
+        .join(&sub);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    app.opener()
+        .open_path(dir.to_string_lossy().to_string(), None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
+/// Включает/выключает Discord Rich Presence (конфиг discord-rp.txt).
+#[tauri::command]
+fn set_discord_rp_command(enabled: bool) -> Result<(), String> {
+    config::set_discord_rp_enabled(enabled).map_err(|e| e.to_string())
+}
+
+/// Запоминает язык интерфейса (ru/en) для строк, формируемых на стороне Rust
+/// (например, активность Discord).
+#[tauri::command]
+fn set_locale_command(locale: String) {
+    crate::discord_rp::set_locale(locale);
+}
+
+/// URL текстуры скина Mojang-профиля по uuid (без даш). None — нет скина/профиля.
+#[tauri::command]
+async fn get_skin_command(state: State<'_, AppState>, uuid: String) -> Result<Option<String>, String> {
+    let url = format!("https://sessionserver.mojang.com/session/minecraft/profile/{uuid}");
+    let resp = state
+        .client
+        .get(&url)
+        .header("User-Agent", "nio-launcher")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if resp.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    let skin_url = json
+        .get("properties")
+        .and_then(|p| p.as_array())
+        .and_then(|props| props.iter().find(|pr| pr["name"] == "textures"))
+        .and_then(|pr| {
+            use base64::Engine;
+            pr["value"]
+                .as_str()
+                .and_then(|b64| {
+                    base64::engine::general_purpose::STANDARD
+                        .decode(b64)
+                        .ok()
+                })
+                .and_then(|raw| serde_json::from_slice::<serde_json::Value>(&raw).ok())
+        })
+        .and_then(|t| t["textures"]["SKIN"]["url"].as_str().map(|s| s.to_string()));
+    Ok(skin_url)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let state = AppState {
@@ -453,6 +809,19 @@ pub fn run() {
             open_pack_dir,
             launcher_version,
             open_url,
+            list_java_command,
+            set_java_path_command,
+            ensure_java_command,
+            verify_game_command,
+            open_game_folder_command,
+            get_skin_command,
+            set_discord_rp_command,
+            set_locale_command,
+            get_news_command,
+            list_game_files_command,
+            toggle_game_file_command,
+            get_game_file_icon_command,
+            get_game_file_icons_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

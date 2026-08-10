@@ -60,6 +60,38 @@ pub struct MsDeviceCodeInfo {
     pub device_code: String,
     pub interval: u64,
     pub expires_in: u64,
+    /// QR-код страницы подтверждения (SVG) — сканировать с телефона.
+    pub qr_svg: String,
+}
+
+/// Рендерит QR-код как SVG-строку (без внешних зависимостей на image).
+fn qr_svg(text: &str) -> String {
+    use qrcode::QrCode;
+    let Ok(code) = QrCode::new(text.as_bytes()) else {
+        return String::new();
+    };
+    let cells = code.to_colors();
+    let size = code.width();
+    let cell = 4usize;
+    let border = 2usize;
+    let dim = (size + border * 2) * cell;
+    let mut svg = format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {dim} {dim}\" shape-rendering=\"crispEdges\">"
+    );
+    svg.push_str("<rect width=\"100%\" height=\"100%\" fill=\"#ffffff\"/>");
+    for (i, color) in cells.iter().enumerate() {
+        if *color != qrcode::types::Color::Light {
+            let x = i % size;
+            let y = i / size;
+            svg.push_str(&format!(
+                "<rect x=\"{}\" y=\"{}\" width=\"{cell}\" height=\"{cell}\" fill=\"#0d1117\"/>",
+                (x + border) * cell,
+                (y + border) * cell
+            ));
+        }
+    }
+    svg.push_str("</svg>");
+    svg
 }
 
 #[derive(Debug, Deserialize)]
@@ -152,6 +184,7 @@ pub async fn ms_device_code(client: &reqwest::Client) -> Result<MsDeviceCodeInfo
         .await?;
 
     Ok(MsDeviceCodeInfo {
+        qr_svg: qr_svg(&code_resp.verification_uri),
         user_code: code_resp.user_code,
         verification_uri: code_resp.verification_uri,
         device_code: code_resp.device_code,

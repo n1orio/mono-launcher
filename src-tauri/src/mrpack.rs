@@ -505,6 +505,20 @@ pub fn add_playtime(pack_id: &str, version_id: &str, seconds: u64) -> u64 {
     total
 }
 
+/// Суммарное время игры во всех установленных версиях сборки (секунды).
+pub fn pack_playtime_seconds(pack_id: &str) -> u64 {
+    let Ok(root) = config::versions_root(pack_id) else {
+        return 0;
+    };
+    let Ok(dirs) = fs::read_dir(&root) else {
+        return 0;
+    };
+    dirs.flatten()
+        .filter(|e| e.path().is_dir())
+        .map(|e| read_playtime(&e.path()))
+        .sum()
+}
+
 /// Список установленных версий (папки с маркером) для конкретной сборки.
 pub fn installed_versions(pack_id: &str) -> Vec<String> {
     installed_details(pack_id)
@@ -591,6 +605,50 @@ pub fn write_install_marker(game_dir: &Path, index: &ModrinthIndex, source_tag: 
     });
     fs::write(marker, serde_json::to_vec_pretty(&payload)?)?;
     Ok(())
+}
+
+/// Результат проверки целостности сборки.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyResult {
+    pub checked: usize,
+    pub ok: usize,
+    /// Что сломано: «путь — причина».
+    pub broken: Vec<String>,
+}
+
+/// Проверяет файлы активной версии по хэшам из её индекса
+/// (файлы без хэшей — только по наличию).
+pub fn verify_pack(pack_id: &str) -> Result<VerifyResult> {
+    let game_dir = config::active_game_dir(pack_id)?;
+    let index_path = game_dir.join(".nio-index.json");
+    let raw = fs::read_to_string(&index_path)
+        .context("Сборка не установлена (нет индекса). Нажмите «Скачать и играть».")?;
+    let index: ModrinthIndex = serde_json::from_str(&raw)?;
+
+    let mut out = VerifyResult {
+        checked: 0,
+        ok: 0,
+        broken: Vec::new(),
+    };
+    for file in &index.files {
+        // Серверные файлы в клиентскую установку не попадают.
+        if file.env.as_ref().map(|e| e.client.as_str()) == Some("server") {
+            continue;
+        }
+        let dest = game_dir.join(&file.path);
+        out.checked += 1;
+        if !dest.exists() {
+            out.broken.push(format!("{} — отсутствует", file.path));
+            continue;
+        }
+        if !file.hashes.is_empty() && !hashes_ok(&dest, &file.hashes) {
+            out.broken.push(format!("{} — повреждён (хэш не совпал)", file.path));
+            continue;
+        }
+        out.ok += 1;
+    }
+    Ok(out)
 }
 
 /// Полное скачивание + распаковка + установка конкретной версии.

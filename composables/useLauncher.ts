@@ -4,13 +4,19 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import {
   checkForUpdates,
   clearLaunchLog,
+  ensureJava,
+  getGameFileIcons,
   getLaunchLog,
+  getNews,
+  getSkin,
   getStatus,
   getSystemInfo,
   installMrpack,
   isTauri,
-launchGame,
+  launchGame,
   launcherVersion,
+  listGameFiles,
+  listJava,
   listPacks,
   listVersions,
   loginOffline,
@@ -21,20 +27,34 @@ launchGame,
   onLaunchLog,
   onPlaytimeUpdated,
   openExternal,
+  openGameFolder,
   openPackDir,
+  setJavaPath,
+  setDiscordRp,
+  setLocale,
   switchVersion,
+  toggleGameFile,
+  verifyGame,
 } from "~/lib/bridge";
 import type {
   AppStatus,
   DownloadProgress,
+  GameFileEntry,
+  JavaInfo,
   LaunchLogEntry,
   MsDeviceCodeInfo,
+  NewsItem,
   PackDescriptor,
   SystemInfo,
   UpdateInfo,
   UserSession,
+  VerifyResult,
   VersionsInfo,
 } from "~/lib/types";
+import type { GameFolderKind } from "~/lib/bridge";
+import { useI18n } from "~/composables/useI18n";
+
+const { t, locale } = useI18n();
 
 export interface ProgressState {
   phase: string;
@@ -60,8 +80,8 @@ const WIN_H_KEY = "nio.win.h";
 const CONSOLE_LIMIT = 2000;
 
 function formatBytes(bytes: number): string {
-  if (bytes <= 0) return "0 Б";
-  const units = ["Б", "КБ", "МБ", "ГБ"];
+  if (bytes <= 0) return `0 ${t("units.b")}`;
+  const units = [t("units.b"), t("units.kb"), t("units.mb"), t("units.gb")];
   const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
@@ -69,15 +89,15 @@ function formatBytes(bytes: number): string {
 function formatPlaytime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h} ч ${m} мин`;
-  return `${m} мин`;
+  if (h > 0) return t("time.hm", { h, m });
+  return t("time.min", { m });
 }
 
 function formatDate(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("ru-RU", {
+  return d.toLocaleDateString(locale.value === "en" ? "en-US" : "ru-RU", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -109,7 +129,7 @@ export function useLauncher() {
   const versions = ref<VersionsInfo | null>(null);
   const logEntries = ref<LaunchLogEntry[]>([]);
   const logRef = ref<HTMLElement | null>(null);
-  const tab = ref<"play" | "settings">("play");
+  const tab = ref<"play" | "settings" | "news">("play");
   const notifications = ref<Notice[]>([]);
   let noticeSeq = 0;
   const launcherVer = ref("");
@@ -120,6 +140,155 @@ export function useLauncher() {
   const appUpdating = ref(false);
   const appUpdateProgress = ref<number | null>(null);
   let pendingAppUpdate: AppUpdate | null = null;
+  const javaList = ref<JavaInfo[]>([]);
+  const javaSelected = ref<string>("");
+  const javaBusy = ref(false);
+  const javaMsg = ref("");
+  const verifyBusy = ref(false);
+  const verifyResult = ref<VerifyResult | null>(null);
+  const skinUrl = ref("");
+  const discordRp = ref(true);
+  const news = ref<NewsItem[] | null>(null);
+  const newsFilter = ref<string>("all");
+
+  // ==== Вкладки файлов игры (моды/ресурспаки/шейдеры/миры/консоль) ====
+  const playSubTab = ref<"releases" | "mods" | "resourcepacks" | "shaderpacks" | "saves" | "console">("releases");
+  const gameFiles = ref<Partial<Record<GameFolderKind, GameFileEntry[]>>>({});
+  const fileIcons = ref<Record<string, string>>({});
+  const fileSearch = ref("");
+  const selectedFiles = ref<Record<string, { folder: GameFolderKind; entry: GameFileEntry }>>({});
+
+  function fileEntryKey(folder: GameFolderKind, entry: GameFileEntry): string {
+    return `${folder}/${entry.name}`;
+  }
+
+  function toggleFileSelect(folder: GameFolderKind, entry: GameFileEntry) {
+    const key = fileEntryKey(folder, entry);
+    const next = { ...selectedFiles.value };
+    if (next[key]) delete next[key];
+    else next[key] = { folder, entry };
+    selectedFiles.value = next;
+  }
+
+  function clearFileSelection() {
+    selectedFiles.value = {};
+  }
+
+  async function setSelectedFilesEnabled(enabled: boolean) {
+    const targets = Object.values(selectedFiles.value).filter(
+      (s) => s.entry.kind === "file" && s.entry.enabled !== enabled
+    );
+    for (const s of targets) {
+      await handleToggleFile(s.folder, s.entry);
+    }
+  }
+
+  /// Пытается выделить название мода/ресурспака из имени файла
+  /// (отбрасывает версии, мусорные токены), чтобы поиск на Modrinth попадал точно.
+  function cleanFileQuery(displayName: string): string {
+    const STOP = new Set([
+      "neoforge", "forge", "fabric", "quilt", "neo", "fapi", "architectury",
+      "api", "fabric-api", "spigot", "bukkit", "paper", "backport", "mc",
+      "minecraft", "edition", "editions", "mod", "mods", "v",
+    ]);
+    const tokens = displayName.split(/[-_+\s]+/).filter(Boolean);
+    const clean = tokens.filter((t) => {
+      const lower = t.toLowerCase();
+      return !/\d/.test(t) && !STOP.has(lower);
+    });
+    if (clean.length === 0) {
+      return tokens[0] ?? displayName;
+    }
+    return clean.slice(0, 4).join(" ");
+  }
+
+  function openFileOnModrinth(folder: GameFolderKind, entry: GameFileEntry) {
+    const q = encodeURIComponent(cleanFileQuery(entry.displayName));
+    openExternal(`https://modrinth.com/mods?q=${q}`);
+  }
+
+  function openFileOnCurseForge(folder: GameFolderKind, entry: GameFileEntry) {
+    const q = encodeURIComponent(cleanFileQuery(entry.displayName));
+    openExternal(`https://www.curseforge.com/search/mods?q=${q}`);
+  }
+
+  async function loadGameFiles(folder: GameFolderKind) {
+    if (!isTauri() || !packId.value) return;
+    try {
+      const list = await listGameFiles(packId.value, folder);
+      gameFiles.value = { ...gameFiles.value, [folder]: list };
+      preloadIcons(folder, list);
+    } catch (e) {
+      notify(t("err.folderLoad", { e }));
+    }
+  }
+
+  async function preloadIcons(folder: GameFolderKind, list: GameFileEntry[]) {
+    if (!isTauri() || !packId.value || list.length === 0) return;
+    const key = `${folder}/`;
+    // Уже загруженные пропускаем; лимит — не грузить сотни архивов разом.
+    const missing = list
+      .filter((f) => fileIcons.value[key + f.name] === undefined)
+      .map((f) => f.name)
+      .slice(0, 200);
+    if (missing.length === 0) return;
+    try {
+      const icons = await getGameFileIcons(packId.value, folder, missing);
+      const patch: Record<string, string> = {};
+      for (const ic of icons) {
+        patch[key + ic.name] = ic.data ?? "";
+      }
+      fileIcons.value = { ...fileIcons.value, ...patch };
+    } catch (e) {
+      // Иконки некритичны — покажем заглушку. Причина логируется для диагностики.
+      console.error("icon batch failed", folder, e);
+    }
+  }
+
+  async function handleToggleFile(folder: GameFolderKind, entry: GameFileEntry) {
+    if (!isTauri() || !packId.value) return;
+    const prev = entry.enabled;
+    entry.enabled = !prev;
+    try {
+      await toggleGameFile(packId.value, folder, entry.name, entry.enabled);
+    } catch (e) {
+      entry.enabled = prev;
+      notify(`Ошибка переключения: ${e}`);
+    }
+  }
+
+  /** Уникальные источники новостей: «launcher» + id сборок (для фильтра). */
+  const newsSources = computed(() => {
+    const ids = ["launcher", ...packs.value.map((p) => p.id)];
+    return Array.from(new Set(ids));
+  });
+
+  const filteredNews = computed(() => {
+    if (!news.value) return [];
+    if (newsFilter.value === "all") return news.value;
+    return news.value.filter((n) => n.pack_id === newsFilter.value);
+  });
+
+  async function loadNews() {
+    if (!isTauri()) return;
+    news.value = null;
+    try {
+      news.value = await getNews();
+    } catch (e) {
+      notify(t("err.newsLoad", { e }));
+      news.value = [];
+    }
+  }
+
+  async function toggleDiscordRp(on: boolean) {
+    discordRp.value = on;
+    if (!isTauri()) return;
+    try {
+      await setDiscordRp(on);
+    } catch (e) {
+      notify(t("err.discordSave", { e }));
+    }
+  }
 
   /** Проверяет обновление лаунчера (шаблон обновления из GitHub Releases). */
   async function checkAppUpdates() {
@@ -159,7 +328,7 @@ export function useLauncher() {
       appUpdate.value = null;
       await relaunch();
     } catch (e) {
-      notify(`Ошибка обновления лаунчера: ${e}`);
+      notify(t("err.appUpdate", { e }));
     } finally {
       appUpdating.value = false;
       appUpdateProgress.value = null;
@@ -195,31 +364,35 @@ export function useLauncher() {
       log = "";
     }
     const body = [
-      "**Описание ошибки:**",
+      t("report.desc"),
       "```",
-      (errorText || "(пусто)").slice(0, 3000),
+      (errorText || t("report.empty")).slice(0, 3000),
       "```",
       "",
-      "**Окружение:**",
-      `- Лаунчер: v${launcherVer.value || "?"}`,
-      `- ОС: ${detectOS()}`,
-      `- Сборка: ${activePack.value?.name ?? (packId.value || "—")}`,
-      `- Установлена: ${status.value?.installed ? "да" : "нет"}`,
+      t("report.env"),
+      t("report.launcher", { ver: launcherVer.value || "?" }),
+      t("report.os", { os: detectOS() }),
+      t("report.pack", { name: activePack.value?.name ?? (packId.value || "—") }),
+      t("report.installed", {
+        v: status.value?.installed ? t("report.installedYes") : t("report.installedNo"),
+      }),
       status.value?.active_source_tag
-        ? `- Активная версия: ${status.value.active_source_tag}`
+        ? t("report.activeVer", { v: status.value.active_source_tag })
         : null,
       status.value?.minecraft_version
         ? `- Minecraft: ${status.value.minecraft_version}${status.value.loader ? ` / ${status.value.loader}` : ""}`
         : null,
       "",
-      "**Лог запуска:**",
+      t("report.log"),
       "```",
-      (log || "(лог пуст)").slice(-50000),
+      (log || t("report.logEmpty")).slice(-50000),
       "```",
     ]
       .filter((l): l is string => l !== null)
       .join("\n");
-    const title = `[Автоотчёт] ${(errorText || "Ошибка лаунчера").slice(0, 80)}`;
+    const title = t("report.title", {
+      text: (errorText || t("report.launcherError")).slice(0, 80),
+    });
     const url = `${ISSUES_URL}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
     try {
       if (isTauri()) {
@@ -271,7 +444,9 @@ export function useLauncher() {
     const s = await getStatus(packId.value);
     status.value = s;
     session.value = s.session;
+    discordRp.value = s.discord_rp_enabled;
     if (s.session) username.value = s.session.username;
+    refreshSkin();
     const u = await checkForUpdates(packId.value).catch(() => null);
     if (u && u.has_update && u.latest_version) {
       updateInfo.value = {
@@ -281,6 +456,90 @@ export function useLauncher() {
       };
     } else {
       updateInfo.value = null;
+    }
+  }
+
+  /** Аватар скина для Microsoft-профиля (offline-ники — без скина). */
+  async function refreshSkin() {
+    if (!isTauri() || !session.value) {
+      skinUrl.value = "";
+      return;
+    }
+    const s = session.value;
+    if (s.user_type !== "microsoft") {
+      skinUrl.value = "";
+      return;
+    }
+    skinUrl.value = "";
+    try {
+      const url = await getSkin(s.uuid);
+      if (url) skinUrl.value = url;
+    } catch {
+      skinUrl.value = "";
+    }
+  }
+
+  async function loadJava() {
+    if (!isTauri()) return;
+    try {
+      javaList.value = await listJava();
+      const sel = javaList.value.find((j) => j.selected);
+      javaSelected.value = sel ? sel.path : "";
+    } catch {
+      javaList.value = [];
+    }
+  }
+
+  async function selectJava(path: string) {
+    if (!isTauri()) return;
+    javaSelected.value = path;
+    javaMsg.value = "";
+    try {
+      await setJavaPath(path || null);
+      await loadJava();
+    } catch (e) {
+      notify(t("err.javaSave", { e }));
+    }
+  }
+
+  async function downloadJava() {
+    if (!isTauri() || javaBusy.value) return;
+    javaBusy.value = true;
+    javaMsg.value = t("java.downloading");
+    try {
+      const path = await ensureJava();
+      javaMsg.value = t("java.installed", { path });
+      await loadJava();
+      if (packId.value) {
+        await handleInstall();
+      }
+    } catch (e) {
+      javaMsg.value = "";
+      notify(t("err.javaDownload", { e }));
+    } finally {
+      javaBusy.value = false;
+    }
+  }
+
+  async function handleVerify() {
+    if (!isTauri() || !packId.value || verifyBusy.value) return;
+    verifyBusy.value = true;
+    verifyResult.value = null;
+    try {
+      verifyResult.value = await verifyGame(packId.value);
+    } catch (e) {
+      notify(t("err.verify", { e }));
+    } finally {
+      verifyBusy.value = false;
+    }
+  }
+
+  async function openFolder(folder: GameFolderKind | "screenshots" | "logs") {
+    if (!isTauri() || !packId.value) return;
+    try {
+      await openGameFolder(packId.value, folder);
+    } catch (e) {
+      notify(t("err.openFolder", { e }));
     }
   }
 
@@ -372,18 +631,63 @@ export function useLauncher() {
     onGameExited((e) => {
       if (!e.success) {
         const code =
-          e.code > 0 ? ` (код ${e.code})` : e.code === 0 ? "" : " (аварийно)";
-        notify(
-          `Игра завершилась с ошибкой${code}. Подробности — в консоли внизу.`,
-          "error"
-        );
+          e.code > 0
+            ? t("game.code", { code: e.code })
+            : e.code === 0
+              ? ""
+              : t("game.crash");
+        notify(t("game.exitError", { code }), "error");
       }
     }).then((fn) => (unlistenGameExitedSync = fn));
     launcherVersion()
       .then((v) => (launcherVer.value = v))
       .catch(() => {});
+    loadJava();
     setTimeout(() => checkAppUpdates(), 4000);
   });
+
+  onMounted(() => {
+    if (isTauri()) setLocale(locale.value);
+  });
+
+  watch(
+    locale,
+    (l) => {
+      if (isTauri()) setLocale(l);
+    },
+    { flush: "post" }
+  );
+
+  watch(
+    tab,
+    (t) => {
+      if (t === "news") loadNews();
+    },
+    { flush: "post" }
+  );
+
+  watch(
+    playSubTab,
+    (t) => {
+      fileSearch.value = "";
+      selectedFiles.value = {};
+      if (t === "mods" || t === "resourcepacks" || t === "shaderpacks" || t === "saves") {
+        loadGameFiles(t);
+      }
+    },
+    { flush: "post" }
+  );
+
+  watch(
+    packId,
+    () => {
+      gameFiles.value = {};
+      fileIcons.value = {};
+      selectedFiles.value = {};
+      fileSearch.value = "";
+    },
+    { flush: "post" }
+  );
 
   onUnmounted(() => {
     unlistenSync?.();
@@ -431,7 +735,7 @@ export function useLauncher() {
       await load();
       refreshVersions();
     } catch (e) {
-      notify(`Ошибка установки: ${e}`);
+      notify(t("err.install", { e }));
     } finally {
       busy.value = false;
       lastBytes = { value: 0, at: 0 };
@@ -456,7 +760,7 @@ export function useLauncher() {
         await load();
         refreshVersions();
       } catch (e) {
-        notify(`Ошибка переключения: ${e}`);
+notify(t("err.switch", { e }));
       }
     } else {
       await handleInstall(tag);
@@ -466,7 +770,7 @@ export function useLauncher() {
   async function handleOffline() {
     if (!isTauri()) return;
     if (!username.value.trim()) {
-      notify("Введите никнейм", "info");
+      notify(t("err.nickname"), "info");
       return;
     }
     try {
@@ -474,7 +778,7 @@ export function useLauncher() {
       session.value = s;
       await load();
     } catch (e) {
-      notify(`Ошибка входа: ${e}`);
+      notify(t("err.login", { e }));
     }
   }
 
@@ -489,7 +793,7 @@ export function useLauncher() {
       msFlow.value = null;
       await load();
     } catch (e) {
-      notify(`Ошибка Microsoft: ${e}`);
+      notify(t("err.microsoft", { e }));
     } finally {
       msPolling.value = false;
       msFlow.value = null;
@@ -501,14 +805,14 @@ export function useLauncher() {
     try {
       await openExternal(msFlow.value.verification_uri);
     } catch {
-      notify(`Не удалось открыть страницу: ${msFlow.value.verification_uri}`, "info");
+      notify(t("err.openPage", { url: msFlow.value.verification_uri }), "info");
     }
   }
 
   async function handlePlay() {
     if (!isTauri() || !packId.value) return;
     if (!session.value) {
-      notify("Войдите в аккаунт перед запуском", "info");
+      notify(t("err.loginFirst"), "info");
       return;
     }
     busy.value = true;
@@ -523,7 +827,7 @@ export function useLauncher() {
       windowHeight.value
     );
     } catch (e) {
-      notify(`Ошибка запуска: ${e}`);
+      notify(t("err.launch", { e }));
     } finally {
       busy.value = false;
     }
@@ -540,7 +844,7 @@ export function useLauncher() {
     try {
       await openPackDir(packId.value);
     } catch (e) {
-      notify(`Не удалось открыть папку сборки: ${e}`);
+      notify(t("err.openPackDir", { e }));
     }
   }
 
@@ -620,5 +924,37 @@ export function useLauncher() {
     appUpdating,
     appUpdateProgress,
     installAppUpdate,
+    javaList,
+    javaSelected,
+    javaBusy,
+    javaMsg,
+    loadJava,
+    selectJava,
+    downloadJava,
+    verifyBusy,
+    verifyResult,
+    handleVerify,
+    openFolder,
+    skinUrl,
+    refreshSkin,
+    discordRp,
+    toggleDiscordRp,
+    news,
+    loadNews,
+    newsFilter,
+    newsSources,
+    filteredNews,
+    playSubTab,
+    gameFiles,
+    fileIcons,
+    loadGameFiles,
+    handleToggleFile,
+    fileSearch,
+    selectedFiles,
+    toggleFileSelect,
+    clearFileSelection,
+    setSelectedFilesEnabled,
+    openFileOnModrinth,
+    openFileOnCurseForge,
   };
 }

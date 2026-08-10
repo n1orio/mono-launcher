@@ -103,3 +103,64 @@ pub fn launch_log_file() -> Result<PathBuf> {
 pub fn java_root() -> Result<PathBuf> {
     Ok(launcher_root()?.join("runtime"))
 }
+
+/// Файл с выбранной пользователем Java (путь, или пусто = авто).
+fn java_selection_file() -> Result<PathBuf> {
+    Ok(launcher_root()?.join("java.txt"))
+}
+
+/// Выбранная пользователем Java, или None если авто (детект).
+pub fn java_selection() -> Option<String> {
+    let path = java_selection_file().ok()?;
+    let raw = std::fs::read_to_string(path).ok()?;
+    let t = raw.trim().to_string();
+    if t.is_empty() {
+        None
+    } else {
+        Some(t)
+    }
+}
+
+/// Сохраняет выбор Java («auto»/пусто = автоматически).
+pub fn set_java_selection(path: Option<&str>) -> Result<()> {
+    let file = java_selection_file()?;
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    match path {
+        Some(p) if !p.trim().is_empty() => std::fs::write(&file, p.trim())?,
+        _ => {
+            if file.exists() {
+                std::fs::remove_file(&file)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Файл с тумблером Discord Rich Presence (по умолчанию включено).
+fn discord_rp_file() -> Result<PathBuf> {
+    Ok(launcher_root()?.join("discord-rp.txt"))
+}
+
+/// Rich Presence включён? (файла нет или содержимое не "0" — включено).
+pub fn discord_rp_enabled() -> bool {
+    discord_rp_file()
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|s| s.trim() != "0")
+        .unwrap_or(true)
+}
+
+pub fn set_discord_rp_enabled(on: bool) -> Result<()> {
+    let file = discord_rp_file()?;
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&file, if on { "1" } else { "0" })?;
+    // Если выключили во время игры — сразу гасим активный статус.
+    if !on {
+        crate::discord_rp::stop_presence();
+    }
+    Ok(())
+}

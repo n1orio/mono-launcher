@@ -20,6 +20,7 @@ export interface AppStatus {
   active_version: string | null;
   active_source_tag: string | null;
   installed_versions: string[];
+  discord_rp_enabled: boolean;
 }
 
 export interface PackInfo {
@@ -86,6 +87,47 @@ export interface MsDeviceCodeInfo {
   device_code: string;
   interval: number;
   expires_in: number;
+  qr_svg: string;
+}
+
+export interface JavaInfo {
+  path: string;
+  label: string;
+  version: string;
+  arch: "64-бит" | "32-бит" | "недоступна";
+  is_bundled: boolean;
+  selected: boolean;
+}
+
+export interface VerifyResult {
+  checked: number;
+  ok: number;
+  broken: string[];
+}
+
+export interface NewsItem {
+  kind: "update" | "post";
+  pack_id: string;
+  pack_name: string;
+  title: string;
+  body: string;
+  url: string;
+  tag: string | null;
+  category: string | null;
+  date: string | null;
+}
+
+export interface GameFileEntry {
+  name: string;
+  displayName: string;
+  kind: "file" | "dir";
+  enabled: boolean;
+  sizeBytes: number;
+}
+
+export interface GameFileIcon {
+  name: string;
+  data: string | null;
 }
 
 export interface GameExited {

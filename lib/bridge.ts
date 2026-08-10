@@ -3,13 +3,18 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   AppStatus,
   DownloadProgress,
+  GameFileEntry,
+  GameFileIcon,
+  JavaInfo,
   LaunchLogEntry,
   MsDeviceCodeInfo,
+  NewsItem,
   PackDescriptor,
   PackInfo,
   SystemInfo,
   UpdateInfo,
   UserSession,
+  VerifyResult,
   VersionsInfo,
 } from "./types";
 
@@ -128,4 +133,86 @@ export function launcherVersion(): Promise<string> {
 
 export function openExternal(url: string): Promise<void> {
   return invoke("open_url", { url });
+}
+
+export function listJava(): Promise<JavaInfo[]> {
+  return invoke("list_java_command");
+}
+
+export function setJavaPath(path: string | null): Promise<void> {
+  return invoke("set_java_path_command", { path });
+}
+
+export function ensureJava(): Promise<string> {
+  return invoke("ensure_java_command");
+}
+
+export function verifyGame(packId: string): Promise<VerifyResult> {
+  return invoke("verify_game_command", { packId });
+}
+
+export type GameFolder =
+  | "mods"
+  | "screenshots"
+  | "resourcepacks"
+  | "shaderpacks"
+  | "saves"
+  | "logs";
+
+export function openGameFolder(packId: string, folder: GameFolder): Promise<void> {
+  return invoke("open_game_folder_command", { packId, folder });
+}
+
+export function getSkin(uuid: string): Promise<string | null> {
+  return invoke("get_skin_command", { uuid });
+}
+
+export function onJavaProgress(cb: (e: LaunchLogEntry) => void): Promise<UnlistenFn> {
+  return listen<LaunchLogEntry>("launch-log", (event) => cb(event.payload));
+}
+
+export function setDiscordRp(enabled: boolean): Promise<void> {
+  return invoke("set_discord_rp_command", { enabled });
+}
+
+export function setLocale(locale: string): Promise<void> {
+  return invoke("set_locale_command", { locale });
+}
+
+export function getNews(): Promise<NewsItem[]> {
+  return invoke("get_news_command");
+}
+
+export type GameFolderKind = "mods" | "resourcepacks" | "shaderpacks" | "saves";
+
+export function listGameFiles(
+  packId: string,
+  folder: GameFolderKind
+): Promise<GameFileEntry[]> {
+  return invoke("list_game_files_command", { packId, folder });
+}
+
+export function toggleGameFile(
+  packId: string,
+  folder: GameFolderKind,
+  name: string,
+  enabled: boolean
+): Promise<void> {
+  return invoke("toggle_game_file_command", { packId, folder, name, enabled });
+}
+
+export function getGameFileIcon(
+  packId: string,
+  folder: GameFolderKind,
+  name: string
+): Promise<string | null> {
+  return invoke("get_game_file_icon_command", { packId, folder, name });
+}
+
+export function getGameFileIcons(
+  packId: string,
+  folder: GameFolderKind,
+  names: string[]
+): Promise<GameFileIcon[]> {
+  return invoke("get_game_file_icons_command", { packId, folder, names });
 }

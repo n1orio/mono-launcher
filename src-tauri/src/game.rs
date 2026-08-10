@@ -12,6 +12,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::auth::UserSession;
 use crate::config;
+use crate::jre::{ensure_bundled_java, find_java, JavaArch};
 
 /// GET + JSON с проверкой Content-Type и понятными ошибками.
 /// На случай, когда сервер отдаёт HTML/пустую страницу вместо JSON
@@ -677,16 +678,26 @@ pub async fn launch_game(
     let assets_root = root.join("assets");
     let libraries_dir = root.join("libraries");
     let versions_dir = root.join("versions-libs");
+    let client = reqwest::Client::new();
 
     // Проверяем Java ДО скачиваний: без неё нечего качать сотни мегабайт.
     // Авто-детект выбирает 64-битную; 32-битную куча ограничена ~3-4G.
-    let (java, java_arch) = find_java()?;
+    // Если Java нигде нет — автоматически скачиваем встроенную (JRE 21).
+    let (mut java, mut java_arch) = find_java()?;
     if java_arch == JavaArch::Unknown {
-        return Err(anyhow!(
-            "Java не найдена. Установите 64-битную Java 17+ (например OpenJDK 21) или \
-             положите Java в папку {}",
-            config::java_root()?.display()
-        ));
+        emit_log(&app, "sys", "Java не найдена — скачиваем встроенную (Adoptium JRE 21)…");
+        match ensure_bundled_java(&app, &client).await {
+            Ok(path) => {
+                java = path;
+                java_arch = JavaArch::Bit64;
+            }
+            Err(e) => {
+                return Err(anyhow!(
+                    "Java не найдена и автоматическая установка не удалась: {e}\n\
+                     Установите Java 17+ вручную (например OpenJDK 21) или повторите позже."
+                ));
+            }
+        }
     }
     let mut heap_gb = ram_gb.max(1);
     if java_arch == JavaArch::Bit32 {
@@ -719,7 +730,6 @@ pub async fn launch_game(
     let loader = detect_loader(&index);
 
     // 2. Получаем manifest и ванильный version json.
-    let client = reqwest::Client::new();
     emit_log(&app, "sys", "Получение манифеста версий Minecraft…");
     let manifest: VersionManifest = fetch_json(
         &client,
@@ -918,6 +928,12 @@ pub async fn launch_game(
         .context("Не удалось запустить Java. Убедитесь, что установлен Java 17+")?;
     let pid = child.id();
 
+    // Discord Rich Presence: «Играет в <сборка>» + суммарное наигранное время.
+    crate::discord_rp::start_presence(
+        crate::discord_rp::playing_details(index["name"].as_str().unwrap_or(pack_id).trim()),
+        crate::discord_rp::played_state(crate::mrpack::pack_playtime_seconds(pack_id)),
+    );
+
     // Лог пишем в файл (перезаписывая старый) и шлём фронтенду.
     let log_file = config::launch_log_file().ok();
     if let Some(path) = &log_file {
@@ -975,6 +991,12 @@ pub async fn launch_game(
                     last = std::time::Instant::now();
                     if !version_id.is_empty() && delta > 0 {
                         crate::mrpack::add_playtime(&pack_id_owned, &version_id, delta);
+                        // Актуализируем «наигранное время» в статусе Discord.
+                        crate::discord_rp::update_presence(
+                            crate::discord_rp::played_state(
+                                crate::mrpack::pack_playtime_seconds(&pack_id_owned)
+                            ),
+                        );
                     }
                 }
                 status = child.wait() => break status.unwrap_or_default(),
@@ -991,6 +1013,7 @@ pub async fn launch_game(
                 },
             );
         }
+        crate::discord_rp::stop_presence();
         let success = exit.success();
         let _ = app2.emit(
             "game-exited",
@@ -1056,214 +1079,3 @@ fn replace_placeholders(arg: &str, map: &HashMap<String, String>) -> String {
     out
 }
 
-fn java_exe_name() -> &'static str {
-    if cfg!(target_os = "windows") {
-        "java.exe"
-    } else {
-        "java"
-    }
-}
-
-/// Возвращает (майор, минор) из имени папки вроде jdk-21.0.2 / 21.0.2 / jdk1.8.0_402:
-/// берёт первый версионный токен (хвост вроде _402 игнорируется), legacy 1.x считает как x.
-fn java_version_from_name(dir_name: &str) -> Option<(u32, u32)> {
-    let name = dir_name.to_ascii_lowercase();
-    let bytes = name.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i].is_ascii_digit() {
-            let start = i;
-            while i < bytes.len() && (bytes[i].is_ascii_digit() || bytes[i] == b'.') {
-                i += 1;
-            }
-            let token = &name[start..i];
-            let parts: Vec<&str> = token.split('.').collect();
-            if parts.is_empty() || parts[0].is_empty() {
-                continue;
-            }
-            let (major, minor) = if parts[0] == "1" {
-                (
-                    parts.get(1).and_then(|p| p.parse::<u32>().ok()).unwrap_or(1),
-                    parts.get(2).and_then(|p| p.parse::<u32>().ok()).unwrap_or(0),
-                )
-            } else {
-                (
-                    parts[0].parse::<u32>().unwrap_or(1),
-                    parts.get(1).and_then(|p| p.parse::<u32>().ok()).unwrap_or(0),
-                )
-            };
-            return Some((major, minor));
-        }
-        i += 1;
-    }
-    None
-}
-
-/// Кандидаты в установленную Java (папки с bin/java), без проверки работоспособности.
-/// Сканирует распространённые места установки: JAVA_HOME и штатные каталоги JDK.
-fn java_candidates() -> Vec<PathBuf> {
-    let mut roots: Vec<PathBuf> = Vec::new();
-    if let Ok(home) = std::env::var("JAVA_HOME") {
-        if !home.is_empty() {
-            roots.push(PathBuf::from(home).join("bin").join(java_exe_name()));
-        }
-    }
-    #[cfg(target_os = "windows")]
-    {
-        for var in ["PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"] {
-            if let Ok(base) = std::env::var(var) {
-                let base = PathBuf::from(&base);
-                roots.push(base.join("Programs"));
-                roots.push(base);
-            }
-        }
-    }
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        roots.extend([
-            PathBuf::from("/usr/lib/jvm"),
-            PathBuf::from("/usr/lib64/jvm"),
-            PathBuf::from("/opt"),
-        ]);
-    }
-    #[cfg(target_os = "macos")]
-    {
-        roots.push(PathBuf::from("/Library/Java/JavaVirtualMachines"));
-        if let Ok(home) = std::process::Command::new("/usr/libexec/java_home")
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        {
-            if !home.is_empty() {
-                roots.push(PathBuf::from(home).join("bin").join(java_exe_name()));
-            }
-        }
-    }
-
-    let mut found: Vec<PathBuf> = Vec::new();
-    let bat = java_exe_name();
-    for entry in roots.clone() {
-        // Уже конкретный бинарь (JAVA_HOME / java_home) — не сканируем, а добавляем как есть.
-        if entry.file_name().map(|n| n == bat).unwrap_or(false) {
-            if entry.exists() {
-                found.push(entry);
-            }
-            continue;
-        }
-        // Один уровень вложенности ниже корня: Java обычно лежит в <root>/<vendor>/<jdk>/bin
-        let Ok(dirs) = std::fs::read_dir(&entry) else { continue };
-        for dir in dirs.flatten() {
-            let jdk_dir = dir.path();
-            let bin = jdk_dir.join("bin").join(bat);
-            if bin.exists() {
-                found.push(bin);
-                continue;
-            }
-            let Ok(subs) = std::fs::read_dir(&jdk_dir) else { continue };
-            for sub in subs.flatten() {
-                let sub_bin = sub.path().join("bin").join(bat);
-                if sub_bin.exists() {
-                    found.push(sub_bin);
-                }
-            }
-        }
-    }
-
-    found.sort_by(|a, b| {
-        let ka = a
-            .parent()
-            .and_then(|p| p.parent())
-            .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
-            .and_then(|n| java_version_from_name(&n))
-            .unwrap_or((1, 0));
-        let kb = b
-            .parent()
-            .and_then(|p| p.parent())
-            .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
-            .and_then(|n| java_version_from_name(&n))
-            .unwrap_or((1, 0));
-        kb.cmp(&ka)
-    });
-
-    let mut seen = std::collections::HashSet::new();
-    found.retain(|p| seen.insert(p.to_string_lossy().to_string()));
-    found
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum JavaArch {
-    Bit64,
-    Bit32,
-    Unknown,
-}
-
-/// Проверяет, что java реально запускается (`-version`), и определяет разрядность
-/// (64-битные VM пишут в вывод «64-Bit»). Не работает — вернёт None.
-fn probe_java(java: &Path) -> Option<JavaArch> {
-    let out = std::process::Command::new(java)
-        .arg("-version")
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let mut text = String::from_utf8_lossy(&out.stdout).into_owned();
-    text.push_str(&String::from_utf8_lossy(&out.stderr));
-    let text = text.to_lowercase();
-    if text.contains("64-bit") {
-        Some(JavaArch::Bit64)
-    } else if text.contains("hotspot") || text.contains("openjdk") || text.contains("jvm") {
-        // Запустилась, но не 64-битная — это 32-битная VM (у неё потолок кучи ~3-4G).
-        Some(JavaArch::Bit32)
-    } else {
-        Some(JavaArch::Unknown)
-    }
-}
-
-/// Ищет Java: встроенную в лаунчер → авто-детект установленных → из PATH («java»).
-/// Приоритет: сначала рабочие 64-битные (свежие по версии), затем 32-битные.
-/// Возвращает путь и разрядность (для ограничения -Xmx).
-fn find_java() -> Result<(String, JavaArch)> {
-    let bundled = config::java_root()?.join("bin").join(java_exe_name());
-    if bundled.exists() {
-        if let Some(arch) = probe_java(&bundled) {
-            return Ok((bundled.to_string_lossy().to_string(), arch));
-        }
-    }
-    let mut best_32: Option<(String, JavaArch)> = None;
-    for cand in java_candidates() {
-        let Some(arch) = probe_java(&cand) else { continue };
-        let path = cand.to_string_lossy().to_string();
-        if arch == JavaArch::Bit64 {
-            return Ok((path, arch));
-        }
-        if best_32.is_none() {
-            best_32 = Some((path, arch));
-        }
-    }
-    if let Some((path, arch)) = best_32 {
-        return Ok((path, arch));
-    }
-    if let Some(arch) = probe_java(Path::new("java")) {
-        return Ok(("java".into(), arch));
-    }
-    Ok(("java".into(), JavaArch::Unknown))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::java_version_from_name;
-
-    #[test]
-    fn parses_jdk_dir_names() {
-        assert_eq!(java_version_from_name("jdk-21.0.2"), Some((21, 0)));
-        assert_eq!(java_version_from_name("21.0.5"), Some((21, 0)));
-        assert_eq!(java_version_from_name("jdk1.8.0_402"), Some((8, 0)));
-        assert_eq!(java_version_from_name("zulu-17.52"), Some((17, 52)));
-        assert_eq!(java_version_from_name("temurin-11.0.23"), Some((11, 0)));
-        assert_eq!(java_version_from_name("java-17-openjdk"), Some((17, 0)));
-        assert_eq!(java_version_from_name("jre-1.8"), Some((8, 0)));
-        assert_eq!(java_version_from_name("no-java-here"), None);
-    }
-}
