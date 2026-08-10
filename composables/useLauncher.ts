@@ -183,6 +183,17 @@ export function useLauncher() {
   const discordRp = ref(true);
   const news = ref<NewsItem[] | null>(null);
   const newsFilter = ref<string>("all");
+  // Сборки, чьи новости игрок выключил (в шапке вкладки сборки) — персист в localStorage.
+  const newsHidden = ref<Record<string, boolean>>({});
+  // Выключенные для игрока новости сборок (персист между сессиями).
+  if (typeof localStorage !== "undefined") {
+    try {
+      const raw = localStorage.getItem("nio.newsHidden");
+      if (raw) newsHidden.value = JSON.parse(raw) as Record<string, boolean>;
+    } catch {
+      // повреждённое значение — просто начинаем с чистого состояния
+    }
+  }
   const packUrl = ref("");
   const packName = ref("");
   const addingPack = ref(false);
@@ -301,14 +312,31 @@ export function useLauncher() {
   /** Уникальные источники новостей: «launcher» + id сборок (для фильтра). */
   const newsSources = computed(() => {
     const ids = ["launcher", ...packs.value.map((p) => p.id)];
-    return Array.from(new Set(ids));
+    return Array.from(new Set(ids)).filter((id) => id === "launcher" || !newsHidden.value[id]);
   });
 
   const filteredNews = computed(() => {
     if (!news.value) return [];
-    if (newsFilter.value === "all") return news.value;
-    return news.value.filter((n) => n.pack_id === newsFilter.value);
+    const base =
+      newsFilter.value === "all" ? news.value : news.value.filter((n) => n.pack_id === newsFilter.value);
+    return base.filter((n) => n.pack_id === "launcher" || !newsHidden.value[n.pack_id]);
   });
+
+  /** Включены ли новости этой сборки (по умолчанию — да). */
+  function isPackNewsOn(id: string): boolean {
+    return !newsHidden.value[id];
+  }
+
+  /** Включает/выключает новости сборки в ленте (настройка на вкладке сборки). */
+  function togglePackNews(id: string) {
+    const next = { ...newsHidden.value };
+    if (next[id]) delete next[id];
+    else next[id] = true;
+    newsHidden.value = next;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("nio.newsHidden", JSON.stringify(next));
+    }
+  }
 
   async function loadNews() {
     if (!isTauri()) return;
@@ -1194,6 +1222,8 @@ notify(t("err.switch", { e }));
     newsFilter,
     newsSources,
     filteredNews,
+    isPackNewsOn,
+    togglePackNews,
     playSubTab,
     repoContent,
     repoContentLoading,

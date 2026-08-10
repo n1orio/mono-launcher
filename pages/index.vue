@@ -423,6 +423,33 @@
                 </svg>
                 {{ packStars }}
               </span>
+              <template v-for="s in activeContent?.socials ?? []" :key="s.name">
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 font-medium text-[#58a6ff] hover:underline"
+                  :title="s.url"
+                  @click="openExternal(s.url)"
+                >
+                  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                    <path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-2l6 6V7.5a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75H5.5a.75.75 0 0 1 0-1.5h2l-6-6v2a.75.75 0 0 1-1.5 0V3.5A1.75 1.75 0 0 1 1.75 1.75h2a.75.75 0 0 1 0 1.5Z"/>
+                  </svg>
+                  {{ s.name }}
+                </button>
+              </template>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 font-medium"
+                :class="isPackNewsOn(activePack?.id ?? '')
+                  ? 'text-[#3fb950] hover:text-[#56d364]'
+                  : 'text-[var(--tx-muted)] hover:text-[color:var(--tx)]'"
+                :title="isPackNewsOn(activePack?.id ?? '') ? t('pack.newsOnTitle') : t('pack.newsOffTitle')"
+                @click="activePack && togglePackNews(activePack.id)"
+              >
+                <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+                  <path d="M8 1.5a.75.75 0 0 0-.75.75v.424c-.932.194-1.717.629-2.339 1.244-.803.796-1.316 1.9-1.316 3.32V10.5c0 .966-.784 1.75-1.75 1.75H1a.75.75 0 0 0 0 1.5h14a.75.75 0 0 0 0-1.5h-.845c-.966 0-1.75-.784-1.75-1.75V7.238c0-1.42-.513-2.524-1.316-3.32-.622-.615-1.407-1.05-2.339-1.244V2.25A.75.75 0 0 0 8 1.5Zm3.75 9.064v2.186h-7.5v-2.15c0-1.062-.37-1.868-.794-2.428-.384-.507-.831-.798-1.176-.945.74-.29 1.18-.907 1.47-1.69.2-.54.25-1.194-.03-1.716-.577-1.07-1.612-1.67-2.586-1.69.912.497 1.478 1.329 1.736 2.25.318 1.137.218 2.18-.446 3.07-.02.03-.04.06-.057.09l-.016.028a.75.75 0 0 1-1.242-.128l-.393-.688a.75.75 0 1 1 1.3-.75l.066.117c.31-.851.53-1.832.353-2.787C5.597 2.183 4.562 1.392 3.25 1.392Z"/>
+                </svg>
+                {{ isPackNewsOn(activePack?.id ?? '') ? t("pack.newsOn") : t("pack.newsOff") }}
+              </button>
               <button
                 v-if="activePackRepo"
                 type="button"
@@ -1299,6 +1326,14 @@
   }
 ]</pre>
                   </div>
+                  <div class="overflow-x-auto rounded-md border border-[var(--border)] bg-[var(--bg-60)] px-3 py-2">
+                    <div class="mb-1 font-semibold text-[color:var(--tx-strong)]">socials.json</div>
+                    <pre class="leading-relaxed">{
+  "discord": "https://discord.gg/example",
+  "telegram": "https://t.me/example",
+  "vk": "https://vk.com/example"
+}</pre>
+                  </div>
                 </div>
                 <div class="rounded-md border border-[#238636]/30 bg-[#238636]/10 p-3 text-[11px] text-[color:var(--tx)]">
                   <p class="mb-2 font-semibold text-[#3fb950]">niol://</p>
@@ -1650,6 +1685,8 @@ const {
   newsFilter,
   newsSources,
   filteredNews,
+  isPackNewsOn,
+  togglePackNews,
   playSubTab,
   gameFiles,
   fileIcons,

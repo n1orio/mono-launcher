@@ -108,12 +108,19 @@ pub struct PackServer {
     pub desc: Option<String>,
 }
 
-/// Контент репозитория сборки: звёзды GitHub + скриншоты + сервера.
+/// Соцсеть сборки из `socials.json` в корне репозитория.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PackSocial {
+    pub name: String,
+    pub url: String,
+}
+
+/// Контент репозитория сборки: звёзды GitHub + сервера + соцсети.
 #[derive(Debug, Clone, serde::Serialize, Default)]
 pub struct PackRepoContent {
     pub stars: Option<i64>,
-    pub screenshots: Vec<String>,
     pub servers: Vec<PackServer>,
+    pub socials: Vec<PackSocial>,
 }
 
 /// Информация о системе для ползунка RAM.
@@ -961,38 +968,6 @@ async fn fetch_pack_repo_content(
         }
     }
 
-    // Скриншоты: манифест с путями к картинкам в репозитории.
-    let shot_url =
-        format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/screenshots.json");
-    if let Ok(resp) = client.get(&shot_url).send().await {
-        if resp.status().is_success() {
-            if let Ok(v) = resp.json::<serde_json::Value>().await {
-                let paths: Vec<String> = v
-                    .as_array()
-                    .or_else(|| v.get("files").and_then(|f| f.as_array()))
-                    .map(|a| {
-                        a.iter()
-                            .filter_map(|x| x.as_str().map(String::from))
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                const IMG_EXT: [&str; 5] = ["png", "jpg", "jpeg", "webp", "gif"];
-                for p in paths {
-                    let clean = p.trim_start_matches('/');
-                    let is_img = std::path::Path::new(clean)
-                        .extension()
-                        .map(|e| e.to_string_lossy().to_ascii_lowercase())
-                        .is_some_and(|e| IMG_EXT.contains(&e.as_str()));
-                    if clean.is_empty() || clean.starts_with("..") || !is_img {
-                        continue;
-                    }
-                    out.screenshots
-                        .push(format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/{clean}"));
-                }
-            }
-        }
-    }
-
     // Сервера: манифест списка серверов.
     let srv_url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/servers.json");
     if let Ok(resp) = client.get(&srv_url).send().await {
@@ -1027,7 +1002,91 @@ async fn fetch_pack_repo_content(
             }
         }
     }
+
+    // Соцсети: объект `{ "name": "url" }` или массив `["url", {"name": "url"}]`.
+    let soc_url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/socials.json");
+    if let Ok(resp) = client.get(&soc_url).send().await {
+        if resp.status().is_success() {
+            if let Ok(v) = resp.json::<serde_json::Value>().await {
+                let mut push = |name: String, url: String| {
+                    let name = normalize_social_name(&name, &url);
+                    if !name.is_empty() && url.starts_with("https://") && out.socials.len() < 8 {
+                        out.socials.push(PackSocial { name, url });
+                    }
+                };
+                match v {
+                    serde_json::Value::Object(map) => {
+                        for (name, u) in map {
+                            if let Some(url) = u.as_str() {
+                                push(name, url.to_string());
+                            }
+                        }
+                    }
+                    serde_json::Value::Array(arr) => {
+                        for item in arr {
+                            match item {
+                                serde_json::Value::String(url) => push(String::new(), url),
+                                serde_json::Value::Object(o) => {
+                                    let name = o
+                                        .get("name")
+                                        .and_then(|x| x.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+                                    let url = o
+                                        .get("url")
+                                        .and_then(|x| x.as_str())
+                                        .map(String::from);
+                                    if let Some(url) = url {
+                                        push(name, url);
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
     out
+}
+
+/// Выводит имя соцсети из её имени или домена ссылки.
+fn normalize_social_name(name: &str, url: &str) -> String {
+    let trimmed = name.trim().to_lowercase();
+    if !trimmed.is_empty() {
+        return trimmed;
+    }
+    let host = url
+        .trim_start_matches("https://")
+        .trim_start_matches("http://")
+        .split('/')
+        .next()
+        .unwrap_or("");
+    let host = host.to_lowercase();
+    let known = [
+        ("discord.gg", "discord"),
+        ("discord.com", "discord"),
+        ("t.me", "telegram"),
+        ("telegram.me", "telegram"),
+        ("vk.com", "vk"),
+        ("youtube.com", "youtube"),
+        ("youtu.be", "youtube"),
+        ("twitch.tv", "twitch"),
+        ("x.com", "x"),
+        ("twitter.com", "x"),
+        ("github.com", "github"),
+        ("boosty.to", "boosty"),
+        ("patreon.com", "patreon"),
+        ("tiktok.com", "tiktok"),
+    ];
+    for (host_pat, social) in known {
+        if host == host_pat || host.ends_with(&format!(".{host_pat}")) {
+            return social.to_string();
+        }
+    }
+    "link".to_string()
 }
 
 /// `fetch_pack_repo_content` с кэшем (15 минут).

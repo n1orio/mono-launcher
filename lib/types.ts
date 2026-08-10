@@ -180,11 +180,17 @@ export interface ServerStatus {
   latencyMs: number | null;
 }
 
-/** Контент репозитория сборки: звёзды, скриншоты, сервера. */
+/** Соцсеть сборки из socials.json в корне репозитория. */
+export interface PackSocial {
+  name: string;
+  url: string;
+}
+
+/** Контент репозитория сборки: звёзды, сервера, соцсети. */
 export interface PackRepoContent {
   stars: number | null;
-  screenshots: string[];
   servers: PackServer[];
+  socials: PackSocial[];
 }
 
 export interface GameExited {
