@@ -2,6 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==== Тема оформления ====
+   :root — тёмная (по умолчанию), .theme-light — светлая. */
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --panel-soft: rgba(13, 17, 23, 0.5);
+  --input: #21262d;
+  --hover: #30363d;
+  --border: #30363d;
+  --tx: #c9d1d9;
+  --tx-strong: #f0f6fc;
+  --tx-muted: #8b949e;
+  --input-50: rgba(33, 38, 45, 0.5);
+  --bg-60: rgba(13, 17, 23, 0.6);
+  --bg-30: rgba(13, 17, 23, 0.3);
+  --app-bg: #060b18;
+  --scrollbar: #1d3a63;
+  --scrollbar-hover: #2c5aa8;
+  --nav-hover: rgba(255, 255, 255, 0.06);
+  --nav-active: rgba(255, 255, 255, 0.08);
+  --field-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+  --panel-grad: linear-gradient(180deg, rgba(17, 32, 64, 0.55) 0%, rgba(8, 16, 38, 0.7) 100%);
+  --toast-shadow: rgba(0, 0, 0, 0.4);
+}
+
+.theme-light {
+  --bg: #f6f8fa;
+  --panel: #ffffff;
+  --panel-soft: rgba(255, 255, 255, 0.6);
+  --input: #eef1f4;
+  --hover: #dbe1e8;
+  --border: #d0d7de;
+  --tx: #1f2328;
+  --tx-strong: #111417;
+  --tx-muted: #656d76;
+  --input-50: rgba(238, 241, 244, 0.5);
+  --bg-60: rgba(246, 248, 250, 0.6);
+  --bg-30: rgba(246, 248, 250, 0.8);
+  --app-bg: #eef1f4;
+  --scrollbar: #b6c2cf;
+  --scrollbar-hover: #8c959f;
+  --nav-hover: rgba(9, 30, 66, 0.06);
+  --nav-active: rgba(9, 30, 66, 0.09);
+  --field-shadow: inset 0 1px 2px rgba(31, 35, 40, 0.08);
+  --panel-grad: linear-gradient(180deg, #ffffff 0%, #f6f8fa 100%);
+  --toast-shadow: rgba(31, 35, 40, 0.2);
+}
+
 @layer components {
   .mc-title {
     font-weight: 800;
@@ -9,11 +57,11 @@
   }
 
   .mc-panel {
-    @apply rounded-2xl border border-white/[0.07];
-    background: linear-gradient(180deg, rgba(17, 32, 64, 0.55) 0%, rgba(8, 16, 38, 0.7) 100%);
+    @apply rounded-2xl border border-[var(--border)];
+    background: var(--panel-grad);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      0 10px 30px rgba(2, 6, 18, 0.5);
+      0 10px 30px var(--toast-shadow);
     backdrop-filter: blur(10px);
   }
 
@@ -43,7 +91,7 @@
     background: linear-gradient(180deg, #39435e 0%, #2b334a 100%);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.1),
-      0 3px 10px rgba(2, 6, 18, 0.4);
+      0 3px 10px var(--toast-shadow);
   }
   .mc-btn-gray:hover:not(:disabled) {
     filter: brightness(1.15);
@@ -54,31 +102,33 @@
   }
 
   .mc-nav {
-    @apply flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-300 transition-colors duration-150;
+    @apply flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[color:var(--tx-muted)] transition-colors duration-150;
   }
   .mc-nav:hover {
-    @apply bg-white/[0.06] text-white;
+    @apply text-[color:var(--tx-strong)];
+    background: var(--nav-hover);
   }
   .mc-nav-active {
-    @apply bg-white/[0.08] text-white;
+    @apply text-[color:var(--tx-strong)];
+    background: var(--nav-active);
     box-shadow:
       inset 0 0 0 1px rgba(74, 168, 255, 0.28),
       0 0 16px rgba(46, 157, 240, 0.14);
   }
 
   .mc-field {
-    @apply w-full rounded-xl border border-white/10 bg-[#0a1228]/80 px-3.5 py-2.5 text-sm text-white outline-none transition-all duration-150;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+    @apply w-full rounded-xl border border-[var(--border)] bg-[var(--input)] px-3.5 py-2.5 text-sm text-[color:var(--tx)] outline-none transition-all duration-150;
+    box-shadow: var(--field-shadow);
   }
   .mc-field:focus {
     @apply border-sky-400/50;
     box-shadow:
-      inset 0 1px 3px rgba(0, 0, 0, 0.5),
+      var(--field-shadow),
       0 0 0 3px rgba(46, 157, 240, 0.15);
   }
 
   .mc-label {
-    @apply text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400;
+    @apply text-[11px] font-bold uppercase tracking-[0.14em] text-[color:var(--tx-muted)];
   }
 }
 
@@ -88,8 +138,8 @@ body,
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background-color: #060b18;
-  color: #e8eefc;
+  background-color: var(--app-bg);
+  color: var(--tx);
   font-family: "Monaspace Neon", "Segoe UI", system-ui, sans-serif;
   user-select: none;
 }
@@ -101,11 +151,11 @@ body,
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1d3a63;
+  background: var(--scrollbar);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2c5aa8;
+  background: var(--scrollbar-hover);
 }
 
 .toast-enter-active,
@@ -142,11 +192,11 @@ body,
   font-size: 0.92em;
 }
 .changelog strong {
-  color: #f0f6fc;
+  color: var(--tx-strong);
   font-weight: 600;
 }
 .changelog del {
-  color: #6e7681;
+  color: var(--tx-muted);
 }
 
 input[type="range"] {

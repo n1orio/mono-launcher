@@ -85,6 +85,34 @@ fn resolve_url(file: &IndexFile) -> Option<&str> {
         .or(file.url.as_deref())
 }
 
+/// Файл сборки, загруженный не с доверенного CDN (Modrinth/CurseForge).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CustomFile {
+    pub path: String,
+    pub url: String,
+}
+
+/// Хосты, которым доверяем как источникам файлов сборки.
+/// Всё остальное считается пользовательскими (кастомными) файлами.
+const TRUSTED_DOWNLOAD_HOSTS: [&str; 3] = [
+    "cdn.modrinth.com",
+    "dl.modrinth.com",
+    "mediafiles.forgecdn.net",
+];
+
+fn custom_file(file: &IndexFile) -> Option<CustomFile> {
+    let url = resolve_url(file)?.to_string();
+    let host = url.split("://").nth(1)?.split('/').next()?.to_lowercase();
+    let trusted = TRUSTED_DOWNLOAD_HOSTS
+        .iter()
+        .any(|h| host == *h || host.ends_with(&format!(".{h}")));
+    if trusted {
+        None
+    } else {
+        Some(CustomFile { path: file.path.clone(), url })
+    }
+}
+
 /// Скачивает `.mrpack` по конкретному URL во временный файл.
 pub async fn download_mrpack(app: &AppHandle, client: &Client, pack_id: &str, url: &str) -> Result<PathBuf> {
     let dest_dir = config::mrpack_cache_dir(pack_id)?;
@@ -322,13 +350,15 @@ async fn download_file(
 
 /// Скачивает все файлы из индекса параллельно (или копирует из других версий,
 /// если файл с тем же хэшем уже установлен) и возвращает количество скачанного.
+/// Каждый скачанный файл сверяется с хэшами из индекса, а кастомным считается
+/// файл с недоверенного источника (не Modrinth/CurseForge CDN).
 pub async fn download_all_files(
     app: &AppHandle,
     client: &Client,
     pack_id: &str,
     index: &ModrinthIndex,
     game_dir: &Path,
-) -> Result<()> {
+) -> Result<Vec<CustomFile>> {
     fs::create_dir_all(game_dir)?;
 
     // Индекс уже установленных файлов в других версиях — переиспользуем их.
@@ -341,6 +371,7 @@ pub async fn download_all_files(
     // Кэш: пропускаем файлы, которые уже есть и совпадают по хэшу.
     let mut tasks = Vec::new();
     let semaphore = Arc::new(Semaphore::new(8));
+    let mut custom = Vec::new();
 
     for (i, file) in index.files.iter().enumerate() {
         let dest = game_dir.join(&file.path);
@@ -353,11 +384,15 @@ pub async fn download_all_files(
             Some(u) => u.to_string(),
             None => continue,
         };
+        if let Some(cf) = custom_file(file) {
+            custom.push(cf);
+        }
         let dest = dest.clone();
         let client = client.clone();
         let app = app.clone();
         let semaphore = semaphore.clone();
         let path_name = file.path.clone();
+        let hashes = file.hashes.clone();
         let total_files = index.files.len();
 
         // Есть ли этот файл в другой установленной версии?
@@ -377,6 +412,18 @@ pub async fn download_all_files(
             } else {
                 download_file(&client, &url, &dest, semaphore).await
             };
+            // Пост-загрузочная проверка целостности против хэшей из индекса:
+            // ловит подмену файла по пути от источника до диска.
+            let result = result.and_then(|size| {
+                if hashes.is_empty() || hashes_ok(&dest, &hashes) {
+                    Ok(size)
+                } else {
+                    let _ = fs::remove_file(&dest);
+                    Err(anyhow!(
+                        "Файл не прошёл проверку хэша (возможно, подмена при скачивании): {path_name}"
+                    ))
+                }
+            });
             match &result {
                 Ok(size) => emit_progress(
                     &app,
@@ -407,7 +454,7 @@ pub async fn download_all_files(
         res?;
     }
 
-    Ok(())
+    Ok(custom)
 }
 
 /// Копирует папку `overrides` из распакованного архива в папку игры
@@ -652,6 +699,51 @@ pub fn verify_pack(pack_id: &str) -> Result<VerifyResult> {
 }
 
 /// Полное скачивание + распаковка + установка конкретной версии.
+/// Маркер со списком кастомных файлов установленной версии.
+const CUSTOM_MODS_FILE: &str = ".nio-custom.json";
+
+/// Собирает `.jar`-файлы из папки `overrides` сборки — это моды, которые
+/// Prism положил в архив без записей об источнике (кастомные).
+fn collect_override_jars(extract_dir: &Path, custom: &mut Vec<CustomFile>) -> Result<()> {
+    let overrides = extract_dir.join("overrides");
+    if !overrides.exists() {
+        return Ok(());
+    }
+    let mut queue: Vec<PathBuf> = vec![overrides.clone()];
+    while let Some(dir) = queue.pop() {
+        for entry in fs::read_dir(&dir)? {
+            let entry = entry?;
+            let p = entry.path();
+            if p.is_dir() {
+                queue.push(p);
+            } else if p
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("jar"))
+            {
+                let rel = p
+                    .strip_prefix(&overrides)
+                    .map_err(|_| anyhow!("Путь за пределами overrides"))?;
+                custom.push(CustomFile {
+                    path: rel.to_string_lossy().to_string(),
+                    url: "overrides (внутри .mrpack)".to_string(),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Список кастомных файлов установленной версии (пусто — всё с доверенных CDN).
+pub fn read_custom_mods(pack_id: &str, version: &str) -> Vec<CustomFile> {
+    let Ok(dir) = config::version_dir(pack_id, version) else {
+        return Vec::new();
+    };
+    let Ok(data) = fs::read(dir.join(CUSTOM_MODS_FILE)) else {
+        return Vec::new();
+    };
+    serde_json::from_slice(&data).unwrap_or_default()
+}
+
 /// Устанавливается в отдельную папку, которая затем становится активной.
 pub async fn install_mrpack(
     app: AppHandle,
@@ -682,7 +774,7 @@ pub async fn install_mrpack(
 
     // Своя папка на каждую версию, чтобы можно было переключаться.
     let game_dir = config::version_dir(pack_id, &info.version_id)?;
-    download_all_files(&app, client, pack_id, &index, &game_dir).await?;
+    let mut custom = download_all_files(&app, client, pack_id, &index, &game_dir).await?;
 
     emit_progress(
         &app,
@@ -692,14 +784,73 @@ pub async fn install_mrpack(
         },
     );
     apply_overrides(&app, &extract_dir, &game_dir)?;
+    collect_override_jars(&extract_dir, &mut custom)?;
 
     // Маркер установки + копия индекса в папке версии.
     write_install_marker(&game_dir, &index, source_tag)?;
     fs::write(game_dir.join(".nio-index.json"), serde_json::to_vec_pretty(&index)?)?;
+    fs::write(
+        game_dir.join(CUSTOM_MODS_FILE),
+        serde_json::to_vec_pretty(&custom)?,
+    )?;
 
     config::set_active_version(pack_id, &info.version_id)?;
 
     let _ = fs::remove_dir_all(&extract_dir);
 
     Ok(info)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn file_with_url(url: &str) -> IndexFile {
+        IndexFile {
+            path: "mods/x.jar".into(),
+            hashes: HashMap::new(),
+            downloads: vec![url.into()],
+            url: None,
+            file_size: 0,
+            env: None,
+        }
+    }
+
+    #[test]
+    fn trusts_modrinth_and_curseforge_cdns() {
+        assert!(custom_file(&file_with_url("https://cdn.modrinth.com/data/abc/xyz.jar")).is_none());
+        assert!(custom_file(&file_with_url("https://dl.modrinth.com/mod/abc/1.0/xyz.jar")).is_none());
+        assert!(
+            custom_file(&file_with_url("https://mediafiles.forgecdn.net/files/1234/5/mod.jar"))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn flags_untrusted_sources_as_custom() {
+        for url in [
+            "https://github.com/user/repo/releases/download/v1/mod.jar",
+            "https://legacy.curseforge.com/files/123/mod.jar",
+            "https://pastebin.com/raw/abc",
+            "http://example.com/mod.jar",
+        ] {
+            let cf = custom_file(&file_with_url(url))
+                .unwrap_or_else(|| panic!("{url} должен считаться кастомным"));
+            assert_eq!(cf.path, "mods/x.jar");
+            assert_eq!(cf.url, url);
+        }
+    }
+
+    #[test]
+    fn file_without_download_url_is_not_custom() {
+        let f = IndexFile {
+            path: "config/x.json".into(),
+            hashes: HashMap::new(),
+            downloads: vec![],
+            url: None,
+            file_size: 0,
+            env: None,
+        };
+        assert!(custom_file(&f).is_none());
+    }
 }

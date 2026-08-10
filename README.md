@@ -1,83 +1,114 @@
 # NIO Launcher
 
-Моно-лаунчер для сборки Minecraft, распространяемой в формате `.mrpack` через GitHub Releases.
+Десктопный лаунчер для сборок Minecraft, распространяемых в формате `.mrpack` через GitHub Releases.
+
+## Возможности
+- **Несколько сборок** — каждая со своей вкладкой: релизы с ченджлогами, файлы (моды/ресурспаки/шейдеры/миры) с включением-выключением и поиском, консоль игры.
+- **Контент из репозитория сборки**: вкладки «Скриншоты» и «Сервера» (`screenshots.json` / `servers.json`), звёзды репозитория в шапке.
+- **Новости**: релизы и дискуссии сборок + релизы самого лаунчера. Обновления лаунчера устанавливаются автоматически (tauri-plugin-updater, релиз подписан minisign).
+- **Своя сборка за минуту**: кнопка «Создать сборку» открывает пример, ввод ссылки на репозиторий добавляет сборку в лаунчер (id = `owner-repo`). Ссылка-приглашение (`niol://add-pack?...` или `n1orio.github.io/nio-launcher/?url=...`) добавляет сборку в один клик.
+- **Баг-репорты**: кнопка «Сообщить о баге» открывает форму Issues репозитория сборки с предзаполненным окружением (версия сборки, Minecraft, лаунчер, ОС).
+- **Целостность файлов**: все файлы сверяются с sha1/sha512 из `modrinth.index.json`; файлы из недоверенных источников и `.jar` из `overrides` помечаются как кастомные и показываются в предупреждающем баннере.
+- **Вход**: оффлайн-аккаунт или Microsoft (device code flow).
+- Тёмная/светлая тема, русский/английский интерфейс, Discord RPC, playtime, автодетект Java 21+ и JRE-каталогов.
 
 ## Стек
 - **Backend:** Rust + [Tauri 2.0](https://tauri.app)
-- **Frontend:** Nuxt 3 (Vue 3 + TypeScript + Tailwind CSS)
-- **Источник сборки:** `.mrpack` из GitHub Releases
+- **Frontend:** Nuxt 3 (Vue 3 + TypeScript + Tailwind CSS), SSR выключен — SPA поверх IPC
+- **Источник сборок:** `.mrpack` из GitHub Releases
 
 ## Структура
 ```
 nio-launcher/
 ├── app.vue / nuxt.config.ts / package.json / tsconfig.json
 ├── pages/index.vue          # единственная страница (весь UI)
-├── composables/useLauncher.ts  # состояние + логика (порт из App.tsx)
-├── lib/                     # bridge.ts (Tauri IPC) + types.ts
-├── assets/css/main.css      # глобальный CSS + Tailwind
+├── composables/useLauncher.ts  # состояние + логика, useI18n.ts — ru/en-словари
+├── lib/                     # bridge.ts (типизированный Tauri IPC) + types.ts
+├── assets/css/main.css      # глобальный CSS, Tailwind, переменные темы (var(--*))
 ├── scripts/
-│   └── dev-headless.sh       # запуск в headless (Xvfb) без монитора
+│   ├── dev-headless.sh       # запуск в headless (Xvfb) без монитора
+│   └── make-updater-json.mjs # сборка latest.json для автообновления
 └── src-tauri/                # Rust-бэкенд
-    ├── Cargo.toml
+    ├── Cargo.toml / tauri.conf.json
     └── src/
-        ├── main.rs / lib.rs  # команды Tauri
-        ├── config.rs         # PACKS (список сборок) + пути
-        ├── mrpack.rs         # парсинг modrinth.index.json, скачивание модов, версии
+        ├── main.rs / lib.rs  # команды Tauri, deep links (niol://), новости, кэш API
+        ├── config.rs         # PACKS (встроенные сборки) + пути
+        ├── mrpack.rs         # .mrpack, modrinth.index.json, кастомные моды, версии
         ├── auth.rs           # оффлайн + Microsoft OAuth2
-        └── game.rs           # профили запуска (NeoForge/Forge/Fabric/Quilt), запуск Java
+        ├── game.rs           # профили запуска (NeoForge/Forge/Fabric/Quilt), запуск Java
+        ├── jre.rs            # поиск/выбор Java
+        ├── files.rs          # файлы версии (моды/ресурспаки/…)
+        ├── discord_rp.rs     # Discord Rich Presence
+        └── lib.rs            # регистрация всех команд в run()
 ```
 
 ## Быстрый старт
 ```bash
 npm install
-npm run tauri dev      # запуск в dev-режиме
-npm run tauri build    # сборка бинарника
+npm run tauri dev      # запуск в dev-режиме (vite на :1420 и Rust)
+npm run tauri build    # сборка бинарника (nuxt build → dist/ → таури)
 npm run tauri:appimage # Linux AppImage (с NO_STRIP=true)
 ```
 
 ## Как распространяется сборка
-1. Новая версия собирается в `.mrpack` вручную (Prism Launcher) и выкладывается на GitHub Releases
-   с прикреплённым файлом `Untold legends.mrpack`.
-2. `versionId` в `modrinth.index.json` — версия сборки; в UI она выбирается по тегу релиза.
-3. Ченджлог релиза показывается прямо из его заметок.
+1. Сборка собирается в `.mrpack` в Prism Launcher и выкладывается на GitHub Releases
+   (тег релиза = версия сборки). В релизе также `pack.json` — название и описание.
+2. Встроенные сборки — в `src-tauri/src/config.rs` (`PACKS`); любые другие добавляются
+   через «Добавить сборку» (валидация: релизы репозитория содержат `.mrpack`).
+3. Ченджлог релиза показывается из заметок GitHub.
 
-## Устройство хранения данных
+## Хранение данных
 ```
 ~/.local/share/NioLauncher/
 ├── packs/<pack_id>/                # данные отдельной сборки
 │   ├── versions/<versionId>/       # игровой профиль конкретной версии
 │   │   ├── .nio-installed.json     # маркер установки (versionId, name, sourceTag)
 │   │   ├── .nio-index.json         # копия modrinth.index.json
+│   │   ├── .nio-custom.json        # кастомные моды (недоверенные источники / overrides)
 │   │   └── mods/ config/ overrides # содержимое сборки
 │   ├── active.json                 # активная версия
 │   └── mrpack-cache/               # скачанный .mrpack
 ├── libraries/                      # библиотеки Minecraft/модлоадера
 └── runtime/                        # встроенная Java (опционально)
 ```
+Пользовательские сборки также регистрируются в `packs.json` в корне лаунчера.
 
-## Tauri-команды
+## Tauri-команды (основные)
 | Команда | Описание |
 |---------|----------|
-| `list_packs` | Список поддерживаемых сборок |
+| `list_packs` / `add_pack_command` / `remove_pack_command` | Список / добавить / удалить сборку |
 | `check_for_updates(packId?)` | Проверка новой версии `.mrpack` на GitHub |
-| `install_mrpack(packId?, tag?)` | Скачивание версии, распаковка, установка модов + `overrides`, прогресс через событие `download-progress` |
+| `install_mrpack(packId?, tag?)` | Скачивание версии, распаковка, установка модов + `overrides`, проверка хэшей, прогресс через `download-progress` |
 | `list_versions(packId?)` | Релизы GitHub (тег, дата, ченджлог) + установленные версии + активная |
-| `switch_version(packId?, versionId)` | Переключение активной версии (по тегу или versionId) |
-| `get_status(packId?)` | Состояние активной версии, текущая сессия, RAM |
-| `login_offline_command` | Оффлайн-логин |
-| `login_microsoft_command` | Вход через Microsoft OAuth2 (device code) |
+| `switch_version(packId?, versionId)` | Переключение активной версии |
+| `get_status(packId?)` | Состояние активной версии, сессия, RAM, кастомные моды |
+| `get_news` | Новости: релизы/дискуссии сборок + релизы лаунчера |
+| `pack_repo_content(packId?)` | Звёзды, скриншоты (`screenshots.json`), сервера (`servers.json`) сборки |
+| `list_game_files_*` / `toggle_game_file` | Файлы версии: список, иконка, включение-выключение |
+| `login_offline_command` / `ms_device_code` / `ms_poll` | Оффлайн-логин / Microsoft OAuth2 |
 | `launch_game_command(packId?, ram, session)` | Запуск Java с указанным ОЗУ |
-| `system_info` | Системная/доступная память (нужно для рекомендуемой RAM) |
+| `list_java` / `ensure_java` | Список найденных Java / установка JRE |
+| `system_info` | Системная/доступная память (для рекомендуемой RAM) |
+| `open_external` / `open_game_folder` / `get_skin` | Открыть URL/папку, скин Mojang |
 
 ## Как работает установка `.mrpack`
-1. Скачивается `modpack.mrpack` с GitHub Releases (для выбранного тега — по URL релиза).
+1. Скачивается `modpack.mrpack` с GitHub Releases (выбранный тег).
 2. Архив распаковывается во временную папку.
 3. Читается `modrinth.index.json`: версия Minecraft, модлоадер, массив `files`.
-4. Все файлы из `files` скачиваются параллельно (`tokio` + `reqwest`, лимит 8 соединений) с проверкой SHA-1/SHA-512.
-5. Папка `overrides/` копируется в профиль версии; пишется маркер установки и индекс; версия становится активной.
+4. Все файлы из `files` скачиваются параллельно (`tokio` + `reqwest`, лимит 8 соединений)
+   с проверкой SHA-1/SHA-512; несовпадение удаляет файл и останавливает установку.
+5. `overrides/` копируется в профиль версии; пишется маркер установки и индекс; версия становится активной.
+
+## Безопасность
+- Моды считаются доверенными только с CDN Modrinth/CurseForge (`cdn.modrinth.com`,
+  `dl.modrinth.com`, `mediafiles.forgecdn.net`).
+- Остальные файлы и `.jar` из `overrides` — «кастомные»: записываются в `.nio-custom.json`
+  версии и показываются в баннере предупреждения. Установка не блокируется (выбор автора),
+  но источник подсвечивается.
 
 ## Запуск игры
-- Поддерживаются NeoForge / Forge / Fabric / Quilt (профиль запуска берётся из установщика модлоадера).
-- Нужна Java 21+; не встроена — используется `java` из PATH (или `~/NioLauncher/runtime/bin`).
-- На Wayland при пустом/белом окне: `WEBKIT_DISABLE_COMPOSITING_MODE=1` и `WEBKIT_DISABLE_DMABUF_RENDERER=1` ставятся автоматически.
+- NeoForge / Forge / Fabric / Quilt (профиль запуска из установщика модлоадера).
+- Java 21+; автопоиск в PATH и типовых каталогах (`jre.rs`) или ручной выбор.
+- Wayland при пустом/белом окне: `WEBKIT_DISABLE_COMPOSITING_MODE=1` и
+  `WEBKIT_DISABLE_DMABUF_RENDERER=1` выставляются автоматически.
 - Headless-отладка UI: `scripts/dev-headless.sh`.

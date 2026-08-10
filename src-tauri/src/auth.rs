@@ -98,18 +98,6 @@ fn qr_svg(text: &str) -> String {
 struct XboxResp {
     #[serde(rename = "Token")]
     token: String,
-    #[serde(rename = "DisplayClaims")]
-    display_claims: XboxClaims,
-}
-
-#[derive(Debug, Deserialize)]
-struct XboxClaims {
-    xui: Vec<XboxUser>,
-}
-
-#[derive(Debug, Deserialize)]
-struct XboxUser {
-    uhs: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -1,6 +1,11 @@
 export interface PackDescriptor {
   id: string;
   name: string;
+  /** Прямой URL на .mrpack файл сборки. */
+  url: string;
+  builtin: boolean;
+  /** Владелец GitHub-репозитория сборки (если это github-сборка). */
+  author: string | null;
 }
 
 export interface UserSession {
@@ -21,6 +26,14 @@ export interface AppStatus {
   active_source_tag: string | null;
   installed_versions: string[];
   discord_rp_enabled: boolean;
+  /** Файлы активной версии, скачанные не с доверенных CDN (кастомные моды). */
+  custom_mods: CustomFile[];
+}
+
+/** Файл сборки, скачанный не с Modrinth/CurseForge CDN. */
+export interface CustomFile {
+  path: string;
+  url: string;
 }
 
 export interface PackInfo {
@@ -56,6 +69,7 @@ export interface GhVersion {
   prerelease: boolean;
   published_at: string | null;
   body: string;
+  assets: string[];
 }
 
 export interface InstalledVersion {
@@ -128,6 +142,21 @@ export interface GameFileEntry {
 export interface GameFileIcon {
   name: string;
   data: string | null;
+}
+
+/** Сервер сборки из servers.json в репозитории. */
+export interface PackServer {
+  name: string;
+  ip: string;
+  port: number | null;
+  desc: string | null;
+}
+
+/** Контент репозитория сборки: звёзды, скриншоты, сервера. */
+export interface PackRepoContent {
+  stars: number | null;
+  screenshots: string[];
+  servers: PackServer[];
 }
 
 export interface GameExited {

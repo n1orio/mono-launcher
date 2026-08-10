@@ -2,6 +2,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { check as checkAppUpdate, type Update as AppUpdate } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import {
+  addPack,
   checkForUpdates,
   clearLaunchLog,
   ensureJava,
@@ -25,14 +26,18 @@ import {
   onDownloadProgress,
   onGameExited,
   onLaunchLog,
+  onPackAdded,
   onPlaytimeUpdated,
   openExternal,
   openGameFolder,
   openPackDir,
+  packRepoContent,
+  removePack,
   setJavaPath,
   setDiscordRp,
   setLocale,
   switchVersion,
+  takePendingPackAdd,
   toggleGameFile,
   verifyGame,
 } from "~/lib/bridge";
@@ -45,13 +50,14 @@ import type {
   MsDeviceCodeInfo,
   NewsItem,
   PackDescriptor,
+  PackRepoContent,
   SystemInfo,
   UpdateInfo,
   UserSession,
   VerifyResult,
   VersionsInfo,
 } from "~/lib/types";
-import type { GameFolderKind } from "~/lib/bridge";
+import type { GameFolderKind, PackAddedPayload } from "~/lib/bridge";
 import { useI18n } from "~/composables/useI18n";
 
 const { t, locale } = useI18n();
@@ -77,6 +83,7 @@ const PACK_KEY = "nio.pack";
 const RAM_KEY = "nio.ram";
 const WIN_W_KEY = "nio.win.w";
 const WIN_H_KEY = "nio.win.h";
+const THEME_KEY = "nio.theme";
 const CONSOLE_LIMIT = 2000;
 
 function formatBytes(bytes: number): string {
@@ -129,7 +136,29 @@ export function useLauncher() {
   const versions = ref<VersionsInfo | null>(null);
   const logEntries = ref<LaunchLogEntry[]>([]);
   const logRef = ref<HTMLElement | null>(null);
-  const tab = ref<"play" | "settings" | "news">("play");
+  const tab = ref<"play" | "settings" | "news" | "dev">("play");
+  const theme = ref<"dark" | "light">("dark");
+
+  /** Применяет тему лаунчера (тёмная/светлая) и сохраняет выбор. */
+  function applyTheme(th: "dark" | "light") {
+    theme.value = th;
+    if (typeof document !== "undefined") {
+      document.documentElement.classList.toggle("theme-light", th === "light");
+    }
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(THEME_KEY, th);
+    }
+  }
+
+  function toggleTheme() {
+    applyTheme(theme.value === "dark" ? "light" : "dark");
+  }
+
+  applyTheme(
+    typeof localStorage !== "undefined" && localStorage.getItem(THEME_KEY) === "light"
+      ? "light"
+      : "dark"
+  );
   const notifications = ref<Notice[]>([]);
   let noticeSeq = 0;
   const launcherVer = ref("");
@@ -150,13 +179,21 @@ export function useLauncher() {
   const discordRp = ref(true);
   const news = ref<NewsItem[] | null>(null);
   const newsFilter = ref<string>("all");
+  const packUrl = ref("");
+  const packName = ref("");
+  const addingPack = ref(false);
+  const removingPack = ref("");
+  const removeArmed = ref<string | null>(null);
 
   // ==== Вкладки файлов игры (моды/ресурспаки/шейдеры/миры/консоль) ====
-  const playSubTab = ref<"releases" | "mods" | "resourcepacks" | "shaderpacks" | "saves" | "console">("releases");
+  const playSubTab = ref<"releases" | "mods" | "resourcepacks" | "shaderpacks" | "saves" | "screenshots" | "servers" | "console">("releases");
   const gameFiles = ref<Partial<Record<GameFolderKind, GameFileEntry[]>>>({});
   const fileIcons = ref<Record<string, string>>({});
   const fileSearch = ref("");
   const selectedFiles = ref<Record<string, { folder: GameFolderKind; entry: GameFileEntry }>>({});
+  // Контент репозитория сборки: звёзды, скриншоты, сервера.
+  const repoContent = ref<Record<string, PackRepoContent>>({});
+  const repoContentLoading = ref<Record<string, boolean>>({});
 
   function fileEntryKey(folder: GameFolderKind, entry: GameFileEntry): string {
     return `${folder}/${entry.name}`;
@@ -405,6 +442,55 @@ export function useLauncher() {
     }
   }
 
+  /** Ссылка на GitHub-репозиторий сборки по её URL, "" если это не github-сборка. */
+  function packRepoUrl(url: string): string {
+    const rest = (url || "").replace(/^https?:\/\/github\.com\//, "");
+    const [owner, repo] = rest.split("/");
+    if (!owner || !repo || owner === "USER" || repo === "REPO") return "";
+    return `https://github.com/${owner}/${repo}`;
+  }
+
+  /** Открывает форму GitHub Issues репозитория сборки с предзаполненным окружением. */
+  async function reportPackBug() {
+    const pack = activePack.value;
+    const repo = packRepoUrl(pack?.url ?? "");
+    if (!pack || !repo) {
+      notify(t("reportPack.noRepo"));
+      return;
+    }
+    const ver =
+      status.value?.active_source_tag ?? status.value?.active_version ?? t("reportPack.unknown");
+    const body = [
+      t("reportPack.desc"),
+      "",
+      t("reportPack.steps"),
+      "",
+      t("reportPack.env"),
+      t("reportPack.pack", { name: pack.name }),
+      t("reportPack.ver", { v: ver }),
+      status.value?.minecraft_version
+        ? `- Minecraft: ${status.value.minecraft_version}${status.value.loader ? ` / ${status.value.loader}` : ""}`
+        : null,
+      t("reportPack.launcher", { ver: launcherVer.value || "?" }),
+      t("reportPack.os", { os: detectOS() }),
+      "",
+      `_${t("reportPack.note")}_`,
+    ]
+      .filter((l): l is string => l !== null)
+      .join("\n");
+    const title = t("reportPack.title", { name: pack.name });
+    const url = `${repo}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+    try {
+      if (isTauri()) {
+        await openExternal(url);
+      } else {
+        window.open(url, "_blank");
+      }
+    } catch {
+      window.open(url, "_blank");
+    }
+  }
+
   const packs = ref<PackDescriptor[]>([]);
   const packId = ref("");
 
@@ -414,6 +500,7 @@ export function useLauncher() {
   let unlistenLogSync: (() => void) | undefined;
   let unlistenPlaytimeSync: (() => void) | undefined;
   let unlistenGameExitedSync: (() => void) | undefined;
+  let unlistenDeepLinkSync: (() => void) | undefined;
 
   // Буфер логов: Java может выдавать тысячи строк в секунду —
   // рендерим консоль порциями, чтобы не ронять UI.
@@ -438,6 +525,97 @@ export function useLauncher() {
     ) ?? false;
 
   const activePack = computed(() => packs.value.find((p) => p.id === packId.value) ?? null);
+
+  /** Обновляет список сборок, сохраняя выбранную (если она ещё существует). */
+  async function loadPacks() {
+    const list = await listPacks();
+    packs.value = list;
+    const saved =
+      typeof localStorage !== "undefined" ? localStorage.getItem(PACK_KEY) : null;
+    packId.value =
+      (saved && list.some((p) => p.id === saved) ? saved : undefined) ??
+      (list.some((p) => p.id === packId.value) ? packId.value : undefined) ??
+      list[0]?.id ??
+      "";
+  }
+
+  /** Добавляет сборку по URL GitHub-репозитория или прямой ссылке на .mrpack. */
+  async function handleAddPack() {
+    if (!isTauri()) return;
+    if (!packUrl.value.trim()) {
+      notify(t("dev.errUrl"), "info");
+      return;
+    }
+    addingPack.value = true;
+    try {
+      const added = await addPack(
+        packUrl.value.trim(),
+        packName.value.trim() ? packName.value.trim() : undefined
+      );
+      packUrl.value = "";
+      packName.value = "";
+      await loadPacks();
+      await load();
+      refreshVersions();
+      if (packId.value !== added.id) {
+        await selectPack(added.id);
+      }
+      notify(t("dev.added", { name: added.name }), "success");
+    } catch (e) {
+      notify(t("dev.errAdd", { e }), "error");
+    } finally {
+      addingPack.value = false;
+    }
+  }
+
+  /** Удаляет пользовательскую сборку (двухшаговое подтверждение кнопкой). */
+  async function handleRemovePack(id: string) {
+    if (!isTauri() || busy.value) return;
+    if (removeArmed.value !== id) {
+      removeArmed.value = id;
+      return;
+    }
+    removeArmed.value = null;
+    removingPack.value = id;
+    try {
+      await removePack(id);
+      await loadPacks();
+      await load();
+      refreshVersions();
+      notify(t("dev.removed"), "success");
+    } catch (e) {
+      notify(t("dev.errRemove", { e }), "error");
+    } finally {
+      removingPack.value = "";
+    }
+  }
+
+  function resetRemoveArm() {
+    removeArmed.value = null;
+  }
+
+  /** Обрабатывает результат добавления сборки по deep link (nio://add-pack...). */
+  function handlePackAdded(p: PackAddedPayload) {
+    if (!p.ok) {
+      notify(t("dev.errAdd", { e: p.error ?? "?" }), "error");
+      return;
+    }
+    loadPacks()
+      .then(async () => {
+        await load();
+        refreshVersions();
+        if (p.id && packId.value !== p.id) {
+          await selectPack(p.id);
+        }
+        notify(
+          p.already
+            ? t("dev.already", { name: p.name || "?" })
+            : t("dev.added", { name: p.name || "?" }),
+          p.already ? "info" : "success"
+        );
+      })
+      .catch(() => {});
+  }
 
   async function load() {
     if (!isTauri() || !packId.value) return;
@@ -550,6 +728,21 @@ export function useLauncher() {
       .catch(() => {});
   }
 
+  /** Загружает контент репозитория сборки (звёзды/скриншоты/сервера), один раз. */
+  async function loadPackRepoContent(id: string) {
+    if (!isTauri() || !id || repoContentLoading.value[id]) return;
+    if (repoContent.value[id]) return;
+    repoContentLoading.value = { ...repoContentLoading.value, [id]: true };
+    try {
+      const c = await packRepoContent(id);
+      repoContent.value = { ...repoContent.value, [id]: c };
+    } catch {
+      // Не критично: без звёзд/скриншотов лаунчер работает.
+    } finally {
+      repoContentLoading.value = { ...repoContentLoading.value, [id]: false };
+    }
+  }
+
   async function selectPack(id: string) {
     if (id === packId.value) return;
     packId.value = id;
@@ -566,14 +759,7 @@ export function useLauncher() {
       return;
     }
     try {
-      const list = await listPacks();
-      packs.value = list;
-      const saved =
-        typeof localStorage !== "undefined" ? localStorage.getItem(PACK_KEY) : null;
-      packId.value =
-        (saved && list.some((p) => p.id === saved) ? saved : undefined) ??
-        list[0]?.id ??
-        "";
+      await loadPacks();
     } catch {
       packId.value = "untold-legends";
     }
@@ -639,6 +825,14 @@ export function useLauncher() {
         notify(t("game.exitError", { code }), "error");
       }
     }).then((fn) => (unlistenGameExitedSync = fn));
+    onPackAdded((p) => {
+      handlePackAdded(p);
+    }).then((fn) => (unlistenDeepLinkSync = fn));
+    takePendingPackAdd()
+      .then((p) => {
+        if (p) handlePackAdded(p);
+      })
+      .catch(() => {});
     launcherVersion()
       .then((v) => (launcherVer.value = v))
       .catch(() => {});
@@ -694,6 +888,7 @@ export function useLauncher() {
     unlistenLogSync?.();
     unlistenPlaytimeSync?.();
     unlistenGameExitedSync?.();
+    unlistenDeepLinkSync?.();
   });
 
   watch(
@@ -894,6 +1089,8 @@ notify(t("err.switch", { e }));
     logEntries,
     logRef,
     tab,
+    theme,
+    toggleTheme,
     packs,
     packId,
     activePack,
@@ -920,6 +1117,7 @@ notify(t("err.switch", { e }));
     notify,
     dismissNotification,
     reportError,
+    reportPackBug,
     appUpdate,
     appUpdating,
     appUpdateProgress,
@@ -945,6 +1143,9 @@ notify(t("err.switch", { e }));
     newsSources,
     filteredNews,
     playSubTab,
+    repoContent,
+    repoContentLoading,
+    loadPackRepoContent,
     gameFiles,
     fileIcons,
     loadGameFiles,
@@ -956,5 +1157,13 @@ notify(t("err.switch", { e }));
     setSelectedFilesEnabled,
     openFileOnModrinth,
     openFileOnCurseForge,
+    packUrl,
+    packName,
+    addingPack,
+    removingPack,
+    removeArmed,
+    handleAddPack,
+    handleRemovePack,
+    resetRemoveArm,
   };
 }

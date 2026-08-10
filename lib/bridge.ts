@@ -11,6 +11,7 @@ import type {
   NewsItem,
   PackDescriptor,
   PackInfo,
+  PackRepoContent,
   SystemInfo,
   UpdateInfo,
   UserSession,
@@ -23,6 +24,33 @@ export const isTauri = () =>
 
 export function listPacks(): Promise<PackDescriptor[]> {
   return invoke("list_packs");
+}
+
+export function addPack(url: string, name?: string): Promise<PackDescriptor> {
+  return invoke("add_pack_command", { url, name: name ?? null });
+}
+
+export function removePack(packId: string): Promise<void> {
+  return invoke("remove_pack_command", { packId });
+}
+
+export interface PackAddedPayload {
+  ok: boolean;
+  already: boolean;
+  id: string;
+  name: string;
+  error?: string;
+}
+
+export function onPackAdded(
+  cb: (p: PackAddedPayload) => void
+): Promise<UnlistenFn> {
+  return listen<PackAddedPayload>("pack-added", (event) => cb(event.payload));
+}
+
+/** Результат добавления по deep link, если фронтенд стартовал позже события. */
+export function takePendingPackAdd(): Promise<PackAddedPayload | null> {
+  return invoke("take_pending_pack_add");
 }
 
 export function getStatus(packId: string): Promise<AppStatus> {
@@ -181,6 +209,10 @@ export function setLocale(locale: string): Promise<void> {
 
 export function getNews(): Promise<NewsItem[]> {
   return invoke("get_news_command");
+}
+
+export function packRepoContent(packId: string): Promise<PackRepoContent> {
+  return invoke("pack_repo_content_command", { packId });
 }
 
 export type GameFolderKind = "mods" | "resourcepacks" | "shaderpacks" | "saves";

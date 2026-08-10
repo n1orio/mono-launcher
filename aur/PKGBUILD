@@ -2,7 +2,7 @@
 # Contributor: NIO <nio@users.noreply.github.com>
 
 pkgname=nio-launcher
-pkgver=0.1.0
+pkgver=0.1.6
 pkgrel=1
 pkgdesc="Фирменный монолаунчер для Minecraft-сборки NIO (.mrpack)"
 arch=('x86_64')
