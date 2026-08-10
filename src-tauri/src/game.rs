@@ -665,6 +665,47 @@ fn split_args(args: &[serde_json::Value]) -> Vec<String> {
     out
 }
 
+/// Адрес сервера для авто-коннекта (аргументы `--server`/`--port` клиента).
+pub struct ServerAddress {
+    pub host: String,
+    pub port: Option<u16>,
+}
+
+impl ServerAddress {
+    pub fn display(&self) -> String {
+        match &self.port {
+            Some(p) => format!("{}:{p}", self.host),
+            None => self.host.clone(),
+        }
+    }
+}
+
+/// Разбирает "host" или "host:port" (IPv6 без порта считается целиком адресом).
+pub fn parse_server_address(raw: &str) -> Option<ServerAddress> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    if raw.matches(':').count() > 1 {
+        return Some(ServerAddress {
+            host: raw.to_string(),
+            port: None,
+        });
+    }
+    match raw.rsplit_once(':') {
+        Some((host, port)) if !host.is_empty() && port.parse::<u16>().is_ok() => {
+            Some(ServerAddress {
+                host: host.to_string(),
+                port: port.parse::<u16>().ok(),
+            })
+        }
+        _ => Some(ServerAddress {
+            host: raw.to_string(),
+            port: None,
+        }),
+    }
+}
+
 /// Собирает и запускает процесс Java для Minecraft.
 pub async fn launch_game(
     pack_id: &str,
@@ -673,7 +714,11 @@ pub async fn launch_game(
     app: AppHandle,
     width: u32,
     height: u32,
+    server_address: Option<ServerAddress>,
 ) -> Result<()> {
+    if let Some(srv) = &server_address {
+        emit_log(&app, "sys", &format!("Авто-коннект на сервер: {}", srv.display()));
+    }
     let root = config::launcher_root()?;
     let assets_root = root.join("assets");
     let libraries_dir = root.join("libraries");
@@ -908,6 +953,18 @@ pub async fn launch_game(
     final_args.push("-cp".into());
     final_args.push(classpath_str.clone());
     final_args.push(main_class);
+
+    // Авто-коннект: клиент читает --server/--port из аргументов main-класса.
+    if let Some(srv) = &server_address {
+        if !game_args.iter().any(|a| a == "--server") {
+            game_args.push("--server".into());
+            game_args.push(srv.host.clone());
+            if let Some(port) = srv.port {
+                game_args.push("--port".into());
+                game_args.push(port.to_string());
+            }
+        }
+    }
 
     for a in game_args {
         final_args.push(replace_placeholders(&a, &placeholders));

@@ -772,41 +772,46 @@
           </div>
           </div>
 
-          <!-- ======= Скриншоты сборки (screenshots.json в репозитории) ======= -->
+          <!-- ======= Скриншоты сборки (папка screenshots установленной версии) ======= -->
           <template v-else-if="playSubTab === 'screenshots'">
             <div class="flex min-h-0 flex-1 flex-col">
-              <div v-if="repoContentLoading[activePack?.id ?? '']" class="flex flex-1 items-center justify-center text-xs text-[color:var(--tx-muted)]">
+              <div v-if="screenshotsLoading" class="flex flex-1 items-center justify-center text-xs text-[color:var(--tx-muted)]">
                 <svg class="mr-2 h-4 w-4 animate-spin fill-[#58a6ff]" viewBox="0 0 16 16">
                   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
                 </svg>
                 {{ t("screenshots.loading") }}
               </div>
-              <div v-else-if="(repoContent[activePack?.id ?? '']?.screenshots ?? []).length === 0" class="flex flex-1 items-center justify-center">
+              <div v-else-if="!packScreenshotsInstalled" class="flex flex-1 items-center justify-center">
+                <div class="rounded-md border border-[var(--border)] bg-[var(--panel)] p-8 text-center text-xs text-[color:var(--tx-muted)]">
+                  <p class="font-medium text-[color:var(--tx)]">{{ t("screenshots.noInstall") }}</p>
+                </div>
+              </div>
+              <div v-else-if="packScreenshots.length === 0" class="flex flex-1 items-center justify-center">
                 <div class="rounded-md border border-[var(--border)] bg-[var(--panel)] p-8 text-center text-xs text-[color:var(--tx-muted)]">
                   <p class="font-medium text-[color:var(--tx)]">{{ t("screenshots.empty") }}</p>
-                  <p class="mt-1.5 font-mono text-[10px]">screenshots.json</p>
                 </div>
               </div>
               <div v-else class="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 pb-8">
                 <p class="text-[11px] text-[color:var(--tx-muted)]">
-                  {{ t("screenshots.count", { n: (repoContent[activePack?.id ?? '']?.screenshots ?? []).length }) }}
+                  {{ t("screenshots.count", { n: packScreenshots.length }) }}
                 </p>
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <button
-                    v-for="(shot, i) in repoContent[activePack?.id ?? '']?.screenshots ?? []"
+                    v-for="(shot, i) in packScreenshots"
                     :key="shot"
                     type="button"
                     class="group overflow-hidden rounded-md border border-[var(--border)] bg-[var(--panel)] transition-colors hover:border-[#58a6ff]/60"
                     @click="shotIdx = i"
                   >
                     <img
-                      :src="shot"
+                      :src="convertFileSrc(shot)"
                       :alt="`${t('sub.screenshots')} ${i + 1}`"
                       loading="lazy"
                       class="aspect-video w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                     />
                   </button>
                 </div>
+                <p class="text-[10px] text-[color:var(--tx-muted)]">{{ t("screenshots.note") }}</p>
               </div>
             </div>
 
@@ -824,52 +829,70 @@
                 ✕
               </button>
               <button
-                v-if="(repoContent[activePack?.id ?? '']?.screenshots ?? []).length > 1"
+                v-if="packScreenshots.length > 1"
                 type="button"
                 class="absolute left-3 top-1/2 -translate-y-1/2 rounded-md bg-[var(--panel)] px-2.5 py-1.5 text-sm font-semibold text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
-                @click="shotIdx = ((shotIdx ?? 0) - 1 + (repoContent[activePack?.id ?? '']?.screenshots ?? []).length) % (repoContent[activePack?.id ?? '']?.screenshots ?? []).length"
+                @click="shotIdx = ((shotIdx ?? 0) - 1 + packScreenshots.length) % packScreenshots.length"
               >
                 ←
               </button>
               <button
-                v-if="(repoContent[activePack?.id ?? '']?.screenshots ?? []).length > 1"
+                v-if="packScreenshots.length > 1"
                 type="button"
                 class="absolute right-3 top-1/2 -translate-y-1/2 rounded-md bg-[var(--panel)] px-2.5 py-1.5 text-sm font-semibold text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
-                @click="shotIdx = ((shotIdx ?? 0) + 1) % (repoContent[activePack?.id ?? '']?.screenshots ?? []).length"
+                @click="shotIdx = ((shotIdx ?? 0) + 1) % packScreenshots.length"
               >
                 →
               </button>
               <img
-                :src="(repoContent[activePack?.id ?? '']?.screenshots ?? [])[shotIdx ?? 0]"
+                :src="convertFileSrc(packScreenshots[shotIdx ?? 0])"
                 class="max-h-[82vh] max-w-full rounded-lg object-contain shadow-2xl"
                 alt=""
               />
               <span class="absolute bottom-4 font-mono text-xs text-[color:var(--tx-muted)]">
-                {{ (shotIdx ?? 0) + 1 }} / {{ (repoContent[activePack?.id ?? '']?.screenshots ?? []).length }}
+                {{ (shotIdx ?? 0) + 1 }} / {{ packScreenshots.length }}
               </span>
             </div>
           </template>
 
-          <!-- ======= Сервера сборки (servers.json в репозитории) ======= -->
+          <!-- ======= Сервера: сборки (servers.json) сверху + свои (servers.dat) снизу ======= -->
           <template v-else-if="playSubTab === 'servers'">
-            <div class="flex min-h-0 flex-1 flex-col">
-              <div v-if="repoContentLoading[activePack?.id ?? '']" class="flex flex-1 items-center justify-center text-xs text-[color:var(--tx-muted)]">
-                <svg class="mr-2 h-4 w-4 animate-spin fill-[#58a6ff]" viewBox="0 0 16 16">
-                  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-                </svg>
-                {{ t("servers.loading") }}
-              </div>
-              <div v-else-if="(repoContent[activePack?.id ?? '']?.servers ?? []).length === 0" class="flex flex-1 items-center justify-center">
-                <div class="rounded-md border border-[var(--border)] bg-[var(--panel)] p-8 text-center text-xs text-[color:var(--tx-muted)]">
-                  <p class="font-medium text-[color:var(--tx)]">{{ t("servers.empty") }}</p>
-                  <p class="mt-1.5 font-mono text-[10px]">servers.json</p>
+            <div class="min-h-0 flex-1 overflow-y-auto pr-1 pb-8">
+              <div v-for="group in serverGroups" :key="group.key" class="mb-8 last:mb-0">
+                <div class="mb-3 flex items-center justify-between">
+                  <p class="text-[11px] font-medium text-[color:var(--tx-strong)]">
+                    {{ group.title }}
+                    <span class="font-normal text-[color:var(--tx-muted)]">· {{ group.servers.length }}</span>
+                  </p>
+                  <button
+                    v-if="group.key === 'author'"
+                    type="button"
+                    class="flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[10px] font-medium text-[color:var(--tx-muted)] transition-colors hover:border-[#58a6ff]/50 hover:text-[#58a6ff]"
+                    @click="pingActiveServers"
+                  >
+                    <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                      <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1Z"/>
+                      <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466Z"/>
+                    </svg>
+                    {{ t("servers.refresh") }}
+                  </button>
                 </div>
-              </div>
-              <div v-else class="min-h-0 flex-1 overflow-y-auto pr-1 pb-8">
-                <div class="grid gap-3 sm:grid-cols-2">
+                <div
+                  v-if="group.key === 'author' && repoContentLoading[activePack?.id ?? '']"
+                  class="flex items-center justify-center py-10 text-xs text-[color:var(--tx-muted)]"
+                >
+                  <svg class="mr-2 h-4 w-4 animate-spin fill-[#58a6ff]" viewBox="0 0 16 16">
+                    <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                  </svg>
+                  {{ t("servers.loading") }}
+                </div>
+                <p v-else-if="group.servers.length === 0" class="rounded-md border border-[var(--border)] bg-[var(--panel)] px-4 py-3 text-[11px] text-[color:var(--tx-muted)]">
+                  {{ group.emptyText }}
+                </p>
+                <div v-else class="grid gap-3 sm:grid-cols-2">
                   <div
-                    v-for="s in repoContent[activePack?.id ?? '']?.servers ?? []"
-                    :key="s.name"
+                    v-for="s in group.servers"
+                    :key="`${group.key}-${serverKey(s)}`"
                     class="flex flex-col gap-3 rounded-md border border-[var(--border)] bg-[var(--panel)] p-4 transition-colors hover:border-[#58a6ff]/50"
                   >
                     <div class="flex items-start gap-3">
@@ -879,8 +902,18 @@
                         </svg>
                       </div>
                       <div class="min-w-0 flex-1">
-                        <div class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">{{ s.name }}</div>
+                        <div class="flex items-center gap-2">
+                          <span class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">{{ s.name }}</span>
+                          <span
+                            class="h-1.5 w-1.5 shrink-0 rounded-full"
+                            :class="serverStateOf(s) === 'online' ? 'bg-[#3fb950]' : serverStateOf(s) === 'offline' ? 'bg-[#f85149]' : 'bg-[var(--tx-muted)]'"
+                            :title="serverStatusText(s)"
+                          />
+                        </div>
                         <div v-if="s.desc" class="mt-0.5 line-clamp-2 text-[11px] text-[color:var(--tx-muted)]">{{ s.desc }}</div>
+                        <div class="mt-1 truncate text-[10px] text-[color:var(--tx-muted)]" :title="serverStatusText(s)">
+                          {{ serverStatusText(s) }}
+                        </div>
                       </div>
                       <span
                         v-if="s.port"
@@ -891,17 +924,29 @@
                     </div>
                     <div class="mt-auto flex items-center justify-between gap-2 border-t border-[var(--border)] pt-3">
                       <code class="truncate font-mono text-xs text-[color:var(--tx)]">{{ s.ip }}{{ s.port ? `:${s.port}` : "" }}</code>
-                      <button
-                        type="button"
-                        class="flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:border-[#58a6ff]/50 hover:text-[#58a6ff]"
-                        @click="copyServerIp(s)"
-                      >
-                        <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                          <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/>
-                          <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/>
-                        </svg>
-                        {{ t("servers.copy") }}
-                      </button>
+                      <div class="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          class="flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:border-[#58a6ff]/50 hover:text-[#58a6ff]"
+                          @click="copyServerIp(s)"
+                        >
+                          <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                            <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/>
+                            <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/>
+                          </svg>
+                          {{ t("servers.copy") }}
+                        </button>
+                        <button
+                          type="button"
+                          class="flex items-center gap-1.5 rounded-md bg-[#238636] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#2ea043]"
+                          @click="playOnServer(s)"
+                        >
+                          <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                            <path d="M3.75 2a.75.75 0 0 1 .75.75V7h7V2.75a.75.75 0 0 1 1.5 0v10.5a.75.75 0 0 1-1.5 0V8.5h-7v4.75a.75.75 0 0 1-1.5 0V2.75a.75.75 0 0 1 .75-.75Z"/>
+                          </svg>
+                          {{ t("servers.play") }}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1244,13 +1289,6 @@
                 <p class="text-[11px] text-[color:var(--tx-muted)]">{{ t("dev.docsContent") }}</p>
                 <div class="space-y-2 font-mono text-[10px] text-[color:var(--tx-muted)]">
                   <div class="overflow-x-auto rounded-md border border-[var(--border)] bg-[var(--bg-60)] px-3 py-2">
-                    <div class="mb-1 font-semibold text-[color:var(--tx-strong)]">screenshots.json</div>
-                    <pre class="leading-relaxed">[
-  "screenshots/1.png",
-  "screenshots/2.webp"
-]</pre>
-                  </div>
-                  <div class="overflow-x-auto rounded-md border border-[var(--border)] bg-[var(--bg-60)] px-3 py-2">
                     <div class="mb-1 font-semibold text-[color:var(--tx-strong)]">servers.json</div>
                     <pre class="leading-relaxed">[
   {
@@ -1536,10 +1574,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref } from "vue";
-import { isTauri, openExternal } from "~/lib/bridge";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { computed, nextTick, onBeforeUnmount, ref } from "vue";
+import { isTauri, openExternal, pingServer } from "~/lib/bridge";
 import type { GameFolderKind } from "~/lib/bridge";
-import type { GameFileEntry, NewsItem, PackServer } from "~/lib/types";
+import type { GameFileEntry, NewsItem, PackServer, ServerStatus } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n } from "~/composables/useI18n";
 
@@ -1577,6 +1616,7 @@ const {
   msFlow,
   msPolling,
   handlePlay,
+  playOnServer,
   handleClearLog,
   handleCopyLog,
   handleOpenPackDir,
@@ -1631,6 +1671,13 @@ const {
   handleAddPack,
   handleRemovePack,
   resetRemoveArm,
+  packScreenshots,
+  packScreenshotsInstalled,
+  screenshotsLoading,
+  loadPackScreenshots,
+  myServers,
+  myServersInstalled,
+  loadMyServers,
 } = useLauncher();
 
 const { t, locale, setLocale } = useI18n();
@@ -1836,8 +1883,22 @@ function openSelected(site: "modrinth" | "curseforge") {
 
 watch(playSubTab, () => {
   if (fileListRef.value) fileListRef.value.scrollTop = 0;
-  if ((playSubTab.value === "screenshots" || playSubTab.value === "servers") && activePack.value) {
+  if (
+    (playSubTab.value === "screenshots" || playSubTab.value === "servers") &&
+    activePack.value
+  ) {
     loadPackRepoContent(activePack.value.id);
+  }
+  if (playSubTab.value === "screenshots" && activePack.value) {
+    loadPackScreenshots(activePack.value.id);
+  }
+  if (playSubTab.value === "servers" && activePack.value) {
+    loadMyServers(activePack.value.id);
+    pingActiveServers();
+    stopServerPingTimer();
+    serverPingTimer = setInterval(pingActiveServers, 45000);
+  } else {
+    stopServerPingTimer();
   }
 });
 
@@ -1960,6 +2021,44 @@ const activeContent = computed(() => repoContent.value[activePack.value?.id ?? "
 const packStars = computed(() => activeContent.value?.stars ?? null);
 const shotIdx = ref<number | null>(null);
 
+/** Разбирает адрес "host" или "host:port" из servers.dat. */
+function splitServerAddress(address: string): { ip: string; port: number | null } {
+  const idx = address.lastIndexOf(":");
+  if (idx > 0 && /^\d+$/.test(address.slice(idx + 1))) {
+    return { ip: address.slice(0, idx), port: Number(address.slice(idx + 1)) };
+  }
+  return { ip: address, port: null };
+}
+
+type ServerGroup = {
+  key: "author" | "mine";
+  title: string;
+  servers: PackServer[];
+  emptyText: string;
+};
+
+/** Группы серверов: авторские (servers.json) сверху, свои (servers.dat) снизу. */
+const serverGroups = computed<ServerGroup[]>(() => {
+  const mine = myServers.value.map((s) => {
+    const { ip, port } = splitServerAddress(s.address);
+    return { name: s.name, ip, port, desc: null } as PackServer;
+  });
+  return [
+    {
+      key: "author",
+      title: t("servers.authorTitle"),
+      servers: repoContent.value[activePack.value?.id ?? ""]?.servers ?? [],
+      emptyText: t("servers.empty"),
+    },
+    {
+      key: "mine",
+      title: t("servers.myTitle"),
+      servers: mine,
+      emptyText: myServersInstalled.value ? t("servers.myEmpty") : t("servers.noInstall"),
+    },
+  ];
+});
+
 async function copyServerIp(srv: PackServer) {
   const text = `${srv.ip}${srv.port ? `:${srv.port}` : ""}`;
   try {
@@ -1969,6 +2068,75 @@ async function copyServerIp(srv: PackServer) {
     notify(`${t("servers.copyFail")}: ${text}`, "error");
   }
 }
+
+/** Статусы серверов активной сборки: key "host:port" → результат пинга. */
+const serverStatuses = ref<Record<string, ServerStatus>>({});
+const serverPinging = ref<Record<string, boolean>>({});
+let serverPingTimer: ReturnType<typeof setInterval> | null = null;
+
+function serverKey(srv: PackServer): string {
+  return `${srv.ip}:${srv.port ?? 25565}`;
+}
+
+function stopServerPingTimer() {
+  if (serverPingTimer) {
+    clearInterval(serverPingTimer);
+    serverPingTimer = null;
+  }
+}
+
+async function pingOneServer(srv: PackServer) {
+  const key = serverKey(srv);
+  if (serverPinging.value[key]) return;
+  serverPinging.value[key] = true;
+  try {
+    serverStatuses.value[key] = await pingServer(srv.ip, srv.port ?? null);
+  } catch {
+    serverStatuses.value[key] = { online: false, version: null, motd: null, playersOnline: null, playersMax: null, latencyMs: null };
+  } finally {
+    serverPinging.value[key] = false;
+  }
+}
+
+function pingActiveServers() {
+  serverGroups.value.forEach((g) => g.servers.forEach((srv) => void pingOneServer(srv)));
+}
+
+type ServerState = "online" | "offline" | "checking" | "unknown";
+
+function serverStateOf(srv: PackServer): ServerState {
+  const key = serverKey(srv);
+  if (serverPinging.value[key]) return "checking";
+  const st = serverStatuses.value[key];
+  if (!st) return "unknown";
+  return st.online ? "online" : "offline";
+}
+
+function serverStatusText(srv: PackServer): string {
+  const key = serverKey(srv);
+  const st = serverStatuses.value[key];
+  switch (serverStateOf(srv)) {
+    case "checking":
+      return t("servers.checking");
+    case "unknown":
+      return t("servers.unknown");
+    case "offline":
+      return t("servers.offline");
+    default: {
+      const parts = [t("servers.online")];
+      if (st?.playersOnline != null) parts.push(`${st.playersOnline}/${st.playersMax ?? "?"}`);
+      if (st?.version) parts.push(st.version);
+      if (st?.latencyMs != null) parts.push(`${st.latencyMs}мс`);
+      return parts.join(" · ");
+    }
+  }
+}
+
+onBeforeUnmount(stopServerPingTimer);
+
+watch(repoContent, () => {
+  if (playSubTab.value === "servers") pingActiveServers();
+});
 
 /** Открывает вкладку сборки: выбирает её и показывает play-вид. */
 async function openPackTab(id: string) {

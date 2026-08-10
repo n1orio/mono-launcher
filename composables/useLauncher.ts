@@ -19,6 +19,8 @@ import {
   listGameFiles,
   listJava,
   listPacks,
+  listSavedServers,
+  listScreenshots,
   listVersions,
   loginOffline,
   msDeviceCode,
@@ -51,6 +53,8 @@ import type {
   NewsItem,
   PackDescriptor,
   PackRepoContent,
+  PackServer,
+  SavedServer,
   SystemInfo,
   UpdateInfo,
   UserSession,
@@ -743,6 +747,42 @@ export function useLauncher() {
     }
   }
 
+  /** Скриншоты установленной версии (папка screenshots) и сервера игрока (servers.dat). */
+  const packScreenshots = ref<string[]>([]);
+  const packScreenshotsInstalled = ref(false);
+  const screenshotsLoading = ref(false);
+  const myServers = ref<SavedServer[]>([]);
+  const myServersInstalled = ref(false);
+
+  /** Загружает скриншоты из папки screenshots активной версии сборки. */
+  async function loadPackScreenshots(id: string) {
+    if (!isTauri() || !id) return;
+    screenshotsLoading.value = true;
+    try {
+      const list = await listScreenshots(id);
+      packScreenshots.value = list.screenshots;
+      packScreenshotsInstalled.value = list.installed;
+    } catch {
+      packScreenshots.value = [];
+      packScreenshotsInstalled.value = false;
+    } finally {
+      screenshotsLoading.value = false;
+    }
+  }
+
+  /** Загружает сервера игрока из servers.dat активной версии. */
+  async function loadMyServers(id: string) {
+    if (!isTauri() || !id) return;
+    try {
+      const list = await listSavedServers(id);
+      myServers.value = list.servers;
+      myServersInstalled.value = list.installed;
+    } catch {
+      myServers.value = [];
+      myServersInstalled.value = false;
+    }
+  }
+
   async function selectPack(id: string) {
     if (id === packId.value) return;
     packId.value = id;
@@ -1005,6 +1045,11 @@ notify(t("err.switch", { e }));
   }
 
   async function handlePlay() {
+    await runGame(null);
+  }
+
+  /** Запуск игры, опционально с авто-коннектом на сервер ("host" или "host:port"). */
+  async function runGame(server: string | null) {
     if (!isTauri() || !packId.value) return;
     if (!session.value) {
       notify(t("err.loginFirst"), "info");
@@ -1015,17 +1060,23 @@ notify(t("err.switch", { e }));
     pendingLog.length = 0;
     try {
       await launchGame(
-      packId.value,
-      ram.value,
-      session.value,
-      windowWidth.value,
-      windowHeight.value
-    );
+        packId.value,
+        ram.value,
+        session.value,
+        windowWidth.value,
+        windowHeight.value,
+        server
+      );
     } catch (e) {
       notify(t("err.launch", { e }));
     } finally {
       busy.value = false;
     }
+  }
+
+  /** «Играть на сервере»: запуск с --server/--port из карточки сервера. */
+  function playOnServer(srv: PackServer) {
+    return runGame(srv.port ? `${srv.ip}:${srv.port}` : srv.ip);
   }
 
   async function handleClearLog() {
@@ -1109,6 +1160,7 @@ notify(t("err.switch", { e }));
     msFlow,
     msPolling,
     handlePlay,
+    playOnServer,
     handleClearLog,
     handleCopyLog,
     handleOpenPackDir,
@@ -1146,6 +1198,13 @@ notify(t("err.switch", { e }));
     repoContent,
     repoContentLoading,
     loadPackRepoContent,
+  packScreenshots,
+  packScreenshotsInstalled,
+  screenshotsLoading,
+  loadPackScreenshots,
+  myServers,
+  myServersInstalled,
+  loadMyServers,
     gameFiles,
     fileIcons,
     loadGameFiles,

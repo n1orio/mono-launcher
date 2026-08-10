@@ -12,6 +12,10 @@ import type {
   PackDescriptor,
   PackInfo,
   PackRepoContent,
+  SavedServer,
+  SavedServersList,
+  ScreenshotList,
+  ServerStatus,
   SystemInfo,
   UpdateInfo,
   UserSession,
@@ -98,9 +102,22 @@ export function launchGame(
   ramGb: number,
   session: UserSession,
   width: number,
-  height: number
+  height: number,
+  serverAddress: string | null = null
 ): Promise<void> {
-  return invoke("launch_game_command", { packId, ramGb, session, width, height });
+  return invoke("launch_game_command", { packId, ramGb, session, width, height, serverAddress });
+}
+
+export function pingServer(address: string, port: number | null = null): Promise<ServerStatus> {
+  return invoke("ping_server_command", { address, port });
+}
+
+export function listScreenshots(packId: string | null = null): Promise<ScreenshotList> {
+  return invoke("list_screenshots_command", { packId });
+}
+
+export function listSavedServers(packId: string | null = null): Promise<SavedServersList> {
+  return invoke("list_servers_command", { packId });
 }
 
 export function onDownloadProgress(

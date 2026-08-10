@@ -5,6 +5,8 @@ mod files;
 mod game;
 mod jre;
 mod mrpack;
+mod nbt;
+mod ping;
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -1258,11 +1260,93 @@ async fn launch_game_command(
     session: UserSession,
     width: u32,
     height: u32,
+    server_address: Option<String>,
 ) -> Result<(), String> {
     let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
-    game::launch_game(&pack_id, ram_gb, session, app, width.max(320), height.max(240))
+    // Авто-коннект ("host" или "host:port") — пустая строка игнорируется.
+    let server = server_address.as_deref().and_then(game::parse_server_address);
+    game::launch_game(&pack_id, ram_gb, session, app, width.max(320), height.max(240), server)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Пинг Minecraft-сервера (1.7+ статус с фолбэком на legacy 0xFE).
+#[tauri::command]
+async fn ping_server_command(
+    address: String,
+    port: Option<u16>,
+) -> Result<ping::ServerStatus, String> {
+    ping::ping_server(&address, port.unwrap_or(25565)).await
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ScreenshotList {
+    installed: bool,
+    screenshots: Vec<String>,
+}
+
+/// Скриншоты активной установленной версии: папка `screenshots` игрового
+/// каталога (полные пути — фронт отдаёт их через asset-протокол).
+#[tauri::command]
+fn list_screenshots_command(pack_id: Option<String>) -> Result<ScreenshotList, String> {
+    let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
+    let installed = config::active_version_file(&pack_id).map(|f| f.exists()).unwrap_or(false);
+    let mut screenshots = Vec::new();
+    if installed {
+        if let Ok(dir) = config::active_game_dir(&pack_id) {
+            let shots_dir = dir.join("screenshots");
+            if shots_dir.is_dir() {
+                if let Ok(rd) = std::fs::read_dir(&shots_dir) {
+                    let mut files: Vec<String> = rd
+                        .flatten()
+                        .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
+                        .filter(|e| {
+                            e.path()
+                                .extension()
+                                .and_then(|x| x.to_str())
+                                .map(|x| {
+                                    ["png", "jpg", "jpeg", "webp", "bmp", "gif"]
+                                        .contains(&x.to_lowercase().as_str())
+                                })
+                                .unwrap_or(false)
+                        })
+                        .map(|e| e.path().to_string_lossy().to_string())
+                        .collect();
+                    files.sort();
+                    screenshots = files;
+                }
+            }
+        }
+    }
+    Ok(ScreenshotList { installed, screenshots })
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SavedServersList {
+    installed: bool,
+    servers: Vec<nbt::SavedServer>,
+}
+
+/// Сервера игрока из servers.dat активной установленной версии.
+#[tauri::command]
+fn list_servers_command(pack_id: Option<String>) -> Result<SavedServersList, String> {
+    let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
+    let installed = config::active_version_file(&pack_id).map(|f| f.exists()).unwrap_or(false);
+    let mut servers = Vec::new();
+    if installed {
+        if let Ok(dir) = config::active_game_dir(&pack_id) {
+            let file = dir.join("servers.dat");
+            if file.exists() {
+                let data = std::fs::read(&file)
+                    .map_err(|e| format!("servers.dat: чтение: {e}"))?;
+                nbt::parse_servers_dat(&data, &mut servers)
+                    .map_err(|e| format!("servers.dat: разбор: {e}"))?;
+            }
+        }
+    }
+    Ok(SavedServersList { installed, servers })
 }
 
 /// Последние строки лога запуска (для показа в UI при старте).
@@ -1440,6 +1524,9 @@ pub fn run() {
             ms_device_code_command,
             ms_poll_command,
             launch_game_command,
+            ping_server_command,
+            list_screenshots_command,
+            list_servers_command,
             get_launch_log,
             clear_launch_log,
             open_pack_dir,

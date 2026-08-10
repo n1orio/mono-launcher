@@ -152,6 +152,34 @@ export interface PackServer {
   desc: string | null;
 }
 
+/** Сервер из servers.dat игрока (camelCase из Rust). */
+export interface SavedServer {
+  name: string;
+  address: string;
+}
+
+/** Ответ list_screenshots_command. */
+export interface ScreenshotList {
+  installed: boolean;
+  screenshots: string[];
+}
+
+/** Ответ list_servers_command. */
+export interface SavedServersList {
+  installed: boolean;
+  servers: SavedServer[];
+}
+
+/** Статус Minecraft-сервера (ответ ping_server_command). */
+export interface ServerStatus {
+  online: boolean;
+  version: string | null;
+  motd: string | null;
+  playersOnline: number | null;
+  playersMax: number | null;
+  latencyMs: number | null;
+}
+
 /** Контент репозитория сборки: звёзды, скриншоты, сервера. */
 export interface PackRepoContent {
   stars: number | null;
