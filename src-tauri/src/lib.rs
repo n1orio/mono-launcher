@@ -117,10 +117,12 @@ pub struct PackServer {
 }
 
 /// Соцсеть сборки из `socials.json` в корне репозитория.
+/// `color` — цвет кнопки в формате `#rrggbb` (необязательно, иначе акцент темы).
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PackSocial {
     pub name: String,
     pub url: String,
+    pub color: Option<String>,
 }
 
 /// Тема лаунчера из `theme.json` в корне репозитория сборки (все поля — hex-цвета `#rrggbb`).
@@ -1135,29 +1137,30 @@ async fn fetch_pack_repo_content(
         }
     }
 
-    // Соцсети: объект `{ "name": "url" }` или массив `["url", {"name": "url"}]`.
+    // Соцсети: объект `{ "name": "url" }` или массив `["url", {"name": "url", "color": "#rrggbb"}]`.
     let soc_url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/socials.json");
     if let Ok(resp) = client.get(&soc_url).send().await {
         if resp.status().is_success() {
             if let Ok(v) = resp.json::<serde_json::Value>().await {
-                let mut push = |name: String, url: String| {
+                let mut push = |name: String, url: String, color: Option<String>| {
                     let name = normalize_social_name(&name, &url);
+                    let color = color.filter(|c| is_hex_color(c));
                     if !name.is_empty() && url.starts_with("https://") && out.socials.len() < 8 {
-                        out.socials.push(PackSocial { name, url });
+                        out.socials.push(PackSocial { name, url, color });
                     }
                 };
                 match v {
                     serde_json::Value::Object(map) => {
                         for (name, u) in map {
                             if let Some(url) = u.as_str() {
-                                push(name, url.to_string());
+                                push(name, url.to_string(), None);
                             }
                         }
                     }
                     serde_json::Value::Array(arr) => {
                         for item in arr {
                             match item {
-                                serde_json::Value::String(url) => push(String::new(), url),
+                                serde_json::Value::String(url) => push(String::new(), url, None),
                                 serde_json::Value::Object(o) => {
                                     let name = o
                                         .get("name")
@@ -1166,8 +1169,12 @@ async fn fetch_pack_repo_content(
                                         .to_string();
                                     let url =
                                         o.get("url").and_then(|x| x.as_str()).map(String::from);
+                                    let color = o
+                                        .get("color")
+                                        .and_then(|x| x.as_str())
+                                        .map(String::from);
                                     if let Some(url) = url {
-                                        push(name, url);
+                                        push(name, url, color);
                                     }
                                 }
                                 _ => {}
@@ -1219,6 +1226,13 @@ async fn fetch_pack_repo_content(
         }
     }
     out
+}
+
+/// Валидный hex-цвет `#rrggbb` (как в theme.json).
+fn is_hex_color(raw: &str) -> bool {
+    raw.len() == 7
+        && raw.starts_with('#')
+        && raw[1..].chars().all(|c| c.is_ascii_hexdigit())
 }
 
 /// Выводит имя соцсети из её имени или домена ссылки.

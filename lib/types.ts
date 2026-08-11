@@ -219,6 +219,8 @@ export interface ServerStatus {
 export interface PackSocial {
   name: string;
   url: string;
+  /** Цвет кнопки (#rrggbb) — задаётся автором в socials.json; иначе акцент темы. */
+  color: string | null;
 }
 
 /** Тема лаунчера из theme.json сборки (все поля — hex-цвета `#rrggbb`). */

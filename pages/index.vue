@@ -415,6 +415,19 @@
                 >
                   {{ status?.installed ? t("pack.installed") : t("pack.notInstalled") }}
                 </span>
+                <span
+                  v-if="activePack?.minRam"
+                  class="ml-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                  :class="(ram * 1024) < activePack.minRam
+                    ? 'border-[#f0883e]/50 bg-[#f0883e]/10 text-[#f0883e]'
+                    : 'border-[var(--border)] bg-[var(--input)] text-[color:var(--tx-muted)]'"
+                  :title="t('pack.minRamTitle', { min: activePack.minRam / 1024 })"
+                >
+                  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+                    <path d="M1 3.75C1 2.784 1.784 2 2.75 2h10.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 13.25 11H10v1.25h.75a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5H6V11H2.75A1.75 1.75 0 0 1 1 9.25v-5.5Zm1.5 0v5.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25H2.75a.25.25 0 0 0-.25.25ZM4 4.5a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 4.5Zm0 3a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 7.5Z"/>
+                  </svg>
+                  ≥ {{ activePack.minRam / 1024 }} {{ t("units.gb") }}
+                </span>
                 <button
                   type="button"
                   class="ml-1 flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
@@ -435,18 +448,6 @@
               <span v-if="loaderLabel">{{ t("pack.loader", { name: loaderLabel }) }}</span>
               <span v-if="activePack?.author">•</span>
               <span v-if="activePack?.author" class="font-mono text-[var(--accent)]">@{{ activePack.author }}</span>
-              <span v-if="activePack?.minRam">•</span>
-              <span
-                v-if="activePack?.minRam"
-                class="inline-flex items-center gap-1 font-medium"
-                :class="(ram * 1024) < activePack.minRam ? 'text-[#f0883e]' : 'text-[color:var(--tx-muted)]'"
-                :title="t('pack.minRamTitle', { min: activePack.minRam / 1024 })"
-              >
-                <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
-                  <path d="M1 3.75C1 2.784 1.784 2 2.75 2h10.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 13.25 11H10v1.25h.75a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5H6V11H2.75A1.75 1.75 0 0 1 1 9.25v-5.5Zm1.5 0v5.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25H2.75a.25.25 0 0 0-.25.25ZM4 4.5a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 4.5Zm0 3a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 7.5Z"/>
-                </svg>
-                ≥ {{ activePack.minRam / 1024 }} {{ t("units.gb") }}
-              </span>
               <span
                 v-if="packStars"
                 class="inline-flex items-center gap-1 font-medium text-[#d29922]"
@@ -460,7 +461,17 @@
               <template v-for="s in activeContent?.socials ?? []" :key="s.name">
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1 font-medium text-[var(--accent)] hover:underline"
+                  class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold transition-all hover:brightness-110"
+                  :class="s.color
+                    ? ''
+                    : 'border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_18%,transparent)]'"
+                  :style="s.color
+                    ? {
+                        borderColor: `color-mix(in_srgb, ${s.color} 50%, transparent)`,
+                        backgroundColor: `color-mix(in_srgb, ${s.color} 12%, transparent)`,
+                        color: s.color,
+                      }
+                    : undefined"
                   :title="s.url"
                   @click="openExternal(s.url)"
                 >
