@@ -7,7 +7,24 @@ on:
       - "launcher-v*"
 
 jobs:
+  prepare-release:
+    name: "Создать draft-релиз"
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Создать draft-релиз (идемпотентно)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo n1orio/nio-launcher \
+            --title "Launcher v${GITHUB_REF_NAME#launcher-v}" \
+            --notes "Сборка..." \
+            --draft || true
+
   build:
+    needs: prepare-release
     permissions:
       contents: write
     strategy:
@@ -62,6 +79,7 @@ jobs:
           releaseBody: "Фирменный лаунчер сборки NIO."
           args: ${{ matrix.args }}
           prerelease: false
+          updateRelease: true
 
   update-manifest:
     name: "Сформировать latest.json"
