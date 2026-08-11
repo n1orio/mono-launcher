@@ -478,7 +478,7 @@
               <template v-for="s in activeContent?.socials ?? []" :key="s.name">
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold transition-all hover:brightness-110"
+                  class="inline-flex items-center gap-1.5 rounded-md border-2 px-2.5 py-1 text-[11px] font-semibold transition-all hover:brightness-110"
                   :class="s.color
                     ? ''
                     : 'border-[color-mix(in_srgb,var(--accent)_55%,black)] bg-[var(--accent)] text-[color-mix(in_srgb,var(--accent)_55%,black)]'"
