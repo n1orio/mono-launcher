@@ -111,15 +111,11 @@
     >
 <!-- Выбор сборки (вкладка каждого репозитория) -->
       <div class="relative p-3.5 border-b border-[var(--border)]">
-        <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">
-          {{ t("side.packRepo") }}
-        </label>
-        <div class="flex items-center gap-1.5">
-          <div class="relative min-w-0 flex-1">
-            <div class="truncate rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)]">
-              {{ activePack?.name ?? t("side.notSelected") }}
-            </div>
-          </div>
+        <div class="flex items-center justify-between gap-2">
+          <label class="text-[11px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">
+            {{ t("side.packRepo") }}
+          </label>
+          <div class="flex items-center gap-1.5">
           <button
             type="button"
             class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-sm font-semibold leading-none text-[var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)] disabled:opacity-50"
@@ -148,11 +144,42 @@
               </svg>
             </button>
           </div>
+          </div>
           <div v-if="showAddPack" class="fixed inset-0 z-20" @click="showAddPack = false"></div>
           <div
             v-if="showAddPack"
             class="absolute left-0 right-0 top-full z-30 mt-1.5 space-y-2 rounded-md border border-[var(--border)] bg-[var(--panel)] p-3 shadow-xl shadow-black/40"
           >
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover)]"
+              @click="showAddPack = false; modPackOpen = true; modPackVersions = null; modPackDetail = null; loadModrinthTags()"
+            >
+              <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--accent)]">
+                <path d="M3.25 1A1.75 1.75 0 0 0 1.5 2.75v10.5c0 .966.784 1.75 1.75 1.75h9.5a1.75 1.75 0 0 0 1.75-1.75V2.75A1.75 1.75 0 0 0 12.75 1h-9.5Zm-.25 2c0-.14.11-.25.25-.25h9.5c.14 0 .25.11.25.25v3h-10V3Zm10 4.5v4.75c0 .14-.11.25-.25.25h-9.5a.25.25 0 0 1-.25-.25V7.5h10Zm-7.5 1.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75Z"/>
+              </svg>
+              <span class="min-w-0">
+                <span class="block text-xs font-medium text-[color:var(--tx)]">{{ t("side.addModrinth") }}</span>
+                <span class="block text-[10px] text-[color:var(--tx-muted)]">{{ t("side.addModrinthHint") }}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover)]"
+              @click="showAddPack = false; createPackOpen = true"
+            >
+              <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--accent)]">
+                <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v5.5h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5h-5.5a.75.75 0 0 1 0-1.5h5.5v-5.5Z"/>
+              </svg>
+              <span class="min-w-0">
+                <span class="block text-xs font-medium text-[color:var(--tx)]">{{ t("side.create") }}</span>
+                <span class="block text-[10px] text-[color:var(--tx-muted)]">{{ t("side.createHint") }}</span>
+              </span>
+            </button>
+            <div class="flex items-center gap-2 pt-1">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("side.addLink") }}</span>
+              <span class="h-px flex-1 bg-[var(--border)]"></span>
+            </div>
             <input
               ref="addUrlInput"
               v-model="packUrl"
@@ -195,22 +222,76 @@
       </div>
 
       <!-- Навигация -->
-      <nav class="flex flex-col gap-0.5 p-2 border-b border-[var(--border)]">
-        <!-- Отдельная вкладка на каждую сборку -->
-        <button
-          v-for="p in packs"
-          :key="p.id"
-          type="button"
-          class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
-          :class="tab === 'play' && packId === p.id ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
-          @click="openPackTab(p.id)"
-        >
-          <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
-            <path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/>
-          </svg>
-          <span class="min-w-0 flex-1 truncate text-left">{{ p.name }}</span>
-          <span v-if="p.id === packId" class="h-2 w-2 shrink-0 rounded-full" :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"></span>
-        </button>
+      <nav class="flex flex-col gap-0.5 overflow-y-auto p-2 border-b border-[var(--border)]">
+        <!-- Отдельная вкладка на каждую сборку: свои и GitHub сверху, Modrinth ниже -->
+        <template v-if="otherPacks.length > 0">
+          <button
+            type="button"
+            class="flex w-full items-center gap-1 px-3 pb-1 pt-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)] transition-colors hover:text-[color:var(--tx)]"
+            @click="toggleSidebarCat('custom')"
+          >
+            <svg viewBox="0 0 16 16" class="h-2.5 w-2.5 shrink-0 fill-current transition-transform" :class="sidebarCat.custom ? 'rotate-90' : ''">
+              <path d="M6 4l4 4-4 4V4Z"/>
+            </svg>
+            {{ t("side.catCustom") }}
+          </button>
+          <template v-if="sidebarCat.custom">
+            <button
+              v-for="p in otherPacks"
+              :key="p.id"
+              type="button"
+              class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+              :class="tab === 'play' && packId === p.id ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+              @click="openPackTab(p.id)"
+            >
+              <img
+                v-if="p.icon"
+                :src="convertFileSrc(p.icon)"
+                alt=""
+                class="h-4 w-4 shrink-0 rounded object-cover"
+              />
+              <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
+                <path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/>
+              </svg>
+              <span class="min-w-0 flex-1 truncate text-left">{{ p.name }}</span>
+              <span v-if="p.id === packId" class="h-2 w-2 shrink-0 rounded-full" :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"></span>
+            </button>
+          </template>
+        </template>
+        <template v-if="modrinthPacks.length > 0">
+          <button
+            type="button"
+            class="flex w-full items-center gap-1 px-3 pb-1 pt-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)] transition-colors hover:text-[color:var(--tx)]"
+            @click="toggleSidebarCat('modrinth')"
+          >
+            <svg viewBox="0 0 16 16" class="h-2.5 w-2.5 shrink-0 fill-current transition-transform" :class="sidebarCat.modrinth ? 'rotate-90' : ''">
+              <path d="M6 4l4 4-4 4V4Z"/>
+            </svg>
+            {{ t("side.catModrinth") }}
+          </button>
+          <template v-if="sidebarCat.modrinth">
+            <button
+              v-for="p in modrinthPacks"
+              :key="p.id"
+              type="button"
+              class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+              :class="tab === 'play' && packId === p.id ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+              @click="openPackTab(p.id)"
+            >
+              <img
+                v-if="p.icon"
+                :src="convertFileSrc(p.icon)"
+                alt=""
+                class="h-4 w-4 shrink-0 rounded object-cover"
+              />
+              <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
+                <path d="M3.25 1A1.75 1.75 0 0 0 1.5 2.75v10.5c0 .966.784 1.75 1.75 1.75h9.5a1.75 1.75 0 0 0 1.75-1.75V2.75A1.75 1.75 0 0 0 12.75 1h-9.5Zm-.25 2c0-.14.11-.25.25-.25h9.5c.14 0 .25.11.25.25v3h-10V3Zm10 4.5v4.75c0 .14-.11.25-.25.25h-9.5a.25.25 0 0 1-.25-.25V7.5h10Zm-7.5 1.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75Z"/>
+              </svg>
+              <span class="min-w-0 flex-1 truncate text-left">{{ p.name }}</span>
+              <span v-if="p.id === packId" class="h-2 w-2 shrink-0 rounded-full" :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"></span>
+            </button>
+          </template>
+        </template>
         <button
           type="button"
           class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
@@ -781,6 +862,34 @@
                 </span>
               </span>
               <div class="flex min-w-0 items-center gap-2">
+                <template v-if="playSubTab === 'mods'">
+                  <button
+                    v-if="modUpdates.length > 0"
+                    type="button"
+                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                    :disabled="updateAllBusy || updatingMod !== null"
+                    @click="updateAllMods"
+                  >
+                    <svg v-if="updateAllBusy" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+                      <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                    </svg>
+                    <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                      <path d="M4.5 3.75a.75.75 0 0 0-1.5 0v2.5A.75.75 0 0 0 3.75 7h2.5a.75.75 0 0 0 0-1.5H5.07a4.5 4.5 0 1 1 .57 6.44.75.75 0 0 0-.98-1.13 6 6 0 1 0-.16-8.5v.49Z"/>
+                    </svg>
+                    {{ t("mods.updateAll") }}
+                    <span class="rounded-full bg-[var(--accent)] px-1.5 text-[10px] font-bold text-[var(--bg)]">{{ modUpdates.length }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
+                    @click="modSearchOpen = true; modVersions = null; loadModrinthTags()"
+                  >
+                    <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                      <path d="M8 2.75a.75.75 0 0 1 .75.75v3.75h3.75a.75.75 0 0 1 0 1.5h-3.75v3.75a.75.75 0 0 1-1.5 0V8.75H3.5a.75.75 0 0 1 0-1.5h3.75V3.5A.75.75 0 0 1 8 2.75Z"/>
+                    </svg>
+                    {{ t("mods.add") }}
+                  </button>
+                </template>
                 <div v-if="Object.keys(selectedFiles).length > 0" class="flex shrink-0 items-center gap-1.5">
                   <span class="text-[11px] text-[color:var(--tx-muted)]">
                     {{ t("files.selected", { n: Object.keys(selectedFiles).length }) }}
@@ -929,6 +1038,22 @@
                   @click.stop="openFileOnModrinth(playSubTab as GameFolderKind, f)"
                 >
                   Modrinth
+                </button>
+                <button
+                  v-if="playSubTab === 'mods' && modUpdateFor(f)"
+                  type="button"
+                  class="flex shrink-0 items-center gap-1 rounded-md border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-2 py-1 text-[10px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
+                  :disabled="updatingMod !== null"
+                  :title="`${modUpdateFor(f)!.newVersion.name} (${modUpdateFor(f)!.newVersion.versionNumber})`"
+                  @click.stop="updateOneMod(modUpdateFor(f)!)"
+                >
+                  <svg v-if="updatingMod === f.name" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+                    <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                  </svg>
+                  <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                    <path d="M4.5 3.75a.75.75 0 0 0-1.5 0v2.5A.75.75 0 0 0 3.75 7h2.5a.75.75 0 0 0 0-1.5H5.07a4.5 4.5 0 1 1 .57 6.44.75.75 0 0 0-.98-1.13 6 6 0 1 0-.16-8.5v.49Z"/>
+                  </svg>
+                  {{ t("mods.update") }}
                 </button>
                 <button
                   v-if="f.kind === 'file'"
@@ -1395,8 +1520,17 @@
                 <article
                   v-for="entry in catalog"
                   :key="entry.name + entry.url"
-                  class="flex flex-col rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 transition-colors hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                  class="flex flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
                 >
+                  <img
+                    v-if="catalogBannerOk(entry)"
+                    :src="catalogBannerUrl(entry)"
+                    :alt="entry.name"
+                    loading="lazy"
+                    class="h-28 w-full border-b border-[var(--border)] object-cover"
+                    @error="markCatalogBannerBroken(entry)"
+                  />
+                  <div class="flex flex-1 flex-col p-4">
                   <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
                       <h3 class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">{{ entry.name }}</h3>
@@ -1463,6 +1597,7 @@
                         <path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-2l6 6V7.5a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75H5.5a.75.75 0 0 1 0-1.5h2l-6-6v2a.75.75 0 0 1-1.5 0V3.5A1.75 1.75 0 0 1 1.75 1.75h2a.75.75 0 0 1 0 1.5Z"/>
                       </svg>
                     </button>
+                  </div>
                   </div>
                 </article>
               </div>
@@ -1556,6 +1691,15 @@
                   <span v-if="p.builtin" class="shrink-0 rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[color:var(--tx-muted)]" :title="t('dev.builtinNote')">
                     {{ t("dev.builtin") }}
                   </span>
+                  <button
+                    v-if="!p.builtin"
+                    type="button"
+                    class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[10px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                    :title="t('dev.setIconHint')"
+                    @click="packIconTarget = p.id; packIconInput?.click()"
+                  >
+                    {{ p.icon ? t("dev.changeIcon") : t("dev.setIcon") }}
+                  </button>
                   <button
                     v-else
                     type="button"
@@ -2048,6 +2192,536 @@
       </div>
     </main>
 
+    <!-- Модалка: добавление мода с Modrinth -->
+    <div
+      v-if="modSearchOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
+      @click.self="modSearchOpen = false; modVersions = null"
+    >
+      <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
+        <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
+          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("mods.title") }}</h3>
+          <button
+            type="button"
+            class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
+            @click="modSearchOpen = false; modVersions = null"
+          >
+            <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+          </button>
+        </div>
+        <div class="flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-4 py-3">
+          <div class="relative min-w-0 flex-1">
+            <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 fill-[var(--tx-muted)]">
+              <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
+            </svg>
+            <input
+              v-model="modSearchQuery"
+              type="text"
+              :placeholder="t('mods.searchPlaceholder')"
+              class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] py-1.5 pl-8 pr-3 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors focus:border-[var(--accent)]"
+              @keydown.enter="searchMods"
+            />
+          </div>
+          <button
+            type="button"
+            class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+            :disabled="modSearchLoading || !modSearchQuery.trim()"
+            @click="searchMods"
+          >
+            <svg v-if="modSearchLoading" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
+              <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+            </svg>
+            <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+              <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
+            </svg>
+            {{ t("mods.search") }}
+          </button>
+        </div>
+        <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2">
+          <FilterSelect
+            v-model="modFilters.versions"
+            :options="versionOptions"
+            :placeholder="t('mods.fVersion')"
+            @change="searchMods()"
+          />
+          <FilterSelect
+            v-model="modFilters.loaders"
+            :options="loaderOptions"
+            :placeholder="t('mods.fLoader')"
+            @change="searchMods()"
+          />
+          <FilterSelect
+            v-model="modFilters.categories"
+            :options="categoryOptions"
+            :placeholder="t('mods.fCategory')"
+            @change="searchMods()"
+          />
+          <FilterSelect
+            v-model="modEnvSel"
+            :options="envOptions"
+            :placeholder="t('mods.fAny')"
+            :multiple="false"
+            @change="searchMods()"
+          />
+          <FilterSelect
+            v-model="modSortSel"
+            :options="sortSelectOptions"
+            :placeholder="t('mods.fSort')"
+            :multiple="false"
+            @change="searchMods()"
+          />
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto p-4">
+          <div v-if="modSearchErr" class="rounded-md border border-[var(--border)] bg-[var(--input-50)] p-6 text-center text-xs text-[color:var(--tx-muted)]">
+            <p class="mb-2">{{ modSearchErr }}</p>
+            <button type="button" class="text-[var(--accent)] hover:underline" @click="searchMods">{{ t("catalog.retry") }}</button>
+          </div>
+          <template v-else-if="modVersions">
+            <button
+              type="button"
+              class="mb-3 flex items-center gap-1 text-xs text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]"
+              @click="modVersions = null"
+            >
+              <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M7.28 3.22a.75.75 0 0 1 0 1.06L3.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Zm4 0a.75.75 0 0 1 0 1.06L7.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"/></svg>
+              {{ t("mods.back") }}
+            </button>
+            <div v-if="modVersions.length === 0" class="py-8 text-center text-xs text-[color:var(--tx-muted)]">{{ t("mods.noVersions") }}</div>
+            <div v-else class="space-y-2">
+              <div
+                v-for="v in modVersions"
+                :key="v.id"
+                class="flex items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2"
+              >
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span class="truncate text-xs font-medium text-[color:var(--tx-strong)]">{{ v.name }}</span>
+                    <span class="rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 font-mono text-[10px] text-[color:var(--tx-muted)]">{{ v.versionNumber }}</span>
+                    <span
+                      v-if="status?.minecraft_version && v.gameVersions.includes(status.minecraft_version)"
+                      class="rounded-full border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent)]"
+                    >
+                      {{ t("mods.versionMatch") }}
+                    </span>
+                  </div>
+                  <div class="mt-0.5 truncate text-[10px] text-[color:var(--tx-muted)]">
+                    {{ v.gameVersions.slice(0, 2).join(", ") }} · {{ v.loaders.join(", ") }} · {{ formatDate(v.datePublished) }}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                  :disabled="modInstallBusy !== null"
+                  @click="installModVersion(v)"
+                >
+                  <svg v-if="modInstallBusy === v.id" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+                    <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                  </svg>
+                  <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                    <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
+                  </svg>
+                  {{ t("mods.install") }}
+                </button>
+              </div>
+            </div>
+          </template>
+          <template v-else-if="modSearchLoading">
+            <div class="flex items-center justify-center py-16 text-xs text-[color:var(--tx-muted)]">
+              <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
+                <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+              </svg>
+              {{ t("mods.searching") }}
+            </div>
+          </template>
+          <template v-else-if="modSearchResults.length === 0">
+            <div class="py-16 text-center text-xs text-[color:var(--tx-muted)]">
+              {{ modSearchQuery ? t("mods.noResults") : t("mods.help") }}
+            </div>
+          </template>
+          <template v-else>
+            <div class="space-y-2">
+              <div
+                v-for="p in modSearchResults"
+                :key="p.projectId"
+                class="flex cursor-pointer items-start gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
+                @click="openModVersions(p)"
+              >
+                <img v-if="p.iconUrl" :src="p.iconUrl" alt="" loading="lazy" class="h-10 w-10 shrink-0 rounded-md object-cover" />
+                <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-[10px] text-[color:var(--tx-muted)]">
+                  {{ p.title.slice(0, 2).toUpperCase() }}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-x-2">
+                    <span class="truncate text-xs font-semibold text-[color:var(--tx-strong)]">{{ p.title }}</span>
+                    <span class="text-[10px] text-[color:var(--tx-muted)]">{{ t("mods.byAuthor", { author: p.author }) }}</span>
+                  </div>
+                  <p class="mt-0.5 line-clamp-2 text-[11px] leading-snug text-[color:var(--tx-muted)]">{{ p.description }}</p>
+                  <div class="mt-1 flex items-center gap-3 text-[10px] text-[color:var(--tx-muted)]">
+                    <span class="flex items-center gap-1">
+                      <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                      {{ p.downloads.toLocaleString() }}
+                    </span>
+                    <span v-if="status?.minecraft_version">{{ status.minecraft_version }}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                  :disabled="quickModBusy !== null || modInstallBusy !== null"
+                  :title="t('mods.downloadHint')"
+                  @click="quickDownloadMod(p, $event)"
+                >
+                  <svg v-if="quickModBusy === p.projectId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+                    <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                  </svg>
+                  <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                    <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
+                  </svg>
+                  {{ t("mods.download") }}
+                </button>
+                <svg viewBox="0 0 16 16" class="mt-1 h-3.5 w-3.5 shrink-0 fill-[var(--tx-muted)]"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модалка: скачать сборку с Modrinth -->
+    <div
+      v-if="modPackOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
+      @click.self="modPackOpen = false; modPackVersions = null; modPackDetail = null"
+    >
+      <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
+        <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
+          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("mods.packsTitle") }}</h3>
+          <button
+            type="button"
+            class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
+            @click="modPackOpen = false; modPackVersions = null; modPackDetail = null"
+          >
+            <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+          </button>
+        </div>
+        <div class="flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-4 py-3">
+          <div class="relative min-w-0 flex-1">
+            <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 fill-[var(--tx-muted)]">
+              <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
+            </svg>
+            <input
+              v-model="modPackQuery"
+              type="text"
+              :placeholder="t('mods.packsPlaceholder')"
+              class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] py-1.5 pl-8 pr-3 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors focus:border-[var(--accent)]"
+              @keydown.enter="searchPacks"
+            />
+          </div>
+          <button
+            type="button"
+            class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+            :disabled="modPackLoading || !modPackQuery.trim()"
+            @click="searchPacks"
+          >
+            <svg v-if="modPackLoading" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
+              <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+            </svg>
+            <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+              <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
+            </svg>
+            {{ t("mods.search") }}
+          </button>
+        </div>
+        <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2">
+          <FilterSelect
+            v-model="packFilters.versions"
+            :options="versionOptions"
+            :placeholder="t('mods.fVersion')"
+            @change="searchPacks()"
+          />
+          <FilterSelect
+            v-model="packFilters.loaders"
+            :options="loaderOptions"
+            :placeholder="t('mods.fLoader')"
+            @change="searchPacks()"
+          />
+          <FilterSelect
+            v-model="packFilters.categories"
+            :options="categoryOptions"
+            :placeholder="t('mods.fCategory')"
+            @change="searchPacks()"
+          />
+          <FilterSelect
+            v-model="packEnvSel"
+            :options="envOptions"
+            :placeholder="t('mods.fAny')"
+            :multiple="false"
+            @change="searchPacks()"
+          />
+          <FilterSelect
+            v-model="packSortSel"
+            :options="sortSelectOptions"
+            :placeholder="t('mods.fSort')"
+            :multiple="false"
+            @change="searchPacks()"
+          />
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto p-4">
+          <template v-if="modPackDetail">
+            <button
+              type="button"
+              class="mb-3 flex items-center gap-1 text-xs text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]"
+              @click="modPackDetail = null; modPackVersions = null"
+            >
+              <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M7.28 3.22a.75.75 0 0 1 0 1.06L3.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Zm4 0a.75.75 0 0 1 0 1.06L7.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"/></svg>
+              {{ t("mods.back") }}
+            </button>
+            <div class="overflow-hidden rounded-md border border-[var(--border)] bg-[var(--bg)]">
+              <div class="flex items-start gap-3 px-4 py-3">
+                <img
+                  v-if="modPackDetail.iconUrl"
+                  :src="modPackDetail.iconUrl"
+                  alt=""
+                  class="h-14 w-14 shrink-0 rounded-md object-cover"
+                />
+                <div v-else class="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-sm font-bold text-[color:var(--tx-muted)]">
+                  {{ modPackDetail.title.slice(0, 2).toUpperCase() }}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <h4 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ modPackDetail.title }}</h4>
+                  <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[color:var(--tx-muted)]">
+                    <span>{{ t("mods.byAuthor", { author: modPackDetail.author }) }}</span>
+                    <span class="flex items-center gap-1">
+                      <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                      {{ modPackDetail.downloads.toLocaleString() }}
+                    </span>
+                    <span v-if="modPackDetail.categories.length">{{ modPackDetail.categories.slice(0, 4).join(", ") }}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                  @click="openExternal(`https://modrinth.com/modpack/${modPackDetail!.slug}`)"
+                >
+                  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-2l6 6V7.5a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75H5.5a.75.75 0 0 1 0-1.5h2l-6-6v2a.75.75 0 0 1-1.5 0V3.5A1.75 1.75 0 0 1 1.75 1.75h2a.75.75 0 0 1 0 1.5Z"/></svg>
+                  {{ t("mods.openPage") }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Вкладки как на Modrinth: описание / версии / галерея -->
+            <div class="mt-3 mb-3 flex shrink-0 items-center gap-1 border-b border-[var(--border)] pb-2">
+              <button
+                v-for="tb in modPackTabs"
+                :key="tb.kind"
+                type="button"
+                class="rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors"
+                :class="modPackTab === tb.kind
+                  ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
+                  : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+                @click="modPackTab = tb.kind"
+              >
+                {{ t("mods.tab" + tb.kind) }}
+              </button>
+            </div>
+
+            <div v-if="modPackTab === 'about'" class="max-h-[46vh] overflow-y-auto rounded-md border border-[var(--border)] bg-[var(--bg)] px-4 py-3">
+              <Markdown v-if="modPackDetail.body" :source="modPackDetail.body" />
+              <p v-else class="py-6 text-center text-xs italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
+            </div>
+
+            <div v-else-if="modPackTab === 'versions'">
+              <div v-if="modPackVersions && modPackVersions.length === 0" class="py-8 text-center text-xs text-[color:var(--tx-muted)]">{{ t("mods.noVersions") }}</div>
+              <div v-else-if="modPackVersions" class="space-y-2">
+                <div
+                  v-for="v in modPackVersions"
+                  :key="v.id"
+                  class="flex items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2"
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span class="truncate text-xs font-medium text-[color:var(--tx-strong)]">{{ v.name }}</span>
+                      <span class="rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 font-mono text-[10px] text-[color:var(--tx-muted)]">{{ v.versionNumber }}</span>
+                    </div>
+                    <div class="mt-0.5 truncate text-[10px] text-[color:var(--tx-muted)]">
+                      {{ v.gameVersions.slice(0, 2).join(", ") }} · {{ v.loaders.join(", ") }} · {{ formatDate(v.datePublished) }}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                    :disabled="modPackInstalling !== null"
+                    @click="installPackVersion(v)"
+                  >
+                    <svg v-if="modPackInstalling === v.id" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+                      <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                    </svg>
+                    <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                      <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
+                    </svg>
+                    {{ t("mods.install") }}
+                  </button>
+                </div>
+              </div>
+              <div v-else class="flex items-center justify-center py-10 text-xs text-[color:var(--tx-muted)]">
+                <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
+                  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                </svg>
+                {{ t("mods.searching") }}
+              </div>
+            </div>
+
+            <div v-else>
+              <div v-if="modPackDetail.gallery.length" class="grid grid-cols-2 gap-2">
+                <img
+                  v-for="g in modPackDetail.gallery"
+                  :key="g.url"
+                  :src="g.url"
+                  :alt="g.title ?? ''"
+                  loading="lazy"
+                  class="h-32 w-full cursor-zoom-in rounded-md border border-[var(--border)] object-cover transition-transform hover:scale-[1.02]"
+                  :title="g.title ?? undefined"
+                  @click="openExternal(g.url)"
+                />
+              </div>
+              <p v-else class="py-10 text-center text-xs italic text-[color:var(--tx-muted)]">{{ t("mods.noGallery") }}</p>
+            </div>
+          </template>
+          <template v-else-if="modPackLoading">
+            <div class="flex items-center justify-center py-16 text-xs text-[color:var(--tx-muted)]">
+              <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
+                <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+              </svg>
+              {{ t("mods.searching") }}
+            </div>
+          </template>
+          <template v-else-if="modPackResults.length === 0">
+            <div class="py-16 text-center text-xs text-[color:var(--tx-muted)]">
+              {{ modPackQuery ? t("mods.noResults") : t("mods.packsHelp") }}
+            </div>
+          </template>
+          <template v-else>
+            <div class="space-y-2">
+              <div
+                v-for="p in modPackResults"
+                :key="p.projectId"
+                class="flex cursor-pointer items-start gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
+                @click="openPackDetail(p)"
+              >
+                <img v-if="p.iconUrl" :src="p.iconUrl" alt="" loading="lazy" class="h-10 w-10 shrink-0 rounded-md object-cover" />
+                <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-[10px] text-[color:var(--tx-muted)]">
+                  {{ p.title.slice(0, 2).toUpperCase() }}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-x-2">
+                    <span class="truncate text-xs font-semibold text-[color:var(--tx-strong)]">{{ p.title }}</span>
+                    <span class="text-[10px] text-[color:var(--tx-muted)]">{{ t("mods.byAuthor", { author: p.author }) }}</span>
+                  </div>
+                  <p class="mt-0.5 line-clamp-2 text-[11px] leading-snug text-[color:var(--tx-muted)]">{{ p.description }}</p>
+                  <div class="mt-1 flex items-center gap-3 text-[10px] text-[color:var(--tx-muted)]">
+                    <span class="flex items-center gap-1">
+                      <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                      {{ p.downloads.toLocaleString() }}
+                    </span>
+                    <span v-if="status?.minecraft_version">{{ status.minecraft_version }}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                  :disabled="quickPackBusy !== null || modPackInstalling !== null"
+                  :title="t('mods.downloadHint')"
+                  @click="quickDownloadPack(p, $event)"
+                >
+                  <svg v-if="quickPackBusy === p.projectId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+                    <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                  </svg>
+                  <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                    <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
+                  </svg>
+                  {{ t("mods.download") }}
+                </button>
+                <svg viewBox="0 0 16 16" class="mt-1 h-3.5 w-3.5 shrink-0 fill-[var(--tx-muted)]"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модалка: создание своей сборки -->
+    <div
+      v-if="createPackOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
+      @click.self="createPackOpen = false"
+    >
+      <div class="flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
+        <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
+          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("mods.createTitle") }}</h3>
+          <button
+            type="button"
+            class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
+            @click="createPackOpen = false"
+          >
+            <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+          </button>
+        </div>
+        <div class="space-y-4 p-4">
+          <div>
+            <label class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("mods.createName") }}</label>
+            <input
+              v-model="createPackName"
+              type="text"
+              :placeholder="t('mods.createNamePlaceholder')"
+              class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors focus:border-[var(--accent)]"
+              @keydown.enter="createPack"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("mods.createMc") }}</label>
+            <input
+              v-model="createPackMc"
+              type="text"
+              placeholder="1.21.4"
+              class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors focus:border-[var(--accent)]"
+              @keydown.enter="createPack"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("mods.createLoader") }}</label>
+            <div class="flex gap-2">
+              <button
+                v-for="l in ['vanilla', 'fabric', 'quilt'] as const"
+                :key="l"
+                type="button"
+                class="flex-1 rounded-md border px-3 py-1.5 text-xs font-medium capitalize transition-colors"
+                :class="createPackLoader === l
+                  ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]'
+                  : 'border-[var(--border)] bg-[var(--input)] text-[color:var(--tx)] hover:bg-[var(--hover)]'"
+                @click="createPackLoader = l"
+              >
+                {{ l }}
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="flex w-full items-center justify-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-3 py-2 text-xs font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] disabled:opacity-50"
+            :disabled="createPackBusy"
+            @click="createPack"
+          >
+            <svg v-if="createPackBusy" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
+              <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+            </svg>
+            <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+              <path d="M8 2.75a.75.75 0 0 1 .75.75v3.75h3.75a.75.75 0 0 1 0 1.5h-3.75v3.75a.75.75 0 0 1-1.5 0V8.75H3.5a.75.75 0 0 1 0-1.5h3.75V3.5A.75.75 0 0 1 8 2.75Z"/>
+            </svg>
+            {{ t("mods.create") }}
+          </button>
+          <p class="text-[10px] leading-snug text-[color:var(--tx-muted)]">{{ t("mods.createHint") }}</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Модалка: отчёт об ошибке (превью + копирование + Issues) -->
     <div
       v-if="bugReportOpen"
@@ -2096,15 +2770,23 @@
       class="hidden"
       @change="onSkinFileChange"
     />
+    <!-- Скрытый вход для выбора PNG-иконки сборки -->
+    <input
+      ref="packIconInput"
+      type="file"
+      accept=".png,image/png"
+      class="hidden"
+      @change="onPackIconChange"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { computed, nextTick, onBeforeUnmount, ref } from "vue";
-import { isTauri, openExternal, pingServer } from "~/lib/bridge";
+import { computed, nextTick, onBeforeUnmount, reactive, ref } from "vue";
+import { isTauri, openExternal, pingServer, createLocalPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon } from "~/lib/bridge";
 import type { GameFolderKind } from "~/lib/bridge";
-import type { CatalogEntry, GameFileEntry, NewsItem, PackServer, PackTheme, ServerStatus } from "~/lib/types";
+import type { CatalogEntry, GameFileEntry, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n } from "~/composables/useI18n";
 
@@ -2240,6 +2922,8 @@ const {
   catalogError,
   loadCatalog,
   addFromCatalog,
+  loadPacks,
+  loadGameFiles,
 } = useLauncher();
 
 const { t, locale, setLocale } = useI18n();
@@ -2247,6 +2931,42 @@ const { t, locale, setLocale } = useI18n();
 const showAddPack = ref(false);
 const customModsOpen = ref(false);
 const addUrlInput = ref<HTMLInputElement | null>(null);
+
+const catalogBannerBroken = ref(new Set<string>());
+
+/** Сворачиваемые категории сайдбара (состояние в localStorage). */
+const SIDEBAR_CATS_KEY = "nio.sidebarCats";
+const sidebarCat = reactive({
+  custom: true,
+  modrinth: true,
+  ...(typeof localStorage !== "undefined"
+    ? JSON.parse(localStorage.getItem(SIDEBAR_CATS_KEY) || "{}")
+    : {}),
+});
+function toggleSidebarCat(k: "custom" | "modrinth") {
+  sidebarCat[k] = !sidebarCat[k];
+  localStorage.setItem(SIDEBAR_CATS_KEY, JSON.stringify(sidebarCat));
+}
+
+/** Сборки с Modrinth (id = mrn-*) — отдельная категория в сайдбаре. */
+const modrinthPacks = computed(() => packs.value.filter((p) => p.id.startsWith("mrn-")));
+/** Остальные: встроенные, GitHub, свои. */
+const otherPacks = computed(() => packs.value.filter((p) => !p.id.startsWith("mrn-")));
+
+/** Баннер сборки каталога: banner.png в корне её GitHub-репозитория. */
+function catalogBannerUrl(entry: CatalogEntry): string {
+  const parts = entry.url.replace(/^https?:\/\//, "").split("/");
+  if (parts[0] !== "github.com" || !parts[1] || !parts[2]) return "";
+  return `https://raw.githubusercontent.com/${parts[1]}/${parts[2]}/HEAD/banner.png`;
+}
+
+function catalogBannerOk(entry: CatalogEntry): boolean {
+  return catalogBannerUrl(entry) !== "" && !catalogBannerBroken.value.has(entry.url);
+}
+
+function markCatalogBannerBroken(entry: CatalogEntry) {
+  catalogBannerBroken.value = new Set(catalogBannerBroken.value).add(entry.url);
+}
 
 function toggleAddPack() {
   showAddPack.value = !showAddPack.value;
@@ -2476,6 +3196,401 @@ watch(fileListVisible, (rows) => {
   for (const f of rows) {
     if (f.modrinthUrl) fetchModrinthMeta(f.modrinthUrl);
   }
+});
+
+// ---- Modrinth: добавление модов, обновления, свои сборки ----
+const modSearchOpen = ref(false);
+const modSearchQuery = ref("");
+const modSearchLoading = ref(false);
+const modSearchResults = ref<ModrinthProject[]>([]);
+const modSearchErr = ref("");
+const modVersions = ref<ModrinthVersion[] | null>(null);
+const modInstallBusy = ref<string | null>(null);
+const modUpdates = ref<ModUpdate[]>([]);
+const trackedMods = ref<TrackedMod[]>([]);
+const updatingMod = ref<string | null>(null);
+const updateAllBusy = ref(false);
+
+const modPackOpen = ref(false);
+const modPackQuery = ref("");
+const modPackLoading = ref(false);
+const modPackResults = ref<ModrinthProject[]>([]);
+const modPackVersions = ref<ModrinthVersion[] | null>(null);
+const modPackInstalling = ref<string | null>(null);
+const modPackDetail = ref<ModrinthProject | null>(null);
+const modPackTab = ref<"about" | "versions" | "gallery">("about");
+const modPackTabs: { kind: "about" | "versions" | "gallery"; icon: string }[] = [
+  { kind: "about", icon: '<path d="M3.5 2.75A1.75 1.75 0 0 1 5.25 1h5.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 10.75 15h-5.5a1.75 1.75 0 0 1-1.75-1.75V2.75ZM5.25 2.5a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h5.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25h-5.5ZM6.5 5.75a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1-.75-.75Zm0 3a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1-.75-.75Zm0 3a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1-.75-.75Z"/>' },
+  { kind: "versions", icon: '<path d="M2.22 3.305l5.25-2.625a1.75 1.75 0 0 1 1.56 0l5.25 2.625c.511.255.722.862.61 1.41L12.53 10.65c-.121.6-.416 1.154-.836 1.57l-3.117 3.09a.75.75 0 0 1-1.056 0l-3.117-3.09a3.25 3.25 0 0 1-.836-1.57L1.61 4.715a1.75 1.75 0 0 1 .61-1.41Zm7.78 2.195a1.75 1.75 0 0 1 .75-1.415l4.925-2.462L11.15 1.5h-6.3L1.075 1.623l4.925 2.462a1.75 1.75 0 0 1 .75 1.415v4.837c0 .034.001.068.004.102l3.647-1.462L10 5.5Z"/>' },
+  { kind: "gallery", icon: '<path d="M1.75 1.75A1.75 1.75 0 0 0 0 3.5v9A1.75 1.75 0 0 0 1.75 14.25h12.5A1.75 1.75 0 0 0 16 12.5v-9a1.75 1.75 0 0 0-1.75-1.75H1.75ZM1.5 3.5a.25.25 0 0 1 .25-.25h12.5a.25.25 0 0 1 .25.25v9a.25.25 0 0 1-.25.25H1.75a.25.25 0 0 1-.25-.25v-9ZM2.5 12.25v-2.5h11v2.5h-11Zm.83-3.5h9.34a2.75 2.75 0 0 0-2.24-1.25h-4.86a2.75 2.75 0 0 0-2.24 1.25Zm.8-2a1.5 1.5 0 1 0-1.5-1.5 1.5 1.5 0 0 0 1.5 1.5Z"/>' },
+];
+
+const createPackOpen = ref(false);
+const createPackName = ref("");
+const createPackMc = ref("1.21.4");
+const createPackLoader = ref<"vanilla" | "fabric" | "quilt">("fabric");
+const createPackBusy = ref(false);
+
+/** Фильтры поиска Modrinth (загружаются с API один раз). */
+const modrinthTags = ref<ModrinthTags | null>(null);
+interface SearchFilterState {
+  versions: string[];
+  loaders: string[];
+  categories: string[];
+  sort: string;
+  env: string;
+}
+const modFilters = reactive<SearchFilterState>({ versions: [], loaders: [], categories: [], sort: "relevance", env: "" });
+const packFilters = reactive<SearchFilterState>({ versions: [], loaders: [], categories: [], sort: "relevance", env: "" });
+
+/** Версии от новых к старым (тег API отдаёт в обратном порядке). */
+function verCmp(a: string, b: string) {
+  const pa = a.split(".").map((x) => parseInt(x, 10) || 0);
+  const pb = b.split(".").map((x) => parseInt(x, 10) || 0);
+  const n = Math.max(pa.length, pb.length);
+  for (let i = 0; i < n; i++) {
+    const da = pa[i] ?? 0;
+    const db = pb[i] ?? 0;
+    if (da !== db) return da - db;
+  }
+  return 0;
+}
+
+function cap(s: string) {
+  return s.length ? s[0].toUpperCase() + s.slice(1) : s;
+}
+
+const versionOptions = computed(() =>
+  [...(modrinthTags.value?.versions ?? [])].sort((a, b) => verCmp(b, a)).map((v) => ({ value: v, label: v }))
+);
+const loaderOptions = computed(() =>
+  (modrinthTags.value?.loaders ?? []).map((l) => ({ value: l, label: cap(l) }))
+);
+const categoryOptions = computed(() =>
+  (modrinthTags.value?.categories ?? []).map((c) => ({ value: c, label: cap(c) }))
+);
+const envOptions = [
+  { value: "client", label: t("mods.fClient") },
+  { value: "server", label: t("mods.fServer") },
+];
+const sortOptions = [
+  { id: "relevance", labelKey: "mods.sortRelevance" },
+  { id: "downloads", labelKey: "mods.sortDownloads" },
+  { id: "follows", labelKey: "mods.sortFollows" },
+  { id: "newest", labelKey: "mods.sortNewest" },
+  { id: "updated", labelKey: "mods.sortUpdated" },
+];
+const sortSelectOptions = sortOptions.map((s) => ({ value: s.id, label: t(s.labelKey) }));
+const modEnvSel = computed({
+  get: () => (modFilters.env ? [modFilters.env] : []),
+  set: (v: string[]) => {
+    modFilters.env = v[0] ?? "";
+  },
+});
+const packEnvSel = computed({
+  get: () => (packFilters.env ? [packFilters.env] : []),
+  set: (v: string[]) => {
+    packFilters.env = v[0] ?? "";
+  },
+});
+const modSortSel = computed({
+  get: () => [modFilters.sort],
+  set: (v: string[]) => {
+    modFilters.sort = v[0] ?? "relevance";
+  },
+});
+const packSortSel = computed({
+  get: () => [packFilters.sort],
+  set: (v: string[]) => {
+    packFilters.sort = v[0] ?? "relevance";
+  },
+});
+
+/** Общие опции поиска из фильтров. */
+function searchOpts(f: SearchFilterState) {
+  const opts: { categories?: string[]; versions?: string[]; environment?: string; index?: string } = {};
+  const cats = [...f.loaders, ...f.categories];
+  if (cats.length) opts.categories = cats;
+  if (f.versions.length) opts.versions = f.versions;
+  if (f.env) opts.environment = f.env;
+  if (f.sort && f.sort !== "relevance") opts.index = f.sort;
+  return opts;
+}
+
+/** Загружает теги Modrinth один раз за сессию. */
+async function loadModrinthTags() {
+  if (!isTauri() || modrinthTags.value) return;
+  try {
+    modrinthTags.value = await fetchModrinthTags();
+  } catch {
+    /* фильтры просто не появятся */
+  }
+}
+
+function modUpdateFor(f: GameFileEntry): ModUpdate | undefined {
+  return modUpdates.value.find((u) => u.fileName === f.name);
+}
+
+/** Поиск модов для добавления в сборку. */
+async function searchMods() {
+  if (!isTauri() || !packId.value) return;
+  modSearchLoading.value = true;
+  modSearchErr.value = "";
+  try {
+    modSearchResults.value = await modrinthSearch(
+      modSearchQuery.value.trim(),
+      "mod",
+      20,
+      searchOpts(modFilters)
+    );
+  } catch (e) {
+    modSearchErr.value = String(e);
+  } finally {
+    modSearchLoading.value = false;
+  }
+}
+
+/** Версии мода: сперва подходящие под версию сборки, остальные ниже. */
+async function openModVersions(p: ModrinthProject) {
+  modVersions.value = null;
+  try {
+    const all = await modrinthProjectVersions(p.projectId);
+    const mc = status.value?.minecraft_version;
+    const loader = status.value?.loader?.replace("-loader", "") || undefined;
+    const match = mc
+      ? all.filter((v) => v.gameVersions.includes(mc) && (!loader || v.loaders.includes(loader)))
+      : all;
+    const rest = mc ? all.filter((v) => !match.includes(v)) : [];
+    modVersions.value = [...match, ...rest];
+  } catch (e) {
+    modSearchErr.value = String(e);
+    modVersions.value = [];
+  }
+}
+
+/** Устанавливает выбранную версию мода в папку mods/ активной сборки. */
+async function installModVersion(v: ModrinthVersion) {
+  if (!packId.value || modInstallBusy.value) return;
+  modInstallBusy.value = v.id;
+  try {
+    await modrinthInstallMod(packId.value, v.id);
+    notify(t("mods.installed", { name: v.name }), "success");
+    modSearchOpen.value = false;
+    modVersions.value = null;
+    await loadGameFiles("mods");
+    await refreshModUpdates();
+  } catch (e) {
+    notify(t("mods.installErr", { e }));
+  } finally {
+    modInstallBusy.value = null;
+  }
+}
+
+/** Быстрое скачивание мода: последняя версия под MC и загрузчик сборки.
+ *  Зависимости и библиотеки модпака/мода качаются автоматически. */
+const quickModBusy = ref<string | null>(null);
+async function quickDownloadMod(p: ModrinthProject, ev: Event) {
+  ev.stopPropagation();
+  if (quickModBusy.value || !packId.value) return;
+  quickModBusy.value = p.projectId;
+  try {
+    const all = await modrinthProjectVersions(p.projectId);
+    const mc = status.value?.minecraft_version;
+    const loader = status.value?.loader?.replace("-loader", "");
+    const pick = mc
+      ? all.find((v) => v.gameVersions.includes(mc) && (!loader || v.loaders.includes(loader)))
+      : all[0];
+    if (!pick) {
+      notify(t("mods.noMatchVersion"), "info");
+      return;
+    }
+    await installModVersion(pick);
+  } catch (e) {
+    notify(t("mods.installErr", { e }));
+  } finally {
+    quickModBusy.value = null;
+  }
+}
+
+/** Быстрое скачивание модпака: последняя версия (с учётом выбранного загрузчика). */
+const quickPackBusy = ref<string | null>(null);
+async function quickDownloadPack(p: ModrinthProject, ev: Event) {
+  ev.stopPropagation();
+  if (quickPackBusy.value || modPackInstalling.value) return;
+  quickPackBusy.value = p.projectId;
+  try {
+    const all = await modrinthProjectVersions(p.projectId);
+    const sorted = [...all].sort((a, b) => Date.parse(b.datePublished) - Date.parse(a.datePublished));
+    const pick = packFilters.loaders[0]
+      ? sorted.find((v) => v.loaders.includes(packFilters.loaders[0]))
+      : sorted[0];
+    if (!pick) {
+      notify(t("mods.noMatchVersion"), "info");
+      return;
+    }
+    await installPackVersion(pick);
+  } catch (e) {
+    notify(t("mods.packInstallErr", { e }));
+  } finally {
+    quickPackBusy.value = null;
+  }
+}
+
+/** Проверяет обновления установленных из Modrinth модов. */
+async function refreshModUpdates() {
+  if (!isTauri() || !packId.value || !status.value?.installed) {
+    modUpdates.value = [];
+    trackedMods.value = [];
+    return;
+  }
+  try {
+    modUpdates.value = await modrinthCheckUpdates(packId.value);
+  } catch {
+    modUpdates.value = [];
+  }
+}
+
+/** Обновляет один мод. */
+async function updateOneMod(u: ModUpdate) {
+  if (!packId.value || updatingMod.value) return;
+  updatingMod.value = u.fileName;
+  try {
+    await modrinthUpdateMod(packId.value, u.fileName);
+    notify(t("mods.updated", { name: u.newVersion.name }), "success");
+    await loadGameFiles("mods");
+    await refreshModUpdates();
+  } catch (e) {
+    notify(t("mods.updateErr", { e }));
+  } finally {
+    updatingMod.value = null;
+  }
+}
+
+/** Обновляет все моды разом (последовательно). */
+async function updateAllMods() {
+  if (!packId.value || updateAllBusy.value || modUpdates.value.length === 0) return;
+  updateAllBusy.value = true;
+  let ok = 0;
+  let fail = 0;
+  for (const u of [...modUpdates.value]) {
+    try {
+      await modrinthUpdateMod(packId.value, u.fileName);
+      ok++;
+    } catch {
+      fail++;
+    }
+  }
+  notify(
+    ok > 0
+      ? t("mods.updatedCount", { ok, fail })
+      : t("mods.updateAllFail", { fail }),
+    fail > 0 && ok === 0 ? "error" : "success"
+  );
+  await loadGameFiles("mods");
+  await refreshModUpdates();
+  updateAllBusy.value = false;
+}
+
+/** Поиск модпаков на Modrinth для установки как сборки. */
+async function searchPacks() {
+  if (!isTauri()) return;
+  modPackLoading.value = true;
+  modPackDetail.value = null;
+  modPackVersions.value = null;
+  try {
+    modPackResults.value = await modrinthSearch(
+      modPackQuery.value.trim(),
+      "modpack",
+      20,
+      searchOpts(packFilters)
+    );
+  } catch (e) {
+    notify(t("mods.packsSearchErr", { e }));
+  } finally {
+    modPackLoading.value = false;
+  }
+}
+
+/** Версии модпака (по убыванию даты). */
+async function openPackVersions(p: ModrinthProject) {
+  modPackVersions.value = null;
+  try {
+    const all = await modrinthProjectVersions(p.projectId);
+    modPackVersions.value = all.sort(
+      (a, b) => Date.parse(b.datePublished) - Date.parse(a.datePublished)
+    );
+  } catch (e) {
+    notify(t("mods.packsSearchErr", { e }));
+    modPackVersions.value = [];
+  }
+}
+
+/** Открывает «страницу» сборки: вкладки описание/версии/галерея. */
+async function openPackDetail(p: ModrinthProject) {
+  modPackDetail.value = p;
+  modPackTab.value = "about";
+  modPackVersions.value = null;
+  openPackVersions(p);
+  if (!p.body) {
+    try {
+      modPackDetail.value = await modrinthProject(p.projectId);
+    } catch {
+      /* оставляем карточку из поиска */
+    }
+  }
+}
+
+/** Скачивает и устанавливает модпак с Modrinth. */
+async function installPackVersion(v: ModrinthVersion) {
+  if (modPackInstalling.value) return;
+  modPackInstalling.value = v.id;
+  try {
+    const pack = await modrinthInstallPack(v.id);
+    notify(t("mods.packInstalled", { name: pack.name }), "success");
+    modPackOpen.value = false;
+    modPackVersions.value = null;
+    modPackDetail.value = null;
+    await loadPacks();
+    await nextTick();
+    openPackTab(pack.id);
+  } catch (e) {
+    notify(t("mods.packInstallErr", { e }));
+  } finally {
+    modPackInstalling.value = null;
+  }
+}
+
+/** Создаёт свою (локальную) сборку: база + загрузчик. */
+async function createPack() {
+  if (createPackBusy.value) return;
+  const name = createPackName.value.trim();
+  if (!name) {
+    notify(t("mods.createName"), "info");
+    return;
+  }
+  createPackBusy.value = true;
+  try {
+    const pack = await createLocalPack(
+      name,
+      createPackMc.value.trim(),
+      createPackLoader.value
+    );
+    notify(t("mods.packCreated", { name: pack.name }), "success");
+    createPackOpen.value = false;
+    createPackName.value = "";
+    await loadPacks();
+    await nextTick();
+    openPackTab(pack.id);
+  } catch (e) {
+    notify(t("mods.createErr", { e }));
+  } finally {
+    createPackBusy.value = false;
+  }
+}
+
+// При открытии сабтаба модов — проверяем обновления установленных модов.
+watch(playSubTab, (tab) => {
+  if (tab === "mods") refreshModUpdates();
 });
 
 function openSelected(site: "modrinth" | "curseforge") {
@@ -2747,6 +3862,8 @@ async function copyServerIp(srv: PackServer) {
 }
 
 const skinFileInput = ref<HTMLInputElement | null>(null);
+const packIconInput = ref<HTMLInputElement | null>(null);
+const packIconTarget = ref<string | null>(null);
 const sidebarWidth = ref(readSidebarWidth());
 const sidebarDragging = ref(false);
 
@@ -2796,6 +3913,25 @@ async function onSkinFileChange(ev: Event) {
     return;
   }
   await applyLocalSkin(path);
+}
+
+async function onPackIconChange(ev: Event) {
+  const input = ev.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  const path = (file as File & { path?: string }).path;
+  if (!path) {
+    notify(t("skin.readFail"), "error");
+    return;
+  }
+  try {
+    await setPackIcon(packIconTarget.value!, path);
+    notify(t("dev.iconSet"), "success");
+    await loadPacks();
+  } catch (e) {
+    notify(t("dev.iconErr", { e }));
+  }
 }
 
 async function copySkinApi() {

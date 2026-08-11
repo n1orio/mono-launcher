@@ -4,12 +4,94 @@ export interface PackDescriptor {
   /** Прямой URL на .mrpack файл сборки. */
   url: string;
   builtin: boolean;
+  /** "remote" — сборка из GitHub Releases; "local" — своя сборка или с Modrinth. */
+  kind: "remote" | "local";
   /** Владелец GitHub-репозитория сборки (если это github-сборка). */
   author: string | null;
   /** Ник блога на Boosty: задан → сборка платная (подписка обязательна). */
   boostyBlog: string | null;
   /** Минимальная оперативка для запуска (МБ), из pack.json автора. */
   minRam: number | null;
+  /** Локальная иконка сборки (путь к packs/<id>/icon.png), если есть. */
+  icon: string | null;
+}
+
+/** Карточка проекта Modrinth (мод или модпак). */
+export interface ModrinthProject {
+  projectId: string;
+  slug: string;
+  projectType: string;
+  title: string;
+  description: string;
+  author: string;
+  iconUrl: string | null;
+  downloads: number;
+  categories: string[];
+  latestVersion: string | null;
+  /** Полное описание (markdown) — только у полного проекта. */
+  body: string | null;
+  /** Галерея скриншотов — только у полного проекта. */
+  gallery: ModrinthGalleryItem[];
+}
+
+/** Скриншот из галереи проекта Modrinth. */
+export interface ModrinthGalleryItem {
+  url: string;
+  title: string | null;
+  description: string | null;
+  featured: boolean | null;
+}
+
+/** Теги Modrinth для фильтров поиска (загрузчики, категории, версии игры). */
+export interface ModrinthTags {
+  loaders: string[];
+  categories: string[];
+  versions: string[];
+}
+
+/** Файл версии Modrinth (jar мода или .mrpack модпака). */
+export interface ModrinthFile {
+  hashes: Record<string, string>;
+  url: string;
+  filename: string;
+  primary: boolean | null;
+  size: number;
+}
+
+/** Версия проекта Modrinth. */
+export interface ModrinthVersion {
+  id: string;
+  projectId: string;
+  name: string;
+  versionNumber: string;
+  gameVersions: string[];
+  loaders: string[];
+  datePublished: string;
+  changelog: string | null;
+  files: ModrinthFile[];
+  dependencies: ModrinthDependency[];
+}
+
+export interface ModrinthDependency {
+  projectId: string | null;
+  versionId: string | null;
+  dependencyType: string;
+}
+
+/** Установленный из Modrinth мод (трекинг обновлений). */
+export interface TrackedMod {
+  fileName: string;
+  versionId: string;
+  projectId: string;
+  sha1: string;
+  gameVersion: string;
+  loader: string;
+}
+
+/** Доступное обновление установленного мода. */
+export interface ModUpdate {
+  fileName: string;
+  newVersion: ModrinthVersion;
 }
 
 /** Запись каталога сборок (catalog.json в репозитории лаунчера). */

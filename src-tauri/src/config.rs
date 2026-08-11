@@ -23,6 +23,10 @@ pub struct UserPack {
     pub id: String,
     pub name: String,
     pub url: String,
+    /// "remote" — сборка из GitHub Releases (.mrpack), "local" — своя сборка
+    /// (создана в лаунчере или скачана с Modrinth).
+    #[serde(default = "default_kind")]
+    pub kind: String,
     /// Ник блога на Boosty: задан → сборка платная (подписка обязательна).
     /// В сборки, добавленные по ссылке, попадает из pack.json издателя.
     #[serde(default, rename = "boostyBlog")]
@@ -32,6 +36,10 @@ pub struct UserPack {
     pub min_ram_mb: Option<u32>,
 }
 
+fn default_kind() -> String {
+    "remote".into()
+}
+
 /// Единое описание сборки — встроенной или добавленной пользователем.
 #[derive(Debug, Clone)]
 pub struct PackInfo {
@@ -39,10 +47,14 @@ pub struct PackInfo {
     pub name: String,
     pub url: String,
     pub builtin: bool,
+    /// "remote" | "local" (см. `UserPack::kind`).
+    pub kind: String,
     /// Ник блога на Boosty: задан → сборка платная (подписка обязательна).
     pub boosty_blog: Option<String>,
     /// Минимальная оперативка (МБ), см. `PackDef::min_ram_mb`.
     pub min_ram_mb: Option<u32>,
+    /// Локальная иконка сборки (путь к `packs/<id>/icon.png`), если есть.
+    pub icon: Option<String>,
 }
 
 /// Все поддерживаемые сборки. GitHub-endpoints выводятся из `url`.
@@ -74,8 +86,10 @@ pub fn builtin_packs() -> Vec<PackInfo> {
             name: p.name.to_string(),
             url: p.url.to_string(),
             builtin: true,
+            kind: "remote".into(),
             boosty_blog: p.boosty_blog.map(String::from),
             min_ram_mb: p.min_ram_mb,
+            icon: pack_icon_path(p.id),
         })
         .collect()
 }
@@ -109,13 +123,16 @@ fn save_user_packs(list: &[UserPack]) -> Result<()> {
 pub fn all_packs() -> Result<Vec<PackInfo>> {
     let mut out = builtin_packs();
     for p in user_packs()? {
+        let icon = pack_icon_path(&p.id);
         out.push(PackInfo {
             id: p.id,
             name: p.name,
             url: p.url,
             builtin: false,
+            kind: p.kind,
             boosty_blog: p.boosty_blog,
             min_ram_mb: p.min_ram_mb,
+            icon,
         });
     }
     Ok(out)
@@ -129,28 +146,37 @@ pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
             name: p.name.to_string(),
             url: p.url.to_string(),
             builtin: true,
+            kind: "remote".into(),
             boosty_blog: p.boosty_blog.map(String::from),
             min_ram_mb: p.min_ram_mb,
+            icon: pack_icon_path(p.id),
         }));
     }
     Ok(user_packs()?
         .into_iter()
         .find(|p| p.id == id)
-        .map(|p| PackInfo {
-            id: p.id,
-            name: p.name,
-            url: p.url,
-            builtin: false,
-            boosty_blog: p.boosty_blog,
-            min_ram_mb: p.min_ram_mb,
+        .map(|p| {
+            let icon = pack_icon_path(&p.id);
+            PackInfo {
+                id: p.id,
+                name: p.name,
+                url: p.url,
+                builtin: false,
+                kind: p.kind,
+                boosty_blog: p.boosty_blog,
+                min_ram_mb: p.min_ram_mb,
+                icon,
+            }
         }))
 }
 
 /// Добавляет пользовательскую сборку в реестр. Ошибка, если id занят.
+/// `kind` — "remote" или "local" (см. `UserPack::kind`).
 pub fn add_user_pack(
     id: &str,
     name: &str,
     url: &str,
+    kind: &str,
     boosty_blog: Option<&str>,
     min_ram_mb: Option<u32>,
 ) -> Result<()> {
@@ -162,6 +188,7 @@ pub fn add_user_pack(
         id: id.to_string(),
         name: name.to_string(),
         url: url.to_string(),
+        kind: if kind == "local" { "local".into() } else { "remote".into() },
         boosty_blog: boosty_blog
             .map(|b| b.trim().to_string())
             .filter(|b| !b.is_empty()),
@@ -198,6 +225,13 @@ pub fn launcher_root() -> Result<PathBuf> {
 /// Папка конкретной сборки (профили, кэш mrpack, активная версия).
 pub fn pack_dir(pack_id: &str) -> Result<PathBuf> {
     Ok(launcher_root()?.join("packs").join(pack_id))
+}
+
+/// Путь к иконке сборки (`packs/<id>/icon.png`) — локальный файл,
+/// подставляется в `PackInfo::icon`, если существует.
+pub fn pack_icon_path(pack_id: &str) -> Option<String> {
+    let path = pack_dir(pack_id).ok()?.join("icon.png");
+    path.exists().then(|| path.to_string_lossy().into_owned())
 }
 
 /// Папка установленных версий сборки.

@@ -10,6 +10,10 @@ import type {
   JavaInfo,
   LaunchLogEntry,
   LicenseInfo,
+  ModUpdate,
+  ModrinthProject,
+  ModrinthTags,
+  ModrinthVersion,
   MsDeviceCodeInfo,
   NewsItem,
   PackDescriptor,
@@ -21,6 +25,7 @@ import type {
   ServerStatus,
   SkinInfo,
   SystemInfo,
+  TrackedMod,
   UpdateInfo,
   UserSession,
   VerifyResult,
@@ -316,4 +321,106 @@ export function getGameFileIcons(
   names: string[]
 ): Promise<GameFileIcon[]> {
   return invoke("get_game_file_icons_command", { packId, folder, names });
+}
+
+// ==== Modrinth: свои сборки, моды, обновления ====
+
+export interface ModrinthSearchOpts {
+  /** Категории и загрузчики (facets categories). */
+  categories?: string[];
+  /** Версии игры (facets versions). */
+  versions?: string[];
+  /** Окружение: "client" | "server". */
+  environment?: string;
+  /** Сортировка: relevance | downloads | follows | newest | updated. */
+  index?: string;
+}
+
+export function modrinthSearch(
+  query: string,
+  kind: "mod" | "modpack",
+  limit?: number,
+  opts?: ModrinthSearchOpts
+): Promise<ModrinthProject[]> {
+  return invoke("modrinth_search_command", {
+    query,
+    kind,
+    limit,
+    filters: {
+      categories: opts?.categories,
+      versions: opts?.versions,
+      environment: opts?.environment,
+      index: opts?.index,
+    },
+  });
+}
+
+export function modrinthTags(): Promise<ModrinthTags> {
+  return invoke("modrinth_tags_command");
+}
+
+export function modrinthProjectVersions(
+  projectId: string,
+  gameVersion?: string,
+  loader?: string
+): Promise<ModrinthVersion[]> {
+  return invoke("modrinth_project_versions_command", {
+    projectId,
+    gameVersion,
+    loader,
+  });
+}
+
+export function modrinthVersion(versionId: string): Promise<ModrinthVersion> {
+  return invoke("modrinth_version_command", { versionId });
+}
+
+export function modrinthProject(projectId: string): Promise<ModrinthProject> {
+  return invoke("modrinth_project_command", { projectId });
+}
+
+export function setPackIcon(packId: string, path: string): Promise<void> {
+  return invoke("set_pack_icon_command", { packId, path });
+}
+
+export function fetchPackIcon(packId: string): Promise<boolean> {
+  return invoke("fetch_pack_icon_command", { packId });
+}
+
+export function modrinthInstallMod(
+  packId: string,
+  versionId: string
+): Promise<TrackedMod> {
+  return invoke("modrinth_install_mod_command", { packId, versionId });
+}
+
+export function modrinthCheckUpdates(packId: string): Promise<ModUpdate[]> {
+  return invoke("modrinth_check_updates_command", { packId });
+}
+
+export function modrinthUpdateMod(
+  packId: string,
+  fileName: string
+): Promise<TrackedMod> {
+  return invoke("modrinth_update_mod_command", { packId, fileName });
+}
+
+export function modrinthRemoveMod(packId: string, fileName: string): Promise<void> {
+  return invoke("modrinth_remove_mod_command", { packId, fileName });
+}
+
+export function modrinthInstallPack(versionId: string): Promise<PackDescriptor> {
+  return invoke("modrinth_install_pack_command", { versionId });
+}
+
+export function createLocalPack(
+  name: string,
+  minecraftVersion: string,
+  loader: string | null
+): Promise<PackDescriptor> {
+  return invoke("create_local_pack_command", {
+    name,
+    minecraftVersion,
+    loader,
+  });
 }

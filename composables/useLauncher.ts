@@ -51,6 +51,7 @@ import {
   takePendingPackAdd,
   toggleGameFile,
   verifyGame,
+  fetchPackIcon,
   listAccounts,
   switchAccount,
   removeAccount,
@@ -674,6 +675,25 @@ export function useLauncher() {
       (list.some((p) => p.id === packId.value) ? packId.value : undefined) ??
       list[0]?.id ??
       "";
+    await syncPackIcons();
+  }
+
+  // Иконки кастомных сборок автор кладёт в репозиторий (icon.png в корне).
+  // Скачиваем один раз за сессию, дальше иконка лежит локально.
+  const iconFetchTried = new Set<string>();
+  async function syncPackIcons() {
+    if (!isTauri()) return;
+    let changed = false;
+    for (const p of packs.value) {
+      if (p.icon || p.id.startsWith("mrn-") || iconFetchTried.has(p.id)) continue;
+      iconFetchTried.add(p.id);
+      try {
+        if (await fetchPackIcon(p.id)) changed = true;
+      } catch {
+        // Нет сети или репозиторий без иконки — пропускаем.
+      }
+    }
+    if (changed) await loadPacks();
   }
 
   /** Добавляет сборку по URL GitHub-репозитория или прямой ссылке на .mrpack. */
@@ -1603,5 +1623,6 @@ notify(t("err.switch", { e }));
     handleAddPack,
     handleRemovePack,
     resetRemoveArm,
+    loadPacks,
   };
 }
