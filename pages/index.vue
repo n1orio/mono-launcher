@@ -481,11 +481,11 @@
                   class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold transition-all hover:brightness-110"
                   :class="s.color
                     ? ''
-                    : 'border-[color-mix(in_srgb,var(--accent)_60%,black)] bg-[var(--accent)] text-[color-mix(in_srgb,var(--accent)_55%,black)]'"
+                    : 'border-[color-mix(in_srgb,var(--accent)_55%,black)] bg-[var(--accent)] text-[color-mix(in_srgb,var(--accent)_55%,black)]'"
                   :style="s.color
                     ? {
                         backgroundColor: s.color,
-                        borderColor: `color-mix(in srgb, ${s.color} 62%, black)`,
+                        borderColor: `color-mix(in srgb, ${s.color} 55%, black)`,
                         color: `color-mix(in srgb, ${s.color} 55%, black)`,
                       }
                     : undefined"
