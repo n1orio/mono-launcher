@@ -4,6 +4,8 @@ import type {
   Accounts,
   AppStatus,
   CatalogEntry,
+  CurseFile,
+  CurseSearchHit,
   DownloadProgress,
   GameFileEntry,
   GameFileIcon,
@@ -104,6 +106,42 @@ export function msPoll(
   expiresIn: number
 ): Promise<UserSession> {
   return invoke("ms_poll_command", { deviceCode, interval, expiresIn });
+}
+
+export function elyDeviceCode(): Promise<MsDeviceCodeInfo> {
+  return invoke("ely_device_code_command");
+}
+
+export function elyPoll(
+  deviceCode: string,
+  interval: number,
+  expiresIn: number
+): Promise<UserSession> {
+  return invoke("ely_poll_command", { deviceCode, interval, expiresIn });
+}
+
+export function curseforgeSearch(query: string, classId: number): Promise<CurseSearchHit[]> {
+  return invoke("curseforge_search_command", { query, classId });
+}
+
+export function curseforgeLatestFile(packId: string, projectId: number): Promise<CurseFile> {
+  return invoke("curseforge_latest_file_command", { packId, projectId });
+}
+
+export function curseforgeInstallFile(
+  packId: string,
+  file: CurseFile,
+  folder: string
+): Promise<string> {
+  return invoke("curseforge_install_command", { packId, file, folder });
+}
+
+export function setCurseforgeKey(key: string): Promise<string> {
+  return invoke("set_curseforge_key_command", { key });
+}
+
+export function curseforgeKeyConfigured(): Promise<boolean> {
+  return invoke("curseforge_key_configured_command");
 }
 
 export function launchGame(
@@ -338,6 +376,8 @@ export interface ModrinthSearchOpts {
 
 /** Тип проекта Modrinth, по которому идёт поиск. */
 export type ModrinthSearchKind = "mod" | "modpack" | "resourcepack" | "shaderpack" | "datapack";
+
+export type { CurseSearchHit, CurseFile } from "./types";
 
 /** Папка игры, куда ставится файл с Modrinth. */
 export type ModrinthInstallFolder = "mods" | "resourcepacks" | "shaderpacks" | "datapacks";

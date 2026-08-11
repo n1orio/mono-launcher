@@ -1,5 +1,6 @@
 mod auth;
 mod config;
+mod curseforge;
 mod discord_rp;
 mod files;
 mod game;
@@ -865,6 +866,71 @@ async fn modrinth_install_mod_command(
     // Показываем файл в списке (событие для обновления UI).
     let _ = app.emit("mods-changed", ());
     Ok(tracked)
+}
+
+/// Поиск на CurseForge по классу (моды/ресурспаки/шейдеры).
+#[tauri::command]
+async fn curseforge_search_command(
+    state: State<'_, AppState>,
+    query: String,
+    class_id: u32,
+) -> Result<Vec<curseforge::CurseSearchHit>, String> {
+    curseforge::search(&state.client, &query, class_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Подходящий файл проекта CurseForge (последний под версию Minecraft сборки,
+/// либо просто последний) — готов к установке.
+#[tauri::command]
+async fn curseforge_latest_file_command(
+    state: State<'_, AppState>,
+    pack_id: String,
+    project_id: u32,
+) -> Result<curseforge::CurseFile, String> {
+    let pack = resolve_pack(Some(pack_id))?;
+    let mc = config::active_version(&pack.id)
+        .ok()
+        .and_then(|v| mrpack::read_version_index(&pack.id, &v))
+        .and_then(|idx| idx.dependencies.get("minecraft").cloned());
+    curseforge::latest_file(&state.client, project_id, mc.as_deref())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Скачивает файл CurseForge в папку сборки (mods/resourcepacks/shaderpacks)
+/// с проверкой sha1.
+#[tauri::command]
+async fn curseforge_install_command(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    pack_id: String,
+    file: curseforge::CurseFile,
+    folder: String,
+) -> Result<String, String> {
+    let pack = resolve_pack(Some(pack_id))?;
+    let game_dir = config::active_game_dir(&pack.id).map_err(|e| e.to_string())?;
+    let target_dir = match folder.as_str() {
+        "mods" | "resourcepacks" | "shaderpacks" => game_dir.join(&folder),
+        other => return Err(format!("Неизвестная папка: {other}")),
+    };
+    let name = curseforge::download_to(&state.client, &file, &target_dir)
+        .await
+        .map_err(|e| e.to_string())?;
+    let _ = app.emit("mods-changed", ());
+    Ok(name)
+}
+
+/// Сохраняет API-ключ CurseForge в файл `<данные лаунчера>/curseforge-key.txt`.
+#[tauri::command]
+fn set_curseforge_key_command(key: String) -> Result<String, String> {
+    curseforge::set_api_key(&key).map_err(|e| e.to_string())
+}
+
+/// Задан ли API-ключ CurseForge (для подсказки в UI, сам ключ не возвращаем).
+#[tauri::command]
+fn curseforge_key_configured_command() -> bool {
+    curseforge::api_key_from_cfg().is_some()
 }
 
 /// Доступное обновление установленного из Modrinth файла.
@@ -2111,7 +2177,7 @@ async fn login_offline_command(username: String) -> Result<UserSession, String> 
 #[tauri::command]
 async fn ms_device_code_command(
     state: State<'_, AppState>,
-) -> Result<auth::MsDeviceCodeInfo, String> {
+) -> Result<auth::DeviceCodeInfo, String> {
     auth::ms_device_code(&state.client)
         .await
         .map_err(|e| e.to_string())
@@ -2131,6 +2197,33 @@ async fn ms_poll_command(
         .map_err(|e| e.to_string())?;
     save_session(&session).map_err(|e| e.to_string())?;
     // Любой вход попадает в список аккаунтов и становится активным.
+    let _ = auth::upsert_account(&session);
+    Ok(session)
+}
+
+/// Ely.by OAuth2, фаза 1: запрашиваем device code для показа в UI.
+#[tauri::command]
+async fn ely_device_code_command(
+    state: State<'_, AppState>,
+) -> Result<auth::DeviceCodeInfo, String> {
+    auth::ely_device_code(&state.client)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Ely.by OAuth2, фаза 2: поллим подтверждение и возвращаем игровую сессию
+/// (токен Ely.by с правами minecraft_server_session передаётся напрямую игре).
+#[tauri::command]
+async fn ely_poll_command(
+    state: State<'_, AppState>,
+    device_code: String,
+    interval: u64,
+    expires_in: u64,
+) -> Result<UserSession, String> {
+    let session = auth::ely_poll(&state.client, &device_code, interval, expires_in)
+        .await
+        .map_err(|e| e.to_string())?;
+    save_session(&session).map_err(|e| e.to_string())?;
     let _ = auth::upsert_account(&session);
     Ok(session)
 }
@@ -2523,6 +2616,13 @@ pub fn run() {
             login_offline_command,
             ms_device_code_command,
             ms_poll_command,
+            ely_device_code_command,
+            ely_poll_command,
+            curseforge_search_command,
+            curseforge_latest_file_command,
+            curseforge_install_command,
+            set_curseforge_key_command,
+            curseforge_key_configured_command,
             list_accounts_command,
             switch_account_command,
             remove_account_command,

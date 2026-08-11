@@ -889,6 +889,17 @@
                     </svg>
                     {{ playSubTab === 'mods' ? t("mods.add") : playSubTab === 'resourcepacks' ? t("mods.addRP") : t("mods.addShaders") }}
                   </button>
+                  <button
+                    type="button"
+                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                    :title="t('curse.addHint')"
+                    @click="openCurseSearch(playSubTab)"
+                  >
+                    <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                      <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
+                    </svg>
+                    CurseForge
+                  </button>
                 </template>
                 <template v-else>
                   <button
@@ -1864,42 +1875,51 @@
                 <button
                   type="button"
                   class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
-                  :disabled="busy || msPolling"
+                  :disabled="busy || msPolling || elyPolling"
                   @click="handleMicrosoft"
                 >
                   {{ msPolling ? t("settings.msWait") : t("settings.msSignin") }}
                 </button>
 
+                <button
+                  type="button"
+                  class="w-full rounded-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] py-1.5 text-xs font-medium text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] disabled:opacity-50"
+                  :disabled="busy || msPolling || elyPolling"
+                  @click="handleEly"
+                >
+                  {{ elyPolling ? t("settings.elyWait") : t("settings.elySignin") }}
+                </button>
+
                 <!-- Device code flow: показать код и ссылку -->
                 <div
-                  v-if="msFlow"
+                  v-if="deviceFlow"
                   class="rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] bg-[var(--bg-60)] p-3 space-y-2"
                 >
                   <p class="text-[11px] text-[color:var(--tx-muted)]">
-                    {{ t("settings.msCode") }}
+                    {{ msFlow ? t("settings.msCode") : t("settings.elyCode") }}
                   </p>
                   <div class="flex items-center gap-3">
                     <div
-                      v-if="msFlow.qr_svg"
+                      v-if="deviceFlow.qr_svg"
                       class="h-28 w-28 shrink-0 overflow-hidden rounded-md border border-[var(--border)] bg-white"
                       :title="t('settings.msScan')"
                     >
-                      <div class="h-full w-full" v-html="msFlow.qr_svg"></div>
+                      <div class="h-full w-full" v-html="deviceFlow.qr_svg"></div>
                     </div>
                     <div class="min-w-0 flex-1">
                     <p class="font-mono text-2xl font-bold tracking-[0.3em] text-[var(--accent-strong)] select-text">
-                      {{ msFlow.user_code }}
+                      {{ deviceFlow.user_code }}
                     </p>
                     <button
                       type="button"
                       class="mt-2 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)]"
                       @click="openMsAuthPage"
                     >
-                      {{ t("settings.msOpen", { uri: msFlow.verification_uri.replace(/^https?:\/\//, "") }) }}
+                      {{ t("settings.msOpen", { uri: deviceFlow.verification_uri.replace(/^https?:\/\//, "") }) }}
                     </button>
                     </div>
                   </div>
-                  <p v-if="msPolling" class="flex items-center gap-2 text-[11px] text-[color:var(--tx-muted)]">
+                  <p v-if="msPolling || elyPolling" class="flex items-center gap-2 text-[11px] text-[color:var(--tx-muted)]">
                     <svg class="h-3 w-3 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
                       <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
                     </svg>
@@ -1923,7 +1943,7 @@
                     <div class="min-w-0 flex-1">
                       <p class="truncate text-xs font-medium text-[color:var(--tx-strong)]">{{ a.username }}</p>
                       <p class="text-[10px] text-[color:var(--tx-muted)]">
-                        {{ a.user_type === "microsoft" ? t("accounts.ms") : t("accounts.offline") }}
+                        {{ a.user_type === "microsoft" ? t("accounts.ms") : a.user_type === "ely" ? t("accounts.ely") : t("accounts.offline") }}
                       </p>
                     </div>
                     <button
@@ -2407,6 +2427,107 @@
       </div>
     </div>
 
+    <!-- Модалка: поиск и установка с CurseForge -->
+    <div
+      v-if="curseSearchOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
+      @click.self="curseSearchOpen = false"
+    >
+      <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
+        <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
+          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">
+            {{ t(curseKind === "mods" ? "curse.titleMods" : curseKind === "resourcepacks" ? "curse.titleRP" : "curse.titleShaders") }}
+          </h3>
+          <button
+            type="button"
+            class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
+            @click="curseSearchOpen = false"
+          >
+            <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+          </button>
+        </div>
+        <div v-if="!curseKeyOk" class="border-b border-[var(--border)] px-4 py-3">
+          <p class="text-[11px] leading-snug text-[color:var(--tx-muted)]">{{ t("curse.noKey") }}</p>
+          <div class="mt-2 flex gap-2">
+            <input
+              v-model="curseKeyInput"
+              type="password"
+              :placeholder="t('curse.keyPlaceholder')"
+              class="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
+            />
+            <button
+              type="button"
+              class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+              :disabled="curseKeySaving"
+              @click="saveCurseKey"
+            >
+              {{ t("curse.saveKey") }}
+            </button>
+          </div>
+        </div>
+        <div class="flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-4 py-3">
+          <input
+            v-model="curseQuery"
+            type="text"
+            :placeholder="t('curse.searchPlaceholder')"
+            class="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
+            @keydown.enter="searchCurse"
+          />
+          <button
+            type="button"
+            class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+            :disabled="curseLoading || !curseQuery.trim() || (!curseKeyOk && !curseKeySaving)"
+            @click="searchCurse"
+          >
+            <svg v-if="curseLoading" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
+              <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+            </svg>
+            <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+              <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
+            </svg>
+            {{ t("curse.search") }}
+          </button>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <p v-if="!curseSearched" class="py-8 text-center text-[11px] text-[color:var(--tx-muted)]">{{ t("curse.help") }}</p>
+          <p v-else-if="curseLoading" class="flex items-center justify-center gap-2 py-8 text-[11px] text-[color:var(--tx-muted)]">
+            <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
+              <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+            </svg>
+            {{ t("mods.searching") }}
+          </p>
+          <p v-else-if="curseResults.length === 0" class="py-8 text-center text-[11px] text-[color:var(--tx-muted)]">{{ t("mods.noResults") }}</p>
+          <div v-else class="space-y-2">
+            <div
+              v-for="p in curseResults"
+              :key="p.projectId"
+              class="flex items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="truncate text-xs font-semibold text-[color:var(--tx-strong)]">{{ p.name }}</span>
+                  <span v-if="curseInstallBusy === p.projectId" class="text-[10px] text-[var(--accent)]">{{ t("curse.installing") }}</span>
+                </div>
+                <p class="line-clamp-1 text-[10px] text-[color:var(--tx-muted)]">{{ p.summary }}</p>
+                <p class="mt-0.5 flex items-center gap-2 text-[10px] text-[color:var(--tx-muted)]">
+                  <span>{{ t("mods.byAuthor", { author: p.author }) }}</span>
+                  <span>{{ p.downloadCount.toLocaleString() }}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                class="shrink-0 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                :disabled="curseInstallBusy !== null && curseInstallBusy !== p.projectId"
+                @click="installCurse(p)"
+              >
+                {{ t("mods.download") }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Модалка: скачать сборку с Modrinth -->
     <div
       v-if="modPackOpen"
@@ -2805,8 +2926,8 @@
 <script setup lang="ts">
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { computed, nextTick, onBeforeUnmount, reactive, ref } from "vue";
-import { isTauri, openExternal, pingServer, createLocalPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon } from "~/lib/bridge";
-import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind } from "~/lib/bridge";
+import { isTauri, openExternal, pingServer, createLocalPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeLatestFile, curseforgeInstallFile, setCurseforgeKey, curseforgeKeyConfigured } from "~/lib/bridge";
+import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit } from "~/lib/bridge";
 import type { CatalogEntry, GameFileEntry, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n } from "~/composables/useI18n";
@@ -2843,9 +2964,13 @@ const {
   handleSelectVersion,
   handleOffline,
   handleMicrosoft,
+  handleEly,
   openMsAuthPage,
   msFlow,
   msPolling,
+  elyFlow,
+  elyPolling,
+  deviceFlow,
   accounts,
   accountBusy,
   handleSwitchAccount,
@@ -3411,6 +3536,105 @@ const modSearchTitle = computed(() => {
       return t("mods.titleDatapack");
   }
 });
+
+/** Класс проектов CurseForge для вкладки файлов. */
+const CURSE_CLASS = {
+  mods: 6,
+  resourcepacks: 12,
+  shaderpacks: 6552,
+} as const;
+
+/** Папка игры для вкладки CurseForge. */
+const CURSE_FOLDER = {
+  mods: "mods",
+  resourcepacks: "resourcepacks",
+  shaderpacks: "shaderpacks",
+} as const;
+
+type CurseTab = keyof typeof CURSE_CLASS;
+
+const curseSearchOpen = ref(false);
+const curseKind = ref<CurseTab>("mods");
+const curseQuery = ref("");
+const curseLoading = ref(false);
+const curseSearched = ref(false);
+const curseResults = ref<CurseSearchHit[]>([]);
+const curseInstallBusy = ref<number | null>(null);
+const curseKeyOk = ref(true);
+const curseKeyInput = ref("");
+const curseKeySaving = ref(false);
+
+async function loadCurseKeyStatus() {
+  if (!isTauri()) return;
+  try {
+    curseKeyOk.value = await curseforgeKeyConfigured();
+  } catch {
+    curseKeyOk.value = false;
+  }
+}
+
+async function saveCurseKey() {
+  if (!isTauri() || curseKeySaving.value) return;
+  curseKeySaving.value = true;
+  try {
+    await setCurseforgeKey(curseKeyInput.value);
+    curseKeyOk.value = true;
+    curseKeyInput.value = "";
+    notify(t("curse.keySaved"), "success");
+  } catch (e) {
+    notify(t("curse.keyErr", { e }));
+  } finally {
+    curseKeySaving.value = false;
+  }
+}
+
+/** Открывает поиск CurseForge для вкладки файлов (моды/ресурспаки/шейдеры). */
+function openCurseSearch(tab: GameFolderKind) {
+  const kind =
+    tab === "mods" ? "mods" : tab === "resourcepacks" ? "resourcepacks" : ("shaderpacks" as CurseTab);
+  curseKind.value = kind;
+  curseQuery.value = "";
+  curseResults.value = [];
+  curseSearched.value = false;
+  curseSearchOpen.value = true;
+  void loadCurseKeyStatus();
+}
+
+/** Поиск на CurseForge. */
+async function searchCurse() {
+  if (!isTauri() || !packId.value || curseLoading.value) return;
+  curseLoading.value = true;
+  curseSearched.value = true;
+  try {
+    curseResults.value = await curseforgeSearch(
+      curseQuery.value.trim(),
+      CURSE_CLASS[curseKind.value]
+    );
+  } catch (e) {
+    notify(t("curse.err", { e }));
+  } finally {
+    curseLoading.value = false;
+  }
+}
+
+/** Скачивает последний подходящий файл проекта CurseForge в папку вкладки. */
+async function installCurse(p: CurseSearchHit) {
+  if (!isTauri() || !packId.value || curseInstallBusy.value !== null) return;
+  curseInstallBusy.value = p.projectId;
+  try {
+    const file = await curseforgeLatestFile(packId.value, p.projectId);
+    const folder = CURSE_FOLDER[curseKind.value];
+    await curseforgeInstallFile(packId.value, file, folder);
+    notify(t("curse.installed", { name: p.name }), "success");
+    curseSearchOpen.value = false;
+    await loadGameFiles(folder);
+    await refreshModUpdates();
+  } catch (e) {
+    notify(t("curse.installErr", { e }));
+  } finally {
+    curseInstallBusy.value = null;
+  }
+}
 
 /** Поиск модов/ресурспаков/шейдеров/датапаков для добавления в сборку. */
 async function searchMods() {

@@ -54,7 +54,7 @@ struct MsTokenResp {
 
 /// Данные для входа: код и страница подтверждения (фаза 1 device code flow).
 #[derive(Debug, Clone, Serialize)]
-pub struct MsDeviceCodeInfo {
+pub struct DeviceCodeInfo {
     pub user_code: String,
     pub verification_uri: String,
     pub device_code: String,
@@ -154,7 +154,7 @@ fn require_client_id() -> Result<String> {
 }
 
 /// Фаза 1: запрашиваем device code у Microsoft и возвращаем код для показа.
-pub async fn ms_device_code(client: &reqwest::Client) -> Result<MsDeviceCodeInfo> {
+pub async fn ms_device_code(client: &reqwest::Client) -> Result<DeviceCodeInfo> {
     let client_id = require_client_id()?;
 
     let code_resp: MsCodeResp = client
@@ -171,7 +171,7 @@ pub async fn ms_device_code(client: &reqwest::Client) -> Result<MsDeviceCodeInfo
         .json()
         .await?;
 
-    Ok(MsDeviceCodeInfo {
+    Ok(DeviceCodeInfo {
         qr_svg: qr_svg(&code_resp.verification_uri),
         user_code: code_resp.user_code,
         verification_uri: code_resp.verification_uri,
@@ -326,6 +326,141 @@ pub async fn ms_poll(
         uuid: user.uuid,
         access_token: mine.access_token,
         user_type: "microsoft".into(),
+    })
+}
+
+/// Вход через Ely.by: device code flow (как у Microsoft), но токен приходит
+/// сразу с правами `minecraft_server_session` — его передаём игре напрямую.
+///
+/// Client id задаётся так же, как для Azure:
+/// 1) файл `<данные лаунчера>/ely-client-id` (одной строкой),
+/// 2) переменная окружения NIO_ELY_CLIENT_ID,
+/// 3) константа ELY_CLIENT_ID ниже.
+/// Зарегистрировать приложение: account.ely.by → «Создать приложение» (любой тип,
+/// device flow обходится без redirect URI), в настройках приложения скопировать clientId.
+const ELY_CLIENT_ID: &str = "CHANGE_ME";
+const ELY_DEVICE_URL: &str = "https://account.ely.by/api/oauth2/v1/devicecode";
+const ELY_TOKEN_URL: &str = "https://account.ely.by/api/oauth2/v1/token";
+const ELY_PROFILE_URL: &str = "https://account.ely.by/api/mojang/services/minecraft/profile";
+const ELY_SCOPES: &str = "account_info offline_access minecraft_server_session";
+
+fn ely_client_id_from_cfg() -> Option<String> {
+    let file = std::fs::read_to_string(config::launcher_root().ok()?.join("ely-client-id")).ok();
+    let env = std::env::var("NIO_ELY_CLIENT_ID").ok();
+    for candidate in [file, env].into_iter().flatten() {
+        let t = candidate.trim().to_string();
+        if !t.is_empty() && t != "CHANGE_ME" {
+            return Some(t);
+        }
+    }
+    if ELY_CLIENT_ID != "CHANGE_ME" {
+        return Some(ELY_CLIENT_ID.to_string());
+    }
+    None
+}
+
+fn require_ely_client_id() -> Result<String> {
+    ely_client_id_from_cfg().ok_or_else(|| {
+        anyhow!(
+            "Ely.by вход не настроен.\n\
+             Зарегистрируйте приложение на account.ely.by (профиль → «Приложения» → создать),\n\
+             затем запишите его clientId одной строкой в файл:\n\
+             {}",
+            config::launcher_root()
+                .map(|p| p.join("ely-client-id").display().to_string())
+                .unwrap_or_else(|_| "<данные лаунчера>/ely-client-id".into())
+        )
+    })
+}
+
+/// Фаза 1 Ely.by: запрашиваем device code (формат ответа как у Microsoft).
+pub async fn ely_device_code(client: &reqwest::Client) -> Result<DeviceCodeInfo> {
+    let client_id = require_ely_client_id()?;
+    let code_resp: MsCodeResp = client
+        .post(ELY_DEVICE_URL)
+        .form(&[("client_id", client_id.as_str()), ("scope", ELY_SCOPES)])
+        .send()
+        .await
+        .context("Не удалось связаться с Ely.by")?
+        .error_for_status()
+        .context("Ely.by не выдал device code")?
+        .json()
+        .await?;
+    Ok(DeviceCodeInfo {
+        qr_svg: qr_svg(&code_resp.verification_uri),
+        user_code: code_resp.user_code,
+        verification_uri: code_resp.verification_uri,
+        device_code: code_resp.device_code,
+        interval: code_resp.interval,
+        expires_in: code_resp.expires_in,
+    })
+}
+
+/// Фаза 2 Ely.by: поллим токен и получаем профиль Minecraft.
+pub async fn ely_poll(
+    client: &reqwest::Client,
+    device_code: &str,
+    interval: u64,
+    expires_in: u64,
+) -> Result<UserSession> {
+    let client_id = require_ely_client_id()?;
+    let mut access_token: Option<String> = None;
+    let mut poll_interval = interval.max(5);
+    let mut elapsed: u64 = 0;
+    while elapsed < expires_in {
+        let resp: MsTokenResp = client
+            .post(ELY_TOKEN_URL)
+            .form(&[
+                ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
+                ("client_id", client_id.as_str()),
+                ("device_code", device_code),
+            ])
+            .send()
+            .await?
+            .json()
+            .await?;
+        if let Some(err) = resp.error {
+            match err.as_str() {
+                "authorization_pending" => (),
+                "authorization_declined" => {
+                    return Err(anyhow!("Авторизация отклонена"));
+                }
+                "expired_token" => return Err(anyhow!("Код авторизации истёк")),
+                "slow_down" => poll_interval += 5,
+                other => return Err(anyhow!("Ошибка OAuth2: {other}")),
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(poll_interval)).await;
+            elapsed += poll_interval;
+            continue;
+        }
+        access_token = Some(resp.access_token);
+        break;
+    }
+    let access_token = access_token.ok_or_else(|| anyhow!("Таймаут авторизации Ely.by"))?;
+
+    // Профиль Minecraft (Mojang-совместимый формат: id без дефисов, name).
+    let profile = client
+        .get(ELY_PROFILE_URL)
+        .bearer_auth(&access_token)
+        .send()
+        .await
+        .context("Не удалось получить профиль Ely.by")?;
+    if profile.status() == reqwest::StatusCode::NOT_FOUND {
+        return Err(anyhow!("У Ely.by-аккаунта нет профиля Minecraft"));
+    }
+    let user: MsUserResp = profile
+        .error_for_status()
+        .context("Ely.by отклонил запрос профиля")?
+        .json()
+        .await?;
+    let uuid = Uuid::parse_str(&user.uuid)
+        .unwrap_or_else(|_| Uuid::new_v3(&Uuid::NAMESPACE_DNS, &user.uuid.as_bytes()))
+        .to_string();
+    Ok(UserSession {
+        username: user.name,
+        uuid,
+        access_token,
+        user_type: "ely".into(),
     })
 }
 

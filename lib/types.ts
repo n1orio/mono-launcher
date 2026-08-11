@@ -218,6 +218,7 @@ export interface LaunchLogEntry {
   line: string;
 }
 
+/** Фаза 1 device code flow (Microsoft и Ely.by) — код и страница подтверждения. */
 export interface MsDeviceCodeInfo {
   user_code: string;
   verification_uri: string;
@@ -225,6 +226,26 @@ export interface MsDeviceCodeInfo {
   interval: number;
   expires_in: number;
   qr_svg: string;
+}
+
+/** Результат поиска на CurseForge (моды/ресурспаки/шейдеры). */
+export interface CurseSearchHit {
+  projectId: number;
+  name: string;
+  summary: string;
+  author: string;
+  downloadCount: number;
+  fileExt: string;
+}
+
+/** Файл CurseForge, готовый к установке (ответ curseforge_latest_file). */
+export interface CurseFile {
+  fileId: number;
+  projectId: number;
+  fileName: string;
+  downloadUrl: string;
+  sha1: string;
+  gameVersion: string;
 }
 
 export interface JavaInfo {

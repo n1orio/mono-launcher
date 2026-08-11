@@ -726,9 +726,9 @@ pub fn parse_server_address(raw: &str) -> Option<ServerAddress> {
 }
 
 /// Скачивает authlib-injector.jar (кэш в корне лаунчера) и возвращает
-/// аргумент `-javaagent:...=<URL скин-API>` для запуска игры.
-async fn ensure_skin_agent(app: &AppHandle, client: &reqwest::Client) -> Result<String> {
-    use crate::skins::SKINS_API_URL;
+/// аргумент `-javaagent:...=<api>` для запуска игры: `api` — URL скин-API
+/// (оффлайн) или алиас `ely.by` (авторизация Ely.by).
+async fn ensure_authlib_agent(app: &AppHandle, client: &reqwest::Client, api: &str) -> Result<String> {
     let root = config::launcher_root()?;
     let jar = root.join("authlib-injector.jar");
     const JAR_URL: &str = "https://github.com/yushijinhun/authlib-injector/releases/download/1.2.5/authlib-injector-1.2.5.jar";
@@ -736,7 +736,7 @@ async fn ensure_skin_agent(app: &AppHandle, client: &reqwest::Client) -> Result<
         emit_log(
             app,
             "sys",
-            "Скачивание authlib-injector (поддержка оффлайн-скинов)…",
+            "Скачивание authlib-injector (поддержка альтернативной авторизации)…",
         );
         let resp = client.get(JAR_URL).send().await?;
         if !resp.status().is_success() {
@@ -748,7 +748,7 @@ async fn ensure_skin_agent(app: &AppHandle, client: &reqwest::Client) -> Result<
         let bytes = resp.bytes().await?;
         std::fs::write(&jar, &bytes)?;
     }
-    Ok(format!("-javaagent:{}={SKINS_API_URL}", jar.display()))
+    Ok(format!("-javaagent:{}={api}", jar.display()))
 }
 
 /// Собирает и запускает процесс Java для Minecraft.
@@ -1019,20 +1019,25 @@ pub async fn launch_game(
     };
     final_args.push(format!("-Xms{}G", xms_gb));
 
-    // Оффлайн-сессии (и только они): подключаем скин-сервис через authlib-injector,
-    // чтобы игрок видел свой скин в одиночке и на серверах, использующих наш API.
-    // У Microsoft-сессий скины приходят от Mojang — агент не нужен.
-    if session.user_type == "offline" {
-        match ensure_skin_agent(&app, &client).await {
+    // Альтернативная авторизация через authlib-injector:
+    // оффлайн — свой скин-API, Ely.by — официальный алиас `ely.by`.
+    // У Microsoft-сессий авторизация от Mojang — агент не нужен.
+    let (agent_api, agent_note): (&str, &str) = match session.user_type.as_str() {
+        "offline" => (crate::skins::SKINS_API_URL, "Оффлайн-скины"),
+        "ely" => ("ely.by", "Ely.by"),
+        _ => ("", ""),
+    };
+    if !agent_api.is_empty() {
+        match ensure_authlib_agent(&app, &client, agent_api).await {
             Ok(agent_arg) => {
                 final_args.push(agent_arg);
-                emit_log(&app, "sys", "Оффлайн-скины: подключён authlib-injector");
+                emit_log(&app, "sys", &format!("{agent_note}: подключён authlib-injector"));
             }
             Err(e) => {
                 emit_log(
                     &app,
                     "sys",
-                    &format!("Оффлайн-скины недоступны: {e} (запуск без них)"),
+                    &format!("{agent_note} недоступны: {e} (запуск без них)"),
                 );
             }
         }

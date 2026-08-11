@@ -55,6 +55,8 @@ import {
   listAccounts,
   switchAccount,
   removeAccount,
+  elyDeviceCode,
+  elyPoll,
 } from "~/lib/bridge";
 import type {
   AppStatus,
@@ -192,6 +194,11 @@ export function useLauncher() {
   const launcherVer = ref("");
   const msFlow = ref<MsDeviceCodeInfo | null>(null);
   const msPolling = ref(false);
+  const elyFlow = ref<MsDeviceCodeInfo | null>(null);
+  const elyPolling = ref(false);
+
+  /** Текущий device code flow (Microsoft или Ely.by) для панели в настройках. */
+  const deviceFlow = computed<MsDeviceCodeInfo | null>(() => msFlow.value ?? elyFlow.value);
   const accounts = ref<Accounts>({ active: null, list: [] });
   const accountBusy = ref(false);
   const ISSUES_URL = "https://github.com/n1orio/nio-launcher/issues/new";
@@ -1354,6 +1361,26 @@ notify(t("err.switch", { e }));
     }
   }
 
+  /** Вход через Ely.by (device code flow, как у Microsoft). */
+  async function handleEly() {
+    if (!isTauri()) return;
+    try {
+      const info = await elyDeviceCode();
+      elyFlow.value = info;
+      elyPolling.value = true;
+      const s = await elyPoll(info.device_code, info.interval, info.expires_in);
+      session.value = s;
+      elyFlow.value = null;
+      await load();
+      await loadAccounts();
+    } catch (e) {
+      notify(t("err.ely", { e }));
+    } finally {
+      elyPolling.value = false;
+      elyFlow.value = null;
+    }
+  }
+
   async function loadAccounts() {
     if (!isTauri()) return;
     try {
@@ -1394,11 +1421,11 @@ notify(t("err.switch", { e }));
   }
 
   async function openMsAuthPage() {
-    if (!isTauri() || !msFlow.value) return;
+    if (!isTauri() || !deviceFlow.value) return;
     try {
-      await openExternal(msFlow.value.verification_uri);
+      await openExternal(deviceFlow.value.verification_uri);
     } catch {
-      notify(t("err.openPage", { url: msFlow.value.verification_uri }), "info");
+      notify(t("err.openPage", { url: deviceFlow.value.verification_uri }), "info");
     }
   }
 
@@ -1526,9 +1553,13 @@ notify(t("err.switch", { e }));
     handleSelectVersion,
     handleOffline,
     handleMicrosoft,
+    handleEly,
     openMsAuthPage,
     msFlow,
     msPolling,
+    elyFlow,
+    elyPolling,
+    deviceFlow,
     accounts,
     accountBusy,
     loadAccounts,
