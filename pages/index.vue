@@ -887,7 +887,7 @@
                     <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
                       <path d="M8 2.75a.75.75 0 0 1 .75.75v3.75h3.75a.75.75 0 0 1 0 1.5h-3.75v3.75a.75.75 0 0 1-1.5 0V8.75H3.5a.75.75 0 0 1 0-1.5h3.75V3.5A.75.75 0 0 1 8 2.75Z"/>
                     </svg>
-                    {{ t("mods.add") }}
+                    {{ playSubTab === 'mods' ? t("mods.add") : playSubTab === 'resourcepacks' ? t("mods.addRP") : t("mods.addShaders") }}
                   </button>
                 </template>
                 <template v-else>
@@ -2213,7 +2213,7 @@
       <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
         <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
           <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">
-            {{ modSearchKind === "mod" ? t("mods.title") : modSearchKind === "modpack" ? t("mods.titlePack") : t("mods.titleOther") }}
+            {{ modSearchTitle }}
           </h3>
           <button
             type="button"
@@ -3379,6 +3379,39 @@ const MOD_KIND_FOLDER: Record<ModrinthSearchKind, ModrinthInstallFolder> = {
   datapack: "datapacks",
 };
 
+/** Имя типа проекта для сообщений («мод»/«ресурспак»/«шейдер»/«датапак»); по kind или папке. */
+function kindNoun(v: ModrinthSearchKind | ModrinthInstallFolder): string {
+  switch (v) {
+    case "mod":
+    case "mods":
+      return t("mods.kindMod");
+    case "resourcepack":
+    case "resourcepacks":
+      return t("mods.kindRP");
+    case "shaderpack":
+    case "shaderpacks":
+      return t("mods.kindShaders");
+    default:
+      return t("mods.kindDatapack");
+  }
+}
+
+/** Заголовок модалки поиска под тип проекта. */
+const modSearchTitle = computed(() => {
+  switch (modSearchKind.value) {
+    case "mod":
+      return t("mods.title");
+    case "modpack":
+      return t("mods.titlePack");
+    case "resourcepack":
+      return t("mods.titleRP");
+    case "shaderpack":
+      return t("mods.titleShaders");
+    default:
+      return t("mods.titleDatapack");
+  }
+});
+
 /** Поиск модов/ресурспаков/шейдеров/датапаков для добавления в сборку. */
 async function searchMods() {
   if (!isTauri() || !packId.value) return;
@@ -3448,7 +3481,7 @@ async function installModVersion(v: ModrinthVersion) {
   modInstallBusy.value = v.id;
   try {
     await modrinthInstallMod(packId.value, v.id, folder, world);
-    notify(t("mods.installed", { name: v.name }), "success");
+    notify(t("mods.installed", { kind: kindNoun(modSearchKind.value), name: v.name }), "success");
     modSearchOpen.value = false;
     modVersions.value = null;
     if (folder !== "datapacks") {
@@ -3458,7 +3491,7 @@ async function installModVersion(v: ModrinthVersion) {
     }
     await refreshModUpdates();
   } catch (e) {
-    notify(t("mods.installErr", { e }));
+    notify(t("mods.installErr", { kind: kindNoun(modSearchKind.value), e }));
   } finally {
     modInstallBusy.value = null;
   }
@@ -3487,7 +3520,7 @@ async function quickDownloadMod(p: ModrinthProject, ev: Event) {
     }
     await installModVersion(pick);
   } catch (e) {
-    notify(t("mods.installErr", { e }));
+    notify(t("mods.installErr", { kind: kindNoun(modSearchKind.value), e }));
   } finally {
     quickModBusy.value = null;
   }
@@ -3537,11 +3570,11 @@ async function updateOneMod(u: ModUpdate) {
   updatingMod.value = u.fileName;
   try {
     await modrinthUpdateMod(packId.value, u.fileName);
-    notify(t("mods.updated", { name: u.newVersion.name }), "success");
+    notify(t("mods.updated", { kind: kindNoun(u.folder as ModrinthInstallFolder), name: u.newVersion.name }), "success");
     await loadGameFiles(u.folder === "datapacks" ? "saves" : (u.folder as GameFolderKind));
     await refreshModUpdates();
   } catch (e) {
-    notify(t("mods.updateErr", { e }));
+    notify(t("mods.updateErr", { kind: kindNoun(u.folder as ModrinthInstallFolder), e }));
   } finally {
     updatingMod.value = null;
   }
