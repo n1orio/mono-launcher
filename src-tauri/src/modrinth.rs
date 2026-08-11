@@ -207,8 +207,9 @@ pub async fn search_projects(
 }
 
 /// Доступные загрузчики, версии игры и категории (для фильтров поиска).
-/// Возвращаются только теги для модов и модпаков.
-pub async fn tags(client: &reqwest::Client) -> Result<ModrinthTags> {
+/// Возвращаются только теги для указанных типов проектов (mod, modpack,
+/// resourcepack, shaderpack, datapack).
+pub async fn tags(client: &reqwest::Client, kinds: &[&str]) -> Result<ModrinthTags> {
     #[derive(Deserialize)]
     struct LoaderRaw {
         name: String,
@@ -257,7 +258,7 @@ pub async fn tags(client: &reqwest::Client) -> Result<ModrinthTags> {
         .json()
         .await
         .context("Не удалось прочитать версии Modrinth")?;
-    let relevant = |p: &str| p == "mod" || p == "modpack";
+    let relevant = |p: &str| kinds.contains(&p);
     Ok(ModrinthTags {
         loaders: loaders
             .into_iter()
@@ -498,12 +499,18 @@ fn sha1_bytes(bytes: &[u8]) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-/// Метаданные установленного из Modrinth мода (трекинг обновлений).
+/// Метаданные установленного из Modrinth файла (трекинг обновлений).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrackedMod {
-    /// Имя файла в папке mods/ (с расширением).
+    /// Имя файла (с расширением).
     pub file_name: String,
+    /// Папка игры: mods / resourcepacks / shaderpacks / datapacks.
+    #[serde(default = "default_track_folder")]
+    pub folder: String,
+    /// Для датапаков — мир, куда установлен файл (saves/<world>/datapacks).
+    #[serde(default)]
+    pub world: Option<String>,
     /// id версии Modrinth, из которой установлен файл.
     pub version_id: String,
     /// id проекта Modrinth (для страницы и обновлений).
@@ -513,6 +520,10 @@ pub struct TrackedMod {
     /// Версия игры/лоадер на момент установки (для поиска обновлений).
     pub game_version: String,
     pub loader: String,
+}
+
+fn default_track_folder() -> String {
+    "mods".to_string()
 }
 
 /// Файл трекинга установленных модов версии.
@@ -602,6 +613,31 @@ mod tests {
         assert!(hex.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
+    #[test]
+    fn tracked_mod_defaults_to_mods_folder() {
+        // Старые записи без folder/world читаются как mods/.
+        let t: TrackedMod =
+            serde_json::from_str(r#"{"fileName":"x.jar","versionId":"v1","projectId":"p1","sha1":"s","gameVersion":"1.21","loader":"fabric"}"#)
+                .unwrap();
+        assert_eq!(t.folder, "mods");
+        assert!(t.world.is_none());
+        // Новые записи сохраняют папку и мир.
+        let json = serde_json::to_string(&TrackedMod {
+            file_name: "d.zip".into(),
+            folder: "datapacks".into(),
+            world: Some("My World".into()),
+            version_id: "v2".into(),
+            project_id: "p2".into(),
+            sha1: "s".into(),
+            game_version: "1.21".into(),
+            loader: "vanilla".into(),
+        })
+        .unwrap();
+        let t: TrackedMod = serde_json::from_str(&json).unwrap();
+        assert_eq!(t.folder, "datapacks");
+        assert_eq!(t.world.as_deref(), Some("My World"));
+    }
+
     #[tokio::test]
     #[ignore = "требует сеть"]
     async fn live_search_works() {
@@ -633,7 +669,7 @@ mod tests {
         assert!(filtered
             .iter()
             .all(|p| p.categories.iter().any(|c| c == "fabric")));
-        let tags = tags(&client).await.unwrap();
+        let tags = tags(&client, &["mod"]).await.unwrap();
         assert!(tags.loaders.contains(&"fabric".to_string()));
         assert!(tags.versions.contains(&"1.21.4".to_string()));
         assert!(!tags.categories.is_empty());

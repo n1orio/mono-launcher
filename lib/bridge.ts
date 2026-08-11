@@ -336,9 +336,15 @@ export interface ModrinthSearchOpts {
   index?: string;
 }
 
+/** Тип проекта Modrinth, по которому идёт поиск. */
+export type ModrinthSearchKind = "mod" | "modpack" | "resourcepack" | "shaderpack" | "datapack";
+
+/** Папка игры, куда ставится файл с Modrinth. */
+export type ModrinthInstallFolder = "mods" | "resourcepacks" | "shaderpacks" | "datapacks";
+
 export function modrinthSearch(
   query: string,
-  kind: "mod" | "modpack",
+  kind: ModrinthSearchKind,
   limit?: number,
   opts?: ModrinthSearchOpts
 ): Promise<ModrinthProject[]> {
@@ -355,8 +361,8 @@ export function modrinthSearch(
   });
 }
 
-export function modrinthTags(): Promise<ModrinthTags> {
-  return invoke("modrinth_tags_command");
+export function modrinthTags(kind: ModrinthSearchKind): Promise<ModrinthTags> {
+  return invoke("modrinth_tags_command", { kind });
 }
 
 export function modrinthProjectVersions(
@@ -389,9 +395,11 @@ export function fetchPackIcon(packId: string): Promise<boolean> {
 
 export function modrinthInstallMod(
   packId: string,
-  versionId: string
+  versionId: string,
+  folder: ModrinthInstallFolder,
+  world?: string
 ): Promise<TrackedMod> {
-  return invoke("modrinth_install_mod_command", { packId, versionId });
+  return invoke("modrinth_install_mod_command", { packId, versionId, folder, world });
 }
 
 export function modrinthCheckUpdates(packId: string): Promise<ModUpdate[]> {

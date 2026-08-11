@@ -737,11 +737,15 @@ async fn modrinth_search_command(
 }
 
 /// Теги Modrinth для фильтров поиска: загрузчики, категории, версии игры.
+/// `kind` — тип проекта ("mod" | "modpack" | "resourcepack" | "shaderpack" | "datapack").
 #[tauri::command]
 async fn modrinth_tags_command(
     state: State<'_, AppState>,
+    kind: String,
 ) -> Result<modrinth::ModrinthTags, String> {
-    modrinth::tags(&state.client).await.map_err(|e| e.to_string())
+    modrinth::tags(&state.client, &[&kind])
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Версии проекта Modrinth (для выбора конкретной версии мода).
@@ -794,33 +798,59 @@ fn primary_file(version: &modrinth::ModrinthVersion) -> Result<&modrinth::Modrin
         .ok_or_else(|| format!("У версии {} нет файлов", version.name))
 }
 
-/// Устанавливает мод из Modrinth в папку mods/ активной версии сборки
-/// (с проверкой sha1 и трекингом для обновлений).
+/// Устанавливает файл из Modrinth в папку активной версии сборки
+/// (mods/ · resourcepacks/ · shaderpacks/ · datapacks/ для датапаков — в
+/// saves/<world>/datapacks/), с проверкой sha1 и трекингом для обновлений.
 #[tauri::command]
 async fn modrinth_install_mod_command(
     app: AppHandle,
     state: State<'_, AppState>,
     pack_id: String,
     version_id: String,
+    folder: String,
+    world: Option<String>,
 ) -> Result<modrinth::TrackedMod, String> {
     let pack = resolve_pack(Some(pack_id.clone()))?;
     let version = modrinth::version_by_id(&state.client, &version_id)
         .await
         .map_err(|e| e.to_string())?;
     let file = primary_file(&version)?;
-    if !file.filename.to_ascii_lowercase().ends_with(".jar") {
-        return Err("Выбранный файл — не .jar (моды Modrinth ставятся файлами .jar)".into());
-    }
-    let mods_dir = config::active_game_dir(&pack.id)
-        .map_err(|e| e.to_string())?
-        .join("mods");
+    let game_dir = config::active_game_dir(&pack.id).map_err(|e| e.to_string())?;
+    let target_dir = match folder.as_str() {
+        "mods" => {
+            if !file.filename.to_ascii_lowercase().ends_with(".jar") {
+                return Err("Моды Modrinth ставятся файлами .jar".into());
+            }
+            game_dir.join("mods")
+        }
+        "resourcepacks" | "shaderpacks" | "datapacks" => {
+            if !file.filename.to_ascii_lowercase().ends_with(".zip") {
+                return Err(format!(
+                    "В папку {folder}/ ставятся файлы .zip (выбранный файл — .{} )",
+                    file.filename.rsplit('.').next().unwrap_or("?")
+                ));
+            }
+            if folder == "datapacks" {
+                let w = world.as_deref().ok_or("Для датапака нужно выбрать мир")?;
+                if w.is_empty() || w.contains('/') || w.contains('\\') || w.starts_with('.') {
+                    return Err("Некорректное имя мира".into());
+                }
+                game_dir.join("saves").join(w).join("datapacks")
+            } else {
+                game_dir.join(&folder)
+            }
+        }
+        other => return Err(format!("Неизвестная папка: {other}")),
+    };
     // Поверх существующего файла не перезаписываем: сначала удалите старый
     // или используйте обновление (modrinth_update_mod_command).
-    let (file_name, _) = modrinth::download_file(&state.client, file, &mods_dir)
+    let (file_name, _) = modrinth::download_file(&state.client, file, &target_dir)
         .await
         .map_err(|e| e.to_string())?;
     let tracked = modrinth::TrackedMod {
         file_name,
+        folder: folder.clone(),
+        world: if folder == "datapacks" { world } else { None },
         version_id: version.id.clone(),
         project_id: version.project_id.clone(),
         sha1: file
@@ -832,17 +862,19 @@ async fn modrinth_install_mod_command(
         loader: version.loaders.first().cloned().unwrap_or_default(),
     };
     modrinth::upsert_tracked_mod(&pack.id, &tracked).map_err(|e| e.to_string())?;
-    // Показываем мод в списке файлов (событие для обновления UI).
+    // Показываем файл в списке (событие для обновления UI).
     let _ = app.emit("mods-changed", ());
     Ok(tracked)
 }
 
-/// Доступное обновление установленного мода.
+/// Доступное обновление установленного из Modrinth файла.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModUpdate {
-    /// Имя файла в mods/.
+    /// Имя файла (в mods/ / resourcepacks/ / shaderpacks/ / datapacks/).
     pub file_name: String,
+    /// Папка игры, где лежит файл.
+    pub folder: String,
     /// Новая версия Modrinth.
     pub new_version: modrinth::ModrinthVersion,
 }
@@ -881,6 +913,7 @@ async fn modrinth_check_updates_command(
         if new.id != t.version_id {
             out.push(ModUpdate {
                 file_name: t.file_name.clone(),
+                folder: t.folder.clone(),
                 new_version: new.clone(),
             });
         }
@@ -888,7 +921,8 @@ async fn modrinth_check_updates_command(
     Ok(out)
 }
 
-/// Обновляет один мод до последней подходящей версии (файл в mods/ перезаписывается).
+/// Обновляет один файл из Modrinth до последней подходящей версии
+/// (файл в своей папке перезаписывается).
 #[tauri::command]
 async fn modrinth_update_mod_command(
     state: State<'_, AppState>,
@@ -898,7 +932,7 @@ async fn modrinth_update_mod_command(
     let pack = resolve_pack(Some(pack_id.clone()))?;
     let tracked = modrinth::tracked_mods(&pack.id);
     let Some(current) = tracked.iter().find(|t| t.file_name == file_name) else {
-        return Err(format!("Мод {file_name} не отслеживается (не из Modrinth)"));
+        return Err(format!("Файл {file_name} не отслеживается (не из Modrinth)"));
     };
     let hashes: HashMap<String, String> =
         [(current.file_name.clone(), current.sha1.clone())].into();
@@ -911,19 +945,28 @@ async fn modrinth_update_mod_command(
     .await
     .map_err(|e| e.to_string())?;
     let Some(new) = updates.get(&file_name) else {
-        return Err("Для этого мода нет обновлений".into());
+        return Err("Для этого файла нет обновлений".into());
     };
     let file = primary_file(new)?;
     let game_dir = config::active_game_dir(&pack.id).map_err(|e| e.to_string())?;
-    let path = game_dir.join("mods").join(&file_name);
+    let dir = match current.folder.as_str() {
+        "datapacks" => game_dir
+            .join("saves")
+            .join(current.world.as_deref().unwrap_or(""))
+            .join("datapacks"),
+        f => game_dir.join(f),
+    };
+    let path = dir.join(&file_name);
     if !path.exists() {
-        return Err(format!("Файл {file_name} не найден в папке mods/"));
+        return Err(format!("Файл {file_name} не найден в папке {}/", current.folder));
     }
     modrinth::update_file_to(&state.client, file, &path)
         .await
         .map_err(|e| e.to_string())?;
     let updated = modrinth::TrackedMod {
         file_name,
+        folder: current.folder.clone(),
+        world: current.world.clone(),
         version_id: new.id.clone(),
         project_id: new.project_id.clone(),
         sha1: file.hashes.get("sha1").cloned().unwrap_or_default(),
@@ -934,14 +977,24 @@ async fn modrinth_update_mod_command(
     Ok(updated)
 }
 
-/// Удаляет мод (файл из mods/) и его трекинг.
+/// Удаляет установленный из Modrinth файл (из своей папки) и его трекинг.
 #[tauri::command]
 fn modrinth_remove_mod_command(pack_id: String, file_name: String) -> Result<(), String> {
     let pack = resolve_pack(Some(pack_id.clone()))?;
     let game_dir = config::active_game_dir(&pack.id).map_err(|e| e.to_string())?;
-    let path = game_dir.join("mods").join(&file_name);
+    let tracked = modrinth::tracked_mods(&pack.id);
+    let entry = tracked.iter().find(|t| t.file_name == file_name);
+    let folder = entry.map(|t| t.folder.clone()).unwrap_or_else(|| "mods".to_string());
+    let dir = if folder == "datapacks" {
+        game_dir
+            .join("saves")
+            .join(entry.and_then(|t| t.world.as_deref()).unwrap_or(""))
+            .join("datapacks")
+    } else {
+        game_dir.join(&folder)
+    };
     // Разрешаем удалять и выключенный (.disabled).
-    let candidates = [path.clone(), game_dir.join("mods").join(format!("{file_name}.disabled"))];
+    let candidates = [dir.join(&file_name), dir.join(format!("{file_name}.disabled"))];
     let mut removed = false;
     for c in candidates {
         if c.exists() {
@@ -950,7 +1003,7 @@ fn modrinth_remove_mod_command(pack_id: String, file_name: String) -> Result<(),
         }
     }
     if !removed {
-        return Err(format!("Файл {file_name} не найден в папке mods/"));
+        return Err(format!("Файл {file_name} не найден в папке {folder}/"));
     }
     modrinth::remove_tracked_mod(&pack.id, &file_name).map_err(|e| e.to_string())?;
     Ok(())

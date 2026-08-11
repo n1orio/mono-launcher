@@ -78,9 +78,13 @@ export interface ModrinthDependency {
   dependencyType: string;
 }
 
-/** Установленный из Modrinth мод (трекинг обновлений). */
+/** Установленный из Modrinth файл (трекинг обновлений). */
 export interface TrackedMod {
   fileName: string;
+  /** Папка игры: mods / resourcepacks / shaderpacks / datapacks. */
+  folder: string;
+  /** Для датапаков — мир, куда установлен файл. */
+  world: string | null;
   versionId: string;
   projectId: string;
   sha1: string;
@@ -88,9 +92,11 @@ export interface TrackedMod {
   loader: string;
 }
 
-/** Доступное обновление установленного мода. */
+/** Доступное обновление установленного из Modrinth файла. */
 export interface ModUpdate {
   fileName: string;
+  /** Папка игры, где лежит файл. */
+  folder: string;
   newVersion: ModrinthVersion;
 }
 

@@ -294,6 +294,13 @@ export function useLauncher() {
     return clean.slice(0, 4).join(" ");
   }
 
+  const FOLDER_SEARCH_PATH: Record<GameFolderKind, string> = {
+    mods: "mods",
+    resourcepacks: "resourcepacks",
+    shaderpacks: "shaders",
+    saves: "mods",
+  };
+
   function openFileOnModrinth(folder: GameFolderKind, entry: GameFileEntry) {
     // Точная страница мода (из downloads индекса сборки), иначе — поиск по имени.
     if (entry.modrinthUrl) {
@@ -301,7 +308,7 @@ export function useLauncher() {
       return;
     }
     const q = encodeURIComponent(cleanFileQuery(entry.displayName));
-    openExternal(`https://modrinth.com/mods?q=${q}`);
+    openExternal(`https://modrinth.com/${FOLDER_SEARCH_PATH[folder]}?q=${q}`);
   }
 
   function openFileOnCurseForge(folder: GameFolderKind, entry: GameFileEntry) {

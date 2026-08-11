@@ -862,7 +862,7 @@
                 </span>
               </span>
               <div class="flex min-w-0 items-center gap-2">
-                <template v-if="playSubTab === 'mods'">
+                <template v-if="playSubTab !== 'saves'">
                   <button
                     v-if="modUpdates.length > 0"
                     type="button"
@@ -882,12 +882,24 @@
                   <button
                     type="button"
                     class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
-                    @click="modSearchOpen = true; modVersions = null; loadModrinthTags()"
+                    @click="openModSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind)"
                   >
                     <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
                       <path d="M8 2.75a.75.75 0 0 1 .75.75v3.75h3.75a.75.75 0 0 1 0 1.5h-3.75v3.75a.75.75 0 0 1-1.5 0V8.75H3.5a.75.75 0 0 1 0-1.5h3.75V3.5A.75.75 0 0 1 8 2.75Z"/>
                     </svg>
                     {{ t("mods.add") }}
+                  </button>
+                </template>
+                <template v-else>
+                  <button
+                    type="button"
+                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
+                    @click="openModSearch('datapack')"
+                  >
+                    <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                      <path d="M8 2.75a.75.75 0 0 1 .75.75v3.75h3.75a.75.75 0 0 1 0 1.5h-3.75v3.75a.75.75 0 0 1-1.5 0V8.75H3.5a.75.75 0 0 1 0-1.5h3.75V3.5A.75.75 0 0 1 8 2.75Z"/>
+                    </svg>
+                    {{ t("mods.addDatapack") }}
                   </button>
                 </template>
                 <div v-if="Object.keys(selectedFiles).length > 0" class="flex shrink-0 items-center gap-1.5">
@@ -1040,7 +1052,7 @@
                   Modrinth
                 </button>
                 <button
-                  v-if="playSubTab === 'mods' && modUpdateFor(f)"
+                  v-if="playSubTab !== 'saves' && modUpdateFor(f)"
                   type="button"
                   class="flex shrink-0 items-center gap-1 rounded-md border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-2 py-1 text-[10px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
                   :disabled="updatingMod !== null"
@@ -2200,7 +2212,9 @@
     >
       <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
         <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
-          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("mods.title") }}</h3>
+          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">
+            {{ modSearchKind === "mod" ? t("mods.title") : modSearchKind === "modpack" ? t("mods.titlePack") : t("mods.titleOther") }}
+          </h3>
           <button
             type="button"
             class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
@@ -2238,6 +2252,13 @@
           </button>
         </div>
         <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2">
+          <FilterSelect
+            v-if="modSearchKind === 'datapack'"
+            v-model="modDatapackWorldSel"
+            :options="worldOptions"
+            :placeholder="t('mods.fWorld')"
+            :multiple="false"
+          />
           <FilterSelect
             v-model="modFilters.versions"
             :options="versionOptions"
@@ -2785,7 +2806,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { computed, nextTick, onBeforeUnmount, reactive, ref } from "vue";
 import { isTauri, openExternal, pingServer, createLocalPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon } from "~/lib/bridge";
-import type { GameFolderKind } from "~/lib/bridge";
+import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind } from "~/lib/bridge";
 import type { CatalogEntry, GameFileEntry, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n } from "~/composables/useI18n";
@@ -3198,8 +3219,9 @@ watch(fileListVisible, (rows) => {
   }
 });
 
-// ---- Modrinth: добавление модов, обновления, свои сборки ----
+// ---- Modrinth: добавление модов, ресурспаков, шейдеров, датапаков ----
 const modSearchOpen = ref(false);
+const modSearchKind = ref<ModrinthSearchKind>("mod");
 const modSearchQuery = ref("");
 const modSearchLoading = ref(false);
 const modSearchResults = ref<ModrinthProject[]>([]);
@@ -3231,8 +3253,9 @@ const createPackMc = ref("1.21.4");
 const createPackLoader = ref<"vanilla" | "fabric" | "quilt">("fabric");
 const createPackBusy = ref(false);
 
-/** Фильтры поиска Modrinth (загружаются с API один раз). */
-const modrinthTags = ref<ModrinthTags | null>(null);
+/** Фильтры поиска Modrinth (теги грузятся по типам проектов). */
+const modrinthTagsMap = ref<Record<string, ModrinthTags | null>>({});
+const modrinthTags = computed(() => modrinthTagsMap.value[modSearchKind.value] ?? null);
 interface SearchFilterState {
   versions: string[];
   loaders: string[];
@@ -3317,21 +3340,46 @@ function searchOpts(f: SearchFilterState) {
   return opts;
 }
 
-/** Загружает теги Modrinth один раз за сессию. */
-async function loadModrinthTags() {
-  if (!isTauri() || modrinthTags.value) return;
+/** Загружает теги Modrinth для типа проекта (по одному разу за сессию). */
+async function loadModrinthTags(kind: ModrinthSearchKind = modSearchKind.value) {
+  if (!isTauri() || modrinthTagsMap.value[kind]) return;
   try {
-    modrinthTags.value = await fetchModrinthTags();
+    modrinthTagsMap.value = { ...modrinthTagsMap.value, [kind]: await fetchModrinthTags(kind) };
   } catch {
     /* фильтры просто не появятся */
   }
 }
 
-function modUpdateFor(f: GameFileEntry): ModUpdate | undefined {
-  return modUpdates.value.find((u) => u.fileName === f.name);
+/** Открывает поиск Modrinth для типа проекта текущей вкладки. */
+async function openModSearch(kind: ModrinthSearchKind) {
+  modSearchKind.value = kind;
+  modSearchQuery.value = "";
+  modSearchResults.value = [];
+  modSearchErr.value = "";
+  modVersions.value = null;
+  modFilters.versions = [];
+  modFilters.loaders = [];
+  modFilters.categories = [];
+  modFilters.env = "";
+  modFilters.sort = "relevance";
+  modDatapackWorld.value = null;
+  modSearchOpen.value = true;
+  await loadModrinthTags(kind);
+  if (kind === "datapack" && !gameFiles.value.saves) {
+    await loadGameFiles("saves");
+  }
 }
 
-/** Поиск модов для добавления в сборку. */
+/** Папка игры для типа проекта Modrinth. */
+const MOD_KIND_FOLDER: Record<ModrinthSearchKind, ModrinthInstallFolder> = {
+  mod: "mods",
+  modpack: "mods",
+  resourcepack: "resourcepacks",
+  shaderpack: "shaderpacks",
+  datapack: "datapacks",
+};
+
+/** Поиск модов/ресурспаков/шейдеров/датапаков для добавления в сборку. */
 async function searchMods() {
   if (!isTauri() || !packId.value) return;
   modSearchLoading.value = true;
@@ -3339,7 +3387,7 @@ async function searchMods() {
   try {
     modSearchResults.value = await modrinthSearch(
       modSearchQuery.value.trim(),
-      "mod",
+      modSearchKind.value,
       20,
       searchOpts(modFilters)
     );
@@ -3350,15 +3398,23 @@ async function searchMods() {
   }
 }
 
-/** Версии мода: сперва подходящие под версию сборки, остальные ниже. */
+function modUpdateFor(f: GameFileEntry): ModUpdate | undefined {
+  return modUpdates.value.find((u) => u.fileName === f.name);
+}
+
+/** Версии мода: сперва подходящие под версию сборки, остальные ниже.
+ *  По загрузчику фильтруем только моды — ресурспаки/шейдеры/датапаки
+ *  часто поддержаны только на vanilla, даже в fabric-сборках. */
 async function openModVersions(p: ModrinthProject) {
   modVersions.value = null;
   try {
     const all = await modrinthProjectVersions(p.projectId);
     const mc = status.value?.minecraft_version;
-    const loader = status.value?.loader?.replace("-loader", "") || undefined;
+    const loader = status.value?.loader?.replace("-loader", "");
+    const kind = modSearchKind.value;
+    const matchLoader = kind === "mod" && loader ? (v: ModrinthVersion) => v.loaders.includes(loader) : () => true;
     const match = mc
-      ? all.filter((v) => v.gameVersions.includes(mc) && (!loader || v.loaders.includes(loader)))
+      ? all.filter((v) => v.gameVersions.includes(mc) && matchLoader(v))
       : all;
     const rest = mc ? all.filter((v) => !match.includes(v)) : [];
     modVersions.value = [...match, ...rest];
@@ -3368,16 +3424,38 @@ async function openModVersions(p: ModrinthProject) {
   }
 }
 
-/** Устанавливает выбранную версию мода в папку mods/ активной сборки. */
+/** Мир, в который ставятся датапаки. */
+const modDatapackWorld = ref<string | null>(null);
+const datapackWorlds = computed(() => (gameFiles.value.saves ?? []).filter((s) => s.kind === "dir").map((s) => s.name));
+const worldOptions = computed(() => datapackWorlds.value.map((w) => ({ value: w, label: w })));
+const modDatapackWorldSel = computed({
+  get: () => (modDatapackWorld.value ? [modDatapackWorld.value] : []),
+  set: (v: string[]) => {
+    modDatapackWorld.value = v[0] ?? null;
+  },
+});
+
+/** Устанавливает выбранную версию в папку активной сборки
+ *  (датапаки — в saves/<мир>/datapacks). */
 async function installModVersion(v: ModrinthVersion) {
   if (!packId.value || modInstallBusy.value) return;
+  const folder = MOD_KIND_FOLDER[modSearchKind.value];
+  const world = modSearchKind.value === "datapack" ? (modDatapackWorld.value ?? undefined) : undefined;
+  if (modSearchKind.value === "datapack" && !world) {
+    notify(t("mods.pickWorld"), "info");
+    return;
+  }
   modInstallBusy.value = v.id;
   try {
-    await modrinthInstallMod(packId.value, v.id);
+    await modrinthInstallMod(packId.value, v.id, folder, world);
     notify(t("mods.installed", { name: v.name }), "success");
     modSearchOpen.value = false;
     modVersions.value = null;
-    await loadGameFiles("mods");
+    if (folder !== "datapacks") {
+      await loadGameFiles(folder);
+    } else {
+      await loadGameFiles("saves");
+    }
     await refreshModUpdates();
   } catch (e) {
     notify(t("mods.installErr", { e }));
@@ -3386,8 +3464,8 @@ async function installModVersion(v: ModrinthVersion) {
   }
 }
 
-/** Быстрое скачивание мода: последняя версия под MC и загрузчик сборки.
- *  Зависимости и библиотеки модпака/мода качаются автоматически. */
+/** Быстрое скачивание мода: последняя версия под MC и загрузчик сборки
+ *  (загрузчик учитываем только для модов). */
 const quickModBusy = ref<string | null>(null);
 async function quickDownloadMod(p: ModrinthProject, ev: Event) {
   ev.stopPropagation();
@@ -3397,8 +3475,11 @@ async function quickDownloadMod(p: ModrinthProject, ev: Event) {
     const all = await modrinthProjectVersions(p.projectId);
     const mc = status.value?.minecraft_version;
     const loader = status.value?.loader?.replace("-loader", "");
+    const matchLoader = modSearchKind.value === "mod" && loader
+      ? (v: ModrinthVersion) => v.loaders.includes(loader)
+      : () => true;
     const pick = mc
-      ? all.find((v) => v.gameVersions.includes(mc) && (!loader || v.loaders.includes(loader)))
+      ? all.find((v) => v.gameVersions.includes(mc) && matchLoader(v))
       : all[0];
     if (!pick) {
       notify(t("mods.noMatchVersion"), "info");
@@ -3450,14 +3531,14 @@ async function refreshModUpdates() {
   }
 }
 
-/** Обновляет один мод. */
+/** Обновляет один мод (папку берём из записи обновления). */
 async function updateOneMod(u: ModUpdate) {
   if (!packId.value || updatingMod.value) return;
   updatingMod.value = u.fileName;
   try {
     await modrinthUpdateMod(packId.value, u.fileName);
     notify(t("mods.updated", { name: u.newVersion.name }), "success");
-    await loadGameFiles("mods");
+    await loadGameFiles(u.folder === "datapacks" ? "saves" : (u.folder as GameFolderKind));
     await refreshModUpdates();
   } catch (e) {
     notify(t("mods.updateErr", { e }));
@@ -3486,7 +3567,10 @@ async function updateAllMods() {
       : t("mods.updateAllFail", { fail }),
     fail > 0 && ok === 0 ? "error" : "success"
   );
-  await loadGameFiles("mods");
+  const tabs: GameFolderKind[] = ["mods", "resourcepacks", "shaderpacks", "saves"];
+  if ((tabs as string[]).includes(playSubTab.value)) {
+    await loadGameFiles(playSubTab.value as GameFolderKind);
+  }
   await refreshModUpdates();
   updateAllBusy.value = false;
 }
@@ -3588,9 +3672,9 @@ async function createPack() {
   }
 }
 
-// При открытии сабтаба модов — проверяем обновления установленных модов.
+// При открытии сабтаба файлов — проверяем обновления установленных из Modrinth файлов.
 watch(playSubTab, (tab) => {
-  if (tab === "mods") refreshModUpdates();
+  if (tab === "mods" || tab === "resourcepacks" || tab === "shaderpacks") refreshModUpdates();
 });
 
 function openSelected(site: "modrinth" | "curseforge") {
