@@ -90,3 +90,12 @@ jobs:
           BODY="$(gh release view "$TAG" --json body --jq .body || true)"
           TAG="$TAG" BODY="$BODY" node scripts/make-updater-json.mjs assets latest.json
           gh release upload "$TAG" latest.json --clobber
+
+      - name: Обновить тело релиза из CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          VER="${TAG#launcher-v}"
+          BODY="$(node scripts/release-notes.mjs "$VER" "Фирменный лаунчер сборки NIO.")" || exit 0
+          gh release edit "$TAG" --notes "$BODY"
