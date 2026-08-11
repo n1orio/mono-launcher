@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
@@ -752,6 +752,11 @@ async fn ensure_skin_agent(app: &AppHandle, client: &reqwest::Client) -> Result<
 }
 
 /// Собирает и запускает процесс Java для Minecraft.
+/// PID запущенного клиента Minecraft. Не даёт запустить игру дважды
+/// (повторный «Играть» в лаунчере или второй запуск поверх первого).
+/// Снимается в цикле ожидания после выхода процесса.
+static GAME_RUNNING: Mutex<Option<u32>> = Mutex::new(None);
+
 pub async fn launch_game(
     pack_id: &str,
     ram_gb: u32,
@@ -1073,7 +1078,22 @@ pub async fn launch_game(
     let mut child = cmd
         .spawn()
         .context("Не удалось запустить Java. Убедитесь, что установлен Java 17+")?;
-    let pid = child.id();
+    let pid = child.id().unwrap_or(0);
+
+    // Захватываем «эксклюзив»: между проверкой и записью здесь нет await-ов,
+    // поэтому два одновременных запуска не проскочат мимо друг друга.
+    {
+        let mut guard = GAME_RUNNING
+            .lock()
+            .map_err(|_| anyhow!("guard poisoned"))?;
+        if guard.is_some() {
+            return Err(anyhow!(
+                "Игра уже запущена (PID {}). Сначала закройте окно Minecraft.",
+                guard.unwrap()
+            ));
+        }
+        *guard = Some(pid);
+    }
 
     // Discord Rich Presence: «Играет в <сборка>» + суммарное наигранное время.
     crate::discord_rp::start_presence(
@@ -1161,6 +1181,9 @@ pub async fn launch_game(
                 status = child.wait() => break status.unwrap_or_default(),
             }
         };
+        if let Ok(mut guard) = GAME_RUNNING.lock() {
+            *guard = None;
+        }
         let delta = last.elapsed().as_secs();
         if !version_id.is_empty() && delta >= 1 {
             let total = crate::mrpack::add_playtime(&pack_id_owned, &version_id, delta);

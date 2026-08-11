@@ -157,6 +157,7 @@ export function useLauncher() {
   );
   const session = ref<UserSession | null>(null);
   const busy = ref(false);
+  const gameRunning = ref(false);
   const progress = ref<ProgressState | null>(null);
   const updateInfo = ref<UpdateInfo | null>(null);
   const versions = ref<VersionsInfo | null>(null);
@@ -1142,6 +1143,7 @@ export function useLauncher() {
       }
     }).then((fn) => (unlistenPlaytimeSync = fn));
     onGameExited((e) => {
+      gameRunning.value = false;
       if (!e.success) {
         const code =
           e.code > 0
@@ -1384,6 +1386,10 @@ notify(t("err.switch", { e }));
       notify(t("err.loginFirst"), "info");
       return;
     }
+    if (gameRunning.value) {
+      notify(t("err.gameRunning"), "info");
+      return;
+    }
     const minMb = activePack.value?.minRam;
     if (minMb && ram.value * 1024 < minMb) {
       notify(t("err.lowRam", { min: minMb / 1024, gb: ram.value }), "error");
@@ -1401,6 +1407,7 @@ notify(t("err.switch", { e }));
         windowHeight.value,
         server
       );
+      gameRunning.value = true;
     } catch (e) {
       notify(t("err.launch", { e }));
     } finally {
@@ -1468,6 +1475,7 @@ notify(t("err.switch", { e }));
     windowHeight,
     session,
     busy,
+    gameRunning,
     progress,
     updateInfo,
     versions,

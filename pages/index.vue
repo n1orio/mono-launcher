@@ -328,14 +328,14 @@
           :class="status?.installed
             ? 'bg-[#238636] hover:bg-[#2ea043] focus-visible:outline-[#2ea043]'
             : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)] focus-visible:outline-[var(--accent-hover)]'"
-          :disabled="busy"
+          :disabled="busy || gameRunning"
           @click="status?.installed ? handlePlay() : handleInstall()"
         >
           <template v-if="!status?.installed">
             {{ busy ? t("side.installing") : t("side.downloadPlay") }}
           </template>
           <template v-else>
-            {{ busy ? t("side.launching") : t("side.play") }}
+            {{ busy ? t("side.launching") : gameRunning ? t("side.inGame") : t("side.play") }}
           </template>
         </button>
       </div>
@@ -445,6 +445,13 @@
                   </svg>
                   {{ formatPlaytimeShort(status.playtime_seconds) }}
                 </span>
+                <span
+                  v-else-if="status && status.installed"
+                  class="ml-2 inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--border)] bg-[var(--panel-soft)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--tx-muted)]"
+                  :title="t('pack.notPlayedTitle')"
+                >
+                  {{ t("pack.notPlayed") }}
+                </span>
                 <button
                   type="button"
                   class="ml-1 flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
@@ -524,21 +531,6 @@
                 {{ t("pack.reportBug") }}
               </button>
             </p>
-
-            <!-- Ачивки лаунчера -->
-            <div v-if="unlockedBadges.length" class="mt-3 flex flex-wrap items-center gap-1.5">
-              <span
-                v-for="b in unlockedBadges"
-                :key="b.key"
-                class="inline-flex items-center gap-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]"
-                :title="b.hint"
-              >
-                <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                  <path d="M7 2.5a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-.75v.83A6.25 6.25 0 0 1 14.25 10H14v1.75A1.75 1.75 0 0 1 12.25 13.5h-1.3a6.76 6.76 0 0 1-2.7.56v.69a.75.75 0 0 1-1.5 0v-.69c-.94 0-1.85-.19-2.7-.56H3.75A1.75 1.75 0 0 1 2 11.75V10h-.25a6.25 6.25 0 0 1 5.5-5.92V3.25h-.75a.75.75 0 0 1-.75-.75ZM3.5 5.04A4.75 4.75 0 0 0 7 9.43V4.4a4.75 4.75 0 0 0-3.5.64Zm9 0a4.75 4.75 0 0 0-3.5-.64v5.03a4.75 4.75 0 0 0 3.5-4.4Z"/>
-                </svg>
-                {{ b.label }}
-              </span>
-            </div>
 
             <div v-if="updateInfo?.has_update && updateInfo.latest_version" class="mt-4 flex items-center justify-between gap-4 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-3.5 py-2.5 text-xs text-[var(--accent)]">
               <span class="min-w-0">
@@ -1140,7 +1132,8 @@
                         </button>
                         <button
                           type="button"
-                          class="flex items-center gap-1.5 rounded-md bg-[#238636] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#2ea043]"
+                          class="flex items-center gap-1.5 rounded-md bg-[#238636] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#2ea043] disabled:cursor-not-allowed disabled:opacity-50"
+                          :disabled="gameRunning"
                           @click="playOnServer(s)"
                         >
                           <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
@@ -2125,6 +2118,7 @@ const {
   windowHeight,
   session,
   busy,
+  gameRunning,
   progress,
   updateInfo,
   versions,
@@ -2647,38 +2641,6 @@ function formatPlaytimeShort(seconds: number): string {
   return `${Math.max(1, Math.round(seconds / 60))} ${t("units.min")}`;
 }
 
-interface Badge {
-  key: string;
-  label: string;
-  hint: string;
-}
-
-/** Разблокированные ачивки лаунчера. */
-const unlockedBadges = computed<Badge[]>(() => {
-  const s = status.value;
-  if (!s) return [];
-  const hours = s.total_playtime_seconds / 3600;
-  const out: Badge[] = [];
-  if (s.played_packs >= 1) {
-    out.push({ key: "first", label: t("badges.first.label"), hint: t("badges.first.hint") });
-  }
-  if (hours >= 1) {
-    out.push({ key: "h1", label: t("badges.h1.label"), hint: t("badges.h1.hint") });
-  }
-  if (hours >= 10) {
-    out.push({ key: "h10", label: t("badges.h10.label"), hint: t("badges.h10.hint") });
-  }
-  if (hours >= 100) {
-    out.push({ key: "h100", label: t("badges.h100.label"), hint: t("badges.h100.hint") });
-  }
-  if (s.played_packs >= 3) {
-    out.push({ key: "p3", label: t("badges.p3.label"), hint: t("badges.p3.hint") });
-  }
-  if (s.played_packs >= 5) {
-    out.push({ key: "p5", label: t("badges.p5.label"), hint: t("badges.p5.hint") });
-  }
-  return out;
-});
 const shotIdx = ref<number | null>(null);
 
 // ==== Тема сборки (theme.json автора): плавный перекрас CSS-переменных ====
