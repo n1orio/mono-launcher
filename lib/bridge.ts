@@ -2,11 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   AppStatus,
+  CatalogEntry,
   DownloadProgress,
   GameFileEntry,
   GameFileIcon,
   JavaInfo,
   LaunchLogEntry,
+  LicenseInfo,
   MsDeviceCodeInfo,
   NewsItem,
   PackDescriptor,
@@ -16,6 +18,7 @@ import type {
   SavedServersList,
   ScreenshotList,
   ServerStatus,
+  SkinInfo,
   SystemInfo,
   UpdateInfo,
   UserSession,
@@ -30,8 +33,8 @@ export function listPacks(): Promise<PackDescriptor[]> {
   return invoke("list_packs");
 }
 
-export function addPack(url: string, name?: string): Promise<PackDescriptor> {
-  return invoke("add_pack_command", { url, name: name ?? null });
+export function addPack(url: string, name?: string, blog?: string): Promise<PackDescriptor> {
+  return invoke("add_pack_command", { url, name: name ?? null, blog: blog ?? null });
 }
 
 export function removePack(packId: string): Promise<void> {
@@ -212,6 +215,34 @@ export function getSkin(uuid: string): Promise<string | null> {
   return invoke("get_skin_command", { uuid });
 }
 
+export function getLocalSkin(): Promise<SkinInfo> {
+  return invoke("get_local_skin_command");
+}
+
+export function setLocalSkin(path: string, model: string, nick: string): Promise<SkinInfo> {
+  return invoke("set_local_skin_command", { path, model, nick });
+}
+
+export function clearLocalSkin(nick: string): Promise<void> {
+  return invoke("clear_local_skin_command", { nick });
+}
+
+export function skinApiUrl(): Promise<string> {
+  return invoke("skin_api_url_command");
+}
+
+export function setBoosty(packId: string, token: string): Promise<LicenseInfo> {
+  return invoke("set_boosty_command", { packId, token });
+}
+
+export function licenseStatus(packId: string): Promise<LicenseInfo> {
+  return invoke("license_status_command", { packId });
+}
+
+export function clearLicense(packId: string): Promise<void> {
+  return invoke("clear_license_command", { packId });
+}
+
 export function onJavaProgress(cb: (e: LaunchLogEntry) => void): Promise<UnlistenFn> {
   return listen<LaunchLogEntry>("launch-log", (event) => cb(event.payload));
 }
@@ -230,6 +261,10 @@ export function getNews(): Promise<NewsItem[]> {
 
 export function packRepoContent(packId: string): Promise<PackRepoContent> {
   return invoke("pack_repo_content_command", { packId });
+}
+
+export function fetchCatalog(): Promise<CatalogEntry[]> {
+  return invoke("fetch_catalog_command");
 }
 
 export type GameFolderKind = "mods" | "resourcepacks" | "shaderpacks" | "saves";

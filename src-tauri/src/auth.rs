@@ -267,16 +267,14 @@ pub async fn ms_poll(
         .context("Не удалось связаться с XSTS")?;
 
     let xsts_status = xsts_resp.status();
-    let xsts_body: Value = xsts_resp
-        .json()
-        .await
-        .context("Некорректный ответ XSTS")?;
+    let xsts_body: Value = xsts_resp.json().await.context("Некорректный ответ XSTS")?;
     if !xsts_status.is_success() {
         let xerr = xsts_body["XErr"].as_u64();
         let msg = match xerr {
-            Some(2148916233) | Some(2148916235) | Some(2148916236) | Some(2148916237) =>
+            Some(2148916233) | Some(2148916235) | Some(2148916236) | Some(2148916237) => {
                 "К этому Microsoft-аккаунту не привязан аккаунт Xbox Live. \
-                 Зарегистрируйте бесплатный аккаунт Xbox на xbox.com",
+                 Зарегистрируйте бесплатный аккаунт Xbox на xbox.com"
+            }
             Some(2148916238) => "Xbox-аккаунт этого пользователя не достиг 18 лет",
             _ => "Xbox/XSTS не приняли токен (безлицензионный или заблокированный аккаунт)",
         };

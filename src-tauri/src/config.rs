@@ -10,6 +10,11 @@ pub struct PackDef {
     pub id: &'static str,
     pub name: &'static str,
     pub url: &'static str,
+    /// Ник блога на Boosty: задан → сборка платная (подписка обязательна).
+    pub boosty_blog: Option<&'static str>,
+    /// Минимальная оперативка (МБ) для запуска сборки: задан → лаунчер
+    /// предупреждает и не даёт запустить при меньшем выделении.
+    pub min_ram_mb: Option<u32>,
 }
 
 /// Пользовательская сборка из реестра `packs.json`.
@@ -18,6 +23,13 @@ pub struct UserPack {
     pub id: String,
     pub name: String,
     pub url: String,
+    /// Ник блога на Boosty: задан → сборка платная (подписка обязательна).
+    /// В сборки, добавленные по ссылке, попадает из pack.json издателя.
+    #[serde(default, rename = "boostyBlog")]
+    pub boosty_blog: Option<String>,
+    /// Минимальная оперативка (МБ): попадает из pack.json при добавлении.
+    #[serde(default, rename = "minRam")]
+    pub min_ram_mb: Option<u32>,
 }
 
 /// Единое описание сборки — встроенной или добавленной пользователем.
@@ -27,13 +39,22 @@ pub struct PackInfo {
     pub name: String,
     pub url: String,
     pub builtin: bool,
+    /// Ник блога на Boosty: задан → сборка платная (подписка обязательна).
+    pub boosty_blog: Option<String>,
+    /// Минимальная оперативка (МБ), см. `PackDef::min_ram_mb`.
+    pub min_ram_mb: Option<u32>,
 }
 
 /// Все поддерживаемые сборки. GitHub-endpoints выводятся из `url`.
+/// `boosty_blog` — ник блога издателя на Boosty: укажите свой, чтобы сборка
+/// стала платной (подписка на блог обязательна для установки/запуска).
+/// `min_ram_mb` — минимальная оперативка (МБ) для запуска сборки.
 pub const PACKS: &[PackDef] = &[PackDef {
     id: "untold-legends",
     name: "Untold Legends",
     url: "https://github.com/n1orio/Untold-legends/releases/latest/download/Untold.legends.mrpack",
+    boosty_blog: None,
+    min_ram_mb: None,
 }];
 
 pub fn pack_by_id(id: &str) -> Option<&'static PackDef> {
@@ -53,6 +74,8 @@ pub fn builtin_packs() -> Vec<PackInfo> {
             name: p.name.to_string(),
             url: p.url.to_string(),
             builtin: true,
+            boosty_blog: p.boosty_blog.map(String::from),
+            min_ram_mb: p.min_ram_mb,
         })
         .collect()
 }
@@ -91,6 +114,8 @@ pub fn all_packs() -> Result<Vec<PackInfo>> {
             name: p.name,
             url: p.url,
             builtin: false,
+            boosty_blog: p.boosty_blog,
+            min_ram_mb: p.min_ram_mb,
         });
     }
     Ok(out)
@@ -104,18 +129,31 @@ pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
             name: p.name.to_string(),
             url: p.url.to_string(),
             builtin: true,
+            boosty_blog: p.boosty_blog.map(String::from),
+            min_ram_mb: p.min_ram_mb,
         }));
     }
-    Ok(user_packs()?.into_iter().find(|p| p.id == id).map(|p| PackInfo {
-        id: p.id,
-        name: p.name,
-        url: p.url,
-        builtin: false,
-    }))
+    Ok(user_packs()?
+        .into_iter()
+        .find(|p| p.id == id)
+        .map(|p| PackInfo {
+            id: p.id,
+            name: p.name,
+            url: p.url,
+            builtin: false,
+            boosty_blog: p.boosty_blog,
+            min_ram_mb: p.min_ram_mb,
+        }))
 }
 
 /// Добавляет пользовательскую сборку в реестр. Ошибка, если id занят.
-pub fn add_user_pack(id: &str, name: &str, url: &str) -> Result<()> {
+pub fn add_user_pack(
+    id: &str,
+    name: &str,
+    url: &str,
+    boosty_blog: Option<&str>,
+    min_ram_mb: Option<u32>,
+) -> Result<()> {
     let mut list = user_packs()?;
     if list.iter().any(|p| p.id == id) {
         return Err(anyhow::anyhow!("Сборка с таким id уже добавлена: {id}"));
@@ -124,6 +162,10 @@ pub fn add_user_pack(id: &str, name: &str, url: &str) -> Result<()> {
         id: id.to_string(),
         name: name.to_string(),
         url: url.to_string(),
+        boosty_blog: boosty_blog
+            .map(|b| b.trim().to_string())
+            .filter(|b| !b.is_empty()),
+        min_ram_mb,
     });
     save_user_packs(&list)
 }
@@ -189,7 +231,10 @@ pub fn set_active_version(pack_id: &str, version_id: &str) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(&path, serde_json::json!({ "versionId": version_id }).to_string())?;
+    std::fs::write(
+        &path,
+        serde_json::json!({ "versionId": version_id }).to_string(),
+    )?;
     Ok(())
 }
 

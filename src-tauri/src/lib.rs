@@ -4,18 +4,20 @@ mod discord_rp;
 mod files;
 mod game;
 mod jre;
+mod license;
 mod mrpack;
 mod nbt;
 mod ping;
+mod skins;
 
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use sysinfo::System;
 use tauri::{AppHandle, Manager, State};
 use tauri::{Emitter, Listener};
-use sysinfo::System;
 
 use crate::auth::{login_offline, save_session, UserSession};
 use crate::config::{default_pack_id, PackInfo};
@@ -50,6 +52,12 @@ pub struct PackDescriptor {
     pub builtin: bool,
     /// Владелец GitHub-репозитория сборки (если это github-сборка).
     pub author: Option<String>,
+    /// Ник блога на Boosty: задан → сборка платная (подписка обязательна).
+    #[serde(rename = "boostyBlog")]
+    pub boosty_blog: Option<String>,
+    /// Минимальная оперативка (МБ), из pack.json издателя / конфига встроенной сборки.
+    #[serde(rename = "minRam")]
+    pub min_ram_mb: Option<u32>,
 }
 
 /// Имя владельца репозитория из URL сборки (github.com/OWNER/...).
@@ -115,13 +123,55 @@ pub struct PackSocial {
     pub url: String,
 }
 
-/// Контент репозитория сборки: звёзды GitHub + сервера + соцсети.
+/// Тема лаунчера из `theme.json` в корне репозитория сборки (все поля — hex-цвета `#rrggbb`).
+#[derive(Debug, Clone, serde::Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PackTheme {
+    pub bg: Option<String>,
+    pub panel: Option<String>,
+    pub input: Option<String>,
+    pub border: Option<String>,
+    pub tx: Option<String>,
+    pub tx_strong: Option<String>,
+    pub tx_muted: Option<String>,
+    pub accent: Option<String>,
+    pub accent_strong: Option<String>,
+    pub accent_hover: Option<String>,
+    pub accent_deep: Option<String>,
+}
+
+/// Контент репозитория сборки: звёзды GitHub + сервера + соцсети + тема.
 #[derive(Debug, Clone, serde::Serialize, Default)]
 pub struct PackRepoContent {
     pub stars: Option<i64>,
     pub servers: Vec<PackServer>,
     pub socials: Vec<PackSocial>,
+    pub theme: Option<PackTheme>,
 }
+
+/// Запись каталога сборок: курируемый список авторов в `catalog.json`
+/// корня репозитория лаунчера (fetch по raw.githubusercontent, без API квоты).
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct CatalogEntry {
+    pub name: String,
+    /// URL репозитория GitHub сборки (или прямая ссылка на .mrpack).
+    pub url: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub author: Option<String>,
+    /// Ник блога Boosty: задан → сборка платная (подписка обязательна).
+    #[serde(default, rename = "boostyBlog")]
+    pub boosty_blog: Option<String>,
+    /// Минимальная оперативка (МБ).
+    #[serde(default, rename = "minRam")]
+    pub min_ram_mb: Option<u32>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
+/// Источник каталога сборок (raw-файл в корне репозитория лаунчера).
+const CATALOG_URL: &str = "https://raw.githubusercontent.com/n1orio/nio-launcher/main/catalog.json";
 
 /// Информация о системе для ползунка RAM.
 #[derive(Debug, Serialize)]
@@ -141,7 +191,9 @@ fn resolve_pack(pack_id: Option<String>) -> Result<PackInfo, String> {
 /// Тег релиза (или versionId) активной установленной версии — основа для сравнения
 /// с релизами GitHub и отображения в UI.
 fn active_installed_tag(pack_id: &str) -> Option<String> {
-    let active = config::active_version(pack_id).ok().filter(|v| !v.is_empty())?;
+    let active = config::active_version(pack_id)
+        .ok()
+        .filter(|v| !v.is_empty())?;
     mrpack::installed_details(pack_id)
         .into_iter()
         .find(|v| v.version_id == active)
@@ -154,7 +206,7 @@ fn parse_github_repo(pack: &PackInfo) -> Option<(String, String)> {
 }
 
 /// Извлекает owner/repo из произвольной github-ссылки.
-fn parse_github_repo_from_url(url: &str) -> Option<(String, String)> {
+pub(crate) fn parse_github_repo_from_url(url: &str) -> Option<(String, String)> {
     let rest = url
         .trim_start_matches("https://github.com/")
         .trim_start_matches("http://github.com/");
@@ -208,6 +260,7 @@ struct ApiCache {
     releases: HashMap<String, (Instant, Vec<GhVersion>)>,
     discussions: HashMap<String, (Instant, Vec<NewsItem>)>,
     meta: HashMap<String, (Instant, PackRepoContent)>,
+    catalog: Option<(Instant, Vec<CatalogEntry>)>,
     failures: HashMap<String, Instant>,
 }
 
@@ -219,6 +272,7 @@ fn api_cache() -> &'static std::sync::Mutex<ApiCache> {
             releases: HashMap::new(),
             discussions: HashMap::new(),
             meta: HashMap::new(),
+            catalog: None,
             failures: HashMap::new(),
         })
     })
@@ -251,7 +305,9 @@ async fn fetch_releases_cached(client: &reqwest::Client, pack: &PackInfo) -> Vec
     if fetched.is_empty() {
         cache.failures.insert(key, Instant::now());
     } else {
-        cache.releases.insert(key.clone(), (Instant::now(), fetched.clone()));
+        cache
+            .releases
+            .insert(key.clone(), (Instant::now(), fetched.clone()));
         cache.failures.remove(&key);
     }
     fetched
@@ -279,13 +335,14 @@ async fn fetch_discussions_cached(
             }
         }
     }
-    let fetched =
-        fetch_discussions(client, owner, repo, kind, pack_id, pack_name).await;
+    let fetched = fetch_discussions(client, owner, repo, kind, pack_id, pack_name).await;
     let mut cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
     if fetched.is_empty() {
         cache.failures.insert(key, Instant::now());
     } else {
-        cache.discussions.insert(key.clone(), (Instant::now(), fetched.clone()));
+        cache
+            .discussions
+            .insert(key.clone(), (Instant::now(), fetched.clone()));
         cache.failures.remove(&key);
     }
     fetched
@@ -304,11 +361,7 @@ async fn fetch_releases(client: &reqwest::Client, pack: &PackInfo) -> Vec<GhVers
 }
 
 /// Релизы произвольного GitHub-репозитория (URL = страница релиза).
-async fn fetch_repo_releases(
-    client: &reqwest::Client,
-    owner: &str,
-    repo: &str,
-) -> Vec<GhVersion> {
+async fn fetch_repo_releases(client: &reqwest::Client, owner: &str, repo: &str) -> Vec<GhVersion> {
     let url = format!("https://api.github.com/repos/{owner}/{repo}/releases");
     let Ok(resp) = client
         .get(&url)
@@ -378,7 +431,9 @@ async fn fetch_launcher_releases_cached(client: &reqwest::Client) -> Vec<GhVersi
     if fetched.is_empty() {
         cache.failures.insert(key, Instant::now());
     } else {
-        cache.releases.insert(key.clone(), (Instant::now(), fetched.clone()));
+        cache
+            .releases
+            .insert(key.clone(), (Instant::now(), fetched.clone()));
         cache.failures.remove(&key);
     }
     fetched
@@ -445,15 +500,17 @@ fn list_packs() -> Result<Vec<PackDescriptor>, String> {
             packs
                 .into_iter()
                 .map(|p| {
-            let author = repo_author(&p.url);
-            PackDescriptor {
-                id: p.id,
-                name: p.name,
-                url: p.url,
-                builtin: p.builtin,
-                author,
-            }
-        })
+                    let author = repo_author(&p.url);
+                    PackDescriptor {
+                        id: p.id,
+                        name: p.name,
+                        url: p.url,
+                        builtin: p.builtin,
+                        author,
+                        boosty_blog: p.boosty_blog.clone(),
+                        min_ram_mb: p.min_ram_mb,
+                    }
+                })
                 .collect()
         })
         .map_err(|e| e.to_string())
@@ -461,26 +518,28 @@ fn list_packs() -> Result<Vec<PackDescriptor>, String> {
 
 /// Добавляет сборку по URL репозитория GitHub (или прямой ссылке на `.mrpack`).
 /// Проверяет, что репозиторий существует и в его релизах есть `.mrpack` и `pack.json`.
+/// `blog` (из deep link) — ник блога на Boosty; если не задан, читается из pack.json.
+/// `minRam` читается из pack.json (МБ).
 async fn add_pack_impl(
     client: &reqwest::Client,
     url: &str,
     name: Option<&str>,
+    blog: Option<&str>,
 ) -> Result<PackDescriptor, String> {
     let url = url.trim().to_string();
     if url.is_empty() || !url.contains("github.com/") {
-        return Err("URL должен быть ссылкой на GitHub (например https://github.com/USER/REPO).".into());
+        return Err(
+            "URL должен быть ссылкой на GitHub (например https://github.com/USER/REPO).".into(),
+        );
     }
-    let (owner, repo) =
-        parse_github_repo_from_url(&url).ok_or("Не удалось разобрать владельца/репозиторий из URL")?;
+    let (owner, repo) = parse_github_repo_from_url(&url)
+        .ok_or("Не удалось разобрать владельца/репозиторий из URL")?;
 
     // Запрещаем дубликаты по тому же репозиторию (встроенные и пользовательские).
     for existing in config::all_packs().map_err(|e| e.to_string())? {
         if let Some((o, r)) = parse_github_repo(&existing) {
             if o == owner && r == repo {
-                return Err(format!(
-                    "Сборка «{}» уже добавлена",
-                    existing.name
-                ));
+                return Err(format!("Сборка «{}» уже добавлена", existing.name));
             }
         }
     }
@@ -492,6 +551,8 @@ async fn add_pack_impl(
         name: repo.clone(),
         url: format!("https://github.com/{owner}/{repo}/releases/latest/download/modpack.mrpack"),
         builtin: false,
+        boosty_blog: blog.map(String::from),
+        min_ram_mb: None,
     };
     let releases = fetch_releases(client, &probe).await;
     let mrpack_release = releases.iter().find(|r| {
@@ -510,14 +571,14 @@ async fn add_pack_impl(
         .assets
         .iter()
         .find(|a| a.to_ascii_lowercase().ends_with(".json"))
-        .map(|a| a.clone());
-    if json_asset.is_none() {
+        .cloned();
+    let Some(json_asset) = json_asset else {
         return Err(
             "В релизе с .mrpack нет файла pack.json с описанием сборки. \
              Загрузите его в тот же релиз (см. пример в разделе «Разработчикам»)."
                 .into(),
         );
-    }
+    };
 
     // Ссылку на .mrpack берём из URL пользователя, если она ведёт на файл,
     // иначе строим её от актуального релиза с .mrpack.
@@ -529,48 +590,77 @@ async fn add_pack_impl(
             .iter()
             .find(|a| a.to_ascii_lowercase().ends_with(".mrpack"))
             .unwrap();
-        format!("https://github.com/{owner}/{repo}/releases/download/{}/{asset}", release.tag)
+        format!(
+            "https://github.com/{owner}/{repo}/releases/download/{}/{asset}",
+            release.tag
+        )
     };
 
-    // Имя из pack.json (если пользователь не задал своё).
+    // Метаданные из pack.json: имя сборки, ник блога на Boosty (платность)
+    // и минимальная оперативка (minRam, в МБ).
+    let user_name = name.map(str::trim).filter(|n| !n.is_empty());
     let mut json_name: Option<String> = None;
-    if name.is_none() || name.map(str::trim).unwrap_or("").is_empty() {
-        if let Some(asset) = &json_asset {
-            let json_url = format!(
-                "https://github.com/{owner}/{repo}/releases/download/{}/{}",
-                release.tag, asset
-            );
-            if let Ok(resp) = client
-                .get(&json_url)
-                .header("User-Agent", "nio-launcher")
-                .send()
-                .await
-            {
-                if let Ok(json) = resp.json::<serde_json::Value>().await {
+    let mut json_blog: Option<String> = None;
+    let mut json_min_ram: Option<u32> = None;
+    {
+        let json_url = format!(
+            "https://github.com/{owner}/{repo}/releases/download/{}/{}",
+            release.tag, json_asset
+        );
+        if let Ok(resp) = client
+            .get(&json_url)
+            .header("User-Agent", "nio-launcher")
+            .send()
+            .await
+        {
+            if let Ok(json) = resp.json::<serde_json::Value>().await {
+                if user_name.is_none() {
                     if let Some(n) = json["name"].as_str() {
                         json_name = Some(n.trim().to_string());
                     }
+                }
+                if let Some(b) = json["boostyBlog"]
+                    .as_str()
+                    .or_else(|| json["boosty_blog"].as_str())
+                {
+                    json_blog = Some(b.trim().to_string());
+                }
+                if let Some(ram) = json["minRam"].as_u64().or_else(|| json["min_ram"].as_u64()) {
+                    json_min_ram = Some(ram.clamp(256, 65536) as u32);
                 }
             }
         }
     }
 
     let id = pack_id_from_repo(&owner, &repo);
-    let pack_name = name
-        .map(str::trim)
-        .filter(|n| !n.is_empty())
+    let pack_name = user_name
         .map(String::from)
         .or(json_name)
         .unwrap_or(repo)
         .trim()
         .to_string();
-    config::add_user_pack(&id, &pack_name, &mrpack_url).map_err(|e| e.to_string())?;
+    // Блог: параметр deep link → pack.json издателя. Минимальная оперативка — pack.json.
+    let boosty_blog = blog
+        .map(str::trim)
+        .filter(|b| !b.is_empty())
+        .map(String::from)
+        .or(json_blog);
+    config::add_user_pack(
+        &id,
+        &pack_name,
+        &mrpack_url,
+        boosty_blog.as_deref(),
+        json_min_ram,
+    )
+    .map_err(|e| e.to_string())?;
     Ok(PackDescriptor {
         id,
         name: pack_name,
         url: mrpack_url,
         builtin: false,
         author: Some(owner),
+        boosty_blog,
+        min_ram_mb: json_min_ram,
     })
 }
 
@@ -579,8 +669,9 @@ async fn add_pack_command(
     state: State<'_, AppState>,
     url: String,
     name: Option<String>,
+    blog: Option<String>,
 ) -> Result<PackDescriptor, String> {
-    add_pack_impl(&state.client, &url, name.as_deref()).await
+    add_pack_impl(&state.client, &url, name.as_deref(), blog.as_deref()).await
 }
 
 /// Удаляет пользовательскую сборку (вместе с локальными данными).
@@ -610,9 +701,9 @@ fn add_pack_lock() -> &'static tokio::sync::Mutex<()> {
 /// аргументы приходят и в single-instance callback, и в событие плагина).
 static HANDLED_LINKS: OnceLock<std::sync::Mutex<Vec<(String, Instant)>>> = OnceLock::new();
 
-/// Разбирает deep link вида `niol://add-pack?url=<github-url>&name=<имя>`.
-/// Параметры percent-encoded; возвращает (url сборки, имя).
-fn parse_deep_link(url: &str) -> Option<(String, Option<String>)> {
+/// Разбирает deep link вида `niol://add-pack?url=<github-url>&name=<имя>&blog=<boosty-ник>`.
+/// Параметры percent-encoded; возвращает (url сборки, имя, ник блога Boosty).
+fn parse_deep_link(url: &str) -> Option<(String, Option<String>, Option<String>)> {
     let rest = url.strip_prefix(DEEP_LINK_PREFIX)?;
     let (path, query) = rest.split_once('?')?;
     if path != "add-pack" {
@@ -620,15 +711,17 @@ fn parse_deep_link(url: &str) -> Option<(String, Option<String>)> {
     }
     let mut pack_url: Option<String> = None;
     let mut name: Option<String> = None;
+    let mut blog: Option<String> = None;
     for pair in query.split('&') {
         let (key, value) = pair.split_once('=')?;
         match key {
             "url" => pack_url = Some(pct_decode(value)),
             "name" => name = Some(pct_decode(value)),
+            "blog" => blog = Some(pct_decode(value)),
             _ => {}
         }
     }
-    pack_url.map(|u| (u, name))
+    pack_url.map(|u| (u, name, blog))
 }
 
 /// Декодирует percent-encoding (%XX → байт).
@@ -665,6 +758,7 @@ async fn ensure_pack_from_link(
     client: &reqwest::Client,
     pack_url: &str,
     name: Option<&str>,
+    blog: Option<&str>,
 ) -> Result<(PackDescriptor, bool), String> {
     let (owner, repo) = parse_github_repo_from_url(pack_url)
         .ok_or("Не удалось разобрать владельца/репозиторий из URL")?;
@@ -678,11 +772,13 @@ async fn ensure_pack_from_link(
                 url: existing.url,
                 builtin: existing.builtin,
                 author,
+                boosty_blog: existing.boosty_blog.clone(),
+                min_ram_mb: existing.min_ram_mb,
             },
             true,
         ));
     }
-    add_pack_impl(client, pack_url, name)
+    add_pack_impl(client, pack_url, name, blog)
         .await
         .map(|p| (p, false))
 }
@@ -703,7 +799,10 @@ fn take_pending_pack_add() -> Option<serde_json::Value> {
         .as_ref()
         .filter(|(t, _)| t.elapsed() < Duration::from_secs(30))
         .map(|(_, v)| v.clone());
-    if slot.as_ref().is_some_and(|(t, _)| t.elapsed() >= Duration::from_secs(30)) {
+    if slot
+        .as_ref()
+        .is_some_and(|(t, _)| t.elapsed() >= Duration::from_secs(30))
+    {
         *slot = None;
     }
     value
@@ -712,7 +811,7 @@ fn take_pending_pack_add() -> Option<serde_json::Value> {
 /// Обрабатывает deep link: добавляет сборку (или подтверждает существующую)
 /// и сообщает фронтенду через событие `pack-added`.
 fn handle_deep_link(app: &AppHandle, url: &str) {
-    let Some((pack_url, name)) = parse_deep_link(url) else {
+    let Some((pack_url, name, blog)) = parse_deep_link(url) else {
         return;
     };
     {
@@ -732,13 +831,16 @@ fn handle_deep_link(app: &AppHandle, url: &str) {
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
         let _guard = add_pack_lock().lock().await;
-        let result = ensure_pack_from_link(&client, &pack_url, name.as_deref()).await;
+        let result =
+            ensure_pack_from_link(&client, &pack_url, name.as_deref(), blog.as_deref()).await;
         let payload = match &result {
             Ok((p, already)) => serde_json::json!({
                 "ok": true,
                 "already": already,
                 "id": p.id,
                 "name": p.name,
+                "boostyBlog": p.boosty_blog,
+                "minRam": p.min_ram_mb,
             }),
             Err(e) => serde_json::json!({
                 "ok": false,
@@ -767,20 +869,28 @@ pub fn register_deep_link_handlers(app: &tauri::AppHandle) {
 
     let handle = app.clone();
     app.listen("deep-link://new-url", move |event| {
-        let urls: Vec<tauri::Url> =
-            serde_json::from_str(event.payload()).unwrap_or_default();
-        for url in urls.iter().filter(|u| u.as_str().starts_with(DEEP_LINK_PREFIX)) {
+        let urls: Vec<tauri::Url> = serde_json::from_str(event.payload()).unwrap_or_default();
+        for url in urls
+            .iter()
+            .filter(|u| u.as_str().starts_with(DEEP_LINK_PREFIX))
+        {
             handle_deep_link(&handle, url.as_str());
         }
     });
 
     if let Ok(Some(urls)) = app.deep_link().get_current() {
-        for url in urls.iter().filter(|u| u.as_str().starts_with(DEEP_LINK_PREFIX)) {
+        for url in urls
+            .iter()
+            .filter(|u| u.as_str().starts_with(DEEP_LINK_PREFIX))
+        {
             handle_deep_link(app, url.as_str());
         }
     }
 
-    for url in std::env::args().skip(1).filter(|a| a.starts_with(DEEP_LINK_PREFIX)) {
+    for url in std::env::args()
+        .skip(1)
+        .filter(|a| a.starts_with(DEEP_LINK_PREFIX))
+    {
         handle_deep_link(app, &url);
     }
 }
@@ -791,23 +901,34 @@ mod tests {
 
     #[test]
     fn parses_deep_link_with_encoded_url() {
-        let (url, name) = parse_deep_link(&format!(
-            "niol://add-pack?url={}&name=My%20Pack",
+        let (url, name, blog) = parse_deep_link(&format!(
+            "niol://add-pack?url={}&name=My%20Pack&blog=My-Blog",
             pct_decode("https%3A%2F%2Fgithub.com%2Fn1orio%2Fnio-pack-example")
         ))
         .unwrap();
         assert_eq!(url, "https://github.com/n1orio/nio-pack-example");
         assert_eq!(name.as_deref(), Some("My Pack"));
+        assert_eq!(blog.as_deref(), Some("My-Blog"));
     }
 
     #[test]
     fn parses_deep_link_without_name() {
-        let (url, name) = parse_deep_link(
+        let (url, name, blog) = parse_deep_link(
             "niol://add-pack?url=https%3A%2F%2Fgithub.com%2Fn1orio%2Fnio-pack-example",
         )
         .unwrap();
         assert_eq!(url, "https://github.com/n1orio/nio-pack-example");
         assert_eq!(name, None);
+        assert_eq!(blog, None);
+    }
+
+    #[test]
+    fn parses_deep_link_without_blog() {
+        let (_, _, blog) = parse_deep_link(
+            "niol://add-pack?url=https%3A%2F%2Fgithub.com%2Fn1orio%2Fnio-pack-example&name=Pack",
+        )
+        .unwrap();
+        assert_eq!(blog, None);
     }
 
     #[test]
@@ -833,7 +954,9 @@ async fn list_versions(
 ) -> Result<VersionsInfo, String> {
     let pack = resolve_pack(pack_id)?;
     let installed = mrpack::installed_details(&pack.id);
-    let active = config::active_version(&pack.id).ok().filter(|v| !v.is_empty());
+    let active = config::active_version(&pack.id)
+        .ok()
+        .filter(|v| !v.is_empty());
     let github = fetch_releases_cached(&state.client, &pack).await;
     Ok(VersionsInfo {
         github,
@@ -934,8 +1057,15 @@ async fn get_news_command(state: State<'_, AppState>) -> Result<Vec<NewsItem>, S
         // Посты из репозитория сборки (если там включены Discussions).
         if let Some((owner, repo)) = parse_github_repo(&pack) {
             items.extend(
-                fetch_discussions_cached(&state.client, &owner, &repo, "post", &pack.id, &pack.name)
-                    .await,
+                fetch_discussions_cached(
+                    &state.client,
+                    &owner,
+                    &repo,
+                    "post",
+                    &pack.id,
+                    &pack.name,
+                )
+                .await,
             );
         }
     }
@@ -960,7 +1090,12 @@ async fn fetch_pack_repo_content(
 
     // Звёзды: один API-вызов на репозиторий (кэшируется).
     let meta_url = format!("https://api.github.com/repos/{owner}/{repo}");
-    if let Ok(resp) = client.get(&meta_url).header("User-Agent", "nio-launcher").send().await {
+    if let Ok(resp) = client
+        .get(&meta_url)
+        .header("User-Agent", "nio-launcher")
+        .send()
+        .await
+    {
         if resp.status().is_success() {
             if let Ok(v) = resp.json::<serde_json::Value>().await {
                 out.stars = v["stargazers_count"].as_i64();
@@ -991,10 +1126,7 @@ async fn fetch_pack_repo_content(
                         out.servers.push(PackServer {
                             name,
                             ip,
-                            port: item
-                                .get("port")
-                                .and_then(|x| x.as_u64())
-                                .map(|p| p as u16),
+                            port: item.get("port").and_then(|x| x.as_u64()).map(|p| p as u16),
                             desc: item.get("desc").and_then(|x| x.as_str()).map(String::from),
                         });
                     }
@@ -1032,10 +1164,8 @@ async fn fetch_pack_repo_content(
                                         .and_then(|x| x.as_str())
                                         .unwrap_or("")
                                         .to_string();
-                                    let url = o
-                                        .get("url")
-                                        .and_then(|x| x.as_str())
-                                        .map(String::from);
+                                    let url =
+                                        o.get("url").and_then(|x| x.as_str()).map(String::from);
                                     if let Some(url) = url {
                                         push(name, url);
                                     }
@@ -1045,6 +1175,45 @@ async fn fetch_pack_repo_content(
                         }
                     }
                     _ => {}
+                }
+            }
+        }
+    }
+
+    // Тема лаунчера: необязательный theme.json с hex-цветами.
+    let theme_url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/theme.json");
+    if let Ok(resp) = client.get(&theme_url).send().await {
+        if resp.status().is_success() {
+            if let Ok(v) = resp.json::<serde_json::Value>().await {
+                let mut theme = PackTheme::default();
+                let mut has_any = false;
+                let fields: [(&str, &mut Option<String>); 11] = [
+                    ("bg", &mut theme.bg),
+                    ("panel", &mut theme.panel),
+                    ("input", &mut theme.input),
+                    ("border", &mut theme.border),
+                    ("tx", &mut theme.tx),
+                    ("txStrong", &mut theme.tx_strong),
+                    ("txMuted", &mut theme.tx_muted),
+                    ("accent", &mut theme.accent),
+                    ("accentStrong", &mut theme.accent_strong),
+                    ("accentHover", &mut theme.accent_hover),
+                    ("accentDeep", &mut theme.accent_deep),
+                ];
+                for (key, slot) in fields {
+                    let Some(raw) = v.get(key).and_then(|x| x.as_str()) else {
+                        continue;
+                    };
+                    if raw.len() == 7
+                        && raw.starts_with('#')
+                        && raw[1..].chars().all(|c| c.is_ascii_hexdigit())
+                    {
+                        *slot = Some(raw.to_string());
+                        has_any = true;
+                    }
+                }
+                if has_any {
+                    out.theme = Some(theme);
                 }
             }
         }
@@ -1106,10 +1275,53 @@ async fn fetch_pack_repo_content_cached(
     }
     let fetched = fetch_pack_repo_content(client, owner, repo).await;
     let mut cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
-    cache
-        .meta
-        .insert(key, (Instant::now(), fetched.clone()));
+    cache.meta.insert(key, (Instant::now(), fetched.clone()));
     fetched
+}
+
+/// Каталог сборок из `catalog.json` репозитория лаунчера, с кэшем 15 минут.
+async fn fetch_catalog_cached(client: &reqwest::Client) -> Vec<CatalogEntry> {
+    {
+        let cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((at, v)) = &cache.catalog {
+            if at.elapsed() < API_HIT_TTL {
+                return v.clone();
+            }
+        } else if let Some(at) = cache.failures.get("catalog") {
+            if at.elapsed() < API_FAIL_RETRY {
+                return Vec::new();
+            }
+        }
+    }
+    let mut entries: Vec<CatalogEntry> = Vec::new();
+    if let Ok(resp) = client.get(CATALOG_URL).send().await {
+        if resp.status().is_success() {
+            if let Ok(list) = resp.json::<Vec<CatalogEntry>>().await {
+                entries = list
+                    .into_iter()
+                    .filter(|e| !e.name.trim().is_empty() && !e.url.trim().is_empty())
+                    .map(|mut e| {
+                        e.min_ram_mb = e.min_ram_mb.map(|r| r.clamp(256, 65536));
+                        e
+                    })
+                    .collect();
+            }
+        }
+    }
+    let mut cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
+    if entries.is_empty() {
+        cache.failures.insert("catalog".to_string(), Instant::now());
+    } else {
+        cache.catalog = Some((Instant::now(), entries.clone()));
+        cache.failures.remove("catalog");
+    }
+    entries
+}
+
+/// Каталог сборок для вкладки «Каталог» (список от авторов, курируется в этом репозитории).
+#[tauri::command]
+async fn fetch_catalog_command(state: State<'_, AppState>) -> Result<Vec<CatalogEntry>, String> {
+    Ok(fetch_catalog_cached(&state.client).await)
 }
 
 /// Скриншоты и сервера текущей сборки (из её GitHub-репозитория).
@@ -1127,10 +1339,7 @@ async fn pack_repo_content_command(
 
 /// Переключает активную версию сборки (по тегу GitHub или versionId).
 #[tauri::command]
-async fn switch_version(
-    pack_id: Option<String>,
-    version_id: String,
-) -> Result<(), String> {
+async fn switch_version(pack_id: Option<String>, version_id: String) -> Result<(), String> {
     let pack = resolve_pack(pack_id)?;
     if version_id.is_empty() {
         return Err("Пустая версия".into());
@@ -1139,8 +1348,7 @@ async fn switch_version(
     let resolved = mrpack::installed_details(&pack.id)
         .iter()
         .find(|v| {
-            v.version_id == version_id
-                || v.source_tag.as_deref() == Some(version_id.as_str())
+            v.version_id == version_id || v.source_tag.as_deref() == Some(version_id.as_str())
         })
         .map(|v| v.version_id.clone())
         .ok_or_else(|| format!("Версия {version_id} не установлена"))?;
@@ -1188,10 +1396,15 @@ async fn check_for_updates(
 #[tauri::command]
 async fn install_mrpack(
     app: AppHandle,
+    state: State<'_, AppState>,
     pack_id: Option<String>,
     tag: Option<String>,
 ) -> Result<mrpack::PackInfo, String> {
     let pack = resolve_pack(pack_id)?;
+    // Гейт лицензии: платные сборки требуют активную подписку Boosty.
+    license::ensure_license(&state.client, &pack.id)
+        .await
+        .map_err(|e| e.to_string())?;
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(15))
         .timeout(Duration::from_secs(600))
@@ -1202,7 +1415,11 @@ async fn install_mrpack(
         // latest в GitHub не перенаправляет на пререлизы, поэтому берём
         // самый свежий релиз из API (включая пререлизы). А tag записываем
         // в маркер установки — иначе лаунчер будет вечно «обнаруживать обновление».
-        None => match fetch_releases_cached(&client, &pack).await.into_iter().next() {
+        None => match fetch_releases_cached(&client, &pack)
+            .await
+            .into_iter()
+            .next()
+        {
             Some(r) => (r.url, Some(r.tag)),
             None => (pack.url.to_string(), None),
         },
@@ -1218,7 +1435,9 @@ async fn get_status(pack_id: Option<String>) -> Result<AppStatus, String> {
     let pack = resolve_pack(pack_id)?;
     let mut status = AppStatus {
         mrpack_url: pack.url.to_string(),
-        active_version: config::active_version(&pack.id).ok().filter(|v| !v.is_empty()),
+        active_version: config::active_version(&pack.id)
+            .ok()
+            .filter(|v| !v.is_empty()),
         active_source_tag: active_installed_tag(&pack.id),
         installed_versions: mrpack::installed_versions(&pack.id),
         discord_rp_enabled: config::discord_rp_enabled(),
@@ -1238,8 +1457,7 @@ async fn get_status(pack_id: Option<String>) -> Result<AppStatus, String> {
             .find(|k| idx.dependencies.contains_key(**k))
             .map(|k| k.replace("-loader", ""));
 
-        let game_dir = config::version_dir(&pack.id, &idx.version_id)
-            .map_err(|e| e.to_string())?;
+        let game_dir = config::version_dir(&pack.id, &idx.version_id).map_err(|e| e.to_string())?;
         status.installed = mrpack::is_installed(&game_dir, &idx);
     }
 
@@ -1262,11 +1480,7 @@ fn open_pack_dir(app: AppHandle, pack_id: Option<String>) -> Result<(), String> 
         .filter(|v| !v.is_empty())
         .and_then(|v| config::version_dir(&pack.id, &v).ok())
         .filter(|d| d.exists())
-        .or_else(|| {
-            config::versions_root(&pack.id)
-                .ok()
-                .filter(|d| d.exists())
-        })
+        .or_else(|| config::versions_root(&pack.id).ok().filter(|d| d.exists()))
         .or_else(|| config::pack_dir(&pack.id).ok())
         .unwrap_or_else(|| config::launcher_root().unwrap_or_else(|_| std::env::temp_dir()));
     // Если папки нет (сборка не установлена) — создаём, чтобы проводник открыл её.
@@ -1312,8 +1526,10 @@ async fn ms_poll_command(
 
 /// Запуск игры.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // Tauri-сигнатура фиксированная.
 async fn launch_game_command(
     app: AppHandle,
+    state: State<'_, AppState>,
     pack_id: Option<String>,
     ram_gb: u32,
     session: UserSession,
@@ -1322,11 +1538,25 @@ async fn launch_game_command(
     server_address: Option<String>,
 ) -> Result<(), String> {
     let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
-    // Авто-коннект ("host" или "host:port") — пустая строка игнорируется.
-    let server = server_address.as_deref().and_then(game::parse_server_address);
-    game::launch_game(&pack_id, ram_gb, session, app, width.max(320), height.max(240), server)
+    // Гейт лицензии: платные сборки требуют активную подписку Boosty.
+    license::ensure_license(&state.client, &pack_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    // Авто-коннект ("host" или "host:port") — пустая строка игнорируется.
+    let server = server_address
+        .as_deref()
+        .and_then(game::parse_server_address);
+    game::launch_game(
+        &pack_id,
+        ram_gb,
+        session,
+        app,
+        width.max(320),
+        height.max(240),
+        server,
+    )
+    .await
+    .map_err(|e| e.to_string())
 }
 
 /// Пинг Minecraft-сервера (1.7+ статус с фолбэком на legacy 0xFE).
@@ -1336,6 +1566,75 @@ async fn ping_server_command(
     port: Option<u16>,
 ) -> Result<ping::ServerStatus, String> {
     ping::ping_server(&address, port.unwrap_or(25565)).await
+}
+
+/// Текущий скин (локальный файл + модель).
+#[tauri::command]
+fn get_local_skin_command() -> Result<skins::SkinInfo, String> {
+    skins::get_skin().map_err(|e| e.to_string())
+}
+
+/// Устанавливает скин из выбранного PNG и грузит его в публичный скин-API.
+#[tauri::command]
+async fn set_local_skin_command(
+    state: tauri::State<'_, AppState>,
+    path: String,
+    model: String,
+    nick: String,
+) -> Result<skins::SkinInfo, String> {
+    let info = skins::set_skin_local(&path, &model).map_err(|e| e.to_string())?;
+    let bytes =
+        std::fs::read(skins::skin_path().map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    let model = if model == "slim" { "slim" } else { "classic" };
+    skins::upload_skin(&state.client, &nick, &bytes, model)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(info)
+}
+
+/// Удаляет скин (локально и из API).
+#[tauri::command]
+async fn clear_local_skin_command(
+    state: tauri::State<'_, AppState>,
+    nick: String,
+) -> Result<(), String> {
+    let _ = skins::delete_remote_skin(&state.client, &nick).await;
+    skins::clear_skin_local().map_err(|e| e.to_string())
+}
+
+/// Базовый URL скин-API (для инструкции разработчикам серверов).
+#[tauri::command]
+fn skin_api_url_command() -> String {
+    skins::SKINS_API_URL.to_string()
+}
+
+/// Принимает токен Boosty от игрока: сохраняет и проверяет подписку на блог сборки.
+#[tauri::command]
+async fn set_boosty_command(
+    state: State<'_, AppState>,
+    pack_id: String,
+    token: String,
+) -> Result<license::LicenseInfo, String> {
+    license::set_license(&state.client, &pack_id, &token)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Статус лицензии сборки (подписка Boosty) для панели в UI.
+#[tauri::command]
+async fn license_status_command(
+    state: State<'_, AppState>,
+    pack_id: String,
+) -> Result<license::LicenseInfo, String> {
+    license::license_status(&state.client, &pack_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Удаляет сохранённый токен Boosty сборки.
+#[tauri::command]
+fn clear_license_command(pack_id: String) -> Result<(), String> {
+    license::clear_license(&pack_id).map_err(|e| e.to_string())
 }
 
 #[derive(serde::Serialize)]
@@ -1350,7 +1649,9 @@ struct ScreenshotList {
 #[tauri::command]
 fn list_screenshots_command(pack_id: Option<String>) -> Result<ScreenshotList, String> {
     let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
-    let installed = config::active_version_file(&pack_id).map(|f| f.exists()).unwrap_or(false);
+    let installed = config::active_version_file(&pack_id)
+        .map(|f| f.exists())
+        .unwrap_or(false);
     let mut screenshots = Vec::new();
     if installed {
         if let Ok(dir) = config::active_game_dir(&pack_id) {
@@ -1378,7 +1679,10 @@ fn list_screenshots_command(pack_id: Option<String>) -> Result<ScreenshotList, S
             }
         }
     }
-    Ok(ScreenshotList { installed, screenshots })
+    Ok(ScreenshotList {
+        installed,
+        screenshots,
+    })
 }
 
 #[derive(serde::Serialize)]
@@ -1392,14 +1696,15 @@ struct SavedServersList {
 #[tauri::command]
 fn list_servers_command(pack_id: Option<String>) -> Result<SavedServersList, String> {
     let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
-    let installed = config::active_version_file(&pack_id).map(|f| f.exists()).unwrap_or(false);
+    let installed = config::active_version_file(&pack_id)
+        .map(|f| f.exists())
+        .unwrap_or(false);
     let mut servers = Vec::new();
     if installed {
         if let Ok(dir) = config::active_game_dir(&pack_id) {
             let file = dir.join("servers.dat");
             if file.exists() {
-                let data = std::fs::read(&file)
-                    .map_err(|e| format!("servers.dat: чтение: {e}"))?;
+                let data = std::fs::read(&file).map_err(|e| format!("servers.dat: чтение: {e}"))?;
                 nbt::parse_servers_dat(&data, &mut servers)
                     .map_err(|e| format!("servers.dat: разбор: {e}"))?;
             }
@@ -1511,7 +1816,10 @@ fn set_locale_command(locale: String) {
 
 /// URL текстуры скина Mojang-профиля по uuid (без даш). None — нет скина/профиля.
 #[tauri::command]
-async fn get_skin_command(state: State<'_, AppState>, uuid: String) -> Result<Option<String>, String> {
+async fn get_skin_command(
+    state: State<'_, AppState>,
+    uuid: String,
+) -> Result<Option<String>, String> {
     let url = format!("https://sessionserver.mojang.com/session/minecraft/profile/{uuid}");
     let resp = state
         .client
@@ -1532,11 +1840,7 @@ async fn get_skin_command(state: State<'_, AppState>, uuid: String) -> Result<Op
             use base64::Engine;
             pr["value"]
                 .as_str()
-                .and_then(|b64| {
-                    base64::engine::general_purpose::STANDARD
-                        .decode(b64)
-                        .ok()
-                })
+                .and_then(|b64| base64::engine::general_purpose::STANDARD.decode(b64).ok())
                 .and_then(|raw| serde_json::from_slice::<serde_json::Value>(&raw).ok())
         })
         .and_then(|t| t["textures"]["SKIN"]["url"].as_str().map(|s| s.to_string()));
@@ -1584,6 +1888,10 @@ pub fn run() {
             ms_poll_command,
             launch_game_command,
             ping_server_command,
+            get_local_skin_command,
+            set_local_skin_command,
+            clear_local_skin_command,
+            skin_api_url_command,
             list_screenshots_command,
             list_servers_command,
             get_launch_log,
@@ -1605,6 +1913,10 @@ pub fn run() {
             get_game_file_icon_command,
             get_game_file_icons_command,
             pack_repo_content_command,
+            fetch_catalog_command,
+            set_boosty_command,
+            license_status_command,
+            clear_license_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -35,13 +35,22 @@ fn java_version_from_name(dir_name: &str) -> Option<(u32, u32)> {
             }
             let (major, minor) = if parts[0] == "1" {
                 (
-                    parts.get(1).and_then(|p| p.parse::<u32>().ok()).unwrap_or(1),
-                    parts.get(2).and_then(|p| p.parse::<u32>().ok()).unwrap_or(0),
+                    parts
+                        .get(1)
+                        .and_then(|p| p.parse::<u32>().ok())
+                        .unwrap_or(1),
+                    parts
+                        .get(2)
+                        .and_then(|p| p.parse::<u32>().ok())
+                        .unwrap_or(0),
                 )
             } else {
                 (
                     parts[0].parse::<u32>().unwrap_or(1),
-                    parts.get(1).and_then(|p| p.parse::<u32>().ok()).unwrap_or(0),
+                    parts
+                        .get(1)
+                        .and_then(|p| p.parse::<u32>().ok())
+                        .unwrap_or(0),
                 )
             };
             return Some((major, minor));
@@ -102,7 +111,9 @@ pub fn java_candidates() -> Vec<PathBuf> {
             continue;
         }
         // Один уровень вложенности ниже корня: Java обычно лежит в <root>/<vendor>/<jdk>/bin
-        let Ok(dirs) = std::fs::read_dir(&entry) else { continue };
+        let Ok(dirs) = std::fs::read_dir(&entry) else {
+            continue;
+        };
         for dir in dirs.flatten() {
             let jdk_dir = dir.path();
             let bin = jdk_dir.join("bin").join(bat);
@@ -110,7 +121,9 @@ pub fn java_candidates() -> Vec<PathBuf> {
                 found.push(bin);
                 continue;
             }
-            let Ok(subs) = std::fs::read_dir(&jdk_dir) else { continue };
+            let Ok(subs) = std::fs::read_dir(&jdk_dir) else {
+                continue;
+            };
             for sub in subs.flatten() {
                 let sub_bin = sub.path().join("bin").join(bat);
                 if sub_bin.exists() {
@@ -290,7 +303,9 @@ pub fn find_java() -> Result<(String, JavaArch)> {
     }
     let mut best_32: Option<(String, JavaArch)> = None;
     for cand in java_candidates() {
-        let Some(arch) = probe_java(&cand) else { continue };
+        let Some(arch) = probe_java(&cand) else {
+            continue;
+        };
         let path = cand.to_string_lossy().to_string();
         if arch == JavaArch::Bit64 {
             return Ok((path, arch));
@@ -338,10 +353,13 @@ pub async fn ensure_bundled_java(app: &AppHandle, client: &Client) -> Result<Str
     let url = format!(
         "https://api.adoptium.net/v3/binary/latest/21/ga/{os}/{arch}/jre/hotspot/normal/eclipse"
     );
-    let _ = app.emit("launch-log", crate::game::LogLine {
-        stream: "sys".into(),
-        line: format!("Скачивание встроенной Java (JRE 21, ~70 МБ): {url}"),
-    });
+    let _ = app.emit(
+        "launch-log",
+        crate::game::LogLine {
+            stream: "sys".into(),
+            line: format!("Скачивание встроенной Java (JRE 21, ~70 МБ): {url}"),
+        },
+    );
 
     let resp = client
         .get(&url)
@@ -366,10 +384,13 @@ pub async fn ensure_bundled_java(app: &AppHandle, client: &Client) -> Result<Str
             } else {
                 format!("{:.1} МБ", downloaded as f64 / 1048576.0)
             };
-            let _ = app.emit("launch-log", crate::game::LogLine {
-                stream: "sys".into(),
-                line: format!("Java: скачано {pct}"),
-            });
+            let _ = app.emit(
+                "launch-log",
+                crate::game::LogLine {
+                    stream: "sys".into(),
+                    line: format!("Java: скачано {pct}"),
+                },
+            );
             last_report = std::time::Instant::now();
         }
     }
@@ -383,7 +404,9 @@ pub async fn ensure_bundled_java(app: &AppHandle, client: &Client) -> Result<Str
         let mut buf = [0u8; 4];
         use std::io::Read;
         let f = f;
-        std::io::Read::take(std::io::BufReader::new(f), 4).read_exact(&mut buf).ok();
+        std::io::Read::take(std::io::BufReader::new(f), 4)
+            .read_exact(&mut buf)
+            .ok();
         buf
     };
     let result = if head.starts_with(b"PK") {

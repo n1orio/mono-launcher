@@ -80,7 +80,11 @@ fn parse_server_entry(p: &mut Parser, out: &mut Vec<SavedServer>) -> Result<(), 
     }
     if !address.is_empty() {
         out.push(SavedServer {
-            name: if name.is_empty() { address.clone() } else { name },
+            name: if name.is_empty() {
+                address.clone()
+            } else {
+                name
+            },
             address,
         });
     }
@@ -241,7 +245,10 @@ mod tests {
         push_str(&mut nbt, "servers");
         nbt.push(10); // element type: compound
         nbt.extend_from_slice(&2i32.to_be_bytes());
-        for (name, ip) in [("Мой сервер", "play.example.ru:25565"), ("Главный", "mc.example.ru")] {
+        for (name, ip) in [
+            ("Мой сервер", "play.example.ru:25565"),
+            ("Главный", "mc.example.ru"),
+        ] {
             // элемент списка compound по современному формату (NbtIo, prefix=false):
             // без байта-тега и без имени — сразу поля
             tag_string(&mut nbt, "name", name);

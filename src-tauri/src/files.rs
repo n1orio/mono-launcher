@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -19,10 +20,57 @@ pub struct GameFileEntry {
     /// Включён (файл не переименован в *.disabled).
     pub enabled: bool,
     pub size_bytes: u64,
+    /// Точная страница мода на Modrinth (из downloads в .nio-index.json), если файл оттуда.
+    pub modrinth_url: Option<String>,
 }
 
 fn folder_dir(pack_id: &str, folder: &str) -> Result<PathBuf> {
     Ok(config::active_game_dir(pack_id)?.join(folder))
+}
+
+/// Карта `относительный путь -> URL первой загрузки` из индекса установленной
+/// версии (`.nio-index.json`). Точная ссылка нужна для кнопки «открыть на Modrinth».
+fn install_urls(pack_id: &str) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    let index_path = config::active_game_dir(pack_id)
+        .ok()
+        .map(|d| d.join(".nio-index.json"));
+    let Some(index_path) = index_path else {
+        return map;
+    };
+    let Ok(raw) = std::fs::read_to_string(&index_path) else {
+        return map;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
+        return map;
+    };
+    let Some(files) = value.get("files").and_then(|f| f.as_array()) else {
+        return map;
+    };
+    for f in files {
+        let path = f.get("path").and_then(|p| p.as_str());
+        let url = f
+            .get("downloads")
+            .and_then(|d| d.as_array())
+            .and_then(|d| d.first())
+            .and_then(|u| u.as_str());
+        if let (Some(path), Some(url)) = (path, url) {
+            map.entry(path.to_string())
+                .or_insert_with(|| url.to_string());
+        }
+    }
+    map
+}
+
+/// Из URL загрузки Modrinth CDN (`https://cdn.modrinth.com/data/<proj>/versions/<ver>/...`)
+/// строит страницу проекта `https://modrinth.com/mod/<proj>`.
+fn modrinth_page_url(download: &str) -> Option<String> {
+    let rest = download.strip_prefix("https://cdn.modrinth.com/data/")?;
+    let project = rest.split('/').next()?;
+    if project.is_empty() {
+        return None;
+    }
+    Some(format!("https://modrinth.com/mod/{project}"))
 }
 
 /// Список файлов/папок в папке игры (моды/ресурспаки/шейдеры/миры).
@@ -31,6 +79,7 @@ pub fn list_files(pack_id: &str, folder: &str) -> Result<Vec<GameFileEntry>> {
     if !dir.exists() {
         return Ok(Vec::new());
     }
+    let urls = install_urls(pack_id);
     let mut out: Vec<GameFileEntry> = Vec::new();
     for e in std::fs::read_dir(&dir)? {
         let Ok(e) = e else { continue };
@@ -63,19 +112,30 @@ pub fn list_files(pack_id: &str, folder: &str) -> Result<Vec<GameFileEntry>> {
             .or_else(|| raw.strip_suffix(".zip"))
             .unwrap_or(&raw)
             .to_string();
+        let modrinth_url = if is_file {
+            urls.get(&format!("{folder}/{raw}"))
+                .and_then(|u| modrinth_page_url(u))
+        } else {
+            None
+        };
         out.push(GameFileEntry {
             name: raw,
             display_name,
             kind: if is_dir { "dir".into() } else { "file".into() },
             enabled,
             size_bytes: meta.len(),
+            // Точная страница Modrinth — только для файлов из индекса сборки;
+            // у добавленных вручную её нет, фронтенд делает поиск.
+            modrinth_url,
         });
     }
     // Включённые сверху, дальше по алфавиту.
     out.sort_by(|a, b| {
-        b.enabled
-            .cmp(&a.enabled)
-            .then_with(|| a.display_name.to_lowercase().cmp(&b.display_name.to_lowercase()))
+        b.enabled.cmp(&a.enabled).then_with(|| {
+            a.display_name
+                .to_lowercase()
+                .cmp(&b.display_name.to_lowercase())
+        })
     });
     Ok(out)
 }
@@ -97,7 +157,8 @@ pub fn toggle_file(pack_id: &str, folder: &str, name: &str, enabled: bool) -> Re
     if !cur.exists() {
         return Err(anyhow::anyhow!("Файл не найден: {}", cur.display()));
     }
-    std::fs::rename(&cur, &next).with_context(|| format!("Не удалось переименовать {}", cur.display()))?;
+    std::fs::rename(&cur, &next)
+        .with_context(|| format!("Не удалось переименовать {}", cur.display()))?;
     Ok(())
 }
 
@@ -150,7 +211,9 @@ fn find_nested_icon(root: &Path) -> Option<PathBuf> {
     let mut best: Option<(usize, PathBuf)> = None;
     let mut stack = vec![(root.to_path_buf(), 0usize)];
     while let Some((d, lvl)) = stack.pop() {
-        let Ok(rd) = std::fs::read_dir(&d) else { continue };
+        let Ok(rd) = std::fs::read_dir(&d) else {
+            continue;
+        };
         for e in rd.flatten() {
             let p = e.path();
             if p.is_dir() {
@@ -208,7 +271,9 @@ fn zip_icon(path: &Path) -> Result<Option<String>> {
     names.sort();
     // Ограничение: не разворачивать сотни крупных архива, хватает первых кандидатов.
     for (_, _, name) in names.iter().take(5) {
-        let Ok(mut f) = archive.by_name(name) else { continue };
+        let Ok(mut f) = archive.by_name(name) else {
+            continue;
+        };
         if f.size() <= 2 * 1024 * 1024 && f.size() > 0 {
             let mut buf = Vec::with_capacity(f.size() as usize);
             if f.read_to_end(&mut buf).is_ok() {
@@ -223,3 +288,26 @@ fn zip_icon(path: &Path) -> Result<Option<String>> {
     Ok(None)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_modrinth_cdn_url() {
+        assert_eq!(
+            modrinth_page_url(
+                "https://cdn.modrinth.com/data/abc123/versions/xyz789/file-1.2.3.jar"
+            ),
+            Some("https://modrinth.com/mod/abc123".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_non_modrinth_urls() {
+        assert_eq!(
+            modrinth_page_url("https://mediafilez.forgecdn.net/files/5555/55/f.jar"),
+            None
+        );
+        assert_eq!(modrinth_page_url("не-ссылка"), None);
+    }
+}

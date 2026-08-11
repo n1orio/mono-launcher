@@ -1,0 +1,7 @@
+name = "nio-skins"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+kv_namespaces = [
+  { binding = "SKINS", id = "f70e924ee0b54ec69f6a6c04751f36ed" }
+]

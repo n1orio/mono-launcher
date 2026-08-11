@@ -6,6 +6,33 @@ export interface PackDescriptor {
   builtin: boolean;
   /** Владелец GitHub-репозитория сборки (если это github-сборка). */
   author: string | null;
+  /** Ник блога на Boosty: задан → сборка платная (подписка обязательна). */
+  boostyBlog: string | null;
+  /** Минимальная оперативка для запуска (МБ), из pack.json автора. */
+  minRam: number | null;
+}
+
+/** Запись каталога сборок (catalog.json в репозитории лаунчера). */
+export interface CatalogEntry {
+  name: string;
+  url: string;
+  description: string | null;
+  author: string | null;
+  boostyBlog: string | null;
+  minRam: number | null;
+  tags: string[];
+}
+
+/** Статус лицензии сборки (привязка Boosty). */
+export interface LicenseInfo {
+  /** Ник блога издателя, на который проверялась подписка. */
+  blog: string;
+  /** Есть активная подписка на блог (по последней проверке). */
+  subscribed: boolean;
+  /** Дата окончания подписки по Boosty (unix-секунды). */
+  expiresAt: number | null;
+  /** До какого момента действует локальная льгота без сети (unix-секунды). */
+  cachedUntil: number;
 }
 
 export interface UserSession {
@@ -137,6 +164,7 @@ export interface GameFileEntry {
   kind: "file" | "dir";
   enabled: boolean;
   sizeBytes: number;
+  modrinthUrl?: string | null;
 }
 
 export interface GameFileIcon {
@@ -170,6 +198,13 @@ export interface SavedServersList {
   servers: SavedServer[];
 }
 
+/** Локальный скин игрока (ответ get_local_skin_command). */
+export interface SkinInfo {
+  has_skin: boolean;
+  model: string;
+  path: string | null;
+}
+
 /** Статус Minecraft-сервера (ответ ping_server_command). */
 export interface ServerStatus {
   online: boolean;
@@ -186,11 +221,27 @@ export interface PackSocial {
   url: string;
 }
 
+/** Тема лаунчера из theme.json сборки (все поля — hex-цвета `#rrggbb`). */
+export interface PackTheme {
+  bg?: string | null;
+  panel?: string | null;
+  input?: string | null;
+  border?: string | null;
+  tx?: string | null;
+  txStrong?: string | null;
+  txMuted?: string | null;
+  accent?: string | null;
+  accentStrong?: string | null;
+  accentHover?: string | null;
+  accentDeep?: string | null;
+}
+
 /** Контент репозитория сборки: звёзды, сервера, соцсети. */
 export interface PackRepoContent {
   stars: number | null;
   servers: PackServer[];
   socials: PackSocial[];
+  theme: PackTheme | null;
 }
 
 export interface GameExited {

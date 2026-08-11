@@ -6,9 +6,9 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 use sha1::Digest;
+use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
-use tauri::{AppHandle, Emitter};
 
 use crate::auth::UserSession;
 use crate::config;
@@ -164,11 +164,7 @@ fn arch() -> &'static str {
 fn maven_path(name: &str) -> PathBuf {
     // Формат: group:artifact:version[:classifier]
     let mut parts = name.split(':').collect::<Vec<_>>();
-    let classifier = if parts.len() > 3 {
-        parts.pop()
-    } else {
-        None
-    };
+    let classifier = if parts.len() > 3 { parts.pop() } else { None };
     let version = parts.pop().unwrap_or("");
     let artifact = parts.pop().unwrap_or("");
     let group = parts.join(".");
@@ -184,7 +180,10 @@ fn maven_path(name: &str) -> PathBuf {
 
 fn maven_url(name: &str) -> String {
     // https://libraries.minecraft.net/ используется для большинства библиотек.
-    format!("https://libraries.minecraft.net/{}", maven_path(name).display())
+    format!(
+        "https://libraries.minecraft.net/{}",
+        maven_path(name).display()
+    )
 }
 
 /// Проверяет правила библиотеки для текущей ОС и «фич» (features не задаём вовсе —
@@ -223,7 +222,12 @@ fn rules_allow(rules: &[serde_json::Value]) -> bool {
 }
 
 /// Скачивает файл в `dest`, если его там нет (проверяя sha1).
-async fn ensure_download(client: &reqwest::Client, url: &str, sha1: &str, dest: &Path) -> Result<()> {
+async fn ensure_download(
+    client: &reqwest::Client,
+    url: &str,
+    sha1: &str,
+    dest: &Path,
+) -> Result<()> {
     if dest.exists() {
         return Ok(());
     }
@@ -293,8 +297,9 @@ async fn resolve_libraries(
         let name_classifier = lib.name.split(':').last().unwrap_or("");
         let is_native_entry = name_classifier == natives_classifier;
 
-        let native_jar = if let Some(classifier) = lib.downloads.classifiers.get(&natives_classifier) {
-            let jar = libraries_dir.join(maven_path(&lib.name).with_file_name(format!(
+        let native_jar =
+            if let Some(classifier) = lib.downloads.classifiers.get(&natives_classifier) {
+                let jar = libraries_dir.join(maven_path(&lib.name).with_file_name(format!(
                 "{}-{}.jar",
                 maven_path(&lib.name)
                     .file_stem()
@@ -302,13 +307,13 @@ async fn resolve_libraries(
                     .to_string_lossy(),
                 natives_classifier
             )));
-            ensure_download(client, &classifier.url, &classifier.sha1, &jar).await?;
-            Some(jar)
-        } else if is_native_entry {
-            Some(artifact_path.clone())
-        } else {
-            None
-        };
+                ensure_download(client, &classifier.url, &classifier.sha1, &jar).await?;
+                Some(jar)
+            } else if is_native_entry {
+                Some(artifact_path.clone())
+            } else {
+                None
+            };
 
         if let Some(jar) = native_jar {
             // Извлекаем natives в отдельную папку (синхронно, чтобы не держать ZipFile в async).
@@ -339,10 +344,7 @@ async fn resolve_libraries(
         }
     }
 
-    Ok(ResolvedLibraries {
-        classpath,
-        natives,
-    })
+    Ok(ResolvedLibraries { classpath, natives })
 }
 
 /// Определяет модлоадер и его версию из сохранённого индекса сборки.
@@ -378,20 +380,31 @@ async fn fetch_loader_profile(
     match loader {
         "neoforge" | "forge" => {
             let (base, name) = if loader == "neoforge" {
-                ("https://maven.neoforged.net/releases/net/neoforged/neoforge", "neoforge")
+                (
+                    "https://maven.neoforged.net/releases/net/neoforged/neoforge",
+                    "neoforge",
+                )
             } else {
-                ("https://maven.minecraftforge.net/net/minecraftforge/forge", "forge")
+                (
+                    "https://maven.minecraftforge.net/net/minecraftforge/forge",
+                    "forge",
+                )
             };
-            let installer_url = format!("{base}/{loader_version}/{name}-{loader_version}-installer.jar");
+            let installer_url =
+                format!("{base}/{loader_version}/{name}-{loader_version}-installer.jar");
             let installer_path = cache_dir
                 .join("loaders")
                 .join(format!("{name}-{loader_version}-installer.jar"));
             ensure_download(client, &installer_url, "", &installer_path).await?;
 
             if loader == "neoforge" {
-                run_neoforge_installer(client, mc_version, loader_version, &installer_path, root).await?;
+                run_neoforge_installer(client, mc_version, loader_version, &installer_path, root)
+                    .await?;
                 let launch_id = format!("{name}-{loader_version}");
-                let installed = root.join("versions").join(&launch_id).join(format!("{launch_id}.json"));
+                let installed = root
+                    .join("versions")
+                    .join(&launch_id)
+                    .join(format!("{launch_id}.json"));
                 if installed.exists() {
                     let raw = tokio::fs::read(&installed).await?;
                     return Ok(Some(serde_json::from_slice(&raw)?));
@@ -436,7 +449,9 @@ async fn run_neoforge_installer(
 ) -> Result<()> {
     let launch_id = format!("neoforge-{loader_version}");
     let version_dir = root.join("versions");
-    let json_path = version_dir.join(&launch_id).join(format!("{launch_id}.json"));
+    let json_path = version_dir
+        .join(&launch_id)
+        .join(format!("{launch_id}.json"));
     if json_path.exists() {
         return Ok(());
     }
@@ -465,7 +480,13 @@ async fn run_neoforge_installer(
     if !mc_jar.exists() {
         let raw = tokio::fs::read(&mc_json).await?;
         let vanilla: VersionJson = serde_json::from_slice(&raw)?;
-        ensure_download(client, &vanilla.downloads.client.url, &vanilla.downloads.client.sha1, &mc_jar).await?;
+        ensure_download(
+            client,
+            &vanilla.downloads.client.url,
+            &vanilla.downloads.client.sha1,
+            &mc_jar,
+        )
+        .await?;
     }
     let profiles = root.join("launcher_profiles.json");
     if !profiles.exists() {
@@ -523,7 +544,9 @@ async fn resolve_loader_client_jar(
 ) -> Result<Option<PathBuf>> {
     match loader {
         "neoforge" => {
-            let path = libraries_dir.join(format!("net/neoforged/neoforge/{loader_version}/neoforge-{loader_version}.jar"));
+            let path = libraries_dir.join(format!(
+                "net/neoforged/neoforge/{loader_version}/neoforge-{loader_version}.jar"
+            ));
             let url = format!(
                 "https://maven.neoforged.net/releases/net/neoforged/neoforge/{loader_version}/neoforge-{loader_version}-universal.jar"
             );
@@ -531,7 +554,9 @@ async fn resolve_loader_client_jar(
             Ok(Some(path))
         }
         "forge" => {
-            let path = libraries_dir.join(format!("net/minecraftforge/forge/{loader_version}/forge-{loader_version}.jar"));
+            let path = libraries_dir.join(format!(
+                "net/minecraftforge/forge/{loader_version}/forge-{loader_version}.jar"
+            ));
             let url = format!("https://maven.minecraftforge.net/net/minecraftforge/forge/{loader_version}/forge-{loader_version}.jar");
             let mut saved = ensure_download(client, &url, "", &path).await.is_ok();
             if !path.exists() {
@@ -577,13 +602,7 @@ async fn resolve_assets(
     let indexes_dir = assets_root.join("indexes");
     let objects_dir = assets_root.join("objects");
     let index_path = indexes_dir.join(format!("{}.json", asset_index.id));
-    ensure_download(
-        client,
-        &asset_index.url,
-        &asset_index.sha1,
-        &index_path,
-    )
-    .await?;
+    ensure_download(client, &asset_index.url, &asset_index.sha1, &index_path).await?;
 
     let raw = tokio::fs::read_to_string(&index_path).await?;
     let index: serde_json::Value = serde_json::from_str(&raw)?;
@@ -706,6 +725,32 @@ pub fn parse_server_address(raw: &str) -> Option<ServerAddress> {
     }
 }
 
+/// Скачивает authlib-injector.jar (кэш в корне лаунчера) и возвращает
+/// аргумент `-javaagent:...=<URL скин-API>` для запуска игры.
+async fn ensure_skin_agent(app: &AppHandle, client: &reqwest::Client) -> Result<String> {
+    use crate::skins::SKINS_API_URL;
+    let root = config::launcher_root()?;
+    let jar = root.join("authlib-injector.jar");
+    const JAR_URL: &str = "https://github.com/yushijinhun/authlib-injector/releases/download/1.2.5/authlib-injector-1.2.5.jar";
+    if !jar.exists() || std::fs::metadata(&jar)?.len() < 10_000 {
+        emit_log(
+            app,
+            "sys",
+            "Скачивание authlib-injector (поддержка оффлайн-скинов)…",
+        );
+        let resp = client.get(JAR_URL).send().await?;
+        if !resp.status().is_success() {
+            return Err(anyhow!(
+                "Не удалось скачать authlib-injector: {}",
+                resp.status()
+            ));
+        }
+        let bytes = resp.bytes().await?;
+        std::fs::write(&jar, &bytes)?;
+    }
+    Ok(format!("-javaagent:{}={SKINS_API_URL}", jar.display()))
+}
+
 /// Собирает и запускает процесс Java для Minecraft.
 pub async fn launch_game(
     pack_id: &str,
@@ -717,7 +762,11 @@ pub async fn launch_game(
     server_address: Option<ServerAddress>,
 ) -> Result<()> {
     if let Some(srv) = &server_address {
-        emit_log(&app, "sys", &format!("Авто-коннект на сервер: {}", srv.display()));
+        emit_log(
+            &app,
+            "sys",
+            &format!("Авто-коннект на сервер: {}", srv.display()),
+        );
     }
     let root = config::launcher_root()?;
     let assets_root = root.join("assets");
@@ -730,7 +779,11 @@ pub async fn launch_game(
     // Если Java нигде нет — автоматически скачиваем встроенную (JRE 21).
     let (mut java, mut java_arch) = find_java()?;
     if java_arch == JavaArch::Unknown {
-        emit_log(&app, "sys", "Java не найдена — скачиваем встроенную (Adoptium JRE 21)…");
+        emit_log(
+            &app,
+            "sys",
+            "Java не найдена — скачиваем встроенную (Adoptium JRE 21)…",
+        );
         match ensure_bundled_java(&app, &client).await {
             Ok(path) => {
                 java = path;
@@ -765,7 +818,9 @@ pub async fn launch_game(
     let game_dir = config::active_game_dir(pack_id)?;
     let index_path = game_dir.join(".nio-index.json");
     if !index_path.exists() {
-        return Err(anyhow!("Сборка не установлена. Нажмите «Скачать и играть»."));
+        return Err(anyhow!(
+            "Сборка не установлена. Нажмите «Скачать и играть»."
+        ));
     }
     let raw = tokio::fs::read_to_string(&index_path).await?;
     let index: serde_json::Value = serde_json::from_str(&raw)?;
@@ -793,7 +848,8 @@ pub async fn launch_game(
     //    поэтому библиотеки и аргументы объединяются.
     let loader_profile = match &loader {
         Some((name, ver)) => {
-            fetch_loader_profile(&client, name, minecraft_version, ver, &libraries_dir, &root).await?
+            fetch_loader_profile(&client, name, minecraft_version, ver, &libraries_dir, &root)
+                .await?
         }
         None => None,
     };
@@ -863,8 +919,20 @@ pub async fn launch_game(
     }
 
     // 5. Скачиваем библиотеки, ассеты и клиентский jar.
-    emit_log(&app, "sys", "Скачивание библиотек и ассетов (первый запуск — долго)…");
-    let libs = resolve_libraries(&client, &VersionJson { libraries: merged_libraries, ..vanilla.clone() }, &libraries_dir).await?;
+    emit_log(
+        &app,
+        "sys",
+        "Скачивание библиотек и ассетов (первый запуск — долго)…",
+    );
+    let libs = resolve_libraries(
+        &client,
+        &VersionJson {
+            libraries: merged_libraries,
+            ..vanilla.clone()
+        },
+        &libraries_dir,
+    )
+    .await?;
     let asset_index_id = resolve_assets(&client, &vanilla, &assets_root).await?;
     let client_jar = if matches!(loader.as_ref(), Some((name, _)) if name == "neoforge") {
         // NeoForge: в classpath кладём «версионный» jar — копию ванильного клиента
@@ -918,15 +986,18 @@ pub async fn launch_game(
     placeholders.insert("${user_type}".into(), session.user_type.clone());
     placeholders.insert("${version_name}".into(), launch_id.clone());
     placeholders.insert("${version_type}".into(), "release".into());
-    placeholders.insert("${assets_root}".into(), assets_root.to_string_lossy().to_string());
+    placeholders.insert(
+        "${assets_root}".into(),
+        assets_root.to_string_lossy().to_string(),
+    );
     placeholders.insert("${assets_index_name}".into(), asset_index_id.clone());
-    placeholders.insert("${game_directory}".into(), game_dir.to_string_lossy().to_string());
+    placeholders.insert(
+        "${game_directory}".into(),
+        game_dir.to_string_lossy().to_string(),
+    );
     placeholders.insert("${natives_directory}".into(), natives_str.clone());
     placeholders.insert("${classpath}".into(), classpath_str.clone());
-    placeholders.insert(
-        "${classpath_separator}".into(),
-        path_sep().to_string(),
-    );
+    placeholders.insert("${classpath_separator}".into(), path_sep().to_string());
     placeholders.insert(
         "${library_directory}".into(),
         libraries_dir.to_string_lossy().to_string(),
@@ -942,6 +1013,25 @@ pub async fn launch_game(
         (heap_gb / 2).max(1)
     };
     final_args.push(format!("-Xms{}G", xms_gb));
+
+    // Оффлайн-сессии (и только они): подключаем скин-сервис через authlib-injector,
+    // чтобы игрок видел свой скин в одиночке и на серверах, использующих наш API.
+    // У Microsoft-сессий скины приходят от Mojang — агент не нужен.
+    if session.user_type == "offline" {
+        match ensure_skin_agent(&app, &client).await {
+            Ok(agent_arg) => {
+                final_args.push(agent_arg);
+                emit_log(&app, "sys", "Оффлайн-скины: подключён authlib-injector");
+            }
+            Err(e) => {
+                emit_log(
+                    &app,
+                    "sys",
+                    &format!("Оффлайн-скины недоступны: {e} (запуск без них)"),
+                );
+            }
+        }
+    }
 
     for a in jvm_args {
         // `-XstartOnFirstThread` — macOS-специфичный флаг; на Linux/Windows он падает.
@@ -999,7 +1089,7 @@ pub async fn launch_game(
         }
     }
 
-        if let Some(out) = child.stdout.take() {
+    if let Some(out) = child.stdout.take() {
         let app2 = app.clone();
         let log2 = log_file.clone();
         tokio::spawn(async move {
@@ -1011,7 +1101,13 @@ pub async fn launch_game(
                 };
                 if !line.is_empty() {
                     append_log(&log2, &line);
-                    let _ = app2.emit("launch-log", LogLine { stream: "out".into(), line });
+                    let _ = app2.emit(
+                        "launch-log",
+                        LogLine {
+                            stream: "out".into(),
+                            line,
+                        },
+                    );
                 }
             }
         });
@@ -1024,7 +1120,13 @@ pub async fn launch_game(
             while let Ok(Some(line)) = reader.next_line().await {
                 if !line.is_empty() {
                     append_log(&log2, &line);
-                    let _ = app2.emit("launch-log", LogLine { stream: "err".into(), line });
+                    let _ = app2.emit(
+                        "launch-log",
+                        LogLine {
+                            stream: "err".into(),
+                            line,
+                        },
+                    );
                 }
             }
         });
@@ -1087,7 +1189,10 @@ pub async fn launch_game(
         append_log(&log_file, &format!("\n=== {msg} ==="));
         let _ = app2.emit(
             "launch-log",
-            LogLine { stream: "sys".into(), line: msg },
+            LogLine {
+                stream: "sys".into(),
+                line: msg,
+            },
         );
     });
 
@@ -1115,13 +1220,23 @@ pub struct GameExited {
 }
 
 fn emit_log(app: &AppHandle, stream: &str, line: &str) {
-    let _ = app.emit("launch-log", LogLine { stream: stream.to_string(), line: line.to_string() });
+    let _ = app.emit(
+        "launch-log",
+        LogLine {
+            stream: stream.to_string(),
+            line: line.to_string(),
+        },
+    );
 }
 
 fn append_log(file: &Option<PathBuf>, line: &str) {
     use std::io::Write;
     if let Some(path) = file {
-        let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) else {
+        let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+        else {
             return;
         };
         let _ = writeln!(f, "{line}");
@@ -1135,4 +1250,3 @@ fn replace_placeholders(arg: &str, map: &HashMap<String, String>) -> String {
     }
     out
 }
-

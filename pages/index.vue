@@ -9,7 +9,7 @@
           class="pointer-events-auto flex items-start gap-2.5 rounded-md border bg-[var(--panel)] px-3.5 py-2.5 text-xs shadow-lg shadow-black/40"
           :class="{
             'border-[#f85149]/50': n.type === 'error',
-            'border-[#1f6beb]/50': n.type === 'info',
+            'border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)]': n.type === 'info',
             'border-[#238636]/50': n.type === 'success',
           }"
         >
@@ -18,7 +18,7 @@
             class="mt-0.5 h-3.5 w-3.5 shrink-0 fill-current"
             :class="{
               'text-[#f85149]': n.type === 'error',
-              'text-[#58a6ff]': n.type === 'info',
+              'text-[var(--accent)]': n.type === 'info',
               'text-[#3fb950]': n.type === 'success',
             }"
           >
@@ -57,10 +57,10 @@
     <!-- Карточка обновления лаунчера -->
     <div
       v-if="appUpdate && !appUpdating"
-      class="fixed bottom-4 right-4 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-[#1f6beb]/50 bg-[var(--panel)] p-3.5 shadow-lg shadow-black/40"
+      class="fixed bottom-4 right-4 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[var(--panel)] p-3.5 shadow-lg shadow-black/40"
     >
       <div class="flex items-start gap-2.5">
-        <svg viewBox="0 0 16 16" class="mt-0.5 h-4 w-4 shrink-0 fill-[#58a6ff]">
+        <svg viewBox="0 0 16 16" class="mt-0.5 h-4 w-4 shrink-0 fill-[var(--accent)]">
           <path d="M8 1.5a.75.75 0 0 1 .75.75V2.5H14a1 1 0 0 1 1 1v2.75A1.75 1.75 0 0 1 13.25 8H8.75v5.75a1.75 1.75 0 0 1-3.5 0V8H2A1.75 1.75 0 0 1 .25 6.25V3.5a1 1 0 0 1 1-1h5.25v-.25A.75.75 0 0 1 8 1.5Z"/>
         </svg>
         <div class="min-w-0 flex-1">
@@ -75,7 +75,7 @@
           </p>
           <button
             type="button"
-            class="mt-2.5 w-full rounded-md bg-[#1f6beb] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#388bfd]"
+            class="mt-2.5 w-full rounded-md bg-[var(--accent-deep)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
             @click="installAppUpdate"
           >
             {{ t("appUpdate.install") }}
@@ -86,7 +86,7 @@
     <!-- Прогресс обновления лаунчера -->
     <div
       v-if="appUpdating"
-      class="fixed bottom-4 right-4 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-[#1f6beb]/50 bg-[var(--panel)] p-3.5 shadow-lg shadow-black/40"
+      class="fixed bottom-4 right-4 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[var(--panel)] p-3.5 shadow-lg shadow-black/40"
     >
       <div class="mb-1.5 flex items-center justify-between text-[11px]">
         <span class="font-medium text-[color:var(--tx)]">{{ t("appUpdate.progress") }}</span>
@@ -105,7 +105,10 @@
       </div>
     </div>
     <!-- ==== Боковая панель ==== -->
-    <aside class="flex w-64 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--panel)]">
+    <aside
+      class="relative flex shrink-0 flex-col border-r border-[var(--border)] bg-[var(--panel)]"
+      :style="{ width: `${sidebarWidth}px` }"
+    >
 <!-- Выбор сборки (вкладка каждого репозитория) -->
       <div class="relative p-3.5 border-b border-[var(--border)]">
         <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">
@@ -154,14 +157,14 @@
               ref="addUrlInput"
               v-model="packUrl"
               type="text"
-              class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors placeholder:text-[color:var(--tx-muted)] focus:border-[#58a6ff]"
+              class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors placeholder:text-[color:var(--tx-muted)] focus:border-[var(--accent)]"
               :placeholder="t('dev.addUrlPh')"
               @keydown.enter="submitAdd"
             />
             <input
               v-model="packName"
               type="text"
-              class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors placeholder:text-[color:var(--tx-muted)] focus:border-[#58a6ff]"
+              class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors placeholder:text-[color:var(--tx-muted)] focus:border-[var(--accent)]"
               :placeholder="t('dev.addNamePh')"
               @keydown.enter="submitAdd"
             />
@@ -178,7 +181,7 @@
           <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-[var(--tx-muted)] shrink-0">
             <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-1 1v.878A2.25 2.25 0 1 1 2 13.378V2.5Z"/>
           </svg>
-          <span v-if="activePack?.author" class="truncate font-mono text-[#58a6ff]">@{{ activePack.author }}</span>
+          <span v-if="activePack?.author" class="truncate font-mono text-[var(--accent)]">@{{ activePack.author }}</span>
           <button
             v-if="activePackRepo"
             type="button"
@@ -219,6 +222,17 @@
             <path d="M5.25 3.75a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Zm0 3a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Z"/>
           </svg>
           {{ t("nav.news") }}
+        </button>
+        <button
+          type="button"
+          class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+          :class="tab === 'catalog' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+          @click="tab = 'catalog'"
+        >
+          <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
+            <path d="M2 4.5A1.75 1.75 0 0 1 3.75 2.75h1.5A1.75 1.75 0 0 1 7 4.5v1.25a1.75 1.75 0 0 1-.925 1.53c.163.268.402.5.692.67v.92a1.75 1.75 0 0 1-.938 1.53 1.77 1.77 0 0 1 .384 1.005V12a2.25 2.25 0 0 1-2.25 2.25h-.5A1.75 1.75 0 0 1 1.25 12.5v-2.75A1.75 1.75 0 0 1 3 8h.75v-2a1.75 1.75 0 0 1-1.75-1.5Zm7.5 0A1.75 1.75 0 0 1 11.25 2.75h1.5A1.75 1.75 0 0 1 14.5 4.5v2.75a1.75 1.75 0 0 1-1.75 1.75H12v2.5a1.75 1.75 0 0 1-1.5 1.5H9.5a.75.75 0 0 1 0-1.5h1v-2.5H8.5a1.75 1.75 0 0 1-1.75-1.75V4.5a1.75 1.75 0 0 1 1.75-1.75h1.5ZM11.25 4a.25.25 0 0 0-.25.25v2.75c0 .138.112.25.25.25h1.5a.25.25 0 0 0 .25-.25V4.25a.25.25 0 0 0-.25-.25Z"/>
+          </svg>
+          {{ t("nav.catalog") }}
         </button>
         <button
           type="button"
@@ -306,14 +320,14 @@
         </div>
       </div>
 
-      <!-- Главное действие (Кнопка запуска) -->
-      <div class="p-3 border-t border-[var(--border)] bg-[var(--panel)]">
+      <!-- Главное действие (Кнопка запуска) — только во вкладке сборки -->
+      <div v-if="tab === 'play'" class="p-3 border-t border-[var(--border)] bg-[var(--panel)]">
         <button
           type="button"
           class="w-full rounded-md py-2 px-3 text-xs font-semibold text-white shadow-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           :class="status?.installed
             ? 'bg-[#238636] hover:bg-[#2ea043] focus-visible:outline-[#2ea043]'
-            : 'bg-[#1f6beb] hover:bg-[#388bfd] focus-visible:outline-[#388bfd]'"
+            : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)] focus-visible:outline-[var(--accent-hover)]'"
           :disabled="busy"
           @click="status?.installed ? handlePlay() : handleInstall()"
         >
@@ -349,7 +363,7 @@
             type="button"
             class="rounded-md border px-1.5 py-0.5 text-[10px] font-semibold transition-colors"
             :class="locale === 'ru'
-              ? 'border-[#1f6beb]/60 bg-[#1f6beb]/20 text-white'
+              ? 'border-[color-mix(in_srgb,var(--accent-deep)_60%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] text-white'
               : 'border-[var(--border)] text-[var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]'"
             @click="setLocale('ru')"
           >
@@ -359,7 +373,7 @@
             type="button"
             class="rounded-md border px-1.5 py-0.5 text-[10px] font-semibold transition-colors"
             :class="locale === 'en'
-              ? 'border-[#1f6beb]/60 bg-[#1f6beb]/20 text-white'
+              ? 'border-[color-mix(in_srgb,var(--accent-deep)_60%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] text-white'
               : 'border-[var(--border)] text-[var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]'"
             @click="setLocale('en')"
           >
@@ -367,6 +381,14 @@
           </button>
         </div>
       </div>
+
+      <!-- Ручка изменения ширины панели -->
+      <div
+        class="absolute inset-y-0 -right-[3px] z-40 w-[6px] cursor-col-resize transition-colors hover:bg-[var(--accent)] active:bg-[var(--accent-strong)]"
+        @pointerdown="startSidebarDrag"
+        @pointermove="onSidebarDrag"
+        @pointerup="endSidebarDrag"
+      ></div>
     </aside>
 
     <!-- ==== Основной контент ==== -->
@@ -412,7 +434,19 @@
               <span>•</span>
               <span v-if="loaderLabel">{{ t("pack.loader", { name: loaderLabel }) }}</span>
               <span v-if="activePack?.author">•</span>
-              <span v-if="activePack?.author" class="font-mono text-[#58a6ff]">@{{ activePack.author }}</span>
+              <span v-if="activePack?.author" class="font-mono text-[var(--accent)]">@{{ activePack.author }}</span>
+              <span v-if="activePack?.minRam">•</span>
+              <span
+                v-if="activePack?.minRam"
+                class="inline-flex items-center gap-1 font-medium"
+                :class="(ram * 1024) < activePack.minRam ? 'text-[#f0883e]' : 'text-[color:var(--tx-muted)]'"
+                :title="t('pack.minRamTitle', { min: activePack.minRam / 1024 })"
+              >
+                <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+                  <path d="M1 3.75C1 2.784 1.784 2 2.75 2h10.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 13.25 11H10v1.25h.75a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5H6V11H2.75A1.75 1.75 0 0 1 1 9.25v-5.5Zm1.5 0v5.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25H2.75a.25.25 0 0 0-.25.25ZM4 4.5a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 4.5Zm0 3a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 7.5Z"/>
+                </svg>
+                ≥ {{ activePack.minRam / 1024 }} {{ t("units.gb") }}
+              </span>
               <span
                 v-if="packStars"
                 class="inline-flex items-center gap-1 font-medium text-[#d29922]"
@@ -426,7 +460,7 @@
               <template v-for="s in activeContent?.socials ?? []" :key="s.name">
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1 font-medium text-[#58a6ff] hover:underline"
+                  class="inline-flex items-center gap-1 font-medium text-[var(--accent)] hover:underline"
                   :title="s.url"
                   @click="openExternal(s.url)"
                 >
@@ -437,33 +471,22 @@
                 </button>
               </template>
               <button
-                type="button"
-                class="inline-flex items-center gap-1 font-medium"
-                :class="isPackNewsOn(activePack?.id ?? '')
-                  ? 'text-[#3fb950] hover:text-[#56d364]'
-                  : 'text-[var(--tx-muted)] hover:text-[color:var(--tx)]'"
-                :title="isPackNewsOn(activePack?.id ?? '') ? t('pack.newsOnTitle') : t('pack.newsOffTitle')"
-                @click="activePack && togglePackNews(activePack.id)"
-              >
-                <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
-                  <path d="M8 1.5a.75.75 0 0 0-.75.75v.424c-.932.194-1.717.629-2.339 1.244-.803.796-1.316 1.9-1.316 3.32V10.5c0 .966-.784 1.75-1.75 1.75H1a.75.75 0 0 0 0 1.5h14a.75.75 0 0 0 0-1.5h-.845c-.966 0-1.75-.784-1.75-1.75V7.238c0-1.42-.513-2.524-1.316-3.32-.622-.615-1.407-1.05-2.339-1.244V2.25A.75.75 0 0 0 8 1.5Zm3.75 9.064v2.186h-7.5v-2.15c0-1.062-.37-1.868-.794-2.428-.384-.507-.831-.798-1.176-.945.74-.29 1.18-.907 1.47-1.69.2-.54.25-1.194-.03-1.716-.577-1.07-1.612-1.67-2.586-1.69.912.497 1.478 1.329 1.736 2.25.318 1.137.218 2.18-.446 3.07-.02.03-.04.06-.057.09l-.016.028a.75.75 0 0 1-1.242-.128l-.393-.688a.75.75 0 1 1 1.3-.75l.066.117c.31-.851.53-1.832.353-2.787C5.597 2.183 4.562 1.392 3.25 1.392Z"/>
-                </svg>
-                {{ isPackNewsOn(activePack?.id ?? '') ? t("pack.newsOn") : t("pack.newsOff") }}
-              </button>
-              <button
                 v-if="activePackRepo"
                 type="button"
-                class="inline-flex items-center gap-1 font-medium text-[#58a6ff] hover:underline"
+                class="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)]"
+                :title="activePackRepo"
                 @click="openExternal(activePackRepo)"
               >
-                {{ t("pack.repo") }}
                 <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                  <path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-2l6 6V7.5a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75H5.5a.75.75 0 0 1 0-1.5h2l-6-6v2a.75.75 0 0 1-1.5 0V3.5A1.75 1.75 0 0 1 1.75 1.75h2a.75.75 0 0 1 0 1.5Z"/>
+                  <path d="M6.75 2.75h2.5a.75.75 0 0 1 0 1.5h-1.72l4.29 4.29a.75.75 0 0 1-1.06 1.06L6.47 5.31v1.69a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Z"/>
+                  <path d="M2.25 5.75A1.75 1.75 0 0 1 4 4h2.75a.75.75 0 0 1 0 1.5H4v6.5h6.5v-2.5a.75.75 0 0 1 1.5 0V11A1.75 1.75 0 0 1 10.25 12.75H4A1.75 1.75 0 0 1 2.25 11V5.75Z"/>
+                  <path d="M11.75 7.25a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V7.75h-1.5a.75.75 0 0 1-.75-.75Z"/>
                 </svg>
+                {{ t("pack.repo") }}
               </button>
               <button
                 type="button"
-                class="inline-flex items-center gap-1 font-medium text-[#58a6ff] hover:underline"
+                class="inline-flex items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-2.5 py-1 text-[11px] font-medium text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)]"
                 :title="t('pack.reportBugTitle')"
                 @click="reportPackBug()"
               >
@@ -474,21 +497,96 @@
               </button>
             </p>
 
-            <div v-if="updateInfo?.has_update && updateInfo.latest_version" class="mt-4 flex items-center justify-between gap-4 rounded-md border border-[#1f6beb]/40 bg-[#1f6beb]/10 px-3.5 py-2.5 text-xs text-[#58a6ff]">
+            <div v-if="updateInfo?.has_update && updateInfo.latest_version" class="mt-4 flex items-center justify-between gap-4 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-3.5 py-2.5 text-xs text-[var(--accent)]">
               <span class="min-w-0">
-                {{ t("update.available") }} <strong class="text-[#79c0ff]">{{ updateInfo.latest_version }}</strong>
+                {{ t("update.available") }} <strong class="text-[var(--accent-strong)]">{{ updateInfo.latest_version }}</strong>
                 <span v-if="updateInfo.current_version" class="text-[color:var(--tx-muted)]">
                   {{ t("update.installed", { v: updateInfo.current_version }) }}
                 </span>
               </span>
               <button
                 type="button"
-                class="shrink-0 rounded-md border border-[#1f6beb]/50 bg-[#1f6beb]/20 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#1f6beb]/40 disabled:opacity-50"
+                class="shrink-0 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
                 :disabled="busy"
                 @click="handleUpdate"
               >
                 {{ t("update.btn") }}
               </button>
+            </div>
+
+            <!-- Подписка Boosty: статус/привязка токена -->
+            <div
+              v-if="activePack?.boostyBlog"
+              class="mt-4 rounded-md border px-3.5 py-2.5 text-xs"
+              :class="licenseInfo?.subscribed
+                ? 'border-[#238636]/40 bg-[#238636]/10 text-[#3fb950]'
+                : 'border-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)]'"
+            >
+              <div v-if="licenseInfo?.subscribed" class="flex items-center justify-between gap-3">
+                <span class="flex min-w-0 items-center gap-2">
+                  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
+                    <path d="M7.75.5A4.5 4.5 0 0 1 11.5 5.5v.85A4.5 4.5 0 0 1 13 10v3A2.5 2.5 0 0 1 10.5 15.5h-6A2.5 2.5 0 0 1 2 13v-3a4.5 4.5 0 0 1 1.5-3.35V5.5A4.25 4.25 0 0 1 7.75.5Zm0 1.5a2.75 2.75 0 0 0-2.75 2.75v.5h5.5v-.5A2.75 2.75 0 0 0 7.75 2Z"/>
+                  </svg>
+                  <span class="min-w-0">
+                    {{
+                      licenseInfo.expiresAt
+                        ? t("license.active", {
+                            blog: licenseInfo.blog,
+                            until: formatUnixDate(licenseInfo.expiresAt),
+                          })
+                        : t("license.activeNoExpiry", { blog: licenseInfo.blog })
+                    }}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)] disabled:opacity-50"
+                  :disabled="licenseBusy"
+                  @click="removeLicense"
+                >
+                  {{ t("license.remove") }}
+                </button>
+              </div>
+              <template v-else>
+                <div class="flex items-center gap-2">
+                  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
+                    <path d="M7.75.5A4.5 4.5 0 0 1 11.5 5.5v.85A4.5 4.5 0 0 1 13 10v3A2.5 2.5 0 0 1 10.5 15.5h-6A2.5 2.5 0 0 1 2 13v-3a4.5 4.5 0 0 1 1.5-3.35V5.5A4.25 4.25 0 0 1 7.75.5Zm0 1.5a2.75 2.75 0 0 0-2.75 2.75v.5h5.5v-.5A2.75 2.75 0 0 0 7.75 2Z"/>
+                  </svg>
+                  <span class="min-w-0">
+                    {{ t("license.required", { blog: activePack.boostyBlog }) }}
+                  </span>
+                </div>
+                <div v-if="licenseError" class="mt-1.5 text-[color:var(--tx-muted)]">
+                  {{ licenseError }}
+                </div>
+                <form class="mt-2 flex gap-2" @submit.prevent="saveLicense">
+                  <input
+                    v-model="licenseKeyInput"
+                    type="text"
+                    :placeholder="t('license.placeholder')"
+                    autocomplete="off"
+                    spellcheck="false"
+                    class="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 font-mono text-xs text-[color:var(--tx)] placeholder:text-[color:var(--tx-muted)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    class="shrink-0 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
+                    :disabled="licenseBusy || !licenseKeyInput.trim()"
+                  >
+                    {{ t("license.activate") }}
+                  </button>
+                </form>
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[color:var(--tx-muted)]">
+                  <span>{{ t("license.howTo") }}</span>
+                  <button
+                    type="button"
+                    class="text-[var(--accent)] hover:underline"
+                    @click="openExternal('https://boosty.to/')"
+                  >
+                    boosty.to →
+                  </button>
+                </div>
+              </template>
             </div>
 
             <!-- Предупреждение о кастомных файлах (не с Modrinth/CurseForge) -->
@@ -556,7 +654,7 @@
               <!-- Шапка релиза -->
               <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
                 <div class="flex items-center gap-2.5 flex-wrap">
-                  <span class="font-mono text-sm font-semibold text-[#58a6ff] hover:underline cursor-pointer">
+                  <span class="font-mono text-sm font-semibold text-[var(--accent)] hover:underline cursor-pointer">
                     {{ r.tag }}
                   </span>
                   <span v-if="r.name && r.name !== r.tag && !r.name.toLowerCase().startsWith(r.tag.toLowerCase())" class="text-xs text-[color:var(--tx-muted)]">
@@ -618,7 +716,7 @@
                 <button
                   v-if="isExpandable(r.body)"
                   type="button"
-                  class="mt-2 inline-block text-xs font-medium text-[#58a6ff] hover:underline"
+                  class="mt-2 inline-block text-xs font-medium text-[var(--accent)] hover:underline"
                   @click="toggleExpanded(r.tag)"
                 >
                   {{ isExpanded(r.tag) ? t("releases.collapse") : t("releases.showAll") }}
@@ -638,8 +736,14 @@
             class="flex min-h-0 flex-1 flex-col"
           >
             <div class="mb-3 flex shrink-0 items-center justify-between gap-3">
-              <span class="shrink-0 text-xs text-[color:var(--tx-muted)]">
+              <span class="flex shrink-0 items-center gap-2 text-xs text-[color:var(--tx-muted)]">
                 {{ playSubTab === "saves" ? t("files.worldsCount", { n: fileVisibleCount }) : t("files.count", { n: fileVisibleCount }) }}
+                <span
+                  v-if="playSubTab !== 'saves' && fileVisibleCount > 0"
+                  class="rounded-full border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent)]"
+                >
+                  {{ t("files.enabledOf", { n: enabledCountIn(playSubTab as GameFolderKind), m: fileVisibleCount }) }}
+                </span>
               </span>
               <div class="flex min-w-0 items-center gap-2">
                 <div v-if="Object.keys(selectedFiles).length > 0" class="flex shrink-0 items-center gap-1.5">
@@ -694,7 +798,7 @@
                     v-model="fileSearch"
                     type="text"
                     :placeholder="t('files.search')"
-                    class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] py-1.5 pl-7 pr-2 text-[11px] text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors focus:border-[#58a6ff]"
+                    class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] py-1.5 pl-7 pr-2 text-[11px] text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors focus:border-[var(--accent)]"
                   />
                 </div>
                 <button
@@ -707,11 +811,21 @@
                   </svg>
                   {{ t("files.open") }}
                 </button>
+                <button
+                  type="button"
+                  class="flex shrink-0 items-center rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-white"
+                  :title="t('files.selectAll')"
+                  @click="selectAllFiles(playSubTab as GameFolderKind)"
+                >
+                  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                    <path d="M1.75 2A1.75 1.75 0 0 1 3.5.25h9A1.75 1.75 0 0 1 14.25 2v9A1.75 1.75 0 0 1 12.5 12.75h-9A1.75 1.75 0 0 1 1.75 11V2ZM6 4.5H4.5v1.5H6V4.5Zm0 3H4.5V9H6V7.5Zm1.25-3h4.25V4.5H7.25V4.5Z"/>
+                  </svg>
+                </button>
               </div>
             </div>
 
             <div v-if="!gameFiles[playSubTab]" class="flex flex-1 items-center justify-center text-xs text-[color:var(--tx-muted)]">
-              <svg class="mr-2 h-4 w-4 animate-spin fill-[#58a6ff]" viewBox="0 0 16 16">
+              <svg class="mr-2 h-4 w-4 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
                 <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
               </svg>
               {{ t("files.loading") }}
@@ -736,7 +850,7 @@
                     class="file-row flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2 transition-colors"
                     :class="[
                       isFileSelected(playSubTab, f)
-                        ? 'border-[#1f6beb] bg-[#1f6beb]/10'
+                        ? 'border-[var(--accent-deep)] bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)]'
                         : 'border-[var(--border)] bg-[var(--panel)] hover:border-[var(--tx-muted)]',
                       { 'opacity-60': !f.enabled },
                     ]"
@@ -745,15 +859,15 @@
                     <svg
                       viewBox="0 0 16 16"
                       class="h-3.5 w-3.5 shrink-0"
-                      :class="isFileSelected(playSubTab, f) ? 'fill-[#58a6ff]' : 'fill-[var(--tx-muted)]'"
+                      :class="isFileSelected(playSubTab, f) ? 'fill-[var(--accent)]' : 'fill-[var(--tx-muted)]'"
                     >
                       <path v-if="isFileSelected(playSubTab, f)" d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
                       <path v-else d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914a1.75 1.75 0 0 1 .513 1.237V12.25A1.75 1.75 0 0 1 14.25 14H5.75A1.75 1.75 0 0 1 4 12.25Zm1.75-.25a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5Z"/>
                     </svg>
                     <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[var(--border)] bg-[var(--bg)]">
                       <img
-                        v-if="gameFileIcon(playSubTab, f.name)"
-                        :src="gameFileIcon(playSubTab, f.name)"
+                        v-if="gameFileIcon(playSubTab, f.name) || modrinthMetaFor(f)?.icon"
+                        :src="gameFileIcon(playSubTab, f.name) || modrinthMetaFor(f)?.icon"
                         alt=""
                         loading="lazy"
                         class="h-full w-full object-contain"
@@ -763,16 +877,19 @@
                       </svg>
                     </div>
                 <div class="min-w-0 flex-1">
-                  <div class="truncate text-xs font-medium text-[color:var(--tx)]" :title="f.name">
-                    {{ f.displayName }}
+                  <div
+                    class="truncate text-xs font-medium text-[color:var(--tx)]"
+                    :title="modrinthMetaFor(f)?.title ? `${modrinthMetaFor(f)!.title} — ${f.name}` : f.name"
+                  >
+                    {{ modrinthMetaFor(f)?.title ?? f.displayName }}
                   </div>
-                  <div class="text-[10px] text-[color:var(--tx-muted)]">
-                    {{ f.kind === "dir" ? t("files.dir") : `${formatBytes(f.sizeBytes)} · ${f.enabled ? t("files.enabled") : t("files.disabled")}` }}
+                  <div class="truncate text-[10px] text-[color:var(--tx-muted)]">
+                    <template v-if="modrinthMetaFor(f)?.title">{{ f.displayName }} · </template>{{ f.kind === "dir" ? t("files.dir") : `${formatBytes(f.sizeBytes)} · ${f.enabled ? t("files.enabled") : t("files.disabled")}` }}
                   </div>
                 </div>
                 <button
                   type="button"
-                  class="flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[10px] font-medium text-[color:var(--tx-muted)] transition-colors hover:border-[#58a6ff]/50 hover:text-[#58a6ff]"
+                  class="flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[10px] font-medium text-[color:var(--tx-muted)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)]"
                   :title="t('files.modrinth')"
                   @click.stop="openFileOnModrinth(playSubTab as GameFolderKind, f)"
                 >
@@ -781,17 +898,25 @@
                 <button
                   v-if="f.kind === 'file'"
                   type="button"
-                  class="relative h-5 w-9 shrink-0 rounded-full transition-colors"
-                  :class="f.enabled ? 'bg-[#238636]' : 'bg-[var(--tx-muted)]'"
+                  class="relative h-5 w-9 shrink-0 rounded-full transition-all duration-200"
+                  :class="[
+                    f.enabled ? 'bg-[#238636]' : 'bg-[var(--tx-muted)]',
+                    isFileToggling(playSubTab, f) ? 'opacity-50 cursor-wait' : 'hover:ring-2 hover:ring-[color-mix(in_srgb,var(--accent)_40%,transparent)]',
+                  ]"
                   role="switch"
                   :aria-checked="f.enabled"
-                  :title="f.enabled ? t('files.disable') : t('files.enable')"
+                  :disabled="isFileToggling(playSubTab, f)"
+                  :title="isFileToggling(playSubTab, f) ? undefined : (f.enabled ? t('files.disable') : t('files.enable'))"
                   @click.stop="handleToggleFile(playSubTab as GameFolderKind, f)"
                 >
                   <span
-                    class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all"
+                    class="absolute top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white shadow-sm transition-all duration-200"
                     :class="f.enabled ? 'left-[18px]' : 'left-0.5'"
-                  />
+                  >
+                    <svg v-if="isFileToggling(playSubTab, f)" viewBox="0 0 16 16" class="h-2.5 w-2.5 animate-spin fill-[var(--accent)]">
+                      <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                    </svg>
+                  </span>
                 </button>
               </div>
             </div>
@@ -803,7 +928,7 @@
           <template v-else-if="playSubTab === 'screenshots'">
             <div class="flex min-h-0 flex-1 flex-col">
               <div v-if="screenshotsLoading" class="flex flex-1 items-center justify-center text-xs text-[color:var(--tx-muted)]">
-                <svg class="mr-2 h-4 w-4 animate-spin fill-[#58a6ff]" viewBox="0 0 16 16">
+                <svg class="mr-2 h-4 w-4 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
                   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
                 </svg>
                 {{ t("screenshots.loading") }}
@@ -827,7 +952,7 @@
                     v-for="(shot, i) in packScreenshots"
                     :key="shot"
                     type="button"
-                    class="group overflow-hidden rounded-md border border-[var(--border)] bg-[var(--panel)] transition-colors hover:border-[#58a6ff]/60"
+                    class="group overflow-hidden rounded-md border border-[var(--border)] bg-[var(--panel)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]"
                     @click="shotIdx = i"
                   >
                     <img
@@ -894,7 +1019,7 @@
                   <button
                     v-if="group.key === 'author'"
                     type="button"
-                    class="flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[10px] font-medium text-[color:var(--tx-muted)] transition-colors hover:border-[#58a6ff]/50 hover:text-[#58a6ff]"
+                    class="flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[10px] font-medium text-[color:var(--tx-muted)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)]"
                     @click="pingActiveServers"
                   >
                     <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
@@ -908,7 +1033,7 @@
                   v-if="group.key === 'author' && repoContentLoading[activePack?.id ?? '']"
                   class="flex items-center justify-center py-10 text-xs text-[color:var(--tx-muted)]"
                 >
-                  <svg class="mr-2 h-4 w-4 animate-spin fill-[#58a6ff]" viewBox="0 0 16 16">
+                  <svg class="mr-2 h-4 w-4 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
                     <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
                   </svg>
                   {{ t("servers.loading") }}
@@ -920,7 +1045,7 @@
                   <div
                     v-for="s in group.servers"
                     :key="`${group.key}-${serverKey(s)}`"
-                    class="flex flex-col gap-3 rounded-md border border-[var(--border)] bg-[var(--panel)] p-4 transition-colors hover:border-[#58a6ff]/50"
+                    class="flex flex-col gap-3 rounded-md border border-[var(--border)] bg-[var(--panel)] p-4 transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
                   >
                     <div class="flex items-start gap-3">
                       <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--input)]">
@@ -954,7 +1079,7 @@
                       <div class="flex shrink-0 gap-2">
                         <button
                           type="button"
-                          class="flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:border-[#58a6ff]/50 hover:text-[#58a6ff]"
+                          class="flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)]"
                           @click="copyServerIp(s)"
                         >
                           <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
@@ -992,7 +1117,7 @@
                 <div class="flex gap-2">
                   <button
                     type="button"
-                    class="text-[11px] text-[color:var(--tx-muted)] hover:text-[#58a6ff]"
+                    class="text-[11px] text-[color:var(--tx-muted)] hover:text-[var(--accent)]"
                     @click="handleCopyLog"
                   >
                     {{ t("console.copy") }}
@@ -1006,7 +1131,7 @@
                   </button>
                   <button
                     type="button"
-                    class="text-[11px] text-[color:var(--tx-muted)] hover:text-[#58a6ff]"
+                    class="text-[11px] text-[color:var(--tx-muted)] hover:text-[var(--accent)]"
                     @click="openFolder('logs')"
                   >
                     {{ t("console.logs") }}
@@ -1026,7 +1151,7 @@
                 :key="i"
                 :class="{
                   'text-[#f85149]': e.stream === 'err',
-                  'text-[#58a6ff]': e.stream === 'sys',
+                  'text-[var(--accent)]': e.stream === 'sys',
                   'text-[color:var(--tx)]': e.stream === 'out',
                 }"
               >
@@ -1052,7 +1177,7 @@
                   type="button"
                   class="rounded-full border px-3 py-1 text-[11px] font-medium transition-colors"
                   :class="newsFilter === src
-                    ? 'border-[#1f6beb]/60 bg-[#1f6beb]/20 text-white'
+                    ? 'border-[color-mix(in_srgb,var(--accent-deep)_60%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] text-white'
                     : 'border-[var(--border)] bg-[var(--input)] text-[color:var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx)]'"
                   @click="newsFilter = src"
                 >
@@ -1062,7 +1187,7 @@
                   type="button"
                   class="rounded-full border px-3 py-1 text-[11px] font-medium transition-colors"
                   :class="newsFilter === 'all'
-                    ? 'border-[#1f6beb]/60 bg-[#1f6beb]/20 text-white'
+                    ? 'border-[color-mix(in_srgb,var(--accent-deep)_60%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] text-white'
                     : 'border-[var(--border)] bg-[var(--input)] text-[color:var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx)]'"
                   @click="newsFilter = 'all'"
                 >
@@ -1072,7 +1197,7 @@
             </div>
 
             <div v-if="news === null" class="flex flex-1 items-center justify-center text-xs text-[color:var(--tx-muted)]">
-              <svg class="mr-2 h-4 w-4 animate-spin fill-[#58a6ff]" viewBox="0 0 16 16">
+              <svg class="mr-2 h-4 w-4 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
                 <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
               </svg>
               {{ t("news.loading") }}
@@ -1098,7 +1223,7 @@
                       <span
                         class="rounded-full px-2 py-0.5 text-[10px] font-medium border"
                         :class="n.kind === 'update'
-                          ? 'border-[#1f6beb]/40 bg-[#1f6beb]/10 text-[#58a6ff]'
+                          ? 'border-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] text-[var(--accent)]'
                           : 'border-[#9e6a03]/40 bg-[#9e6a03]/10 text-[#d29922]'"
                       >
                         {{ n.kind === "update" ? t("news.update") : t("news.post") }}
@@ -1109,7 +1234,7 @@
                       <span class="rounded-full border border-[var(--border)] bg-[var(--bg)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--tx-muted)]">
                         {{ n.pack_name }}
                       </span>
-                      <span v-if="n.kind === 'update' && n.tag" class="font-mono text-xs font-semibold text-[#58a6ff]">
+                      <span v-if="n.kind === 'update' && n.tag" class="font-mono text-xs font-semibold text-[var(--accent)]">
                         {{ n.tag }}
                       </span>
                     </div>
@@ -1141,7 +1266,7 @@
                       <button
                         v-if="n.kind === 'update' && n.pack_id !== 'launcher' && n.tag"
                         type="button"
-                        class="rounded-md border border-[#1f6beb]/50 bg-[#1f6beb]/20 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#1f6beb]/40 disabled:opacity-50"
+                        class="rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
                         :disabled="busy"
                         @click="installNews(n)"
                       >
@@ -1166,7 +1291,7 @@
                   <button
                     v-if="isNewsExpandable(n)"
                     type="button"
-                    class="mt-2 inline-block text-xs font-medium text-[#58a6ff] hover:underline"
+                    class="mt-2 inline-block text-xs font-medium text-[var(--accent)] hover:underline"
                     @click="toggleNewsExpanded(n)"
                   >
                     {{ isNewsExpanded(n) ? t("news.collapse") : t("news.showAll") }}
@@ -1176,6 +1301,128 @@
                   {{ t("news.noText") }}
                 </div>
               </article>
+            </div>
+          </div>
+        </template>
+
+        <!-- ======= Вкладка: Каталог сборок ======= -->
+        <template v-else-if="tab === 'catalog'">
+          <div class="flex min-h-0 flex-1 flex-col">
+            <div class="mb-5 flex shrink-0 items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
+              <div>
+                <h2 class="text-lg font-semibold text-[color:var(--tx-strong)]">{{ t("catalog.title") }}</h2>
+                <p class="mt-1 text-xs text-[color:var(--tx-muted)]">{{ t("catalog.subtitle") }}</p>
+              </div>
+              <div class="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
+                  :disabled="catalogLoading"
+                  @click="loadCatalog"
+                >
+                  {{ t("catalog.refresh") }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)]"
+                  @click="openExternal('https://github.com/n1orio/nio-launcher/issues/new?title=' + encodeURIComponent(t('catalog.proposeTitle')) + '&body=' + encodeURIComponent(t('catalog.proposeBody')))"
+                >
+                  {{ t("catalog.propose") }}
+                </button>
+              </div>
+            </div>
+
+            <div class="min-h-0 flex-1 overflow-y-auto pb-6">
+              <div v-if="catalogLoading && catalog.length === 0" class="flex items-center justify-center py-16 text-xs text-[color:var(--tx-muted)]">
+                <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
+                  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                </svg>
+                {{ t("catalog.loading") }}
+              </div>
+              <div v-else-if="catalogError && catalog.length === 0" class="rounded-md border border-[var(--border)] bg-[var(--panel)] p-8 text-center text-xs text-[color:var(--tx-muted)]">
+                <p class="mb-3">{{ t("catalog.err", { e: catalogError }) }}</p>
+                <button type="button" class="text-[var(--accent)] hover:underline" @click="loadCatalog">
+                  {{ t("catalog.retry") }}
+                </button>
+              </div>
+              <div v-else-if="catalog.length === 0" class="rounded-md border border-[var(--border)] bg-[var(--panel)] p-8 text-center text-xs text-[color:var(--tx-muted)]">
+                {{ t("catalog.empty") }}
+              </div>
+              <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <article
+                  v-for="entry in catalog"
+                  :key="entry.name + entry.url"
+                  class="flex flex-col rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 transition-colors hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <h3 class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">{{ entry.name }}</h3>
+                      <div v-if="entry.author" class="mt-0.5 font-mono text-[11px] text-[color:var(--tx-muted)]">
+                        @{{ entry.author }}
+                      </div>
+                    </div>
+                    <div class="flex shrink-0 flex-wrap items-center gap-1.5">
+                      <span
+                        v-if="entry.boostyBlog"
+                        class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                        :class="isPackInCatalog(entry) ? 'opacity-60' : ''"
+                      >
+                        <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                          <path d="M7.75.5A4.5 4.5 0 0 1 11.5 5.5v.85A4.5 4.5 0 0 1 13 10v3A2.5 2.5 0 0 1 10.5 15.5h-6A2.5 2.5 0 0 1 2 13v-3a4.5 4.5 0 0 1 1.5-3.35V5.5A4.25 4.25 0 0 1 7.75.5Zm0 1.5a2.75 2.75 0 0 0-2.75 2.75v.5h5.5v-.5A2.75 2.75 0 0 0 7.75 2Z"/>
+                        </svg>
+                        {{ t("catalog.paid") }}
+                      </span>
+                      <span
+                        v-if="entry.minRam"
+                        class="rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--tx-muted)]"
+                      >
+                        ≥ {{ entry.minRam / 1024 }} {{ t("units.gb") }}
+                      </span>
+                    </div>
+                  </div>
+                  <p v-if="entry.description" class="mt-2 min-h-0 flex-1 text-xs leading-relaxed text-[color:var(--tx-muted)]">
+                    {{ entry.description }}
+                  </p>
+                  <div v-if="entry.tags.length" class="mt-2.5 flex flex-wrap gap-1.5">
+                    <span
+                      v-for="tag in entry.tags"
+                      :key="tag"
+                      class="rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 text-[10px] text-[color:var(--tx-muted)]"
+                    >
+                      {{ tag }}
+                    </span>
+                  </div>
+                  <div class="mt-3.5 flex items-center gap-2 border-t border-[var(--border)] pt-3">
+                    <button
+                      type="button"
+                      v-if="!isPackInCatalog(entry)"
+                      class="flex-1 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
+                      :disabled="addingPack"
+                      @click="addFromCatalog(entry)"
+                    >
+                      {{ addingPack ? t("dev.adding") : t("catalog.add") }}
+                    </button>
+                    <button
+                      type="button"
+                      v-else
+                      class="flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                      @click="openCatalogPack(entry)"
+                    >
+                      {{ t("catalog.open") }}
+                    </button>
+                    <button
+                      type="button"
+                      class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-xs text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]"
+                      :title="entry.url"
+                      @click="openExternal(entry.url)"
+                    >
+                      <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+                        <path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-2l6 6V7.5a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75H5.5a.75.75 0 0 1 0-1.5h2l-6-6v2a.75.75 0 0 1-1.5 0V3.5A1.75 1.75 0 0 1 1.75 1.75h2a.75.75 0 0 1 0 1.5Z"/>
+                      </svg>
+                    </button>
+                  </div>
+                </article>
+              </div>
             </div>
           </div>
         </template>
@@ -1211,7 +1458,7 @@
                     id="pack-url"
                     v-model="packUrl"
                     type="text"
-                    class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors placeholder:text-[color:var(--tx-muted)] focus:border-[#58a6ff]"
+                    class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors placeholder:text-[color:var(--tx-muted)] focus:border-[var(--accent)]"
                     :placeholder="t('dev.addUrlPh')"
                     @keydown.enter="handleAddPack"
                   />
@@ -1222,7 +1469,7 @@
                     id="pack-name"
                     v-model="packName"
                     type="text"
-                    class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors placeholder:text-[color:var(--tx-muted)] focus:border-[#58a6ff]"
+                    class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors placeholder:text-[color:var(--tx-muted)] focus:border-[var(--accent)]"
                     :placeholder="t('dev.addNamePh')"
                     @keydown.enter="handleAddPack"
                   />
@@ -1259,7 +1506,7 @@
                   <div class="min-w-0 flex-1">
                     <div class="truncate text-xs font-medium text-[color:var(--tx)]">
                       {{ p.name }}
-                      <span v-if="p.author" class="font-mono text-[10px] text-[#58a6ff]">@{{ p.author }}</span>
+                      <span v-if="p.author" class="font-mono text-[10px] text-[var(--accent)]">@{{ p.author }}</span>
                     </div>
                     <div class="truncate font-mono text-[10px] text-[color:var(--tx-muted)]">{{ p.id }}</div>
                   </div>
@@ -1294,7 +1541,7 @@
                 <p>{{ t("dev.docsStep3") }}</p>
                 <p>{{ t("dev.docsStep4") }}</p>
                 <p>{{ t("dev.docsStep5") }}</p>
-                <div class="mt-3 rounded-md border border-[#1f6beb]/30 bg-[#1f6beb]/10 p-3 text-[11px] text-[color:var(--tx)]">
+                <div class="mt-3 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] p-3 text-[11px] text-[color:var(--tx)]">
                   {{ t("dev.docsFormat") }}
                 </div>
                 <div class="rounded-md border border-[var(--border)] bg-[var(--bg-60)] p-3">
@@ -1303,7 +1550,7 @@
                 </div>
                 <button
                   type="button"
-                  class="flex items-center gap-1.5 rounded-md bg-[#1f6beb] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#388bfd]"
+                  class="flex items-center gap-1.5 rounded-md bg-[var(--accent-deep)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
                   @click="openExamplePack"
                 >
                   <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
@@ -1332,6 +1579,16 @@
   "discord": "https://discord.gg/example",
   "telegram": "https://t.me/example",
   "vk": "https://vk.com/example"
+}</pre>
+                  </div>
+                  <div class="overflow-x-auto rounded-md border border-[var(--border)] bg-[var(--bg-60)] px-3 py-2">
+                    <div class="mb-1 font-semibold text-[color:var(--tx-strong)]">theme.json</div>
+                    <pre class="leading-relaxed">{
+  "bg": "#0d1117",
+  "panel": "#161b22",
+  "accent": "#f0883e",
+  "accentDeep": "#d06a1f",
+  "tx": "#e6edf3"
 }</pre>
                   </div>
                 </div>
@@ -1388,7 +1645,7 @@
                   <input
                     v-model="username"
                     :placeholder="t('settings.nickname')"
-                    class="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[#58a6ff] focus:outline-none"
+                    class="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
                   />
                   <button
                     type="button"
@@ -1417,7 +1674,7 @@
                 <!-- Device code flow: показать код и ссылку -->
                 <div
                   v-if="msFlow"
-                  class="rounded-md border border-[#1f6beb]/40 bg-[var(--bg-60)] p-3 space-y-2"
+                  class="rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] bg-[var(--bg-60)] p-3 space-y-2"
                 >
                   <p class="text-[11px] text-[color:var(--tx-muted)]">
                     {{ t("settings.msCode") }}
@@ -1431,12 +1688,12 @@
                       <div class="h-full w-full" v-html="msFlow.qr_svg"></div>
                     </div>
                     <div class="min-w-0 flex-1">
-                    <p class="font-mono text-2xl font-bold tracking-[0.3em] text-[#79c0ff] select-text">
+                    <p class="font-mono text-2xl font-bold tracking-[0.3em] text-[var(--accent-strong)] select-text">
                       {{ msFlow.user_code }}
                     </p>
                     <button
                       type="button"
-                      class="mt-2 rounded-md border border-[#1f6beb]/50 bg-[#1f6beb]/20 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#1f6beb]/40"
+                      class="mt-2 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)]"
                       @click="openMsAuthPage"
                     >
                       {{ t("settings.msOpen", { uri: msFlow.verification_uri.replace(/^https?:\/\//, "") }) }}
@@ -1444,7 +1701,7 @@
                     </div>
                   </div>
                   <p v-if="msPolling" class="flex items-center gap-2 text-[11px] text-[color:var(--tx-muted)]">
-                    <svg class="h-3 w-3 animate-spin fill-[#58a6ff]" viewBox="0 0 16 16">
+                    <svg class="h-3 w-3 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
                       <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
                     </svg>
                     {{ t("settings.msBrowser") }}
@@ -1453,11 +1710,77 @@
               </div>
             </section>
 
+            <!-- Скин -->
+            <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+              <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
+                <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("skin.title") }}</h3>
+              </div>
+              <div class="p-4 space-y-3">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[var(--border)] bg-[var(--input)] font-mono text-sm font-bold text-[color:var(--tx-strong)]">
+                    <img
+                      v-if="localSkin?.has_skin"
+                      :src="localSkin.path ? convertFileSrc(localSkin.path) : ''"
+                      :alt="t('skin.title')"
+                      class="h-full w-full object-cover"
+                    />
+                    <template v-else>{{ session?.username?.[0]?.toUpperCase() ?? "?" }}</template>
+                  </div>
+                  <div class="min-w-0 flex-1 space-y-1.5">
+                    <select
+                      v-model="skinModel"
+                      class="w-full appearance-none rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 pr-8 text-xs text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] focus:border-[var(--accent)] focus:outline-none"
+                      :disabled="skinBusy"
+                    >
+                      <option value="classic">{{ t("skin.modelClassic") }}</option>
+                      <option value="slim">{{ t("skin.modelSlim") }}</option>
+                    </select>
+                    <p class="text-[10px] leading-relaxed text-[color:var(--tx-muted)]">
+                      {{ t("skin.note") }}
+                    </p>
+                  </div>
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    class="flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                    :disabled="skinBusy"
+                    @click="pickSkinFile"
+                  >
+                    {{ skinBusy ? t("skin.busy") : t("skin.pick") }}
+                  </button>
+                  <button
+                    v-if="localSkin?.has_skin"
+                    type="button"
+                    class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                    :disabled="skinBusy"
+                    @click="removeLocalSkin"
+                  >
+                    {{ t("skin.remove") }}
+                  </button>
+                </div>
+                <div class="rounded-md border border-[var(--border)] bg-[var(--bg-60)] p-3 space-y-1.5">
+                  <p class="text-[11px] text-[color:var(--tx-muted)]">{{ t("skin.apiHint") }}</p>
+                  <div class="flex items-center gap-2">
+                    <code class="min-w-0 flex-1 truncate rounded border border-[var(--border)] bg-[var(--input)] px-2 py-1 font-mono text-[10px] text-[color:var(--tx)] select-all">{{ skinApi || "…" }}</code>
+                    <button
+                      type="button"
+                      class="rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[10px] font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                      :disabled="!skinApi"
+                      @click="copySkinApi"
+                    >
+                      {{ t("skin.copy") }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <!-- ОЗУ -->
             <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
               <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5 flex justify-between items-center">
                 <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.ram") }}</h3>
-                <span class="font-mono text-xs font-semibold text-[#58a6ff]">{{ ram }} {{ t("units.gb") }}</span>
+                <span class="font-mono text-xs font-semibold text-[var(--accent)]">{{ ram }} {{ t("units.gb") }}</span>
               </div>
               <div class="p-4 space-y-2">
                 <input
@@ -1466,7 +1789,7 @@
                   :max="maxRam"
                   step="1"
                   v-model.number="ram"
-                  class="w-full accent-[#1f6beb] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
+                  class="w-full accent-[var(--accent-deep)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
                 />
                 <div class="flex justify-between text-[11px] text-[color:var(--tx-muted)] font-mono">
                   <span>2 {{ t("units.gb") }}</span>
@@ -1475,6 +1798,13 @@
                 <p v-if="systemRam && systemRam.total_ram_gb > 0" class="text-[11px] text-[color:var(--tx-muted)]">
                   {{ t("settings.ramTotal", { total: systemRam.total_ram_gb, avail: systemRam.available_ram_gb }) }}
                 </p>
+                <p
+                  v-if="activePack?.minRam"
+                  class="text-[11px]"
+                  :class="(ram * 1024) < activePack.minRam ? 'font-medium text-[#f0883e]' : 'text-[color:var(--tx-muted)]'"
+                >
+                  {{ t("settings.ramMin", { name: activePack.name, min: activePack.minRam / 1024, gb: ram }) }}
+                </p>
               </div>
             </section>
 
@@ -1482,7 +1812,7 @@
             <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
               <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5 flex justify-between items-center">
                 <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.win") }}</h3>
-                <span class="font-mono text-xs font-semibold text-[#58a6ff]">{{ windowWidth }}×{{ windowHeight }}</span>
+                <span class="font-mono text-xs font-semibold text-[var(--accent)]">{{ windowWidth }}×{{ windowHeight }}</span>
               </div>
               <div class="p-4 space-y-2">
                 <div class="flex items-center gap-3">
@@ -1494,7 +1824,7 @@
                     max="7680"
                     step="1"
                     v-model.number="windowWidth"
-                    class="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] focus:border-[#58a6ff] focus:outline-none"
+                    class="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] focus:border-[var(--accent)] focus:outline-none"
                   />
                   <label class="w-16 text-[11px] text-[color:var(--tx-muted)]" for="win-height">{{ t("settings.height") }}</label>
                   <input
@@ -1504,7 +1834,7 @@
                     max="4320"
                     step="1"
                     v-model.number="windowHeight"
-                    class="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] focus:border-[#58a6ff] focus:outline-none"
+                    class="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] focus:border-[var(--accent)] focus:outline-none"
                   />
                 </div>
                 <p class="text-[11px] text-[color:var(--tx-muted)]">
@@ -1522,7 +1852,7 @@
                 <div class="flex items-center gap-2">
                   <select
                     :value="javaSelected"
-                    class="flex-1 appearance-none rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 pr-8 text-xs text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] focus:border-[#58a6ff] focus:outline-none"
+                    class="flex-1 appearance-none rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 pr-8 text-xs text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] focus:border-[var(--accent)] focus:outline-none"
                     :disabled="javaBusy || busy"
                     @change="onJavaChange"
                   >
@@ -1605,6 +1935,55 @@
         </template>
       </div>
     </main>
+
+    <!-- Модалка: отчёт об ошибке (превью + копирование + Issues) -->
+    <div
+      v-if="bugReportOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
+      @click.self="closeBugReport"
+    >
+      <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
+        <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
+          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("reportPack.modalTitle") }}</h3>
+          <button
+            type="button"
+            class="rounded-md px-2 py-1 text-xs text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+            @click="closeBugReport"
+          >
+            ✕
+          </button>
+        </div>
+        <pre class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words px-4 py-3 font-mono text-[11px] leading-relaxed text-[color:var(--tx)]">{{ bugBody }}</pre>
+        <div class="flex shrink-0 items-center justify-end gap-2 border-t border-[var(--border)] px-4 py-3">
+          <span v-if="bugLog" class="mr-auto text-[11px] text-[color:var(--tx-muted)]">
+            {{ t("reportPack.logNote", { n: bugLog.split("\n").slice(-60).length }) }}
+          </span>
+          <button
+            type="button"
+            class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+            @click="copyBugReport"
+          >
+            {{ bugCopied ? t("reportPack.copied") : t("reportPack.copy") }}
+          </button>
+          <button
+            type="button"
+            class="rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)]"
+            @click="openBugReportIssue"
+          >
+            {{ t("reportPack.open") }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Скрытый вход для выбора PNG-скина -->
+    <input
+      ref="skinFileInput"
+      type="file"
+      accept=".png,image/png"
+      class="hidden"
+      @change="onSkinFileChange"
+    />
   </div>
 </template>
 
@@ -1613,7 +1992,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { computed, nextTick, onBeforeUnmount, ref } from "vue";
 import { isTauri, openExternal, pingServer } from "~/lib/bridge";
 import type { GameFolderKind } from "~/lib/bridge";
-import type { GameFileEntry, NewsItem, PackServer, ServerStatus } from "~/lib/types";
+import type { CatalogEntry, GameFileEntry, NewsItem, PackServer, PackTheme, ServerStatus } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n } from "~/composables/useI18n";
 
@@ -1640,6 +2019,7 @@ const {
   loaderLabel,
   formatBytes,
   formatDate,
+  formatUnixDate,
   formatPlaytime,
   isInstalledVersion,
   handleInstall,
@@ -1669,6 +2049,19 @@ const {
   appUpdateProgress,
   installAppUpdate,
   skinUrl,
+  localSkin,
+  skinModel,
+  skinBusy,
+  skinApi,
+  loadLocalSkin,
+  applyLocalSkin,
+  removeLocalSkin,
+  licenseInfo,
+  licenseKeyInput,
+  licenseBusy,
+  licenseError,
+  saveLicense,
+  removeLicense,
   javaList,
   javaSelected,
   javaBusy,
@@ -1685,15 +2078,16 @@ const {
   newsFilter,
   newsSources,
   filteredNews,
-  isPackNewsOn,
-  togglePackNews,
   playSubTab,
   gameFiles,
   fileIcons,
   fileSearch,
+  fileToggling,
   selectedFiles,
   toggleFileSelect,
   clearFileSelection,
+  selectAllFiles,
+  enabledCountIn,
   setSelectedFilesEnabled,
   openFileOnModrinth,
   openFileOnCurseForge,
@@ -1715,6 +2109,18 @@ const {
   myServers,
   myServersInstalled,
   loadMyServers,
+  bugReportOpen,
+  bugBody,
+  bugLog,
+  bugCopied,
+  closeBugReport,
+  copyBugReport,
+  openBugReportIssue,
+  catalog,
+  catalogLoading,
+  catalogError,
+  loadCatalog,
+  addFromCatalog,
 } = useLauncher();
 
 const { t, locale, setLocale } = useI18n();
@@ -1774,11 +2180,13 @@ async function openExampleInLauncher() {
   }
 }
 
-/** Строит универсальную ссылку-приглашение для любой сборки. */
-function inviteLinkFor(pack: { name: string; url: string }): string {
+/** Строит универсальную ссылку-приглашение для любой сборки
+ *  (blog — ник блога Boosty издателя, чтобы сборка пришла платной). */
+function inviteLinkFor(pack: { name: string; url: string; boostyBlog?: string | null }): string {
   let link =
     "https://n1orio.github.io/nio-launcher/?url=" + encodeURIComponent(pack.url);
   if (pack.name) link += "&name=" + encodeURIComponent(pack.name);
+  if (pack.boostyBlog) link += "&blog=" + encodeURIComponent(pack.boostyBlog);
   return link;
 }
 
@@ -1909,6 +2317,47 @@ watch(
 function isFileSelected(folder: string, entry: GameFileEntry): boolean {
   return selectedFiles.value[`${folder}/${entry.name}`] !== undefined;
 }
+
+function isFileToggling(folder: string, entry: GameFileEntry): boolean {
+  return fileToggling.value.has(`${folder}/${entry.name}`);
+}
+
+// ---- Метаданные Modrinth (название + аватар проекта), подгружаются лениво -----
+const modrinthMeta = ref<Record<string, { title: string; icon: string }>>({});
+
+function modrinthProjectId(url: string): string | null {
+  return url.match(/\/mod\/([^/]+)/)?.[1] ?? null;
+}
+
+function modrinthMetaFor(f: GameFileEntry) {
+  if (!f.modrinthUrl) return undefined;
+  const id = modrinthProjectId(f.modrinthUrl);
+  return id ? modrinthMeta.value[id] : undefined;
+}
+
+async function fetchModrinthMeta(url: string) {
+  const id = modrinthProjectId(url);
+  if (!id || modrinthMeta.value[id]) return;
+  try {
+    const res = await fetch(`https://api.modrinth.com/v2/project/${id}?fields=title,icon_url`);
+    if (!res.ok) return;
+    const j = await res.json();
+    if (typeof j?.title !== "string") return;
+    modrinthMeta.value = {
+      ...modrinthMeta.value,
+      [id]: { title: j.title, icon: typeof j.icon_url === "string" ? j.icon_url : "" },
+    };
+  } catch {
+    /* метаданные некритичны */
+  }
+}
+
+// Тянем мету только для видимых строк (виртуализированный список).
+watch(fileListVisible, (rows) => {
+  for (const f of rows) {
+    if (f.modrinthUrl) fetchModrinthMeta(f.modrinthUrl);
+  }
+});
 
 function openSelected(site: "modrinth" | "curseforge") {
   const sel = Object.values(selectedFiles.value);
@@ -2058,6 +2507,61 @@ const activeContent = computed(() => repoContent.value[activePack.value?.id ?? "
 const packStars = computed(() => activeContent.value?.stars ?? null);
 const shotIdx = ref<number | null>(null);
 
+// ==== Тема сборки (theme.json автора): плавный перекрас CSS-переменных ====
+const PACK_THEME_VARS: Array<[keyof PackTheme, string]> = [
+  ["bg", "--bg"],
+  ["panel", "--panel"],
+  ["input", "--input"],
+  ["border", "--border"],
+  ["tx", "--tx"],
+  ["txStrong", "--tx-strong"],
+  ["txMuted", "--tx-muted"],
+  ["accent", "--accent"],
+  ["accentStrong", "--accent-strong"],
+  ["accentHover", "--accent-hover"],
+  ["accentDeep", "--accent-deep"],
+];
+
+let packThemeFadeTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Применяет тему сборки к CSS-переменным (или сбрасывает на дефолт). */
+function applyPackTheme(theme: PackTheme | null) {
+  const root = document.documentElement;
+  root.classList.add("pack-theme-fade");
+  if (packThemeFadeTimer) clearTimeout(packThemeFadeTimer);
+  packThemeFadeTimer = setTimeout(() => root.classList.remove("pack-theme-fade"), 700);
+  for (const [key, cssVar] of PACK_THEME_VARS) {
+    const val = theme?.[key] ?? null;
+    if (val) root.style.setProperty(cssVar, val);
+    else root.style.removeProperty(cssVar);
+  }
+  // Фон окна (--app-bg) чуть темнее основного фона.
+  const bg = theme?.bg ?? null;
+  if (bg) root.style.setProperty("--app-bg", mixWithBlack(bg, 0.6));
+  else root.style.removeProperty("--app-bg");
+}
+
+/** Смешивает hex-цвет с чёрным. */
+function mixWithBlack(hex: string, factor: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const mix = (c: number) => Math.round(c * factor);
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+}
+
+watch(
+  [tab, () => activePack.value?.id, () => activeContent.value?.theme ?? null],
+  ([t, , theme]) => {
+    if (t === "play" && theme) applyPackTheme(theme);
+    else applyPackTheme(null);
+  }
+);
+onBeforeUnmount(() => {
+  applyPackTheme(null);
+  stopServerPingTimer();
+});
+
 /** Разбирает адрес "host" или "host:port" из servers.dat. */
 function splitServerAddress(address: string): { ip: string; port: number | null } {
   const idx = address.lastIndexOf(":");
@@ -2103,6 +2607,67 @@ async function copyServerIp(srv: PackServer) {
     notify(t("servers.copied", { ip: text }), "success");
   } catch {
     notify(`${t("servers.copyFail")}: ${text}`, "error");
+  }
+}
+
+const skinFileInput = ref<HTMLInputElement | null>(null);
+const sidebarWidth = ref(readSidebarWidth());
+const sidebarDragging = ref(false);
+
+function readSidebarWidth(): number {
+  const saved = parseInt(localStorage.getItem("nio.sidebarWidth") ?? "", 10);
+  return Number.isFinite(saved) ? Math.min(420, Math.max(200, saved)) : 256;
+}
+
+function startSidebarDrag(e: PointerEvent) {
+  sidebarDragging.value = true;
+  (e.target as HTMLElement).setPointerCapture(e.pointerId);
+}
+
+function onSidebarDrag(e: PointerEvent) {
+  if (!sidebarDragging.value) return;
+  const w = Math.min(420, Math.max(200, e.clientX));
+  sidebarWidth.value = w;
+}
+
+function endSidebarDrag(e: PointerEvent) {
+  if (!sidebarDragging.value) return;
+  sidebarDragging.value = false;
+  try {
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+  } catch {
+    /* ignore */
+  }
+  localStorage.setItem("nio.sidebarWidth", String(sidebarWidth.value));
+}
+
+function pickSkinFile() {
+  if (isTauri()) {
+    skinFileInput.value?.click();
+  } else {
+    notify(t("skin.tauriOnly"), "info");
+  }
+}
+
+async function onSkinFileChange(ev: Event) {
+  const input = ev.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  const path = (file as File & { path?: string }).path;
+  if (!path) {
+    notify(t("skin.readFail"), "error");
+    return;
+  }
+  await applyLocalSkin(path);
+}
+
+async function copySkinApi() {
+  try {
+    await navigator.clipboard.writeText(skinApi.value);
+    notify(t("skin.copied"), "success");
+  } catch {
+    notify(t("servers.copyFail"), "error");
   }
 }
 
@@ -2169,8 +2734,6 @@ function serverStatusText(srv: PackServer): string {
   }
 }
 
-onBeforeUnmount(stopServerPingTimer);
-
 watch(repoContent, () => {
   if (playSubTab.value === "servers") pingActiveServers();
 });
@@ -2180,6 +2743,27 @@ async function openPackTab(id: string) {
   if (packId.value !== id) await selectPack(id);
   tab.value = "play";
   loadPackRepoContent(id);
+}
+
+/** owner/repo из github-ссылки (нижний регистр), пусто для не-github URL. */
+function repoSlug(url: string): string {
+  const parts = url.replace(/^https?:\/\//, "").split("/");
+  if (parts[0] !== "github.com") return "";
+  return `${parts[1] ?? ""}/${parts[2] ?? ""}`.toLowerCase();
+}
+
+/** Сборка из каталога уже добавлена в лаунчер? */
+function isPackInCatalog(entry: CatalogEntry): boolean {
+  const slug = repoSlug(entry.url);
+  if (!slug) return false;
+  return packs.value.some((p) => repoSlug(p.url) === slug);
+}
+
+/** Открыть уже добавленную сборку из каталога. */
+async function openCatalogPack(entry: CatalogEntry) {
+  const slug = repoSlug(entry.url);
+  const pack = packs.value.find((p) => repoSlug(p.url) === slug);
+  if (pack) await openPackTab(pack.id);
 }
 
 function newsKey(n: NewsItem): string {

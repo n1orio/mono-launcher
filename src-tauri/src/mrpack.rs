@@ -109,12 +109,20 @@ fn custom_file(file: &IndexFile) -> Option<CustomFile> {
     if trusted {
         None
     } else {
-        Some(CustomFile { path: file.path.clone(), url })
+        Some(CustomFile {
+            path: file.path.clone(),
+            url,
+        })
     }
 }
 
 /// Скачивает `.mrpack` по конкретному URL во временный файл.
-pub async fn download_mrpack(app: &AppHandle, client: &Client, pack_id: &str, url: &str) -> Result<PathBuf> {
+pub async fn download_mrpack(
+    app: &AppHandle,
+    client: &Client,
+    pack_id: &str,
+    url: &str,
+) -> Result<PathBuf> {
     let dest_dir = config::mrpack_cache_dir(pack_id)?;
     fs::create_dir_all(&dest_dir)?;
 
@@ -125,9 +133,7 @@ pub async fn download_mrpack(app: &AppHandle, client: &Client, pack_id: &str, ur
         .context("Не удалось скачать .mrpack")?
         .error_for_status()
         .with_context(|| {
-            format!(
-                "GitHub не отдал .mrpack (возможно, релиз удалён или переименован): {url}"
-            )
+            format!("GitHub не отдал .mrpack (возможно, релиз удалён или переименован): {url}")
         })?;
 
     let total = resp.content_length().unwrap_or(0);
@@ -248,17 +254,53 @@ fn verify_sha512(path: &Path, expected: &str) -> Result<bool> {
 }
 
 fn compute_sha1(path: &Path) -> Result<String> {
-    let data = fs::read(path)?;
     let mut hasher = Sha1::new();
-    hasher.update(&data);
+    stream_update(path, |b| {
+        hasher.update(b);
+        Ok(())
+    })?;
     Ok(format!("{:x}", hasher.finalize()))
 }
 
 fn compute_sha512(path: &Path) -> Result<String> {
-    let data = fs::read(path)?;
     let mut hasher = Sha512::new();
-    hasher.update(&data);
+    stream_update(path, |b| {
+        hasher.update(b);
+        Ok(())
+    })?;
     Ok(format!("{:x}", hasher.finalize()))
+}
+
+/// Поблочно читает файл и отдаёт каждый блок в `f` (потоковый хэш,
+/// без загрузки всего файла в память).
+fn stream_update(path: &Path, mut f: impl FnMut(&[u8]) -> Result<()>) -> Result<()> {
+    let file = fs::File::open(path)?;
+    let mut reader = std::io::BufReader::with_capacity(256 * 1024, file);
+    let mut buf = vec![0u8; 256 * 1024];
+    use std::io::Read;
+    loop {
+        let n = reader.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        f(&buf[..n])?;
+    }
+    Ok(())
+}
+
+/// Читает файл один раз и считает оба хэша (sha1 + sha512).
+fn compute_dual_hash(path: &Path) -> Result<(String, String)> {
+    let mut s1 = Sha1::new();
+    let mut s512 = Sha512::new();
+    stream_update(path, |b| {
+        s1.update(b);
+        s512.update(b);
+        Ok(())
+    })?;
+    Ok((
+        format!("{:x}", s1.finalize()),
+        format!("{:x}", s512.finalize()),
+    ))
 }
 
 /// Индекс содержимого других установленных версий (sha1/sha512 -> путь),
@@ -293,15 +335,10 @@ fn build_installed_hash_index(pack_id: &str, exclude_version: &str) -> HashMap<S
                 queue.push(p);
             } else if p.is_file() {
                 // Читаем один раз и считаем оба хэша.
-                let Ok(data) = fs::read(&p) else { continue };
-                let mut s1 = Sha1::new();
-                s1.update(&data);
-                let mut s512 = Sha512::new();
-                s512.update(&data);
-                index
-                    .entry(format!("{:x}", s1.finalize()))
-                    .or_insert(p.clone());
-                index.entry(format!("{:x}", s512.finalize())).or_insert(p);
+                if let Ok((s1, s512)) = compute_dual_hash(&p) {
+                    index.entry(s1).or_insert(p.clone());
+                    index.entry(s512).or_insert(p);
+                }
             }
         }
     }
@@ -642,7 +679,11 @@ pub fn is_installed(game_dir: &Path, index: &ModrinthIndex) -> bool {
     true
 }
 
-pub fn write_install_marker(game_dir: &Path, index: &ModrinthIndex, source_tag: Option<&str>) -> Result<()> {
+pub fn write_install_marker(
+    game_dir: &Path,
+    index: &ModrinthIndex,
+    source_tag: Option<&str>,
+) -> Result<()> {
     let marker = game_dir.join(INSTALL_MARKER);
     let payload = serde_json::json!({
         "versionId": index.version_id,
@@ -673,29 +714,67 @@ pub fn verify_pack(pack_id: &str) -> Result<VerifyResult> {
         .context("Сборка не установлена (нет индекса). Нажмите «Скачать и играть».")?;
     let index: ModrinthIndex = serde_json::from_str(&raw)?;
 
-    let mut out = VerifyResult {
-        checked: 0,
-        ok: 0,
-        broken: Vec::new(),
-    };
-    for file in &index.files {
-        // Серверные файлы в клиентскую установку не попадают.
-        if file.env.as_ref().map(|e| e.client.as_str()) == Some("server") {
-            continue;
+    // Клиентские файлы сборки (серверные в установку не попадают).
+    let files: Vec<&IndexFile> = index
+        .files
+        .iter()
+        .filter(|f| f.env.as_ref().map(|e| e.client.as_str()) != Some("server"))
+        .collect();
+
+    // Хэширование — CPU/IO-задача: проверяем файлы параллельно на всех ядрах.
+    // Возвращаем индексы битых файлов в порядке исходного списка.
+    let workers = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+        .min(16);
+    let broken_indexes: Vec<usize> = std::thread::scope(|scope| {
+        let game_dir_ref = &game_dir;
+        let handles: Vec<_> = files
+            .chunks(files.len().div_ceil(workers).max(1))
+            .enumerate()
+            .map(|(ci, chunk)| {
+                scope.spawn(move || {
+                    let mut bad = Vec::new();
+                    for (i, file) in chunk.iter().enumerate() {
+                        let dest = game_dir_ref.join(&file.path);
+                        if !dest.exists()
+                            || (!file.hashes.is_empty() && !hashes_ok(&dest, &file.hashes))
+                        {
+                            bad.push(ci * chunk.len() + i);
+                        }
+                    }
+                    bad
+                })
+            })
+            .collect();
+        let mut all: Vec<usize> = Vec::new();
+        for h in handles {
+            if let Ok(mut v) = h.join() {
+                all.append(&mut v);
+            }
         }
-        let dest = game_dir.join(&file.path);
-        out.checked += 1;
-        if !dest.exists() {
-            out.broken.push(format!("{} — отсутствует", file.path));
-            continue;
-        }
-        if !file.hashes.is_empty() && !hashes_ok(&dest, &file.hashes) {
-            out.broken.push(format!("{} — повреждён (хэш не совпал)", file.path));
-            continue;
-        }
-        out.ok += 1;
-    }
-    Ok(out)
+        all.sort_unstable();
+        all
+    });
+
+    let broken: Vec<String> = broken_indexes
+        .into_iter()
+        .map(|i| {
+            let f = files[i];
+            let dest = game_dir.join(&f.path);
+            if !dest.exists() {
+                format!("{} — отсутствует", f.path)
+            } else {
+                format!("{} — повреждён (хэш не совпал)", f.path)
+            }
+        })
+        .collect();
+    let ok = files.len().saturating_sub(broken.len());
+    Ok(VerifyResult {
+        checked: files.len(),
+        ok,
+        broken,
+    })
 }
 
 /// Полное скачивание + распаковка + установка конкретной версии.
@@ -716,10 +795,7 @@ fn collect_override_jars(extract_dir: &Path, custom: &mut Vec<CustomFile>) -> Re
             let p = entry.path();
             if p.is_dir() {
                 queue.push(p);
-            } else if p
-                .extension()
-                .is_some_and(|e| e.eq_ignore_ascii_case("jar"))
-            {
+            } else if p.extension().is_some_and(|e| e.eq_ignore_ascii_case("jar")) {
                 let rel = p
                     .strip_prefix(&overrides)
                     .map_err(|_| anyhow!("Путь за пределами overrides"))?;
@@ -788,7 +864,10 @@ pub async fn install_mrpack(
 
     // Маркер установки + копия индекса в папке версии.
     write_install_marker(&game_dir, &index, source_tag)?;
-    fs::write(game_dir.join(".nio-index.json"), serde_json::to_vec_pretty(&index)?)?;
+    fs::write(
+        game_dir.join(".nio-index.json"),
+        serde_json::to_vec_pretty(&index)?,
+    )?;
     fs::write(
         game_dir.join(CUSTOM_MODS_FILE),
         serde_json::to_vec_pretty(&custom)?,
@@ -819,11 +898,14 @@ mod tests {
     #[test]
     fn trusts_modrinth_and_curseforge_cdns() {
         assert!(custom_file(&file_with_url("https://cdn.modrinth.com/data/abc/xyz.jar")).is_none());
-        assert!(custom_file(&file_with_url("https://dl.modrinth.com/mod/abc/1.0/xyz.jar")).is_none());
-        assert!(
-            custom_file(&file_with_url("https://mediafiles.forgecdn.net/files/1234/5/mod.jar"))
-                .is_none()
-        );
+        assert!(custom_file(&file_with_url(
+            "https://dl.modrinth.com/mod/abc/1.0/xyz.jar"
+        ))
+        .is_none());
+        assert!(custom_file(&file_with_url(
+            "https://mediafiles.forgecdn.net/files/1234/5/mod.jar"
+        ))
+        .is_none());
     }
 
     #[test]

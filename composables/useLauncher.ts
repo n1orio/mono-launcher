@@ -5,9 +5,12 @@ import {
   addPack,
   checkForUpdates,
   clearLaunchLog,
+  clearLocalSkin,
   ensureJava,
+  fetchCatalog,
   getGameFileIcons,
   getLaunchLog,
+  getLocalSkin,
   getNews,
   getSkin,
   getStatus,
@@ -38,6 +41,11 @@ import {
   setJavaPath,
   setDiscordRp,
   setLocale,
+  setLocalSkin,
+  skinApiUrl,
+  setBoosty,
+  licenseStatus,
+  clearLicense,
   switchVersion,
   takePendingPackAdd,
   toggleGameFile,
@@ -49,12 +57,15 @@ import type {
   GameFileEntry,
   JavaInfo,
   LaunchLogEntry,
+  LicenseInfo,
   MsDeviceCodeInfo,
   NewsItem,
+  CatalogEntry,
   PackDescriptor,
   PackRepoContent,
   PackServer,
   SavedServer,
+  SkinInfo,
   SystemInfo,
   UpdateInfo,
   UserSession,
@@ -115,6 +126,12 @@ function formatDate(iso: string | null): string {
   });
 }
 
+/** Дата из unix-секунд (для лицензий) в локальном формате. */
+function formatUnixDate(epoch: number | null): string {
+  if (!epoch) return "";
+  return formatDate(new Date(epoch * 1000).toISOString());
+}
+
 function capLog(entries: LaunchLogEntry[]): LaunchLogEntry[] {
   return entries.slice(-CONSOLE_LIMIT);
 }
@@ -140,7 +157,7 @@ export function useLauncher() {
   const versions = ref<VersionsInfo | null>(null);
   const logEntries = ref<LaunchLogEntry[]>([]);
   const logRef = ref<HTMLElement | null>(null);
-  const tab = ref<"play" | "settings" | "news" | "dev">("play");
+  const tab = ref<"play" | "settings" | "news" | "catalog" | "dev">("play");
   const theme = ref<"dark" | "light">("dark");
 
   /** Применяет тему лаунчера (тёмная/светлая) и сохраняет выбор. */
@@ -180,20 +197,17 @@ export function useLauncher() {
   const verifyBusy = ref(false);
   const verifyResult = ref<VerifyResult | null>(null);
   const skinUrl = ref("");
+  const localSkin = ref<SkinInfo | null>(null);
+  const skinModel = ref<"classic" | "slim">("classic");
+  const skinBusy = ref(false);
+  const skinApi = ref("");
+  const licenseInfo = ref<LicenseInfo | null>(null);
+  const licenseKeyInput = ref("");
+  const licenseBusy = ref(false);
+  const licenseError = ref("");
   const discordRp = ref(true);
   const news = ref<NewsItem[] | null>(null);
   const newsFilter = ref<string>("all");
-  // Сборки, чьи новости игрок выключил (в шапке вкладки сборки) — персист в localStorage.
-  const newsHidden = ref<Record<string, boolean>>({});
-  // Выключенные для игрока новости сборок (персист между сессиями).
-  if (typeof localStorage !== "undefined") {
-    try {
-      const raw = localStorage.getItem("nio.newsHidden");
-      if (raw) newsHidden.value = JSON.parse(raw) as Record<string, boolean>;
-    } catch {
-      // повреждённое значение — просто начинаем с чистого состояния
-    }
-  }
   const packUrl = ref("");
   const packName = ref("");
   const addingPack = ref(false);
@@ -205,6 +219,7 @@ export function useLauncher() {
   const gameFiles = ref<Partial<Record<GameFolderKind, GameFileEntry[]>>>({});
   const fileIcons = ref<Record<string, string>>({});
   const fileSearch = ref("");
+  const fileToggling = ref<Set<string>>(new Set());
   const selectedFiles = ref<Record<string, { folder: GameFolderKind; entry: GameFileEntry }>>({});
   // Контент репозитория сборки: звёзды, скриншоты, сервера.
   const repoContent = ref<Record<string, PackRepoContent>>({});
@@ -224,6 +239,21 @@ export function useLauncher() {
 
   function clearFileSelection() {
     selectedFiles.value = {};
+  }
+
+  /** Выделить все ПКМ-выбранные... нет: выделяет все файлы текущей папки. */
+  function selectAllFiles(folder: GameFolderKind) {
+    const list = gameFiles.value[folder] ?? [];
+    const next = { ...selectedFiles.value };
+    for (const entry of list) {
+      next[fileEntryKey(folder, entry)] = { folder, entry };
+    }
+    selectedFiles.value = next;
+  }
+
+  /** Кол-во включённых файлов в папке (для счётчика в заголовке). */
+  function enabledCountIn(folder: GameFolderKind): number {
+    return (gameFiles.value[folder] ?? []).filter((f) => f.kind === "file" && f.enabled).length;
   }
 
   async function setSelectedFilesEnabled(enabled: boolean) {
@@ -255,6 +285,11 @@ export function useLauncher() {
   }
 
   function openFileOnModrinth(folder: GameFolderKind, entry: GameFileEntry) {
+    // Точная страница мода (из downloads индекса сборки), иначе — поиск по имени.
+    if (entry.modrinthUrl) {
+      openExternal(entry.modrinthUrl);
+      return;
+    }
     const q = encodeURIComponent(cleanFileQuery(entry.displayName));
     openExternal(`https://modrinth.com/mods?q=${q}`);
   }
@@ -299,44 +334,32 @@ export function useLauncher() {
 
   async function handleToggleFile(folder: GameFolderKind, entry: GameFileEntry) {
     if (!isTauri() || !packId.value) return;
+    const key = `${folder}/${entry.name}`;
+    if (fileToggling.value.has(key)) return;
     const prev = entry.enabled;
     entry.enabled = !prev;
+    fileToggling.value.add(key);
     try {
       await toggleGameFile(packId.value, folder, entry.name, entry.enabled);
     } catch (e) {
       entry.enabled = prev;
-      notify(`Ошибка переключения: ${e}`);
+      notify(t("err.toggleFile", { e }));
+    } finally {
+      fileToggling.value.delete(key);
     }
   }
 
-  /** Уникальные источники новостей: «launcher» + id сборок (для фильтра). */
+  // Уникальные источники новостей: «launcher» + id сборок (для фильтра).
   const newsSources = computed(() => {
     const ids = ["launcher", ...packs.value.map((p) => p.id)];
-    return Array.from(new Set(ids)).filter((id) => id === "launcher" || !newsHidden.value[id]);
+    return Array.from(new Set(ids));
   });
 
   const filteredNews = computed(() => {
     if (!news.value) return [];
-    const base =
-      newsFilter.value === "all" ? news.value : news.value.filter((n) => n.pack_id === newsFilter.value);
-    return base.filter((n) => n.pack_id === "launcher" || !newsHidden.value[n.pack_id]);
+    if (newsFilter.value === "all") return news.value;
+    return news.value.filter((n) => n.pack_id === newsFilter.value);
   });
-
-  /** Включены ли новости этой сборки (по умолчанию — да). */
-  function isPackNewsOn(id: string): boolean {
-    return !newsHidden.value[id];
-  }
-
-  /** Включает/выключает новости сборки в ленте (настройка на вкладке сборки). */
-  function togglePackNews(id: string) {
-    const next = { ...newsHidden.value };
-    if (next[id]) delete next[id];
-    else next[id] = true;
-    newsHidden.value = next;
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem("nio.newsHidden", JSON.stringify(next));
-    }
-  }
 
   async function loadNews() {
     if (!isTauri()) return;
@@ -483,6 +506,58 @@ export function useLauncher() {
   }
 
   /** Открывает форму GitHub Issues репозитория сборки с предзаполненным окружением. */
+  const bugReportOpen = ref(false);
+  const bugBody = ref("");
+  const bugLog = ref("");
+  const bugRepo = ref("");
+  const bugCopied = ref(false);
+
+  /** Хвост лога, попадающий в отчёт (чтобы URL Issues не раздувался). */
+  const LOG_IN_ISSUE_LINES = 60;
+
+  /** Собирает отчёт: окружение + хвост launch.log (в спойлере). */
+  function buildBugReport(): string {
+    const pack = activePack.value;
+    const ver =
+      status.value?.active_source_tag ?? status.value?.active_version ?? t("reportPack.unknown");
+    const logLines = bugLog.value.split("\n").slice(-LOG_IN_ISSUE_LINES);
+    const body = [
+      t("reportPack.desc"),
+      "",
+      t("reportPack.steps"),
+      "",
+      t("reportPack.env"),
+      t("reportPack.pack", { name: pack?.name ?? "?" }),
+      t("reportPack.ver", { v: ver }),
+      status.value?.minecraft_version
+        ? `- Minecraft: ${status.value.minecraft_version}${status.value.loader ? ` / ${status.value.loader}` : ""}`
+        : null,
+      t("reportPack.launcher", { ver: launcherVer.value || "?" }),
+      t("reportPack.os", { os: detectOS() }),
+      `- RAM: ${ram.value} GB / окно: ${windowWidth.value}×${windowHeight.value}`,
+      "",
+      logLines.length
+        ? [
+            `**${t("reportPack.log")}**`,
+            "",
+            "<details>",
+            "<summary>launch.log</summary>",
+            "",
+            "```",
+            ...logLines,
+            "```",
+            "</details>",
+          ].join("\n")
+        : null,
+      "",
+      `_${t("reportPack.note")}_`,
+    ]
+      .filter((l): l is string => l !== null)
+      .join("\n");
+    return body;
+  }
+
+  /** «Сообщить о баге»: собираем отчёт и показываем превью (скопировать / открыть Issues). */
   async function reportPackBug() {
     const pack = activePack.value;
     const repo = packRepoUrl(pack?.url ?? "");
@@ -490,35 +565,46 @@ export function useLauncher() {
       notify(t("reportPack.noRepo"));
       return;
     }
-    const ver =
-      status.value?.active_source_tag ?? status.value?.active_version ?? t("reportPack.unknown");
-    const body = [
-      t("reportPack.desc"),
-      "",
-      t("reportPack.steps"),
-      "",
-      t("reportPack.env"),
-      t("reportPack.pack", { name: pack.name }),
-      t("reportPack.ver", { v: ver }),
-      status.value?.minecraft_version
-        ? `- Minecraft: ${status.value.minecraft_version}${status.value.loader ? ` / ${status.value.loader}` : ""}`
-        : null,
-      t("reportPack.launcher", { ver: launcherVer.value || "?" }),
-      t("reportPack.os", { os: detectOS() }),
-      "",
-      `_${t("reportPack.note")}_`,
-    ]
-      .filter((l): l is string => l !== null)
-      .join("\n");
-    const title = t("reportPack.title", { name: pack.name });
-    const url = `${repo}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
-    try {
-      if (isTauri()) {
-        await openExternal(url);
-      } else {
-        window.open(url, "_blank");
+    bugRepo.value = repo;
+    bugLog.value = "";
+    bugCopied.value = false;
+    if (isTauri()) {
+      try {
+        bugLog.value = await getLaunchLog();
+      } catch {
+        /* без лога — отчёт соберётся без секции лога */
       }
+    }
+    bugBody.value = buildBugReport();
+    bugReportOpen.value = true;
+  }
+
+  function closeBugReport() {
+    bugReportOpen.value = false;
+  }
+
+  async function copyBugReport() {
+    if (!bugBody.value) return;
+    try {
+      await navigator.clipboard.writeText(bugBody.value);
     } catch {
+      const ta = document.createElement("textarea");
+      ta.value = bugBody.value;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    bugCopied.value = true;
+    setTimeout(() => (bugCopied.value = false), 2000);
+  }
+
+  function openBugReportIssue() {
+    const title = t("reportPack.title", { name: activePack.value?.name ?? "?" });
+    const url = `${bugRepo.value}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(bugBody.value)}`;
+    if (isTauri()) {
+      openExternal(url).catch(() => window.open(url, "_blank"));
+    } else {
       window.open(url, "_blank");
     }
   }
@@ -600,6 +686,44 @@ export function useLauncher() {
     }
   }
 
+  /** Каталог сборок (catalog.json репозитория лаунчера). */
+  const catalog = ref<CatalogEntry[]>([]);
+  const catalogLoading = ref(false);
+  const catalogError = ref("");
+
+  async function loadCatalog() {
+    if (!isTauri()) return;
+    catalogLoading.value = true;
+    catalogError.value = "";
+    try {
+      catalog.value = await fetchCatalog();
+    } catch (e) {
+      catalogError.value = String(e);
+    } finally {
+      catalogLoading.value = false;
+    }
+  }
+
+  /** «Добавить» из каталога: как по deep link, блог из записи каталога. */
+  async function addFromCatalog(entry: CatalogEntry) {
+    if (!isTauri() || addingPack.value || busy.value) return;
+    addingPack.value = true;
+    try {
+      const added = await addPack(entry.url, entry.name, entry.boostyBlog ?? undefined);
+      await loadPacks();
+      await load();
+      refreshVersions();
+      if (packId.value !== added.id) {
+        await selectPack(added.id);
+      }
+      notify(t("catalog.added", { name: added.name }), "success");
+    } catch (e) {
+      notify(t("dev.errAdd", { e }), "error");
+    } finally {
+      addingPack.value = false;
+    }
+  }
+
   /** Удаляет пользовательскую сборку (двухшаговое подтверждение кнопкой). */
   async function handleRemovePack(id: string) {
     if (!isTauri() || busy.value) return;
@@ -657,6 +781,7 @@ export function useLauncher() {
     discordRp.value = s.discord_rp_enabled;
     if (s.session) username.value = s.session.username;
     refreshSkin();
+    loadLicenseStatus();
     const u = await checkForUpdates(packId.value).catch(() => null);
     if (u && u.has_update && u.latest_version) {
       updateInfo.value = {
@@ -686,6 +811,119 @@ export function useLauncher() {
       if (url) skinUrl.value = url;
     } catch {
       skinUrl.value = "";
+    }
+  }
+
+  /** Загружает локальный скин + URL скин-API (для инструкции). */
+  async function loadLocalSkin() {
+    if (!isTauri()) return;
+    try {
+      const info = await getLocalSkin();
+      localSkin.value = info;
+      if (info.has_skin) skinModel.value = info.model === "slim" ? "slim" : "classic";
+    } catch {
+      localSkin.value = null;
+    }
+    try {
+      skinApi.value = await skinApiUrl();
+    } catch {
+      skinApi.value = "";
+    }
+  }
+
+  /** Устанавливает скин из выбранного файла, затем грузит в скин-API. */
+  async function applyLocalSkin(path: string) {
+    if (!isTauri()) return;
+    const nick = (session.value?.username ?? username.value.trim()) || "";
+    if (!nick) {
+      notify(t("err.nickname"), "info");
+      return;
+    }
+    skinBusy.value = true;
+    try {
+      const info = await setLocalSkin(path, skinModel.value, nick);
+      localSkin.value = info;
+      if (info.has_skin) skinModel.value = info.model === "slim" ? "slim" : "classic";
+      notify(t("skin.done"), "success");
+    } catch (e) {
+      notify(String(e), "error");
+    } finally {
+      skinBusy.value = false;
+    }
+  }
+
+  /** Удаляет скин (локально + из API). */
+  async function removeLocalSkin() {
+    if (!isTauri()) return;
+    const nick = (session.value?.username ?? username.value.trim()) || "";
+    skinBusy.value = true;
+    try {
+      await clearLocalSkin(nick);
+      localSkin.value = null;
+      notify(t("skin.removed"), "success");
+    } catch (e) {
+      notify(String(e), "error");
+    } finally {
+      skinBusy.value = false;
+    }
+  }
+
+  /** Статус лицензии активной сборки (null — сборка бесплатная/не привязан Boosty). */
+  async function loadLicenseStatus() {
+    if (!isTauri() || !packId.value) {
+      licenseInfo.value = null;
+      return;
+    }
+    if (!activePack.value?.boostyBlog) {
+      licenseInfo.value = null;
+      licenseError.value = "";
+      return;
+    }
+    try {
+      licenseInfo.value = await licenseStatus(packId.value);
+      licenseError.value = "";
+    } catch (e) {
+      licenseInfo.value = null;
+      licenseError.value = String(e);
+    }
+  }
+
+  /** Принимает токен Boosty от игрока: сохраняет и проверяет подписку. */
+  async function saveLicense() {
+    if (!isTauri() || !packId.value) return;
+    const token = licenseKeyInput.value.trim();
+    if (!token) {
+      notify(t("license.errEmpty"), "info");
+      return;
+    }
+    licenseBusy.value = true;
+    try {
+      licenseInfo.value = await setBoosty(packId.value, token);
+      licenseKeyInput.value = "";
+      licenseError.value = "";
+      notify(t("license.ok"), "success");
+    } catch (e) {
+      licenseError.value = String(e);
+      notify(t("license.errSave", { e }), "error");
+    } finally {
+      licenseBusy.value = false;
+    }
+  }
+
+  /** Удаляет сохранённый токен Boosty сборки. */
+  async function removeLicense() {
+    if (!isTauri() || !packId.value) return;
+    licenseBusy.value = true;
+    try {
+      await clearLicense(packId.value);
+      licenseInfo.value = null;
+      licenseKeyInput.value = "";
+      licenseError.value = "";
+      notify(t("license.removed"), "success");
+    } catch (e) {
+      notify(String(e), "error");
+    } finally {
+      licenseBusy.value = false;
     }
   }
 
@@ -833,6 +1071,7 @@ export function useLauncher() {
     }
     await load();
     refreshVersions();
+    loadLocalSkin();
     getSystemInfo()
       .then((sys) => {
         const total = Math.max(2, sys.total_ram_gb);
@@ -924,6 +1163,7 @@ export function useLauncher() {
     tab,
     (t) => {
       if (t === "news") loadNews();
+      if (t === "catalog") loadCatalog();
     },
     { flush: "post" }
   );
@@ -1083,6 +1323,11 @@ notify(t("err.switch", { e }));
       notify(t("err.loginFirst"), "info");
       return;
     }
+    const minMb = activePack.value?.minRam;
+    if (minMb && ram.value * 1024 < minMb) {
+      notify(t("err.lowRam", { min: minMb / 1024, gb: ram.value }), "error");
+      return;
+    }
     busy.value = true;
     logEntries.value = [];
     pendingLog.length = 0;
@@ -1177,6 +1422,7 @@ notify(t("err.switch", { e }));
     loaderLabel,
     formatBytes,
     formatDate,
+    formatUnixDate,
     formatPlaytime,
     isInstalledVersion,
     handleInstall,
@@ -1193,11 +1439,38 @@ notify(t("err.switch", { e }));
     handleCopyLog,
     handleOpenPackDir,
     selectPack,
+    skinUrl,
+    localSkin,
+    skinModel,
+    skinBusy,
+    skinApi,
+    loadLocalSkin,
+    applyLocalSkin,
+    removeLocalSkin,
+    licenseInfo,
+    licenseKeyInput,
+    licenseBusy,
+    licenseError,
+    loadLicenseStatus,
+    saveLicense,
+    removeLicense,
     notifications,
     notify,
     dismissNotification,
     reportError,
     reportPackBug,
+    bugReportOpen,
+    bugBody,
+    bugLog,
+    bugCopied,
+    closeBugReport,
+    copyBugReport,
+    openBugReportIssue,
+    catalog,
+    catalogLoading,
+    catalogError,
+    loadCatalog,
+    addFromCatalog,
     appUpdate,
     appUpdating,
     appUpdateProgress,
@@ -1213,7 +1486,6 @@ notify(t("err.switch", { e }));
     verifyResult,
     handleVerify,
     openFolder,
-    skinUrl,
     refreshSkin,
     discordRp,
     toggleDiscordRp,
@@ -1222,8 +1494,6 @@ notify(t("err.switch", { e }));
     newsFilter,
     newsSources,
     filteredNews,
-    isPackNewsOn,
-    togglePackNews,
     playSubTab,
     repoContent,
     repoContentLoading,
@@ -1240,9 +1510,12 @@ notify(t("err.switch", { e }));
     loadGameFiles,
     handleToggleFile,
     fileSearch,
+    fileToggling,
     selectedFiles,
     toggleFileSelect,
     clearFileSelection,
+    selectAllFiles,
+    enabledCountIn,
     setSelectedFilesEnabled,
     openFileOnModrinth,
     openFileOnCurseForge,

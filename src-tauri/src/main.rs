@@ -6,7 +6,10 @@
 /// WebKitGTK пытается рендерить через DMABUF и выдаёт пустое/белое окно.
 /// Отключаем это принудительно, но уважаем явно заданные пользователем значения.
 fn apply_webkit_workarounds() {
-    for var in ["WEBKIT_DISABLE_COMPOSITING_MODE", "WEBKIT_DISABLE_DMABUF_RENDERER"] {
+    for var in [
+        "WEBKIT_DISABLE_COMPOSITING_MODE",
+        "WEBKIT_DISABLE_DMABUF_RENDERER",
+    ] {
         if std::env::var_os(var).is_none() {
             std::env::set_var(var, "1");
         }

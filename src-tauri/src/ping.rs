@@ -142,7 +142,13 @@ async fn ping_legacy(address: &str, port: u16) -> Result<PingData, String> {
     if parts.first().is_some_and(|p| p.starts_with('\u{a7}')) && parts.len() >= 4 {
         Ok(PingData {
             version: parts.get(2).map(|s| s.to_string()),
-            motd: parts.get(3).and_then(|m| if m.is_empty() { None } else { Some(m.to_string()) }),
+            motd: parts.get(3).and_then(|m| {
+                if m.is_empty() {
+                    None
+                } else {
+                    Some(m.to_string())
+                }
+            }),
             players_online: parse(4),
             players_max: parse(5),
         })
