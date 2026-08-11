@@ -478,15 +478,14 @@
               <template v-for="s in activeContent?.socials ?? []" :key="s.name">
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold transition-all hover:brightness-110"
+                  class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold text-white transition-all hover:brightness-110"
                   :class="s.color
                     ? ''
-                    : 'border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_18%,transparent)]'"
+                    : 'border-[color-mix(in_srgb,var(--accent)_55%,black)] bg-[color-mix(in_srgb,var(--accent)_82%,black)]'"
                   :style="s.color
                     ? {
-                        borderColor: `color-mix(in_srgb, ${s.color} 50%, transparent)`,
-                        backgroundColor: `color-mix(in_srgb, ${s.color} 12%, transparent)`,
-                        color: s.color,
+                        borderColor: `color-mix(in_srgb, ${s.color} 55%, black)`,
+                        backgroundColor: `color-mix(in_srgb, ${s.color} 82%, black)`,
                       }
                     : undefined"
                   :title="s.url"
