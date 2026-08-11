@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
+  Accounts,
   AppStatus,
   CatalogEntry,
   DownloadProgress,
@@ -253,6 +254,18 @@ export function setDiscordRp(enabled: boolean): Promise<void> {
 
 export function setWarnCustomMods(enabled: boolean): Promise<void> {
   return invoke("set_warn_custom_mods_command", { enabled });
+}
+
+export function listAccounts(): Promise<Accounts> {
+  return invoke("list_accounts_command");
+}
+
+export function switchAccount(id: string): Promise<UserSession> {
+  return invoke("switch_account_command", { id });
+}
+
+export function removeAccount(id: string): Promise<UserSession | null> {
+  return invoke("remove_account_command", { id });
 }
 
 export function setLocale(locale: string): Promise<void> {

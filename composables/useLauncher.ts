@@ -51,9 +51,13 @@ import {
   takePendingPackAdd,
   toggleGameFile,
   verifyGame,
+  listAccounts,
+  switchAccount,
+  removeAccount,
 } from "~/lib/bridge";
 import type {
   AppStatus,
+  Accounts,
   DownloadProgress,
   GameFileEntry,
   JavaInfo,
@@ -186,6 +190,8 @@ export function useLauncher() {
   const launcherVer = ref("");
   const msFlow = ref<MsDeviceCodeInfo | null>(null);
   const msPolling = ref(false);
+  const accounts = ref<Accounts>({ active: null, list: [] });
+  const accountBusy = ref(false);
   const ISSUES_URL = "https://github.com/n1orio/nio-launcher/issues/new";
   const appUpdate = ref<{ version: string; notes: string } | null>(null);
   const appUpdating = ref(false);
@@ -795,6 +801,7 @@ export function useLauncher() {
     if (s.session) username.value = s.session.username;
     refreshSkin();
     loadLicenseStatus();
+    loadAccounts();
     const u = await checkForUpdates(packId.value).catch(() => null);
     if (u && u.has_update && u.latest_version) {
       updateInfo.value = {
@@ -1293,6 +1300,7 @@ notify(t("err.switch", { e }));
       const s = await loginOffline(username.value.trim());
       session.value = s;
       await load();
+      await loadAccounts();
     } catch (e) {
       notify(t("err.login", { e }));
     }
@@ -1308,11 +1316,51 @@ notify(t("err.switch", { e }));
       session.value = s;
       msFlow.value = null;
       await load();
+      await loadAccounts();
     } catch (e) {
       notify(t("err.microsoft", { e }));
     } finally {
       msPolling.value = false;
       msFlow.value = null;
+    }
+  }
+
+  async function loadAccounts() {
+    if (!isTauri()) return;
+    try {
+      accounts.value = await listAccounts();
+    } catch {
+      /* список аккаунтов — не критично */
+    }
+  }
+
+  async function handleSwitchAccount(id: string) {
+    if (!isTauri() || accountBusy.value || id === accounts.value.active) return;
+    accountBusy.value = true;
+    try {
+      session.value = await switchAccount(id);
+      await load();
+      await loadAccounts();
+    } catch (e) {
+      notify(t("err.accountSwitch", { e }));
+    } finally {
+      accountBusy.value = false;
+    }
+  }
+
+  async function handleRemoveAccount(id: string) {
+    if (!isTauri() || accountBusy.value) return;
+    if (!confirm(t("accounts.confirmRemove"))) return;
+    accountBusy.value = true;
+    try {
+      const next = await removeAccount(id);
+      session.value = next;
+      await load();
+      await loadAccounts();
+    } catch (e) {
+      notify(t("err.accountRemove", { e }));
+    } finally {
+      accountBusy.value = false;
     }
   }
 
@@ -1446,6 +1494,11 @@ notify(t("err.switch", { e }));
     openMsAuthPage,
     msFlow,
     msPolling,
+    accounts,
+    accountBusy,
+    loadAccounts,
+    handleSwitchAccount,
+    handleRemoveAccount,
     handlePlay,
     playOnServer,
     handleClearLog,

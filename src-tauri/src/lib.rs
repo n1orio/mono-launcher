@@ -41,6 +41,12 @@ pub struct AppStatus {
     pub discord_rp_enabled: bool,
     /// Показывать ли плашку предупреждения о кастомных модах (warn-custom-mods.txt).
     pub warn_custom_mods: bool,
+    /// Суммарное время игры в этой сборке (секунды).
+    pub playtime_seconds: u64,
+    /// Суммарное время игры во всех сборках (секунды).
+    pub total_playtime_seconds: u64,
+    /// Сколько сборок когда-либо запускалось.
+    pub played_packs: u64,
     /// Файлы активной версии, скачанные не с доверенных CDN (кастомные моды).
     pub custom_mods: Vec<mrpack::CustomFile>,
 }
@@ -151,6 +157,8 @@ pub struct PackRepoContent {
     pub servers: Vec<PackServer>,
     pub socials: Vec<PackSocial>,
     pub theme: Option<PackTheme>,
+    /// URL баннера сборки (banner.png в корне репозитория, raw.githubusercontent).
+    pub banner: Option<String>,
 }
 
 /// Запись каталога сборок: курируемый список авторов в `catalog.json`
@@ -1227,6 +1235,14 @@ async fn fetch_pack_repo_content(
             }
         }
     }
+
+    // Баннер сборки: необязательный banner.png в корне репозитория.
+    let banner_url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/banner.png");
+    if let Ok(resp) = client.get(&banner_url).send().await {
+        if resp.status().is_success() {
+            out.banner = Some(banner_url);
+        }
+    }
     out
 }
 
@@ -1458,8 +1474,24 @@ async fn get_status(pack_id: Option<String>) -> Result<AppStatus, String> {
         installed_versions: mrpack::installed_versions(&pack.id),
         discord_rp_enabled: config::discord_rp_enabled(),
         warn_custom_mods: config::warn_custom_mods_enabled(),
+        playtime_seconds: mrpack::pack_playtime_seconds(&pack.id),
         ..Default::default()
     };
+
+    // Общая статистика лаунчера: часы во всех сборках + сколько сборок игралось.
+    if let Ok(packs) = config::all_packs() {
+        let mut total = 0u64;
+        let mut played = 0u64;
+        for p in &packs {
+            let t = mrpack::pack_playtime_seconds(&p.id);
+            if t > 0 {
+                total += t;
+                played += 1;
+            }
+        }
+        status.total_playtime_seconds = total;
+        status.played_packs = played;
+    }
 
     // Читаем метаданные активной версии из её папки.
     if let Some(idx) = status
@@ -1512,6 +1544,8 @@ fn open_pack_dir(app: AppHandle, pack_id: Option<String>) -> Result<(), String> 
 async fn login_offline_command(username: String) -> Result<UserSession, String> {
     let session = login_offline(&username).map_err(|e| e.to_string())?;
     save_session(&session).map_err(|e| e.to_string())?;
+    // Любой вход попадает в список аккаунтов и становится активным.
+    let _ = auth::upsert_account(&session);
     Ok(session)
 }
 
@@ -1538,7 +1572,29 @@ async fn ms_poll_command(
         .await
         .map_err(|e| e.to_string())?;
     save_session(&session).map_err(|e| e.to_string())?;
+    // Любой вход попадает в список аккаунтов и становится активным.
+    let _ = auth::upsert_account(&session);
     Ok(session)
+}
+
+/// Список сохранённых аккаунтов и активный (accounts.json).
+#[tauri::command]
+fn list_accounts_command() -> Result<auth::Accounts, String> {
+    Ok(auth::load_accounts())
+}
+
+/// Переключает активный аккаунт и возвращает его сессию.
+#[tauri::command]
+fn switch_account_command(id: String) -> Result<UserSession, String> {
+    auth::switch_account(&id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Аккаунт не найден".to_string())
+}
+
+/// Удаляет аккаунт; активным становится первый оставшийся (или выход).
+#[tauri::command]
+fn remove_account_command(id: String) -> Result<Option<UserSession>, String> {
+    auth::remove_account(&id).map_err(|e| e.to_string())
 }
 
 /// Запуск игры.
@@ -1909,6 +1965,9 @@ pub fn run() {
             login_offline_command,
             ms_device_code_command,
             ms_poll_command,
+            list_accounts_command,
+            switch_account_command,
+            remove_account_command,
             launch_game_command,
             ping_server_command,
             get_local_skin_command,

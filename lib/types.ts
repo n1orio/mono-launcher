@@ -55,6 +55,12 @@ export interface AppStatus {
   discord_rp_enabled: boolean;
   /** Показывать ли плашку предупреждения о кастомных модах. */
   warn_custom_mods: boolean;
+  /** Суммарное время игры в этой сборке (секунды). */
+  playtime_seconds: number;
+  /** Суммарное время игры во всех сборках (секунды). */
+  total_playtime_seconds: number;
+  /** Сколько сборок когда-либо запускалось. */
+  played_packs: number;
   /** Файлы активной версии, скачанные не с доверенных CDN (кастомные моды). */
   custom_mods: CustomFile[];
 }
@@ -214,6 +220,8 @@ export interface ServerStatus {
   motd: string | null;
   playersOnline: number | null;
   playersMax: number | null;
+  /** Никнеймы игроков (players.sample) — может быть пусто, если сервер их не шлёт. */
+  players: string[];
   latencyMs: number | null;
 }
 
@@ -246,6 +254,23 @@ export interface PackRepoContent {
   servers: PackServer[];
   socials: PackSocial[];
   theme: PackTheme | null;
+  /** URL баннера сборки (banner.png в корне репозитория) или null. */
+  banner: string | null;
+}
+
+/** Сохранённый аккаунт (несколько аккаунтов, accounts.json). */
+export interface AccountEntry {
+  id: string;
+  username: string;
+  uuid: string;
+  access_token: string;
+  user_type: string;
+}
+
+/** Список аккаунтов + активный (ответ list_accounts_command). */
+export interface Accounts {
+  active: string | null;
+  list: AccountEntry[];
 }
 
 export interface GameExited {

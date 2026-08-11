@@ -399,6 +399,13 @@
           <div class="flex min-h-0 flex-1 flex-col">
           <!-- Header сборки -->
           <div class="mb-6 shrink-0 border-b border-[var(--border)] pb-5">
+            <img
+              v-if="activeContent?.banner && bannerOk"
+              :src="activeContent.banner"
+              :alt="activePack?.name ?? ''"
+              class="mb-4 h-36 w-full rounded-lg border border-[var(--border)] object-cover"
+              @error="bannerOk = false"
+            />
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <svg viewBox="0 0 16 16" class="h-5 w-5 fill-[var(--tx-muted)]">
@@ -427,6 +434,16 @@
                     <path d="M1 3.75C1 2.784 1.784 2 2.75 2h10.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 13.25 11H10v1.25h.75a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5H6V11H2.75A1.75 1.75 0 0 1 1 9.25v-5.5Zm1.5 0v5.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25H2.75a.25.25 0 0 0-.25.25ZM4 4.5a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 4.5Zm0 3a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 7.5Z"/>
                   </svg>
                   ≥ {{ activePack.minRam / 1024 }} {{ t("units.gb") }}
+                </span>
+                <span
+                  v-if="status && status.playtime_seconds > 0"
+                  class="ml-2 inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--input)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--tx-muted)]"
+                  :title="t('pack.playtimeTitle', { time: formatPlaytime(status.playtime_seconds) })"
+                >
+                  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+                    <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0Zm0 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM7.25 3.5a.75.75 0 0 1 .75.75V7.8l2.58 1.55a.75.75 0 1 1-.77 1.28L7.18 9.1a.75.75 0 0 1-.43-.68V4.25a.75.75 0 0 1 .75-.75Z"/>
+                  </svg>
+                  {{ formatPlaytimeShort(status.playtime_seconds) }}
                 </span>
                 <button
                   type="button"
@@ -507,6 +524,21 @@
                 {{ t("pack.reportBug") }}
               </button>
             </p>
+
+            <!-- Ачивки лаунчера -->
+            <div v-if="unlockedBadges.length" class="mt-3 flex flex-wrap items-center gap-1.5">
+              <span
+                v-for="b in unlockedBadges"
+                :key="b.key"
+                class="inline-flex items-center gap-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]"
+                :title="b.hint"
+              >
+                <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                  <path d="M7 2.5a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-.75v.83A6.25 6.25 0 0 1 14.25 10H14v1.75A1.75 1.75 0 0 1 12.25 13.5h-1.3a6.76 6.76 0 0 1-2.7.56v.69a.75.75 0 0 1-1.5 0v-.69c-.94 0-1.85-.19-2.7-.56H3.75A1.75 1.75 0 0 1 2 11.75V10h-.25a6.25 6.25 0 0 1 5.5-5.92V3.25h-.75a.75.75 0 0 1-.75-.75ZM3.5 5.04A4.75 4.75 0 0 0 7 9.43V4.4a4.75 4.75 0 0 0-3.5.64Zm9 0a4.75 4.75 0 0 0-3.5-.64v5.03a4.75 4.75 0 0 0 3.5-4.4Z"/>
+                </svg>
+                {{ b.label }}
+              </span>
+            </div>
 
             <div v-if="updateInfo?.has_update && updateInfo.latest_version" class="mt-4 flex items-center justify-between gap-4 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-3.5 py-2.5 text-xs text-[var(--accent)]">
               <span class="min-w-0">
@@ -1072,6 +1104,13 @@
                             :class="serverStateOf(s) === 'online' ? 'bg-[#3fb950]' : serverStateOf(s) === 'offline' ? 'bg-[#f85149]' : 'bg-[var(--tx-muted)]'"
                             :title="serverStatusText(s)"
                           />
+                          <span
+                            v-if="serverPlayersOf(s).length > 0"
+                            class="shrink-0 rounded-full border border-[#3fb950]/40 bg-[#3fb950]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#3fb950]"
+                            :title="t('servers.players', { n: serverPlayersOf(s).length, names: serverPlayersOf(s).join(', ') })"
+                          >
+                            {{ serverStatuses[serverKey(s)]?.playersOnline }}/{{ serverStatuses[serverKey(s)]?.playersMax }}
+                          </span>
                         </div>
                         <div v-if="s.desc" class="mt-0.5 line-clamp-2 text-[11px] text-[color:var(--tx-muted)]">{{ s.desc }}</div>
                         <div class="mt-1 truncate text-[10px] text-[color:var(--tx-muted)]" :title="serverStatusText(s)">
@@ -1718,6 +1757,54 @@
                     {{ t("settings.msBrowser") }}
                   </p>
                 </div>
+
+                <!-- Список сохранённых аккаунтов -->
+                <div v-if="accounts.list.length" class="mt-4 space-y-1.5 border-t border-[var(--border)] pt-3">
+                  <div
+                    v-for="a in accounts.list"
+                    :key="a.id"
+                    class="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2"
+                    :class="a.id === accounts.active ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : ''"
+                  >
+                    <div
+                      class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--input)] font-mono text-xs font-bold text-[color:var(--tx-strong)]"
+                    >
+                      {{ a.username[0]?.toUpperCase() ?? "?" }}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-xs font-medium text-[color:var(--tx-strong)]">{{ a.username }}</p>
+                      <p class="text-[10px] text-[color:var(--tx-muted)]">
+                        {{ a.user_type === "microsoft" ? t("accounts.ms") : t("accounts.offline") }}
+                      </p>
+                    </div>
+                    <button
+                      v-if="a.id !== accounts.active"
+                      type="button"
+                      class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[10px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
+                      :disabled="accountBusy"
+                      @click="handleSwitchAccount(a.id)"
+                    >
+                      {{ t("accounts.use") }}
+                    </button>
+                    <span
+                      v-else
+                      class="shrink-0 text-[10px] font-semibold text-[#3fb950]"
+                    >
+                      {{ t("accounts.active") }}
+                    </span>
+                    <button
+                      type="button"
+                      class="shrink-0 rounded-md border border-[#f85149]/30 bg-[#f85149]/10 p-1 text-[#f85149] transition-colors hover:bg-[#f85149]/20 disabled:opacity-50"
+                      :title="t('accounts.removeTitle')"
+                      :disabled="accountBusy"
+                      @click="handleRemoveAccount(a.id)"
+                    >
+                      <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                        <path d="M4.75 1.5h6.5a.75.75 0 0 1 .75.75V3.5h2.5a.75.75 0 0 1 0 1.5h-.75v9A1.75 1.75 0 0 1 12 15.75H4A1.75 1.75 0 0 1 2.25 14V5H1.5a.75.75 0 0 1 0-1.5H4V2.25a.75.75 0 0 1 .75-.75Zm.75 5.75a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-1.5 0Zm3.5 0a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-1.5 0Z"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -2062,6 +2149,10 @@ const {
   openMsAuthPage,
   msFlow,
   msPolling,
+  accounts,
+  accountBusy,
+  handleSwitchAccount,
+  handleRemoveAccount,
   handlePlay,
   playOnServer,
   handleClearLog,
@@ -2539,6 +2630,55 @@ function onChangelogLinkClick(e: MouseEvent) {
 /** Скриншоты/сервера активной сборки (загружены через Rust). */
 const activeContent = computed(() => repoContent.value[activePack.value?.id ?? ""]);
 const packStars = computed(() => activeContent.value?.stars ?? null);
+
+/** Баннер сборки: скрываем, если картинка не загрузилась. */
+const bannerOk = ref(true);
+watch(
+  () => activePack.value?.id,
+  () => {
+    bannerOk.value = true;
+  }
+);
+
+/** Время в игре: короткий формат для бейджа («3 ч» / «12 мин»). */
+function formatPlaytimeShort(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  if (h >= 1) return `${h} ${t("units.h")}`;
+  return `${Math.max(1, Math.round(seconds / 60))} ${t("units.min")}`;
+}
+
+interface Badge {
+  key: string;
+  label: string;
+  hint: string;
+}
+
+/** Разблокированные ачивки лаунчера. */
+const unlockedBadges = computed<Badge[]>(() => {
+  const s = status.value;
+  if (!s) return [];
+  const hours = s.total_playtime_seconds / 3600;
+  const out: Badge[] = [];
+  if (s.played_packs >= 1) {
+    out.push({ key: "first", label: t("badges.first.label"), hint: t("badges.first.hint") });
+  }
+  if (hours >= 1) {
+    out.push({ key: "h1", label: t("badges.h1.label"), hint: t("badges.h1.hint") });
+  }
+  if (hours >= 10) {
+    out.push({ key: "h10", label: t("badges.h10.label"), hint: t("badges.h10.hint") });
+  }
+  if (hours >= 100) {
+    out.push({ key: "h100", label: t("badges.h100.label"), hint: t("badges.h100.hint") });
+  }
+  if (s.played_packs >= 3) {
+    out.push({ key: "p3", label: t("badges.p3.label"), hint: t("badges.p3.hint") });
+  }
+  if (s.played_packs >= 5) {
+    out.push({ key: "p5", label: t("badges.p5.label"), hint: t("badges.p5.hint") });
+  }
+  return out;
+});
 const shotIdx = ref<number | null>(null);
 
 // ==== Тема сборки (theme.json автора): плавный перекрас CSS-переменных ====
@@ -2728,10 +2868,14 @@ async function pingOneServer(srv: PackServer) {
   try {
     serverStatuses.value[key] = await pingServer(srv.ip, srv.port ?? null);
   } catch {
-    serverStatuses.value[key] = { online: false, version: null, motd: null, playersOnline: null, playersMax: null, latencyMs: null };
+    serverStatuses.value[key] = { online: false, version: null, motd: null, playersOnline: null, playersMax: null, players: [], latencyMs: null };
   } finally {
     serverPinging.value[key] = false;
   }
+}
+
+function serverPlayersOf(srv: PackServer): string[] {
+  return serverStatuses.value[serverKey(srv)]?.players ?? [];
 }
 
 function pingActiveServers() {

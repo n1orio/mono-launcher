@@ -352,3 +352,119 @@ pub fn load_session() -> Result<Option<UserSession>> {
     let raw = std::fs::read_to_string(path)?;
     Ok(Some(serde_json::from_str(&raw)?))
 }
+
+/// Аккаунт в списке «несколько аккаунтов» (accounts.json). id = uuid.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountEntry {
+    pub id: String,
+    pub username: String,
+    pub uuid: String,
+    pub access_token: String,
+    pub user_type: String,
+}
+
+impl From<&UserSession> for AccountEntry {
+    fn from(s: &UserSession) -> Self {
+        AccountEntry {
+            id: s.uuid.clone(),
+            username: s.username.clone(),
+            uuid: s.uuid.clone(),
+            access_token: s.access_token.clone(),
+            user_type: s.user_type.clone(),
+        }
+    }
+}
+
+impl AccountEntry {
+    pub fn to_session(&self) -> UserSession {
+        UserSession {
+            username: self.username.clone(),
+            uuid: self.uuid.clone(),
+            access_token: self.access_token.clone(),
+            user_type: self.user_type.clone(),
+        }
+    }
+}
+
+/// Список сохранённых аккаунтов + какой из них активный.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct Accounts {
+    #[serde(default)]
+    pub active: Option<String>,
+    #[serde(default)]
+    pub list: Vec<AccountEntry>,
+}
+
+fn accounts_file() -> Result<PathBuf> {
+    Ok(config::launcher_root()?.join("accounts.json"))
+}
+
+pub fn load_accounts() -> Accounts {
+    accounts_file()
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+        .unwrap_or_default()
+}
+
+pub fn save_accounts(accounts: &Accounts) -> Result<()> {
+    let path = accounts_file()?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(path, serde_json::to_vec_pretty(accounts)?)?;
+    Ok(())
+}
+
+/// Добавляет/обновляет аккаунт по сессии и делает его активным.
+/// Возвращает None, если аккаунт уже есть и ничего не изменилось.
+pub fn upsert_account(session: &UserSession) -> Result<()> {
+    let mut accounts = load_accounts();
+    let entry = AccountEntry::from(session);
+    if let Some(existing) = accounts.list.iter_mut().find(|a| a.id == entry.id) {
+        *existing = entry.clone();
+    } else {
+        accounts.list.push(entry.clone());
+    }
+    accounts.active = Some(entry.id);
+    save_accounts(&accounts)
+}
+
+/// Переключает активный аккаунт; возвращает его сессию (для session.json).
+pub fn switch_account(id: &str) -> Result<Option<UserSession>> {
+    let mut accounts = load_accounts();
+    let Some(entry) = accounts.list.iter().find(|a| a.id == id) else {
+        return Err(anyhow!("Аккаунт не найден"));
+    };
+    accounts.active = Some(id.to_string());
+    save_accounts(&accounts)?;
+    let session = entry.to_session();
+    save_session(&session)?;
+    Ok(Some(session))
+}
+
+/// Удаляет аккаунт. Если удалили активный — активным становится первый
+/// оставшийся (или выход из аккаунта). Возвращает сессию нового активного.
+pub fn remove_account(id: &str) -> Result<Option<UserSession>> {
+    let mut accounts = load_accounts();
+    accounts.list.retain(|a| a.id != id);
+    if accounts.active.as_deref() == Some(id) {
+        accounts.active = accounts.list.first().map(|a| a.id.clone());
+        match &accounts.active {
+            Some(next_id) => {
+                save_accounts(&accounts)?;
+                let session = switch_account(next_id)?;
+                return Ok(session);
+            }
+            None => {
+                // Аккаунтов не осталось — выходим полностью.
+                save_accounts(&accounts)?;
+                let path = session_file()?;
+                let _ = std::fs::remove_file(path);
+                return Ok(None);
+            }
+        }
+    }
+    save_accounts(&accounts)?;
+    Ok(None)
+}

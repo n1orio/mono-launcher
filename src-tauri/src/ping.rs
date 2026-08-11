@@ -22,6 +22,8 @@ pub struct ServerStatus {
     pub motd: Option<String>,
     pub players_online: Option<u16>,
     pub players_max: Option<u16>,
+    /// Никнеймы игроков из `players.sample` (может быть пустым — сервер не шлёт).
+    pub players: Vec<String>,
     pub latency_ms: Option<u64>,
 }
 
@@ -31,6 +33,7 @@ struct PingData {
     motd: Option<String>,
     players_online: Option<u16>,
     players_max: Option<u16>,
+    players: Vec<String>,
 }
 
 /// Пинг сервера: сначала 1.7+, при любой неудаче — legacy 0xFE.
@@ -51,6 +54,7 @@ pub async fn ping_server(address: &str, port: u16) -> Result<ServerStatus, Strin
         motd: data.motd,
         players_online: data.players_online,
         players_max: data.players_max,
+        players: data.players,
     })
 }
 
@@ -151,6 +155,7 @@ async fn ping_legacy(address: &str, port: u16) -> Result<PingData, String> {
             }),
             players_online: parse(4),
             players_max: parse(5),
+            players: Vec::new(),
         })
     } else {
         // Нетипичный ответ — считаем весь текст описанием.
@@ -159,6 +164,7 @@ async fn ping_legacy(address: &str, port: u16) -> Result<PingData, String> {
             motd: if text.is_empty() { None } else { Some(text) },
             players_online: None,
             players_max: None,
+            players: Vec::new(),
         })
     }
 }
@@ -178,6 +184,11 @@ fn parse_status_json(raw: &str) -> Result<PingData, String> {
     struct Players {
         online: Option<u16>,
         max: Option<u16>,
+        sample: Option<Vec<Sample>>,
+    }
+    #[derive(serde::Deserialize)]
+    struct Sample {
+        name: Option<String>,
     }
 
     let s: Status = serde_json::from_str(raw).map_err(|e| format!("Некорректный JSON: {e}"))?;
@@ -195,11 +206,25 @@ fn parse_status_json(raw: &str) -> Result<PingData, String> {
         _ => None,
     };
 
+    let players = s
+        .players
+        .as_ref()
+        .and_then(|p| p.sample.as_ref())
+        .map(|samples| {
+            samples
+                .iter()
+                .filter_map(|s| s.name.clone())
+                .take(12)
+                .collect()
+        })
+        .unwrap_or_default();
+
     Ok(PingData {
         version: s.version.and_then(|v| v.name),
         motd: motd.filter(|m| !m.is_empty()),
         players_online: s.players.as_ref().and_then(|p| p.online),
         players_max: s.players.as_ref().and_then(|p| p.max),
+        players,
     })
 }
 
