@@ -602,7 +602,7 @@
 
             <!-- Предупреждение о кастомных файлах (не с Modrinth/CurseForge) -->
             <div
-              v-if="status?.installed && status.custom_mods.length > 0"
+              v-if="warnCustomMods && status?.installed && status.custom_mods.length > 0"
               class="mt-4 rounded-md border border-[#9e6a03]/40 bg-[#9e6a03]/10 px-3.5 py-2.5 text-xs text-[#d29922]"
             >
               <button
@@ -1909,6 +1909,27 @@
               </div>
             </section>
 
+            <!-- Предупреждение о кастомных модах -->
+            <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+              <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
+                <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.warnCustomMods") }}</h3>
+              </div>
+              <div class="p-4">
+                <label class="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    class="h-4 w-4 accent-[#f0883e]"
+                    :checked="warnCustomMods"
+                    @change="toggleWarnCustomMods(($event.target as HTMLInputElement).checked)"
+                  />
+                  <span class="text-xs text-[color:var(--tx)]">{{ t("settings.warnCustomModsLabel") }}</span>
+                </label>
+                <p class="mt-2 text-[11px] text-[color:var(--tx-muted)]">
+                  {{ t("settings.warnCustomModsNote") }}
+                </p>
+              </div>
+            </section>
+
             <!-- Проверка целостности -->
             <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
               <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5 flex justify-between items-center">
@@ -2085,6 +2106,8 @@ const {
   openFolder,
   discordRp,
   toggleDiscordRp,
+  warnCustomMods,
+  toggleWarnCustomMods,
   news,
   newsFilter,
   newsSources,

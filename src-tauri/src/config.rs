@@ -328,3 +328,26 @@ pub fn set_discord_rp_enabled(on: bool) -> Result<()> {
     }
     Ok(())
 }
+
+/// Файл с тумблером плашки предупреждения о кастомных модах (по умолчанию показано).
+fn warn_custom_mods_file() -> Result<PathBuf> {
+    Ok(launcher_root()?.join("warn-custom-mods.txt"))
+}
+
+/// Плашка предупреждения о кастомных модах показана? (по умолчанию да).
+pub fn warn_custom_mods_enabled() -> bool {
+    warn_custom_mods_file()
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|s| s.trim() != "0")
+        .unwrap_or(true)
+}
+
+pub fn set_warn_custom_mods_enabled(on: bool) -> Result<()> {
+    let file = warn_custom_mods_file()?;
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&file, if on { "1" } else { "0" })?;
+    Ok(())
+}

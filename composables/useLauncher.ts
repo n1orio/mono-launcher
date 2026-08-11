@@ -40,6 +40,7 @@ import {
   removePack,
   setJavaPath,
   setDiscordRp,
+  setWarnCustomMods,
   setLocale,
   setLocalSkin,
   skinApiUrl,
@@ -206,6 +207,7 @@ export function useLauncher() {
   const licenseBusy = ref(false);
   const licenseError = ref("");
   const discordRp = ref(true);
+  const warnCustomMods = ref(true);
   const news = ref<NewsItem[] | null>(null);
   const newsFilter = ref<string>("all");
   const packUrl = ref("");
@@ -379,6 +381,16 @@ export function useLauncher() {
       await setDiscordRp(on);
     } catch (e) {
       notify(t("err.discordSave", { e }));
+    }
+  }
+
+  async function toggleWarnCustomMods(on: boolean) {
+    warnCustomMods.value = on;
+    if (!isTauri()) return;
+    try {
+      await setWarnCustomMods(on);
+    } catch (e) {
+      notify(t("err.warnSave", { e }));
     }
   }
 
@@ -779,6 +791,7 @@ export function useLauncher() {
     status.value = s;
     session.value = s.session;
     discordRp.value = s.discord_rp_enabled;
+    warnCustomMods.value = s.warn_custom_mods;
     if (s.session) username.value = s.session.username;
     refreshSkin();
     loadLicenseStatus();
@@ -1489,6 +1502,8 @@ notify(t("err.switch", { e }));
     refreshSkin,
     discordRp,
     toggleDiscordRp,
+    warnCustomMods,
+    toggleWarnCustomMods,
     news,
     loadNews,
     newsFilter,

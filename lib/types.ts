@@ -53,6 +53,8 @@ export interface AppStatus {
   active_source_tag: string | null;
   installed_versions: string[];
   discord_rp_enabled: boolean;
+  /** Показывать ли плашку предупреждения о кастомных модах. */
+  warn_custom_mods: boolean;
   /** Файлы активной версии, скачанные не с доверенных CDN (кастомные моды). */
   custom_mods: CustomFile[];
 }

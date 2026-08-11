@@ -251,6 +251,10 @@ export function setDiscordRp(enabled: boolean): Promise<void> {
   return invoke("set_discord_rp_command", { enabled });
 }
 
+export function setWarnCustomMods(enabled: boolean): Promise<void> {
+  return invoke("set_warn_custom_mods_command", { enabled });
+}
+
 export function setLocale(locale: string): Promise<void> {
   return invoke("set_locale_command", { locale });
 }

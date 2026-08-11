@@ -39,6 +39,8 @@ pub struct AppStatus {
     pub active_source_tag: Option<String>,
     pub installed_versions: Vec<String>,
     pub discord_rp_enabled: bool,
+    /// Показывать ли плашку предупреждения о кастомных модах (warn-custom-mods.txt).
+    pub warn_custom_mods: bool,
     /// Файлы активной версии, скачанные не с доверенных CDN (кастомные моды).
     pub custom_mods: Vec<mrpack::CustomFile>,
 }
@@ -1455,6 +1457,7 @@ async fn get_status(pack_id: Option<String>) -> Result<AppStatus, String> {
         active_source_tag: active_installed_tag(&pack.id),
         installed_versions: mrpack::installed_versions(&pack.id),
         discord_rp_enabled: config::discord_rp_enabled(),
+        warn_custom_mods: config::warn_custom_mods_enabled(),
         ..Default::default()
     };
 
@@ -1821,6 +1824,12 @@ fn set_discord_rp_command(enabled: bool) -> Result<(), String> {
     config::set_discord_rp_enabled(enabled).map_err(|e| e.to_string())
 }
 
+/// Включает/выключает плашку предупреждения о кастомных модах (warn-custom-mods.txt).
+#[tauri::command]
+fn set_warn_custom_mods_command(enabled: bool) -> Result<(), String> {
+    config::set_warn_custom_mods_enabled(enabled).map_err(|e| e.to_string())
+}
+
 /// Запоминает язык интерфейса (ru/en) для строк, формируемых на стороне Rust
 /// (например, активность Discord).
 #[tauri::command]
@@ -1920,6 +1929,7 @@ pub fn run() {
             open_game_folder_command,
             get_skin_command,
             set_discord_rp_command,
+            set_warn_custom_mods_command,
             set_locale_command,
             get_news_command,
             list_game_files_command,
