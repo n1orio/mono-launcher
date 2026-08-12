@@ -55,20 +55,6 @@ fn require_api_key() -> Result<String> {
     })
 }
 
-/// Сохраняет ключ (вторая строка отправленная фронтендом) в файл.
-pub fn set_api_key(key: &str) -> Result<String> {
-    let trimmed = key.trim().to_string();
-    if trimmed.is_empty() {
-        return Err(anyhow!("Ключ не может быть пустым"));
-    }
-    let path = config::launcher_root()?.join("curseforge-key.txt");
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    std::fs::write(&path, trimmed.as_bytes())?;
-    Ok(trimmed)
-}
-
 fn ua() -> String {
     format!("nio-launcher/{}", env!("CARGO_PKG_VERSION"))
 }

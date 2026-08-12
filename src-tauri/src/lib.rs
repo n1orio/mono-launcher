@@ -921,12 +921,6 @@ async fn curseforge_install_command(
     Ok(name)
 }
 
-/// Сохраняет API-ключ CurseForge в файл `<данные лаунчера>/curseforge-key.txt`.
-#[tauri::command]
-fn set_curseforge_key_command(key: String) -> Result<String, String> {
-    curseforge::set_api_key(&key).map_err(|e| e.to_string())
-}
-
 /// Задан ли API-ключ CurseForge (для подсказки в UI, сам ключ не возвращаем).
 #[tauri::command]
 fn curseforge_key_configured_command() -> bool {
@@ -2621,7 +2615,6 @@ pub fn run() {
             curseforge_search_command,
             curseforge_latest_file_command,
             curseforge_install_command,
-            set_curseforge_key_command,
             curseforge_key_configured_command,
             list_accounts_command,
             switch_account_command,

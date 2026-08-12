@@ -2446,24 +2446,8 @@
             <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
           </button>
         </div>
-        <div v-if="!curseKeyOk" class="border-b border-[var(--border)] px-4 py-3">
-          <p class="text-[11px] leading-snug text-[color:var(--tx-muted)]">{{ t("curse.noKey") }}</p>
-          <div class="mt-2 flex gap-2">
-            <input
-              v-model="curseKeyInput"
-              type="password"
-              :placeholder="t('curse.keyPlaceholder')"
-              class="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
-            />
-            <button
-              type="button"
-              class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
-              :disabled="curseKeySaving"
-              @click="saveCurseKey"
-            >
-              {{ t("curse.saveKey") }}
-            </button>
-          </div>
+        <div v-if="!curseKeyOk" class="border-b border-[var(--border)] px-4 py-2.5">
+          <p class="text-[11px] text-[color:var(--tx-muted)]">{{ t("curse.noKey") }}</p>
         </div>
         <div class="flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-4 py-3">
           <input
@@ -2476,7 +2460,7 @@
           <button
             type="button"
             class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-            :disabled="curseLoading || !curseQuery.trim() || (!curseKeyOk && !curseKeySaving)"
+            :disabled="curseLoading || !curseQuery.trim()"
             @click="searchCurse"
           >
             <svg v-if="curseLoading" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
@@ -2926,7 +2910,7 @@
 <script setup lang="ts">
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { computed, nextTick, onBeforeUnmount, reactive, ref } from "vue";
-import { isTauri, openExternal, pingServer, createLocalPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeLatestFile, curseforgeInstallFile, setCurseforgeKey, curseforgeKeyConfigured } from "~/lib/bridge";
+import { isTauri, openExternal, pingServer, createLocalPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeLatestFile, curseforgeInstallFile, curseforgeKeyConfigured } from "~/lib/bridge";
 import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit } from "~/lib/bridge";
 import type { CatalogEntry, GameFileEntry, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
@@ -3561,8 +3545,6 @@ const curseSearched = ref(false);
 const curseResults = ref<CurseSearchHit[]>([]);
 const curseInstallBusy = ref<number | null>(null);
 const curseKeyOk = ref(true);
-const curseKeyInput = ref("");
-const curseKeySaving = ref(false);
 
 async function loadCurseKeyStatus() {
   if (!isTauri()) return;
@@ -3570,21 +3552,6 @@ async function loadCurseKeyStatus() {
     curseKeyOk.value = await curseforgeKeyConfigured();
   } catch {
     curseKeyOk.value = false;
-  }
-}
-
-async function saveCurseKey() {
-  if (!isTauri() || curseKeySaving.value) return;
-  curseKeySaving.value = true;
-  try {
-    await setCurseforgeKey(curseKeyInput.value);
-    curseKeyOk.value = true;
-    curseKeyInput.value = "";
-    notify(t("curse.keySaved"), "success");
-  } catch (e) {
-    notify(t("curse.keyErr", { e }));
-  } finally {
-    curseKeySaving.value = false;
   }
 }
 

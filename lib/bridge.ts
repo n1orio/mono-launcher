@@ -136,10 +136,6 @@ export function curseforgeInstallFile(
   return invoke("curseforge_install_command", { packId, file, folder });
 }
 
-export function setCurseforgeKey(key: string): Promise<string> {
-  return invoke("set_curseforge_key_command", { key });
-}
-
 export function curseforgeKeyConfigured(): Promise<boolean> {
   return invoke("curseforge_key_configured_command");
 }
