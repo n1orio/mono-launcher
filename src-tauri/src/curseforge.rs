@@ -125,7 +125,7 @@ pub async fn search(
     class_id: u32,
 ) -> Result<Vec<CurseSearchHit>> {
     let key = require_api_key()?;
-    let resp: SearchResp = client
+    let resp = client
         .get(format!("{API_BASE}/mods/search"))
         .header("x-api-key", &key)
         .header("User-Agent", ua())
@@ -138,11 +138,24 @@ pub async fn search(
         ])
         .send()
         .await
-        .context("Не удалось связаться с CurseForge")?
-        .error_for_status()
-        .context("CurseForge отклонил запрос (проверьте API-ключ)")?
-        .json()
-        .await?;
+        .context("Не удалось связаться с CurseForge")?;
+    let status = resp.status();
+    if !status.is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        let tip = match status.as_u16() {
+            401 | 403 => {
+                "ключ не принят, либо CurseForge временно ограничивает поиск \
+                 (лимит запросов или сбой на их стороне — поиск может \
+                 «отвалиться» даже при валидном ключе; проверьте ключ и повторите позже)"
+            }
+            429 => "CurseForge ограничил частоту запросов — повторите чуть позже",
+            _ => "повторите позже",
+        };
+        return Err(anyhow!(
+            "Поиск CurseForge ответил HTTP {status} ({tip}). Ответ сервера: {body}"
+        ));
+    }
+    let resp: SearchResp = resp.json().await?;
     let file_ext = file_ext_for_class(class_id);
     Ok(resp
         .data

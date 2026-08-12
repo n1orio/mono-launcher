@@ -882,30 +882,21 @@
                   <button
                     type="button"
                     class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
-                    @click="openModSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind)"
+                    :title="t('mods.addHint')"
+                    @click="openSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind, 'modrinth')"
                   >
                     <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
                       <path d="M8 2.75a.75.75 0 0 1 .75.75v3.75h3.75a.75.75 0 0 1 0 1.5h-3.75v3.75a.75.75 0 0 1-1.5 0V8.75H3.5a.75.75 0 0 1 0-1.5h3.75V3.5A.75.75 0 0 1 8 2.75Z"/>
                     </svg>
                     {{ playSubTab === 'mods' ? t("mods.add") : playSubTab === 'resourcepacks' ? t("mods.addRP") : t("mods.addShaders") }}
                   </button>
-                  <button
-                    type="button"
-                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
-                    :title="t('curse.addHint')"
-                    @click="openCurseSearch(playSubTab)"
-                  >
-                    <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                      <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
-                    </svg>
-                    CurseForge
-                  </button>
                 </template>
                 <template v-else>
                   <button
                     type="button"
                     class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
-                    @click="openModSearch('datapack')"
+                    :title="t('mods.addHint')"
+                    @click="openSearch('datapack', 'modrinth')"
                   >
                     <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
                       <path d="M8 2.75a.75.75 0 0 1 .75.75v3.75h3.75a.75.75 0 0 1 0 1.5h-3.75v3.75a.75.75 0 0 1-1.5 0V8.75H3.5a.75.75 0 0 1 0-1.5h3.75V3.5A.75.75 0 0 1 8 2.75Z"/>
@@ -2224,24 +2215,45 @@
       </div>
     </main>
 
-    <!-- Модалка: добавление мода с Modrinth -->
+    <!-- Окно поиска файлов: Modrinth / CurseForge -->
     <div
-      v-if="modSearchOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
-      @click.self="modSearchOpen = false; modVersions = null"
+      v-if="searchOpen"
+      class="fixed z-50"
+      :style="searchWinStyle"
     >
-      <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
-        <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
-          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">
-            {{ modSearchTitle }}
+      <div class="flex max-h-[85vh] w-[720px] max-w-[92vw] flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
+        <div
+          class="flex shrink-0 cursor-move items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--input-50)] px-3 py-2.5"
+          @pointerdown="dragSearchWin"
+        >
+          <div class="flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--bg)] p-0.5">
+            <button
+              type="button"
+              class="rounded px-2.5 py-1 text-[11px] font-semibold transition-colors"
+              :class="searchService === 'modrinth' ? 'bg-[var(--accent)] text-[var(--bg)]' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+              @click="switchSearchService('modrinth')"
+            >{{ t("mods.serviceModrinth") }}</button>
+            <button
+              v-if="modSearchKind !== 'datapack'"
+              type="button"
+              class="rounded px-2.5 py-1 text-[11px] font-semibold transition-colors"
+              :class="searchService === 'curseforge' ? 'bg-[var(--accent)] text-[var(--bg)]' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+              @click="switchSearchService('curseforge')"
+            >{{ t("mods.serviceCurseforge") }}</button>
+          </div>
+          <h3 class="min-w-0 flex-1 truncate text-sm font-semibold text-[color:var(--tx-strong)]">
+            {{ searchTitle }}
           </h3>
           <button
             type="button"
             class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
-            @click="modSearchOpen = false; modVersions = null"
+            @click="closeSearch"
           >
             <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
           </button>
+        </div>
+        <div v-if="searchService === 'curseforge' && !curseKeyOk" class="border-b border-[var(--border)] px-4 py-2.5">
+          <p class="text-[11px] text-[color:var(--tx-muted)]">{{ t("curse.noKey") }}</p>
         </div>
         <div class="flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-4 py-3">
           <div class="relative min-w-0 flex-1">
@@ -2249,29 +2261,29 @@
               <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
             </svg>
             <input
-              v-model="modSearchQuery"
+              v-model="searchInput"
               type="text"
-              :placeholder="t('mods.searchPlaceholder')"
+              :placeholder="searchService === 'modrinth' ? t('mods.searchPlaceholder') : t('curse.searchPlaceholder')"
               class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] py-1.5 pl-8 pr-3 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors focus:border-[var(--accent)]"
-              @keydown.enter="searchMods"
+              @keydown.enter="doSearch"
             />
           </div>
           <button
             type="button"
             class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-            :disabled="modSearchLoading || !modSearchQuery.trim()"
-            @click="searchMods"
+            :disabled="searchLoading || !searchInput.trim()"
+            @click="doSearch"
           >
-            <svg v-if="modSearchLoading" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
+            <svg v-if="searchLoading" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
               <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
             </svg>
             <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
               <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
             </svg>
-            {{ t("mods.search") }}
+            {{ searchService === 'modrinth' ? t("mods.search") : t("curse.search") }}
           </button>
         </div>
-        <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2">
+        <div v-if="searchService === 'modrinth'" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2">
           <FilterSelect
             v-if="modSearchKind === 'datapack'"
             v-model="modDatapackWorldSel"
@@ -2312,7 +2324,7 @@
             @change="searchMods()"
           />
         </div>
-        <div class="min-h-0 flex-1 overflow-y-auto p-4">
+        <div v-if="searchService === 'modrinth'" class="min-h-0 flex-1 overflow-y-auto p-4">
           <div v-if="modSearchErr" class="rounded-md border border-[var(--border)] bg-[var(--input-50)] p-6 text-center text-xs text-[color:var(--tx-muted)]">
             <p class="mb-2">{{ modSearchErr }}</p>
             <button type="button" class="text-[var(--accent)] hover:underline" @click="searchMods">{{ t("catalog.retry") }}</button>
@@ -2424,62 +2436,18 @@
             </div>
           </template>
         </div>
-      </div>
-    </div>
-
-    <!-- Модалка: поиск и установка с CurseForge -->
-    <div
-      v-if="curseSearchOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
-      @click.self="curseSearchOpen = false"
-    >
-      <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
-        <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
-          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">
-            {{ t(curseKind === "mods" ? "curse.titleMods" : curseKind === "resourcepacks" ? "curse.titleRP" : "curse.titleShaders") }}
-          </h3>
-          <button
-            type="button"
-            class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
-            @click="curseSearchOpen = false"
-          >
-            <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
-          </button>
-        </div>
-        <div v-if="!curseKeyOk" class="border-b border-[var(--border)] px-4 py-2.5">
-          <p class="text-[11px] text-[color:var(--tx-muted)]">{{ t("curse.noKey") }}</p>
-        </div>
-        <div class="flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-4 py-3">
-          <input
-            v-model="curseQuery"
-            type="text"
-            :placeholder="t('curse.searchPlaceholder')"
-            class="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
-            @keydown.enter="searchCurse"
-          />
-          <button
-            type="button"
-            class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-            :disabled="curseLoading || !curseQuery.trim()"
-            @click="searchCurse"
-          >
-            <svg v-if="curseLoading" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
-              <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-            </svg>
-            <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
-              <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
-            </svg>
-            {{ t("curse.search") }}
-          </button>
-        </div>
-        <div class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+        <div v-else class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           <p v-if="!curseSearched" class="py-8 text-center text-[11px] text-[color:var(--tx-muted)]">{{ t("curse.help") }}</p>
           <p v-else-if="curseLoading" class="flex items-center justify-center gap-2 py-8 text-[11px] text-[color:var(--tx-muted)]">
             <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
               <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
             </svg>
-            {{ t("mods.searching") }}
+            {{ t("mods.searchingAll") }}
           </p>
+          <div v-else-if="curseErr" class="rounded-md border border-[var(--border)] bg-[var(--input-50)] p-6 text-center text-xs text-[color:var(--tx-muted)]">
+            <p class="mb-2 whitespace-pre-wrap">{{ curseErr }}</p>
+            <button type="button" class="text-[var(--accent)] hover:underline" @click="searchCurse">{{ t("catalog.retry") }}</button>
+          </div>
           <p v-else-if="curseResults.length === 0" class="py-8 text-center text-[11px] text-[color:var(--tx-muted)]">{{ t("mods.noResults") }}</p>
           <div v-else class="space-y-2">
             <div
@@ -3328,8 +3296,101 @@ watch(fileListVisible, (rows) => {
   }
 });
 
-// ---- Modrinth: добавление модов, ресурспаков, шейдеров, датапаков ----
-const modSearchOpen = ref(false);
+// ---- Поиск файлов: Modrinth / CurseForge ----
+type SearchService = "modrinth" | "curseforge";
+const searchService = ref<SearchService>("modrinth");
+const searchOpen = ref(false);
+const searchPos = ref<{ x: number | null; y: number | null }>({ x: null, y: null });
+const searchWinStyle = computed(() => ({
+  right: searchPos.value.x === null ? "2rem" : undefined,
+  bottom: searchPos.value.y === null ? "2rem" : undefined,
+  left: searchPos.value.x === null ? undefined : `${searchPos.value.x}px`,
+  top: searchPos.value.y === null ? undefined : `${searchPos.value.y}px`,
+}));
+let searchDrag: { dx: number; dy: number } | null = null;
+function dragSearchWin(e: PointerEvent) {
+  if ((e.target as HTMLElement).closest("button")) return;
+  const x = searchPos.value.x ?? window.innerWidth - 768;
+  const y = searchPos.value.y ?? window.innerHeight - 480;
+  searchDrag = { dx: e.clientX - x, dy: e.clientY - y };
+  window.addEventListener("pointermove", moveSearchWin);
+  window.addEventListener("pointerup", endSearchDrag, { once: true });
+}
+function moveSearchWin(e: PointerEvent) {
+  if (!searchDrag) return;
+  searchPos.value = {
+    x: Math.max(0, Math.min(window.innerWidth - 120, e.clientX - searchDrag.dx)),
+    y: Math.max(0, Math.min(window.innerHeight - 64, e.clientY - searchDrag.dy)),
+  };
+}
+function endSearchDrag() {
+  searchDrag = null;
+  window.removeEventListener("pointermove", moveSearchWin);
+}
+function closeSearch() {
+  searchOpen.value = false;
+  modVersions.value = null;
+  window.removeEventListener("pointermove", moveSearchWin);
+}
+function openSearch(kind: ModrinthSearchKind, service: SearchService = "modrinth") {
+  modSearchKind.value = kind;
+  searchService.value = service;
+  modSearchQuery.value = "";
+  modSearchResults.value = [];
+  modSearchErr.value = "";
+  modVersions.value = null;
+  modFilters.versions = [];
+  modFilters.loaders = [];
+  modFilters.categories = [];
+  modFilters.env = "";
+  modFilters.sort = "relevance";
+  modDatapackWorld.value = null;
+  curseQuery.value = "";
+  curseResults.value = [];
+  curseSearched.value = false;
+  curseErr.value = "";
+  searchOpen.value = true;
+  void loadModrinthTags(kind);
+  if (service === "curseforge") void loadCurseKeyStatus();
+  if (kind === "datapack" && !gameFiles.value.saves) {
+    void loadGameFiles("saves");
+  }
+}
+const searchInput = computed({
+  get: () => (searchService.value === "modrinth" ? modSearchQuery.value : curseQuery.value),
+  set: (v: string) => {
+    if (searchService.value === "modrinth") modSearchQuery.value = v;
+    else curseQuery.value = v;
+  },
+});
+const searchLoading = computed(() =>
+  searchService.value === "modrinth" ? modSearchLoading.value : curseLoading.value
+);
+const searchTitle = computed(() => {
+  const kind = modSearchKind.value;
+  switch (kind) {
+    case "mod":
+      return t("mods.title");
+    case "resourcepack":
+      return t("mods.titleRP");
+    case "shaderpack":
+      return t("mods.titleShaders");
+    case "datapack":
+      return t("mods.titleDatapack");
+    default:
+      return t("mods.title");
+  }
+});
+function switchSearchService(s: SearchService) {
+  if (s === searchService.value) return;
+  if (s === "curseforge" && modSearchKind.value === "datapack") return;
+  searchService.value = s;
+  if (s === "curseforge") void loadCurseKeyStatus();
+}
+function doSearch() {
+  if (searchService.value === "modrinth") void searchMods();
+  else void searchCurse();
+}
 const modSearchKind = ref<ModrinthSearchKind>("mod");
 const modSearchQuery = ref("");
 const modSearchLoading = ref(false);
@@ -3459,24 +3520,9 @@ async function loadModrinthTags(kind: ModrinthSearchKind = modSearchKind.value) 
   }
 }
 
-/** Открывает поиск Modrinth для типа проекта текущей вкладки. */
+/** Открывает окно поиска файлов (Modrinth по умолчанию). */
 async function openModSearch(kind: ModrinthSearchKind) {
-  modSearchKind.value = kind;
-  modSearchQuery.value = "";
-  modSearchResults.value = [];
-  modSearchErr.value = "";
-  modVersions.value = null;
-  modFilters.versions = [];
-  modFilters.loaders = [];
-  modFilters.categories = [];
-  modFilters.env = "";
-  modFilters.sort = "relevance";
-  modDatapackWorld.value = null;
-  modSearchOpen.value = true;
-  await loadModrinthTags(kind);
-  if (kind === "datapack" && !gameFiles.value.saves) {
-    await loadGameFiles("saves");
-  }
+  await openSearch(kind, "modrinth");
 }
 
 /** Папка игры для типа проекта Modrinth. */
@@ -3505,44 +3551,25 @@ function kindNoun(v: ModrinthSearchKind | ModrinthInstallFolder): string {
   }
 }
 
-/** Заголовок модалки поиска под тип проекта. */
-const modSearchTitle = computed(() => {
-  switch (modSearchKind.value) {
-    case "mod":
-      return t("mods.title");
-    case "modpack":
-      return t("mods.titlePack");
-    case "resourcepack":
-      return t("mods.titleRP");
-    case "shaderpack":
-      return t("mods.titleShaders");
-    default:
-      return t("mods.titleDatapack");
-  }
-});
+/** Класс проектов CurseForge для типа проекта (моды/ресурспаки/шейдеры). */
+const CURSE_CLASS: Partial<Record<ModrinthSearchKind, number>> = {
+  mod: 6,
+  resourcepack: 12,
+  shaderpack: 6552,
+};
 
-/** Класс проектов CurseForge для вкладки файлов. */
-const CURSE_CLASS = {
-  mods: 6,
-  resourcepacks: 12,
-  shaderpacks: 6552,
-} as const;
+/** Папка игры для типа проекта CurseForge. */
+const CURSE_FOLDER: Partial<Record<ModrinthSearchKind, ModrinthInstallFolder>> = {
+  mod: "mods",
+  resourcepack: "resourcepacks",
+  shaderpack: "shaderpacks",
+};
 
-/** Папка игры для вкладки CurseForge. */
-const CURSE_FOLDER = {
-  mods: "mods",
-  resourcepacks: "resourcepacks",
-  shaderpacks: "shaderpacks",
-} as const;
-
-type CurseTab = keyof typeof CURSE_CLASS;
-
-const curseSearchOpen = ref(false);
-const curseKind = ref<CurseTab>("mods");
 const curseQuery = ref("");
 const curseLoading = ref(false);
 const curseSearched = ref(false);
 const curseResults = ref<CurseSearchHit[]>([]);
+const curseErr = ref("");
 const curseInstallBusy = ref<number | null>(null);
 const curseKeyOk = ref(true);
 
@@ -3555,30 +3582,20 @@ async function loadCurseKeyStatus() {
   }
 }
 
-/** Открывает поиск CurseForge для вкладки файлов (моды/ресурспаки/шейдеры). */
-function openCurseSearch(tab: GameFolderKind) {
-  const kind =
-    tab === "mods" ? "mods" : tab === "resourcepacks" ? "resourcepacks" : ("shaderpacks" as CurseTab);
-  curseKind.value = kind;
-  curseQuery.value = "";
-  curseResults.value = [];
-  curseSearched.value = false;
-  curseSearchOpen.value = true;
-  void loadCurseKeyStatus();
-}
-
 /** Поиск на CurseForge. */
 async function searchCurse() {
   if (!isTauri() || !packId.value || curseLoading.value) return;
   curseLoading.value = true;
   curseSearched.value = true;
+  curseErr.value = "";
   try {
     curseResults.value = await curseforgeSearch(
       curseQuery.value.trim(),
-      CURSE_CLASS[curseKind.value]
+      CURSE_CLASS[modSearchKind.value] ?? 6
     );
   } catch (e) {
-    notify(t("curse.err", { e }));
+    curseResults.value = [];
+    curseErr.value = String(e);
   } finally {
     curseLoading.value = false;
   }
@@ -3590,10 +3607,10 @@ async function installCurse(p: CurseSearchHit) {
   curseInstallBusy.value = p.projectId;
   try {
     const file = await curseforgeLatestFile(packId.value, p.projectId);
-    const folder = CURSE_FOLDER[curseKind.value];
+    const folder = (CURSE_FOLDER[modSearchKind.value] ?? "mods") as GameFolderKind;
     await curseforgeInstallFile(packId.value, file, folder);
     notify(t("curse.installed", { name: p.name }), "success");
-    curseSearchOpen.value = false;
+    closeSearch();
     await loadGameFiles(folder);
     await refreshModUpdates();
   } catch (e) {
@@ -3673,7 +3690,7 @@ async function installModVersion(v: ModrinthVersion) {
   try {
     await modrinthInstallMod(packId.value, v.id, folder, world);
     notify(t("mods.installed", { kind: kindNoun(modSearchKind.value), name: v.name }), "success");
-    modSearchOpen.value = false;
+    closeSearch();
     modVersions.value = null;
     if (folder !== "datapacks") {
       await loadGameFiles(folder);
