@@ -4,7 +4,10 @@ import type {
   Accounts,
   AppStatus,
   CatalogEntry,
+  CurseCategory,
   CurseFile,
+  CurseInstallResult,
+  CursePackFile,
   CurseSearchHit,
   DownloadProgress,
   GameFileEntry,
@@ -12,6 +15,7 @@ import type {
   JavaInfo,
   LaunchLogEntry,
   LicenseInfo,
+  McVersionInfo,
   ModUpdate,
   ModrinthProject,
   ModrinthTags,
@@ -61,6 +65,11 @@ export function onPackAdded(
   cb: (p: PackAddedPayload) => void
 ): Promise<UnlistenFn> {
   return listen<PackAddedPayload>("pack-added", (event) => cb(event.payload));
+}
+
+/** Список файлов сборки изменился (установка/удаление файла) — обновить UI. */
+export function onModsChanged(cb: () => void): Promise<UnlistenFn> {
+  return listen("mods-changed", () => cb());
 }
 
 /** Результат добавления по deep link, если фронтенд стартовал позже события. */
@@ -120,8 +129,18 @@ export function elyPoll(
   return invoke("ely_poll_command", { deviceCode, interval, expiresIn });
 }
 
-export function curseforgeSearch(query: string, classId: number): Promise<CurseSearchHit[]> {
-  return invoke("curseforge_search_command", { query, classId });
+export function curseforgeSearch(
+  query: string,
+  classId: number,
+  categoryId: number | null = null,
+  gameVersion?: string,
+  sort?: string
+): Promise<CurseSearchHit[]> {
+  return invoke("curseforge_search_command", { query, classId, categoryId, gameVersion, sort });
+}
+
+export function curseforgeCategories(classId: number): Promise<CurseCategory[]> {
+  return invoke("curseforge_categories_command", { classId });
 }
 
 export function curseforgeLatestFile(packId: string, projectId: number): Promise<CurseFile> {
@@ -132,8 +151,16 @@ export function curseforgeInstallFile(
   packId: string,
   file: CurseFile,
   folder: string
-): Promise<string> {
+): Promise<CurseInstallResult> {
   return invoke("curseforge_install_command", { packId, file, folder });
+}
+
+export function curseforgeModpackFiles(projectId: number): Promise<CursePackFile[]> {
+  return invoke("curseforge_modpack_files_command", { projectId });
+}
+
+export function curseforgeInstallPack(projectId: number, fileId: number): Promise<PackDescriptor> {
+  return invoke("curseforge_install_pack_command", { projectId, fileId });
 }
 
 export function curseforgeKeyConfigured(): Promise<boolean> {
@@ -373,7 +400,7 @@ export interface ModrinthSearchOpts {
 /** Тип проекта Modrinth, по которому идёт поиск. */
 export type ModrinthSearchKind = "mod" | "modpack" | "resourcepack" | "shaderpack" | "datapack";
 
-export type { CurseSearchHit, CurseFile } from "./types";
+export type { CurseCategory, CurseFile, CurseInstallResult, CursePackFile, CurseSearchHit } from "./types";
 
 /** Папка игры, куда ставится файл с Modrinth. */
 export type ModrinthInstallFolder = "mods" | "resourcepacks" | "shaderpacks" | "datapacks";
@@ -460,11 +487,30 @@ export function modrinthInstallPack(versionId: string): Promise<PackDescriptor> 
 export function createLocalPack(
   name: string,
   minecraftVersion: string,
-  loader: string | null
+  loader: string | null,
+  icon: string | null = null,
+  banner: string | null = null,
+  loaderVersion: string | null = null
 ): Promise<PackDescriptor> {
   return invoke("create_local_pack_command", {
     name,
     minecraftVersion,
     loader,
+    loaderVersion,
+    icon,
+    banner,
   });
+}
+
+/** Доступные версии модлоадера под версию Minecraft (для выбора при создании своей сборки). */
+export function localLoaderVersions(
+  loader: string,
+  minecraftVersion: string
+): Promise<string[]> {
+  return invoke("local_loader_versions_command", { loader, minecraftVersion });
+}
+
+/** Релизные и снапшот-версии Minecraft (для выбора при создании своей сборки). */
+export function minecraftVersions(): Promise<McVersionInfo[]> {
+  return invoke("minecraft_versions_command");
 }

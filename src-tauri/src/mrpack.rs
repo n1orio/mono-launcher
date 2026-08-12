@@ -74,7 +74,7 @@ pub struct DownloadProgress {
     pub bytes_per_sec: u64,
 }
 
-fn emit_progress(app: &AppHandle, progress: &DownloadProgress) {
+pub(crate) fn emit_progress(app: &AppHandle, progress: &DownloadProgress) {
     let _ = app.emit("download-progress", progress);
 }
 
@@ -94,10 +94,11 @@ pub struct CustomFile {
 
 /// Хосты, которым доверяем как источникам файлов сборки.
 /// Всё остальное считается пользовательскими (кастомными) файлами.
-const TRUSTED_DOWNLOAD_HOSTS: [&str; 3] = [
+const TRUSTED_DOWNLOAD_HOSTS: [&str; 4] = [
     "cdn.modrinth.com",
     "dl.modrinth.com",
     "mediafiles.forgecdn.net",
+    "edge.forgecdn.net",
 ];
 
 fn custom_file(file: &IndexFile) -> Option<CustomFile> {
@@ -783,7 +784,7 @@ const CUSTOM_MODS_FILE: &str = ".nio-custom.json";
 
 /// Собирает `.jar`-файлы из папки `overrides` сборки — это моды, которые
 /// Prism положил в архив без записей об источнике (кастомные).
-fn collect_override_jars(extract_dir: &Path, custom: &mut Vec<CustomFile>) -> Result<()> {
+pub(crate) fn collect_override_jars(extract_dir: &Path, custom: &mut Vec<CustomFile>) -> Result<()> {
     let overrides = extract_dir.join("overrides");
     if !overrides.exists() {
         return Ok(());
@@ -904,6 +905,10 @@ mod tests {
         .is_none());
         assert!(custom_file(&file_with_url(
             "https://mediafiles.forgecdn.net/files/1234/5/mod.jar"
+        ))
+        .is_none());
+        assert!(custom_file(&file_with_url(
+            "https://edge.forgecdn.net/files/1234/5/mod.jar"
         ))
         .is_none());
     }

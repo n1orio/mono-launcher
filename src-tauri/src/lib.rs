@@ -14,7 +14,7 @@ mod skins;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 use sysinfo::System;
@@ -72,6 +72,8 @@ pub struct PackDescriptor {
     pub min_ram_mb: Option<u32>,
     /// Локальная иконка сборки (абсолютный путь), если есть.
     pub icon: Option<String>,
+    /// Локальный баннер сборки (абсолютный путь `packs/<id>/banner.png`), если есть.
+    pub banner: Option<String>,
 }
 
 /// Имя владельца репозитория из URL сборки (github.com/OWNER/...).
@@ -529,6 +531,7 @@ fn list_packs() -> Result<Vec<PackDescriptor>, String> {
                         boosty_blog: p.boosty_blog.clone(),
                         min_ram_mb: p.min_ram_mb,
                         icon: p.icon,
+                        banner: p.banner,
                     }
                 })
                 .collect()
@@ -575,6 +578,7 @@ async fn add_pack_impl(
         boosty_blog: blog.map(String::from),
         min_ram_mb: None,
         icon: None,
+        banner: None,
     };
     let releases = fetch_releases(client, &probe).await;
     let mrpack_release = releases.iter().find(|r| {
@@ -686,6 +690,7 @@ async fn add_pack_impl(
         boosty_blog,
         min_ram_mb: json_min_ram,
         icon: None,
+        banner: None,
     })
 }
 
@@ -810,7 +815,7 @@ async fn modrinth_install_mod_command(
     version_id: String,
     folder: String,
     world: Option<String>,
-) -> Result<modrinth::TrackedMod, String> {
+) -> Result<(modrinth::TrackedMod, u32), String> {
     let pack = resolve_pack(Some(pack_id.clone()))?;
     let version = modrinth::version_by_id(&state.client, &version_id)
         .await
@@ -851,7 +856,7 @@ async fn modrinth_install_mod_command(
     let tracked = modrinth::TrackedMod {
         file_name,
         folder: folder.clone(),
-        world: if folder == "datapacks" { world } else { None },
+        world: if folder == "datapacks" { world.clone() } else { None },
         version_id: version.id.clone(),
         project_id: version.project_id.clone(),
         sha1: file
@@ -863,19 +868,151 @@ async fn modrinth_install_mod_command(
         loader: version.loaders.first().cloned().unwrap_or_default(),
     };
     modrinth::upsert_tracked_mod(&pack.id, &tracked).map_err(|e| e.to_string())?;
+    // Автодокачка required-зависимостей (до 3 уровней), если их нет.
+    let deps_installed = install_modrinth_dependencies(
+        &state.client,
+        &pack.id,
+        &folder,
+        world.as_deref(),
+        &target_dir,
+        &version,
+    )
+    .await?;
     // Показываем файл в списке (событие для обновления UI).
     let _ = app.emit("mods-changed", ());
-    Ok(tracked)
+    Ok((tracked, deps_installed))
 }
 
-/// Поиск на CurseForge по классу (моды/ресурспаки/шейдеры).
+/// Сколько уровней required-зависимостей Modrinth доустанавливаем автоматически.
+const MODRINTH_DEP_MAX_DEPTH: u32 = 3;
+
+/// Автодокачка required-зависимостей Modrinth-версии: для каждой зависимости
+/// (по project_id, при версии — через version_id) выбирается версия под версию
+/// Minecraft/лоадер сборки, скачивается в ту же папку и трекается.
+/// Уже отслеживаемые проекты и циклы (по project_id) пропускаются.
+/// Возвращает число установленных файлов.
+async fn install_modrinth_dependencies(
+    client: &reqwest::Client,
+    pack_id: &str,
+    folder: &str,
+    world: Option<&str>,
+    target_dir: &std::path::Path,
+    root: &modrinth::ModrinthVersion,
+) -> Result<u32, String> {
+    let mut installed = 0u32;
+    let tracked = modrinth::tracked_mods(pack_id);
+    let mut visited = HashSet::new();
+    visited.insert(root.project_id.clone());
+    let mut stack: Vec<(modrinth::ModrinthVersion, u32)> = vec![(root.clone(), 0)];
+    while let Some((version, depth)) = stack.pop() {
+        if depth >= MODRINTH_DEP_MAX_DEPTH {
+            continue;
+        }
+        for dep in &version.dependencies {
+            if dep.dependency_type != "required" {
+                continue;
+            }
+            let Some(project_id) = dep.project_id.clone() else {
+                continue;
+            };
+            if !visited.insert(project_id.clone()) {
+                continue;
+            }
+            if tracked.iter().any(|t| t.project_id == project_id) {
+                continue;
+            }
+            let dep_version = if let Some(version_id) = &dep.version_id {
+                modrinth::version_by_id(client, version_id)
+                    .await
+                    .map_err(|e| format!("Не удалось получить зависимость {project_id} Modrinth: {e}"))?
+            } else {
+                let mut candidates = modrinth::project_versions(
+                    client,
+                    &project_id,
+                    version.game_versions.first().map(String::as_str),
+                    version.loaders.first().map(String::as_str),
+                )
+                .await
+                .map_err(|e| format!("Не удалось получить версии зависимости {project_id}: {e}"))?;
+                if candidates.is_empty() {
+                    candidates = modrinth::project_versions(client, &project_id, None, None)
+                        .await
+                        .map_err(|e| format!("Не удалось получить версии зависимости {project_id}: {e}"))?;
+                }
+                let Some(first) = candidates.into_iter().next() else {
+                    continue;
+                };
+                first
+            };
+            let Some(dep_file) = dep_version
+                .files
+                .iter()
+                .find(|f| f.primary == Some(true))
+                .or_else(|| dep_version.files.first())
+            else {
+                continue;
+            };
+            let (file_name, _) = modrinth::download_file(client, dep_file, target_dir)
+                .await
+                .map_err(|e| format!("Зависимость {project_id}: {e}"))?;
+            let tracked_entry = modrinth::TrackedMod {
+                file_name,
+                folder: folder.to_string(),
+                world: if folder == "datapacks" { world.map(str::to_string) } else { None },
+                version_id: dep_version.id.clone(),
+                project_id: project_id.clone(),
+                sha1: dep_file.hashes.get("sha1").cloned().unwrap_or_default(),
+                game_version: dep_version.game_versions.first().cloned().unwrap_or_default(),
+                loader: dep_version.loaders.first().cloned().unwrap_or_default(),
+            };
+            modrinth::upsert_tracked_mod(pack_id, &tracked_entry).map_err(|e| e.to_string())?;
+            installed += 1;
+            stack.push((dep_version, depth + 1));
+        }
+    }
+    Ok(installed)
+}
+
+/// Поиск на CurseForge по классу (моды/ресурспаки/шейдеры/сборки).
 #[tauri::command]
 async fn curseforge_search_command(
     state: State<'_, AppState>,
     query: String,
     class_id: u32,
+    category_id: Option<u32>,
+    game_version: Option<String>,
+    sort: Option<String>,
 ) -> Result<Vec<curseforge::CurseSearchHit>, String> {
-    curseforge::search(&state.client, &query, class_id)
+    curseforge::search(
+        &state.client,
+        &query,
+        class_id,
+        category_id,
+        game_version.as_deref(),
+        sort.as_deref(),
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// Категории класса проектов CurseForge (для фильтра поиска).
+#[tauri::command]
+async fn curseforge_categories_command(
+    state: State<'_, AppState>,
+    class_id: u32,
+) -> Result<Vec<curseforge::CurseCategory>, String> {
+    curseforge::categories(&state.client, class_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Файлы проекта CurseForge (для выбора версии сборки).
+#[tauri::command]
+async fn curseforge_modpack_files_command(
+    state: State<'_, AppState>,
+    project_id: u32,
+) -> Result<Vec<curseforge::CursePackFile>, String> {
+    curseforge::pack_files(&state.client, project_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -899,7 +1036,7 @@ async fn curseforge_latest_file_command(
 }
 
 /// Скачивает файл CurseForge в папку сборки (mods/resourcepacks/shaderpacks)
-/// с проверкой sha1.
+/// с проверкой sha1 и автодокачкой required-зависимостей.
 #[tauri::command]
 async fn curseforge_install_command(
     app: AppHandle,
@@ -907,7 +1044,7 @@ async fn curseforge_install_command(
     pack_id: String,
     file: curseforge::CurseFile,
     folder: String,
-) -> Result<String, String> {
+) -> Result<curseforge::InstallResult, String> {
     let pack = resolve_pack(Some(pack_id))?;
     let game_dir = config::active_game_dir(&pack.id).map_err(|e| e.to_string())?;
     let target_dir = match folder.as_str() {
@@ -917,14 +1054,84 @@ async fn curseforge_install_command(
     let name = curseforge::download_to(&state.client, &file, &target_dir)
         .await
         .map_err(|e| e.to_string())?;
+    // Автодокачка required-зависимостей (до FileDependency::MAX_DEPTH уровней, без циклов).
+    let deps_installed = curseforge::install_dependencies(
+        &state.client,
+        file.project_id,
+        file.file_id,
+        if file.game_version.is_empty() {
+            None
+        } else {
+            Some(&file.game_version)
+        },
+        &target_dir,
+    )
+    .await
+    .map_err(|e| format!("Зависимости CurseForge: {e}"))?;
     let _ = app.emit("mods-changed", ());
-    Ok(name)
+    Ok(curseforge::InstallResult {
+        name,
+        deps_installed,
+    })
 }
 
 /// Задан ли API-ключ CurseForge (для подсказки в UI, сам ключ не возвращаем).
 #[tauri::command]
 fn curseforge_key_configured_command() -> bool {
     curseforge::api_key_from_cfg().is_some()
+}
+
+/// Скачивает и устанавливает сборку CurseForge как отдельную сборку
+/// (id = `cf-<projectId>`). Повторный вызов с той же версией — обновление.
+#[tauri::command]
+async fn curseforge_install_pack_command(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    project_id: u32,
+    file_id: u32,
+) -> Result<PackDescriptor, String> {
+    let project = curseforge::project(&state.client, project_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    let pack_id = format!("cf-{project_id}");
+    let existing = config::find_pack(&pack_id).map_err(|e| e.to_string())?;
+    if existing.is_none() {
+        config::add_user_pack(
+            &pack_id,
+            &project.name,
+            &format!("https://www.curseforge.com/minecraft/modpacks/{project_id}"),
+            "local",
+            None,
+            None,
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    curseforge::install_modpack(&app, &state.client, &pack_id, project_id, file_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    if let Some(logo_url) = &project.logo_url {
+        let icon_path = config::pack_dir(&pack_id)
+            .map_err(|e| e.to_string())?
+            .join("icon.png");
+        let _ = modrinth::download_icon(&state.client, logo_url, &icon_path).await;
+    }
+    let icon = config::pack_icon_path(&pack_id);
+    let (name, url) = match existing {
+        Some(p) => (p.name, p.url),
+        None => (project.name, format!("https://www.curseforge.com/minecraft/modpacks/{project_id}")),
+    };
+    Ok(PackDescriptor {
+        id: pack_id.clone(),
+        name,
+        url,
+        builtin: false,
+        kind: "local".into(),
+        author: None,
+        boosty_blog: None,
+        min_ram_mb: None,
+        icon,
+        banner: config::pack_banner_path(&pack_id),
+    })
 }
 
 /// Доступное обновление установленного из Modrinth файла.
@@ -1149,6 +1356,7 @@ async fn modrinth_install_pack_command(
             let _ = modrinth::download_icon(&state.client, icon_url, &icon_path).await;
         }
         let icon = config::pack_icon_path(&pack_id);
+        let banner = config::pack_banner_path(&pack_id);
         return Ok(PackDescriptor {
             id: pack_id,
             name: existing.name,
@@ -1159,7 +1367,8 @@ async fn modrinth_install_pack_command(
             boosty_blog: None,
             min_ram_mb: None,
             icon,
-        });
+            banner,
+        })
     }
     config::add_user_pack(
         &pack_id,
@@ -1186,6 +1395,7 @@ async fn modrinth_install_pack_command(
         let _ = modrinth::download_icon(&state.client, icon_url, &icon_path).await;
     }
     let icon = config::pack_icon_path(&pack_id);
+    let banner = config::pack_banner_path(&pack_id);
     Ok(PackDescriptor {
         id: pack_id,
         name: project.title.clone(),
@@ -1196,11 +1406,258 @@ async fn modrinth_install_pack_command(
         boosty_blog: None,
         min_ram_mb: None,
         icon,
+        banner,
     })
 }
 
 /// Поддерживаемые загрузчики для создания своей сборки.
-const LOCAL_LOADERS: &[&str] = &["vanilla", "fabric", "quilt"];
+const LOCAL_LOADERS: &[&str] = &["vanilla", "fabric", "quilt", "forge", "neoforge"];
+
+/// Префикс версий NeoForge для заданной версии Minecraft (1.21.4 → "21.4.").
+fn neoforge_prefix(mc: &str) -> Option<String> {
+    let rest = mc.strip_prefix("1.")?;
+    let mut parts = rest.split('.');
+    let a = parts.next()?;
+    let b = parts.next()?;
+    Some(format!("{a}.{b}."))
+}
+
+/// Числовое сравнение версий ("21.4.9" < "21.4.10"; суффиксы -beta/-alpha игнорируются).
+fn version_numeric(v: &str) -> Vec<i64> {
+    let base = v.split('-').next().unwrap_or(v);
+    base.split('.')
+        .filter_map(|s| s.parse::<i64>().ok())
+        .collect()
+}
+
+/// Копирует выбранный пользователем файл (иконку/баннер) в папку сборки.
+fn copy_pack_asset(src: Option<&str>, dest: &std::path::Path) -> Result<(), String> {
+    let Some(src) = src else { return Ok(()); };
+    let src_path = std::path::PathBuf::from(src);
+    if !src_path.is_file() {
+        return Err(format!("Файл не найден: {src}"));
+    }
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::copy(&src_path, dest).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Определяет версию загрузчика под версию Minecraft. Возвращает (ключ зависимости
+/// в .nio-index.json, версию загрузчика) или None для ванили.
+async fn meta_json(client: &reqwest::Client, url: &str) -> Result<serde_json::Value, String> {
+    client
+        .get(url)
+        .header("User-Agent", "nio-launcher")
+        .send()
+        .await
+        .map_err(|e| format!("Не удалось получить метаданные загрузчика: {e}"))?
+        .error_for_status()
+        .map_err(|e| format!("Сервис загрузчика вернул ошибку: {e}"))?
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|e| format!("Не удалось прочитать метаданные загрузчика: {e}"))
+}
+
+/// Версии NeoForge под версию Minecraft (убыванию), из maven-метаданных.
+async fn neoforge_versions(client: &reqwest::Client, mc: &str) -> Result<Vec<String>, String> {
+    let url = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
+    let prefix = neoforge_prefix(mc)
+        .ok_or_else(|| format!("Не удалось определить версию NeoForge для Minecraft {mc}"))?;
+    let text = client
+        .get(url)
+        .header("User-Agent", "nio-launcher")
+        .send()
+        .await
+        .map_err(|e| format!("Не удалось получить версии NeoForge: {e}"))?
+        .error_for_status()
+        .map_err(|e| format!("Maven NeoForge вернул ошибку: {e}"))?
+        .text()
+        .await
+        .map_err(|e| format!("Не удалось прочитать версии NeoForge: {e}"))?;
+    let mut versions: Vec<String> = Vec::new();
+    for part in text.split("<version>").skip(1) {
+        let Some(end) = part.find("</version>") else {
+            continue;
+        };
+        let v = &part[..end];
+        if v.starts_with(&prefix) {
+            versions.push(v.to_string());
+        }
+    }
+    versions.sort_by(|a, b| {
+        version_numeric(b)
+            .cmp(&version_numeric(a))
+            .then_with(|| b.cmp(a))
+    });
+    versions.dedup();
+    Ok(versions)
+}
+
+/// Версии мода вдлоадера (fabric/quilt — список из их meta-API).
+async fn loader_versions_from_meta(
+    client: &reqwest::Client,
+    url: &str,
+    mc: &str,
+    loader: &str,
+) -> Result<Vec<String>, String> {
+    let resp = meta_json(client, url).await?;
+    let arr = resp
+        .as_array()
+        .ok_or_else(|| format!("Здесь версии загрузчика {loader} недоступны для Minecraft {mc}"))?;
+    // Стабильные сборки идут первыми, затем прочие.
+    let mut stable: Vec<String> = Vec::new();
+    let mut others: Vec<String> = Vec::new();
+    for v in arr {
+        let Some(ver) = v["loader"]["version"].as_str() else {
+            continue;
+        };
+        if v["loader"]["stable"].as_bool().unwrap_or(false) {
+            if !stable.contains(&ver.to_string()) {
+                stable.push(ver.to_string());
+            }
+        } else if !others.contains(&ver.to_string()) {
+            others.push(ver.to_string());
+        }
+    }
+    stable.extend(others);
+    Ok(stable)
+}
+
+/// Определяет версию загрузчика под версию Minecraft. `requested` — выбранная
+/// пользователем версия (пустая строка → последняя). Возвращает (ключ зависимости
+/// в .nio-index.json, версию загрузчика) или None для ванили.
+async fn resolve_loader_version(
+    client: &reqwest::Client,
+    loader: &str,
+    mc: &str,
+    requested: Option<&str>,
+) -> Result<Option<(String, String)>, String> {
+    match loader {
+        "vanilla" => Ok(None),
+        "fabric" => {
+            let url = format!("https://meta.fabricmc.net/v2/versions/loader/{mc}");
+            let list = loader_versions_from_meta(client, &url, mc, "fabric").await?;
+            let version = if let Some(r) = requested {
+                list.iter()
+                    .find(|v| v == &r)
+                    .cloned()
+                    .ok_or_else(|| format!("Версия fabric {r} не найдена для Minecraft {mc}"))?
+            } else {
+                list.first().cloned().ok_or_else(|| {
+                    format!("Загрузчик fabric не поддерживает Minecraft {mc}")
+                })?
+            };
+            Ok(Some(("fabric-loader".into(), version)))
+        }
+        "quilt" => {
+            let url = format!("https://meta.quiltmc.org/v3/versions/loader/{mc}");
+            let list = loader_versions_from_meta(client, &url, mc, "quilt").await?;
+            let version = if let Some(r) = requested {
+                list.iter()
+                    .find(|v| v == &r)
+                    .cloned()
+                    .ok_or_else(|| format!("Версия quilt {r} не найдена для Minecraft {mc}"))?
+            } else {
+                list.first().cloned().ok_or_else(|| {
+                    format!("Загрузчик quilt не поддерживает Minecraft {mc}")
+                })?
+            };
+            Ok(Some(("quilt-loader".into(), version)))
+        }
+        "forge" => {
+            // У пользователя — только номер сборки; итоговая версия = "{mc}-{build}".
+            if let Some(r) = requested.map(str::trim).filter(|r| !r.is_empty()) {
+                return Ok(Some(("forge".into(), format!("{mc}-{r}"))));
+            }
+            let url = "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json";
+            let resp = meta_json(client, url).await?;
+            let promos = resp
+                .get("promos")
+                .and_then(|p| p.as_object())
+                .ok_or_else(|| format!("Здесь промо-версии forge недоступны для Minecraft {mc}"))?;
+            // Приоритет: recommended → latest → голый ключ версии.
+            let mut picked = None;
+            for key in [
+                format!("{mc}-recommended"),
+                format!("{mc}-latest"),
+                mc.to_string(),
+            ] {
+                if let Some(v) = promos.get(&key) {
+                    if let Some(s) = v.as_str() {
+                        if !s.is_empty() {
+                            picked = Some(s.to_string());
+                            break;
+                        }
+                    }
+                }
+            }
+            let build = picked
+                .ok_or_else(|| format!("Загрузчик forge не поддерживает Minecraft {mc}"))?;
+            Ok(Some(("forge".into(), format!("{mc}-{build}"))))
+        }
+        "neoforge" => {
+            let list = neoforge_versions(client, mc).await?;
+            let version = if let Some(r) = requested.map(str::trim).filter(|r| !r.is_empty()) {
+                list.iter()
+                    .find(|v| v == &r)
+                    .cloned()
+                    .ok_or_else(|| format!("Версия neoforge {r} не найдена для Minecraft {mc}"))?
+            } else {
+                list.first().cloned().ok_or_else(|| {
+                    format!("Загрузчик neoforge не поддерживает Minecraft {mc}")
+                })?
+            };
+            Ok(Some(("neoforge".into(), version)))
+        }
+        _ => Err(format!("Загрузчик «{loader}» не поддерживается")),
+    }
+}
+
+/// Доступные версии модлоадера под версию Minecraft (для выбора при создании
+/// своей сборки). Пустой список — загрузчик не применим (vanilla).
+#[tauri::command]
+async fn local_loader_versions_command(
+    state: State<'_, AppState>,
+    loader: String,
+    minecraft_version: String,
+) -> Result<Vec<String>, String> {
+    if loader == "vanilla" || minecraft_version.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    let mc = minecraft_version.trim().to_string();
+    match loader.as_str() {
+        "fabric" => {
+            let url = format!("https://meta.fabricmc.net/v2/versions/loader/{mc}");
+            loader_versions_from_meta(&state.client, &url, &mc, "fabric").await
+        }
+        "quilt" => {
+            let url = format!("https://meta.quiltmc.org/v3/versions/loader/{mc}");
+            loader_versions_from_meta(&state.client, &url, &mc, "quilt").await
+        }
+        "forge" => {
+            // Промо-версии Forge: для версии есть recommended и/или latest.
+            let url = "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json";
+            let resp = meta_json(&state.client, url).await?;
+            let promos = resp
+                .get("promos")
+                .and_then(|p| p.as_object())
+                .ok_or_else(|| format!("Здесь промо-версии forge недоступны для Minecraft {mc}"))?;
+            let mut out: Vec<String> = Vec::new();
+            for key in [format!("{mc}-recommended"), format!("{mc}-latest")] {
+                if let Some(v) = promos.get(&key).and_then(|x| x.as_str()) {
+                    if !v.is_empty() && !out.contains(&v.to_string()) {
+                        out.push(v.to_string());
+                    }
+                }
+            }
+            Ok(out)
+        }
+        "neoforge" => neoforge_versions(&state.client, &mc).await,
+        _ => Ok(Vec::new()),
+    }
+}
 
 /// Создаёт свою (локальную) сборку: база Minecraft + опциональный загрузчик.
 /// Сразу ставит базу (файлы игры скачаются при первом запуске).
@@ -1210,18 +1667,22 @@ async fn create_local_pack_command(
     name: String,
     minecraft_version: String,
     loader: Option<String>,
+    loader_version: Option<String>,
+    icon: Option<String>,
+    banner: Option<String>,
 ) -> Result<PackDescriptor, String> {
     let name = name.trim().to_string();
     if name.is_empty() {
         return Err("Укажите название сборки".into());
     }
-    if minecraft_version.trim().is_empty() {
+    let mc = minecraft_version.trim().to_string();
+    if mc.is_empty() {
         return Err("Укажите версию Minecraft".into());
     }
     let loader = loader.unwrap_or_else(|| "vanilla".into());
     if !LOCAL_LOADERS.contains(&loader.as_str()) {
         return Err(format!(
-            "Загрузчик «{loader}» не поддерживается для своих сборок (доступно: vanilla, fabric, quilt)"
+            "Загрузчик «{loader}» не поддерживается для своих сборок (доступно: vanilla, fabric, quilt, forge, neoforge)"
         ));
     }
     let slug: String = name
@@ -1244,42 +1705,17 @@ async fn create_local_pack_command(
     if config::find_pack(&pack_id).map_err(|e| e.to_string())?.is_some() {
         return Err(format!("Сборка «{name}» уже существует (id {pack_id})"));
     }
-    // Версия загрузчика: последняя подходящая под версию Minecraft.
+    // Версия загрузчика: указанная пользователем или последняя подходящая.
+    let requested = loader_version.as_deref().filter(|v| !v.trim().is_empty());
+    let resolver = resolve_loader_version(&state.client, &loader, &mc, requested).await?;
     let mut index_deps = std::collections::HashMap::new();
-    index_deps.insert("minecraft".to_string(), minecraft_version.clone());
-    let loader_name = if loader == "vanilla" {
-        None
-    } else {
-        let meta = if loader == "fabric" {
-            format!("https://meta.fabricmc.net/v2/versions/loader/{minecraft_version}")
-        } else {
-            format!("https://meta.quiltmc.org/v3/versions/loader/{minecraft_version}")
-        };
-        let resp: Vec<serde_json::Value> = state
-            .client
-            .get(&meta)
-            .header("User-Agent", "nio-launcher")
-            .send()
-            .await
-            .map_err(|e| format!("Не удалось получить версии загрузчика: {e}"))?
-            .error_for_status()
-            .map_err(|e| format!("Meta-сервис загрузчика вернул ошибку: {e}"))?
-            .json()
-            .await
-            .map_err(|e| format!("Не удалось прочитать версии загрузчика: {e}"))?;
-        let version = resp
-            .first()
-            .and_then(|v| v["loader"]["version"].as_str())
-            .ok_or_else(|| format!("Загрузчик {loader} не поддерживает Minecraft {minecraft_version}"))?;
-        index_deps.insert(
-            format!("{loader}-loader"),
-            version.to_string(),
-        );
-        Some(version.to_string())
-    };
-    let version_id = match &loader_name {
-        Some(lv) => format!("{minecraft_version}-{loader}-{lv}"),
-        None => minecraft_version.clone(),
+    index_deps.insert("minecraft".to_string(), mc.clone());
+    let version_id = match &resolver {
+        Some((dep_key, lv)) => {
+            index_deps.insert(dep_key.clone(), lv.clone());
+            format!("{mc}-{loader}-{lv}")
+        }
+        None => mc.clone(),
     };
     let index = mrpack::ModrinthIndex {
         format_version: 1,
@@ -1300,8 +1736,17 @@ async fn create_local_pack_command(
     mrpack::write_install_marker(&game_dir, &index, None).map_err(|e| e.to_string())?;
     config::set_active_version(&pack_id, &version_id).map_err(|e| e.to_string())?;
     let url = format!("local://{version_id}");
+    // Иконка и баннер сборки (необязательно) — копируются в папку сборки.
+    let pack_dir = config::pack_dir(&pack_id).map_err(|e| e.to_string())?;
+    if icon.is_some() {
+        copy_pack_asset(icon.as_deref(), &pack_dir.join("icon.png"))?;
+    }
+    if banner.is_some() {
+        copy_pack_asset(banner.as_deref(), &pack_dir.join("banner.png"))?;
+    }
     config::add_user_pack(&pack_id, &name, &url, "local", None, None).map_err(|e| e.to_string())?;
-    let icon = config::pack_icon_path(&pack_id);
+    let icon_path = config::pack_icon_path(&pack_id);
+    let banner_path = config::pack_banner_path(&pack_id);
     Ok(PackDescriptor {
         id: pack_id,
         name,
@@ -1311,8 +1756,64 @@ async fn create_local_pack_command(
         author: None,
         boosty_blog: None,
         min_ram_mb: None,
-        icon,
+        icon: icon_path,
+        banner: banner_path,
     })
+}
+
+/// Версия Minecraft для выбора при создании своей сборки.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McVersionInfo {
+    pub id: String,
+    /// "release" | "snapshot"
+    pub kind: String,
+}
+
+/// Список релизных и снапшот-версий Minecraft (для выбора при создании своей
+/// сборки) из официального манифеста Mojang. Сначала релизы (по убыванию),
+/// затем снапшоты (по дате).
+#[tauri::command]
+async fn minecraft_versions_command(state: State<'_, AppState>) -> Result<Vec<McVersionInfo>, String> {
+    let url = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+    let resp: serde_json::Value = state
+        .client
+        .get(url)
+        .header("User-Agent", "nio-launcher")
+        .send()
+        .await
+        .map_err(|e| format!("Не удалось получить список версий Minecraft: {e}"))?
+        .error_for_status()
+        .map_err(|e| format!("Manifest Mojang вернул ошибку: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("Не удалось прочитать список версий Minecraft: {e}"))?;
+    let entries = resp["versions"]
+        .as_array()
+        .ok_or("Пустой список версий Minecraft")?;
+    // Сортируем по времени релиза (releaseTime) по убыванию, затем стабильно
+    // разделяем на релизы и снапшоты, чтобы релизы шли первыми.
+    let mut sorted: Vec<(&serde_json::Value, serde_json::Value)> = entries
+        .iter()
+        .filter(|v| matches!(v["type"].as_str(), Some("release") | Some("snapshot")))
+        .map(|v| {
+            let time = v["releaseTime"].as_str().unwrap_or("").to_string();
+            (v, serde_json::Value::String(time))
+        })
+        .collect();
+    sorted.sort_by(|a, b| b.1.as_str().cmp(&a.1.as_str()));
+    let mut out = Vec::with_capacity(sorted.len());
+    for (v, _) in sorted.iter().filter(|(v, _)| v["type"].as_str() == Some("release")) {
+        if let Some(id) = v["id"].as_str() {
+            out.push(McVersionInfo { id: id.to_string(), kind: "release".into() });
+        }
+    }
+    for (v, _) in sorted.iter().filter(|(v, _)| v["type"].as_str() == Some("snapshot")) {
+        if let Some(id) = v["id"].as_str() {
+            out.push(McVersionInfo { id: id.to_string(), kind: "snapshot".into() });
+        }
+    }
+    Ok(out)
 }
 
 const DEEP_LINK_SCHEME: &str = "niol";
@@ -1404,6 +1905,7 @@ async fn ensure_pack_from_link(
                 boosty_blog: existing.boosty_blog.clone(),
                 min_ram_mb: existing.min_ram_mb,
                 icon: existing.icon,
+                banner: existing.banner,
             },
             true,
         ));
@@ -2613,8 +3115,11 @@ pub fn run() {
             ely_device_code_command,
             ely_poll_command,
             curseforge_search_command,
+            curseforge_categories_command,
             curseforge_latest_file_command,
             curseforge_install_command,
+            curseforge_modpack_files_command,
+            curseforge_install_pack_command,
             curseforge_key_configured_command,
             list_accounts_command,
             switch_account_command,
@@ -2664,6 +3169,8 @@ pub fn run() {
             modrinth_remove_mod_command,
             modrinth_install_pack_command,
             create_local_pack_command,
+            local_loader_versions_command,
+            minecraft_versions_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

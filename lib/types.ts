@@ -14,6 +14,8 @@ export interface PackDescriptor {
   minRam: number | null;
   /** Локальная иконка сборки (путь к packs/<id>/icon.png), если есть. */
   icon: string | null;
+  /** Локальный баннер сборки (путь к packs/<id>/banner.png), если есть. */
+  banner: string | null;
 }
 
 /** Карточка проекта Modrinth (мод или модпак). */
@@ -123,6 +125,13 @@ export interface LicenseInfo {
   cachedUntil: number;
 }
 
+/** Версия Minecraft для выбора при создании своей сборки. */
+export interface McVersionInfo {
+  id: string;
+  /** "release" | "snapshot" */
+  kind: string;
+}
+
 export interface UserSession {
   username: string;
   uuid: string;
@@ -228,7 +237,7 @@ export interface MsDeviceCodeInfo {
   qr_svg: string;
 }
 
-/** Результат поиска на CurseForge (моды/ресурспаки/шейдеры). */
+/** Результат поиска на CurseForge (моды/ресурспаки/шейдеры/сборки). */
 export interface CurseSearchHit {
   projectId: number;
   name: string;
@@ -236,6 +245,22 @@ export interface CurseSearchHit {
   author: string;
   downloadCount: number;
   fileExt: string;
+  iconUrl?: string;
+}
+
+/** Категория класса проектов CurseForge (для фильтра поиска). */
+export interface CurseCategory {
+  id: number;
+  name: string;
+}
+
+/** Файл сборки CurseForge (для выбора версии). */
+export interface CursePackFile {
+  fileId: number;
+  fileName: string;
+  displayName: string;
+  gameVersion: string;
+  fileDate: string;
 }
 
 /** Файл CurseForge, готовый к установке (ответ curseforge_latest_file). */
@@ -246,6 +271,14 @@ export interface CurseFile {
   downloadUrl: string;
   sha1: string;
   gameVersion: string;
+  /** Required-зависимости файла (для автодокачки). */
+  dependencies?: Array<{ modId?: number; relationType: number }>;
+}
+
+/** Результат установки файла CurseForge. */
+export interface CurseInstallResult {
+  name: string;
+  depsInstalled: number;
 }
 
 export interface JavaInfo {
@@ -281,6 +314,8 @@ export interface GameFileEntry {
   kind: "file" | "dir";
   enabled: boolean;
   sizeBytes: number;
+  /** unix-секунды последнего изменения файла. */
+  modified: number;
   modrinthUrl?: string | null;
 }
 

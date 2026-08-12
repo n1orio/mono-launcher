@@ -55,6 +55,8 @@ pub struct PackInfo {
     pub min_ram_mb: Option<u32>,
     /// Локальная иконка сборки (путь к `packs/<id>/icon.png`), если есть.
     pub icon: Option<String>,
+    /// Локальный баннер сборки (путь к `packs/<id>/banner.png`), если есть.
+    pub banner: Option<String>,
 }
 
 /// Все поддерживаемые сборки. GitHub-endpoints выводятся из `url`.
@@ -90,6 +92,7 @@ pub fn builtin_packs() -> Vec<PackInfo> {
             boosty_blog: p.boosty_blog.map(String::from),
             min_ram_mb: p.min_ram_mb,
             icon: pack_icon_path(p.id),
+            banner: pack_banner_path(p.id),
         })
         .collect()
 }
@@ -124,6 +127,7 @@ pub fn all_packs() -> Result<Vec<PackInfo>> {
     let mut out = builtin_packs();
     for p in user_packs()? {
         let icon = pack_icon_path(&p.id);
+        let banner = pack_banner_path(&p.id);
         out.push(PackInfo {
             id: p.id,
             name: p.name,
@@ -133,6 +137,7 @@ pub fn all_packs() -> Result<Vec<PackInfo>> {
             boosty_blog: p.boosty_blog,
             min_ram_mb: p.min_ram_mb,
             icon,
+            banner,
         });
     }
     Ok(out)
@@ -150,6 +155,7 @@ pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
             boosty_blog: p.boosty_blog.map(String::from),
             min_ram_mb: p.min_ram_mb,
             icon: pack_icon_path(p.id),
+            banner: pack_banner_path(p.id),
         }));
     }
     Ok(user_packs()?
@@ -157,6 +163,7 @@ pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
         .find(|p| p.id == id)
         .map(|p| {
             let icon = pack_icon_path(&p.id);
+            let banner = pack_banner_path(&p.id);
             PackInfo {
                 id: p.id,
                 name: p.name,
@@ -166,6 +173,7 @@ pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
                 boosty_blog: p.boosty_blog,
                 min_ram_mb: p.min_ram_mb,
                 icon,
+                banner,
             }
         }))
 }
@@ -231,6 +239,13 @@ pub fn pack_dir(pack_id: &str) -> Result<PathBuf> {
 /// подставляется в `PackInfo::icon`, если существует.
 pub fn pack_icon_path(pack_id: &str) -> Option<String> {
     let path = pack_dir(pack_id).ok()?.join("icon.png");
+    path.exists().then(|| path.to_string_lossy().into_owned())
+}
+
+/// Путь к баннеру сборки (`packs/<id>/banner.png`) — локальный файл,
+/// подставляется в `PackInfo::banner`, если существует.
+pub fn pack_banner_path(pack_id: &str) -> Option<String> {
+    let path = pack_dir(pack_id).ok()?.join("banner.png");
     path.exists().then(|| path.to_string_lossy().into_owned())
 }
 

@@ -20,6 +20,8 @@ pub struct GameFileEntry {
     /// Включён (файл не переименован в *.disabled).
     pub enabled: bool,
     pub size_bytes: u64,
+    /// unix-секунды последнего изменения файла (для сортировки «по дате»).
+    pub modified: i64,
     /// Точная страница мода на Modrinth (из downloads в .nio-index.json), если файл оттуда.
     pub modrinth_url: Option<String>,
 }
@@ -118,12 +120,19 @@ pub fn list_files(pack_id: &str, folder: &str) -> Result<Vec<GameFileEntry>> {
         } else {
             None
         };
+        let modified = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
         out.push(GameFileEntry {
             name: raw,
             display_name,
             kind: if is_dir { "dir".into() } else { "file".into() },
             enabled,
             size_bytes: meta.len(),
+            modified,
             // Точная страница Modrinth — только для файлов из индекса сборки;
             // у добавленных вручную её нет, фронтенд делает поиск.
             modrinth_url,
