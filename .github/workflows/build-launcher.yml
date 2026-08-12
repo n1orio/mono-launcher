@@ -72,6 +72,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          NIO_CURSEFORGE_KEY: ${{ secrets.NIO_CURSEFORGE_KEY }}
         with:
           tagName: launcher-v__VERSION__
           releaseName: "Launcher v__VERSION__"
