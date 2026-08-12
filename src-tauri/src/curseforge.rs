@@ -23,7 +23,16 @@ pub const CLASS_MODS: u32 = 6;
 pub const CLASS_RESOURCEPACKS: u32 = 12;
 pub const CLASS_SHADERPACKS: u32 = 6552;
 
-const CURSEFORGE_KEY: &str = "CHANGE_ME";
+/// Ключ API задаётся одним из способов (приоритет сверху вниз):
+/// 1) файл `<данные лаунчера>/curseforge-key.txt` (одной строкой),
+/// 2) переменная окружения NIO_CURSEFORGE_KEY,
+/// 3) константа ниже: ключ вшивается в бинарник только при сборке с
+///    `NIO_CURSEFORGE_KEY` в окружении (например, секрет CI). В git ключ не хранится.
+/// Получить ключ: console.curseforge.com → API keys (нужен аккаунт CurseForge).
+const CURSEFORGE_KEY: &str = match option_env!("NIO_CURSEFORGE_KEY") {
+    Some(k) => k,
+    None => "CHANGE_ME",
+};
 
 pub fn api_key_from_cfg() -> Option<String> {
     let file =
