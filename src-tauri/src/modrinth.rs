@@ -120,7 +120,7 @@ pub struct ModrinthDependency {
 }
 
 fn ua() -> &'static str {
-    "nio-launcher/0.2.2 (desktop launcher)"
+    "nio-launcher/0.3.0-alpha.1 (desktop launcher)"
 }
 
 /// Фильтры поиска Modrinth: категории+загрузчики, версии игры,
