@@ -3547,6 +3547,7 @@ import {
   type ChangelogLine,
 } from "~/lib/changelog";
 import { formatPlaytimeShort as _formatPlaytimeShort } from "~/lib/format";
+import { phaseLabel as _phaseLabel, javaArchLabel as _javaArchLabel, localeLabel as _localeLabel } from "~/lib/labels";
 
 /** Этот экземпляр страницы открыт как отдельное окно поиска файлов. */
 function isSearchWindowQuery() {
@@ -3707,16 +3708,13 @@ const { t, locale, locales, setLocale } = useI18n();
 
 /** Компактное время в игре (часы/минуты), привязано к локали. */
 const formatPlaytimeShort = (seconds: number) => _formatPlaytimeShort(seconds, t);
+const phaseLabel = (p: string) => _phaseLabel(p, t);
+const javaArchLabel = (a: string) => _javaArchLabel(a, t);
+const localeLabel = (code: string) => _localeLabel(code, getLocaleMeta);
 
 /** Автор и версия активного перевода — для строки «Перевод: …» в настройках лаунчера. */
 const activeLocaleAuthor = computed(() => getLocaleMeta(locale.value).author ?? "");
 const activeLocaleVersion = computed(() => getLocaleMeta(locale.value).version ?? "");
-/** Подпись языка: «ru — автор · v0.3.0» (tooltip у кнопки языка). */
-function localeLabel(code: string): string {
-  const meta = getLocaleMeta(code);
-  const extra = [meta.author, meta.version ? `v${meta.version}` : ""].filter(Boolean).join(" · ");
-  return extra ? `${code} — ${extra}` : code;
-}
 
 const showAddPack = ref(false);
 const customModsOpen = ref(false);
@@ -3941,30 +3939,6 @@ const playSubTabsVisible = computed(() =>
     ? playSubTabs
     : playSubTabs.filter((st) => st.kind !== "releases")
 );
-
-const PHASE_KEYS: Record<string, string> = {
-  "Подготовка...": "phase.prepare",
-  "Скачивание сборки": "phase.download",
-  "Распаковка архива": "phase.extract",
-  "Установка модов": "phase.mods",
-  "Применение overrides": "phase.overrides",
-};
-
-function phaseLabel(phase: string): string {
-  const key = PHASE_KEYS[phase];
-  return key ? t(key) : phase;
-}
-
-const ARCH_KEYS: Record<string, string> = {
-  "64-бит": "java.arch64",
-  "32-бит": "java.arch32",
-  "недоступна": "java.archUnknown",
-};
-
-function javaArchLabel(arch: string): string {
-  const key = ARCH_KEYS[arch];
-  return key ? t(key) : arch;
-}
 
 const FILE_OVERSCAN = 10;
 const fileListRef = ref<HTMLElement | null>(null);
