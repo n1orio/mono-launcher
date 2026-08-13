@@ -2386,7 +2386,7 @@ dependencies = [
 
 [[package]]
 name = "mono-launcher"
-version = "0.3.0-alpha.2"
+version = "0.3.0-alpha.3"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
