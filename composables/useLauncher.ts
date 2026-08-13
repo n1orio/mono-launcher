@@ -32,6 +32,7 @@ import {
   onGameExited,
   onLaunchLog,
   onModsChanged,
+  onNewsChunk,
   onPackAdded,
   onPlaytimeUpdated,
   openExternal,
@@ -625,11 +626,18 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   async function loadNews() {
     if (!isTauri()) return;
     news.value = null;
+    // Стримим: финальный результат придёт из getNews(), но UI обновляется
+    // по `news-chunk` по мере подгрузки источников (свежие сверху).
+    if (!unlistenNewsChunk) {
+      onNewsChunk((chunk) => {
+        news.value = chunk;
+      }).then((fn) => (unlistenNewsChunk = fn));
+    }
     try {
       news.value = await getNews();
     } catch (e) {
-      notify(t("err.newsLoad", { e }));
-      news.value = [];
+      if (news.value === null) notify(t("err.newsLoad", { e }));
+      news.value ??= [];
     }
   }
 
@@ -891,6 +899,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   let unlistenModsChangedSync: (() => void) | undefined;
   let unlistenGameExitedSync: (() => void) | undefined;
   let unlistenDeepLinkSync: (() => void) | undefined;
+  let unlistenNewsChunk: (() => void) | undefined;
 
   // Буфер логов: Java может выдавать тысячи строк в секунду —
   // рендерим консоль порциями, чтобы не ронять UI.
@@ -1509,6 +1518,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     unlistenModsChangedSync?.();
     unlistenGameExitedSync?.();
     unlistenDeepLinkSync?.();
+    unlistenNewsChunk?.();
   });
 
   watch(

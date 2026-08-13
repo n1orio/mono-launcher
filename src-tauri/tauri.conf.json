@@ -25,12 +25,14 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost https:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: data: blob: https:; font-src 'self' data:; media-src 'self' blob: https:",
       "assetProtocol": {
         "enable": true,
         "scope": [
-          "**",
-          "$HOME/.local/**"
+          "$APPDATA/MonoLauncher/**",
+          "$XDG_DATA_HOME/MonoLauncher/**",
+          "$HOME/.local/share/MonoLauncher/**",
+          "$HOME/Library/Application Support/MonoLauncher/**"
         ]
       }
     }

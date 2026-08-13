@@ -28,7 +28,6 @@ export default defineNuxtConfig({
     "@fontsource/monaspace-neon/500.css",
     "@fontsource/monaspace-neon/600.css",
     "@fontsource/monaspace-neon/700.css",
-    "@fontsource/monaspace-neon/800.css",
     "~/assets/css/main.css",
   ],
 

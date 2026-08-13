@@ -352,6 +352,11 @@ export function getNews(): Promise<NewsItem[]> {
   return invoke("get_news_command");
 }
 
+/** Стриминг новостей: батч по мере подгрузки источников (свежие сверху). */
+export function onNewsChunk(cb: (items: NewsItem[]) => void): Promise<UnlistenFn> {
+  return listen<NewsItem[]>("news-chunk", (event) => cb(event.payload));
+}
+
 export function packRepoContent(packId: string): Promise<PackRepoContent> {
   return invoke("pack_repo_content_command", { packId });
 }

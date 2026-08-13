@@ -743,18 +743,18 @@
           </div>
 
           <!-- Сабтабы: релизы / моды / ресурспаки / шейдеры / миры / консоль -->
-          <div class="mb-4 flex shrink-0 flex-wrap items-center gap-1 border-b border-[var(--border)] pb-2">
+          <div class="mb-4 flex shrink-0 flex-wrap items-center justify-start gap-1 border-b border-[var(--border)] pb-2">
             <button
               v-for="st in playSubTabsVisible"
               :key="st.kind"
               type="button"
-              class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors"
+              class="relative flex items-center justify-center rounded-md px-7 py-1.5 text-[11px] font-medium transition-colors"
               :class="playSubTab === st.kind
                 ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
                 : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
               @click="playSubTab = st.kind"
             >
-              <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-current" v-html="st.icon"></svg>
+              <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-1.5 h-3.5 w-3.5 shrink-0 fill-current" v-html="st.icon"></svg>
               <span>{{ t("sub." + st.kind) }}</span>
             </button>
           </div>

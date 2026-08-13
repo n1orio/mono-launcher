@@ -2170,21 +2170,13 @@ fn get_game_file_icons_command(
 /// Лента новостей: релизы и обновления лаунчера, релизы (обновления) + посты
 /// всех сборок, свежие сверху.
 #[tauri::command]
-async fn get_news_command(state: State<'_, AppState>) -> Result<Vec<NewsItem>, String> {
+async fn get_news_command(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Vec<NewsItem>, String> {
     let mut items: Vec<NewsItem> = Vec::new();
-    // Глобальные посты лаунчера.
-    items.extend(
-        fetch_discussions_cached(
-            &state.client,
-            NEWS_REPO.0,
-            NEWS_REPO.1,
-            "post",
-            "launcher",
-            "Mono Launcher",
-        )
-        .await,
-    );
-    // Обновления лаунчера (релизы из GitHub Releases).
+    // Обновления лаунчера (релизы из GitHub Releases) — грузим первыми,
+    // обычно это самые свежие новости.
     for rel in fetch_launcher_releases_cached(&state.client).await {
         items.push(NewsItem {
             kind: "update".into(),
@@ -2198,6 +2190,20 @@ async fn get_news_command(state: State<'_, AppState>) -> Result<Vec<NewsItem>, S
             date: rel.published_at,
         });
     }
+    emit_news_chunk(&app, &items);
+    // Глобальные посты лаунчера.
+    items.extend(
+        fetch_discussions_cached(
+            &state.client,
+            NEWS_REPO.0,
+            NEWS_REPO.1,
+            "post",
+            "launcher",
+            "Mono Launcher",
+        )
+        .await,
+    );
+    emit_news_chunk(&app, &items);
     for pack in config::all_packs().map_err(|e| e.to_string())? {
         for rel in fetch_releases_cached(&state.client, &pack).await {
             items.push(NewsItem {
@@ -2226,15 +2232,28 @@ async fn get_news_command(state: State<'_, AppState>) -> Result<Vec<NewsItem>, S
                 .await,
             );
         }
+        emit_news_chunk(&app, &items);
     }
-    // Свежие сверху (без даты — вниз).
+    sort_news(&mut items);
+    Ok(items)
+}
+
+/// Свежие сверху (без даты — вниз).
+fn sort_news(items: &mut Vec<NewsItem>) {
     items.sort_by(|a, b| match (&b.date, &a.date) {
         (Some(x), Some(y)) => x.cmp(y),
         (Some(_), None) => std::cmp::Ordering::Greater,
         (None, Some(_)) => std::cmp::Ordering::Less,
         (None, None) => std::cmp::Ordering::Equal,
     });
-    Ok(items)
+}
+
+/// Отправляет фронтенду текущий накопленный список новостей (потоковая загрузка):
+/// UI показывает новости по мере их подгрузки, свежие сверху.
+fn emit_news_chunk(app: &AppHandle, items: &[NewsItem]) {
+    let mut sorted = items.to_vec();
+    sort_news(&mut sorted);
+    let _ = app.emit("news-chunk", sorted);
 }
 
 /// Контент репозитория сборки: звёзды GitHub + скриншоты (screenshots.json)
