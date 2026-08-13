@@ -1792,6 +1792,7 @@ notify(t("err.switch", { e }));
     gameRunning,
     progress,
     updateInfo,
+    launcherVer,
     versions,
     logEntries,
     logRef,

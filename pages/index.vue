@@ -254,8 +254,8 @@
                 v-for="p in packsBySource[cat]"
                 :key="p.id"
                 type="button"
-                class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
-                :class="tab === 'play' && packId === p.id ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+                class="flex items-center gap-2 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs font-medium transition-colors"
+                :class="tab === 'play' && packId === p.id ? 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
                 @click="openPackTab(p.id)"
               >
                 <img
@@ -424,36 +424,27 @@
               </svg>
             </button>
             <button
+              v-for="code in locales"
+              :key="code"
               type="button"
-              class="rounded-md border px-1.5 py-0.5 text-[10px] font-semibold transition-colors"
-              :class="locale === 'ru'
+              class="rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase transition-colors"
+              :class="locale === code
                 ? 'border-[color-mix(in_srgb,var(--accent-deep)_60%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] text-white'
                 : 'border-[var(--border)] text-[var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]'"
-              @click="setLocale('ru')"
+              :title="localeLabel(code)"
+              @click="setLocale(code)"
             >
-              RU
-            </button>
-            <button
-              type="button"
-              class="rounded-md border px-1.5 py-0.5 text-[10px] font-semibold transition-colors"
-              :class="locale === 'en'
-                ? 'border-[color-mix(in_srgb,var(--accent-deep)_60%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] text-white'
-                : 'border-[var(--border)] text-[var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]'"
-              @click="setLocale('en')"
-            >
-              EN
-            </button>
-            <button
-              type="button"
-              class="rounded-md border px-1.5 py-0.5 text-[10px] font-semibold transition-colors"
-              :class="locale === 'uk'
-                ? 'border-[color-mix(in_srgb,var(--accent-deep)_60%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] text-white'
-                : 'border-[var(--border)] text-[var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]'"
-              @click="setLocale('uk')"
-            >
-              UK
+              {{ code }}
             </button>
           </div>
+        </div>
+        <div class="flex items-center justify-between gap-2 text-[9px] text-[var(--tx-muted)]">
+          <span class="min-w-0 truncate">
+            {{ t("lang.byAuthor") }}
+            <span class="font-semibold" :class="activeLocaleAuthor ? 'text-[color:var(--tx)]' : ''">{{ activeLocaleAuthor || "—" }}</span>
+            <template v-if="activeLocaleVersion"> · v{{ activeLocaleVersion }}</template>
+          </span>
+          <span class="shrink-0 tabular-nums">{{ t("lang.launcherVer") }} v{{ launcherVer || "?" }}</span>
         </div>
         <label class="flex items-center gap-2">
           <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-current text-[var(--tx-muted)]">
@@ -754,7 +745,7 @@
           <!-- Сабтабы: релизы / моды / ресурспаки / шейдеры / миры / консоль -->
           <div class="mb-4 flex shrink-0 flex-wrap items-center gap-1 border-b border-[var(--border)] pb-2">
             <button
-              v-for="st in playSubTabs"
+              v-for="st in playSubTabsVisible"
               :key="st.kind"
               type="button"
               class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors"
@@ -3546,7 +3537,7 @@ import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions
 import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit, CursePackFile } from "~/lib/bridge";
 import type { CatalogEntry, CurseInstallResult, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
-import { useI18n } from "~/composables/useI18n";
+import { useI18n, getLocaleMeta } from "~/composables/useI18n";
 import { getCachedIcon, setCachedIcon } from "~/lib/iconCache";
 
 /** Этот экземпляр страницы открыт как отдельное окно поиска файлов. */
@@ -3572,6 +3563,7 @@ const {
   gameRunning,
   progress,
   updateInfo,
+  launcherVer,
   versions,
   logEntries,
   logRef,
@@ -3703,7 +3695,17 @@ const {
   load,
 } = useLauncher({ keepPackId: isSearchWindowQuery() });
 
-const { t, locale, setLocale } = useI18n();
+const { t, locale, locales, setLocale } = useI18n();
+
+/** Автор и версия активного перевода — для строки «Перевод: …» в настройках лаунчера. */
+const activeLocaleAuthor = computed(() => getLocaleMeta(locale.value).author ?? "");
+const activeLocaleVersion = computed(() => getLocaleMeta(locale.value).version ?? "");
+/** Подпись языка: «ru — автор · v0.3.0» (tooltip у кнопки языка). */
+function localeLabel(code: string): string {
+  const meta = getLocaleMeta(code);
+  const extra = [meta.author, meta.version ? `v${meta.version}` : ""].filter(Boolean).join(" · ");
+  return extra ? `${code} — ${extra}` : code;
+}
 
 const showAddPack = ref(false);
 const customModsOpen = ref(false);
@@ -3921,6 +3923,13 @@ const playSubTabs = [
   { kind: "servers" as const, icon: ICON_SERVER },
   { kind: "console" as const, icon: ICON_TERMINAL },
 ];
+
+/** Релизы GitHub есть только у авторских сборок (kind "remote" = GitHub-репозиторий). */
+const playSubTabsVisible = computed(() =>
+  activePack.value?.kind === "remote"
+    ? playSubTabs
+    : playSubTabs.filter((st) => st.kind !== "releases")
+);
 
 const PHASE_KEYS: Record<string, string> = {
   "Подготовка...": "phase.prepare",
@@ -5427,6 +5436,15 @@ function onCreatePackFileChange(target: "icon" | "banner") {
 watch(playSubTab, (tab) => {
   if (tab === "mods" || tab === "resourcepacks" || tab === "shaderpacks") refreshModUpdates();
 });
+
+// Если вкладка релизов скрыта (не авторская сборка), уводим с неё.
+watch(
+  () => activePack.value?.kind,
+  (kind) => {
+    if (kind && kind !== "remote" && playSubTab.value === "releases") playSubTab.value = "mods";
+  },
+  { immediate: true }
+);
 
 function openSelected(site: "modrinth" | "curseforge") {
   const sel = Object.values(selectedFiles.value);
