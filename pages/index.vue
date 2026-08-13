@@ -3539,6 +3539,13 @@ import type { CatalogEntry, CurseInstallResult, GameFileEntry, McVersionInfo, Mo
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n, getLocaleMeta } from "~/composables/useI18n";
 import { getCachedIcon, setCachedIcon } from "~/lib/iconCache";
+import {
+  changelogLines,
+  CHANGELOG_PREVIEW_LINES,
+  onChangelogLinkClick,
+  renderInline,
+  type ChangelogLine,
+} from "~/lib/changelog";
 
 /** Этот экземпляр страницы открыт как отдельное окно поиска файлов. */
 function isSearchWindowQuery() {
@@ -5486,28 +5493,6 @@ function onJavaChange(e: Event) {
 
 const expanded = ref<Record<string, boolean>>({});
 
-type ChangelogLine = { type: "bullet" | "body" | "text"; text: string };
-
-const CHANGELOG_PREVIEW_LINES = 8;
-
-function changelogLines(body: string): ChangelogLine[] {
-  if (!body) return [];
-  return body
-    .split("\n")
-    .map((raw) => {
-      const line = raw.replace(/\r$/, "").trim();
-      if (!line) return null;
-      if (/^[-*]\s+/.test(line)) {
-        return { type: "bullet" as const, text: line.replace(/^[-*]\s+/, "") };
-      }
-      if (/^#+\s+/.test(line)) {
-        return { type: "body" as const, text: line.replace(/^#+\s+/, "") };
-      }
-      return { type: "text" as const, text: line };
-    })
-    .filter((l): l is ChangelogLine => l !== null);
-}
-
 function isExpandable(body: string): boolean {
   return changelogLines(body).length > CHANGELOG_PREVIEW_LINES;
 }
@@ -5537,56 +5522,6 @@ function playtimeForRelease(tag: string): number {
   return (
     versions.value?.installed.find((iv) => iv.source_tag === tag)?.total_seconds ?? 0
   );
-}
-
-// --- Рендер inline-markdown в ченджлоге (ссылки, жирный, код, зачёркнутый) ---
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function inlineStyle(s: string): string {
-  return s
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-    .replace(/~~([^~]+)~~/g, "<del>$1</del>");
-}
-
-function renderInline(raw: string): string {
-  let t = escapeHtml(raw.trim());
-  t = inlineStyle(t);
-  // Ссылки [текст](http...)
-  t = t.replace(
-    /\[([^\]]+)\]\((https?:\/\/[^\s)"<>]+)\)/g,
-    (_, text: string, url: string) => `<a href="${url}">${text}</a>`
-  );
-  // Голые ссылки (минуя href уже вставленных <a>)
-  t = t.replace(/(https?:\/\/[^\s)"<>]+)/g, (m: string, _g: string, offset: number) => {
-    const before = t.slice(0, offset);
-    const opens = before.match(/<a /g)?.length ?? 0;
-    const closes = before.match(/<\/a>/g)?.length ?? 0;
-    return opens > closes ? m : `<a href="${m}">${m}</a>`;
-  });
-  return t;
-}
-
-function onChangelogLinkClick(e: MouseEvent) {
-  const target = e.target as HTMLElement;
-  const anchor = target.closest("a");
-  if (!anchor) return;
-  const href = anchor.getAttribute("href");
-  if (!href || !/^https?:\/\//i.test(href)) return;
-  e.preventDefault();
-  if (isTauri()) {
-    openExternal(href).catch(() => window.open(href, "_blank"));
-  } else {
-    window.open(href, "_blank");
-  }
 }
 
 /** Скриншоты/сервера активной сборки (загружены через Rust). */
