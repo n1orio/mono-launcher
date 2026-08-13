@@ -1,4 +1,8 @@
 {
+  "__meta__": {
+    "author": "n1orio",
+    "version": ""
+  },
   "nav.releases": "Releases & Launch",
   "nav.news": "News",
   "nav.settings": "Settings",
@@ -368,8 +372,8 @@
   "catalog.added": "Pack “{name}” added",
   "catalog.create": "Create your own pack",
   "catalog.modrinth": "Download from Modrinth",
-  "side.addModrinth": "From Modrinth",
-  "side.addModrinthHint": "Search modpacks on Modrinth",
+  "side.addModrinth": "Modrinth / CurseForge",
+  "side.addModrinthHint": "Search modpacks on Modrinth or CurseForge",
   "side.create": "Create your own pack",
   "side.createHint": "Minecraft + loader, add mods yourself",
   "side.addLink": "Or add by link",
@@ -414,7 +418,7 @@
   "mods.updateErr": "Failed to update {kind}: {e}",
   "mods.updatedCount": "Updated files: {ok}, failed: {fail}",
   "mods.updateAllFail": "Failed to update files: {fail}",
-  "mods.packsTitle": "Download pack from Modrinth",
+  "mods.packsTitle": "Download pack from Modrinth / CurseForge",
   "mods.packsPlaceholder": "Pack name, e.g. “Better MC”",
   "mods.packsHelp": "Type a query to find a modpack on Modrinth. It will be installed as a separate pack in the launcher.",
   "mods.openPage": "On Modrinth",
@@ -492,5 +496,7 @@
   "pack.minRamTitle": "Minimum RAM to launch: {min} GB",
   "settings.ramMin": "Pack “{name}” requires at least {min} GB — {gb} GB is allocated now",
   "err.lowRam": "The pack requires at least {min} GB of RAM, but {gb} GB is allocated — increase it in Settings",
-  "theme.disabled": "Pack theme is active — slider disabled"
+  "theme.disabled": "Pack theme is active — slider disabled",
+  "lang.byAuthor": "Translation:",
+  "lang.launcherVer": "launcher"
 }

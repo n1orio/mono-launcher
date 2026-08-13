@@ -28,7 +28,7 @@
 mono-launcher/
 ├── app.vue / nuxt.config.ts / package.json / tsconfig.json
 ├── pages/index.vue          # единственная страница (весь UI)
-├── composables/useLauncher.ts  # состояние + логика, useI18n.ts — ru/en-словари
+├── composables/useLauncher.ts  # состояние + логика, useI18n.ts — динамические локали
 ├── catalog.json             # каталог сборок (вкладка «Каталог» в лаунчере)
 ├── lib/                     # bridge.ts (типизированный Tauri IPC) + types.ts
 ├── assets/css/main.css      # глобальный CSS, Tailwind, переменные темы (var(--*))

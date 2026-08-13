@@ -1,4 +1,8 @@
 {
+  "__meta__": {
+    "author": "n1orio",
+    "version": "0.3.0-alpha.3"
+  },
   "nav.releases": "Релизы и запуск",
   "nav.news": "Новости",
   "nav.settings": "Параметры",
@@ -368,8 +372,8 @@
   "catalog.added": "Сборка «{name}» добавлена",
   "catalog.create": "Создать свою сборку",
   "catalog.modrinth": "Скачать с Modrinth",
-  "side.addModrinth": "С Modrinth",
-  "side.addModrinthHint": "Найти модпак в каталоге Modrinth",
+  "side.addModrinth": "Modrinth / CurseForge",
+  "side.addModrinthHint": "Найти модпак на Modrinth или CurseForge",
   "side.create": "Создать свою сборку",
   "side.createHint": "Minecraft + загрузчик, моды добавите сами",
   "side.addLink": "Или добавьте по ссылке",
@@ -414,7 +418,7 @@
   "mods.updateErr": "Не удалось обновить {kind}: {e}",
   "mods.updatedCount": "Обновлено файлов: {ok}, с ошибками: {fail}",
   "mods.updateAllFail": "Не удалось обновить файлы: {fail}",
-  "mods.packsTitle": "Скачать сборку с Modrinth",
+  "mods.packsTitle": "Скачать сборку с Modrinth / CurseForge",
   "mods.packsPlaceholder": "Название сборки, например «Better MC»",
   "mods.packsHelp": "Введите запрос, чтобы найти модпак на Modrinth. Установится как отдельная сборка в лаунчере.",
   "mods.openPage": "На Modrinth",
@@ -492,5 +496,7 @@
   "pack.minRamTitle": "Минимальная оперативка для запуска: {min} ГБ",
   "settings.ramMin": "Сборка «{name}» требует минимум {min} ГБ — сейчас выделено {gb} ГБ",
   "err.lowRam": "Сборке нужно минимум {min} ГБ ОЗУ, а выделено {gb} ГБ — увеличьте в Настройках",
-  "theme.disabled": "Тема сборки активна — ползунок отключён"
+  "theme.disabled": "Тема сборки активна — ползунок отключён",
+  "lang.byAuthor": "Перевод:",
+  "lang.launcherVer": "лаунчер"
 }
