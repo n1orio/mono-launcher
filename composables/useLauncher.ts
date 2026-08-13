@@ -512,8 +512,9 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     openExternal(`https://www.curseforge.com/search/mods?q=${q}`);
   }
 
-  async function loadGameFiles(folder: GameFolderKind) {
+  async function loadGameFiles(folder: GameFolderKind, force = false) {
     if (!isTauri() || !packId.value) return;
+    if (!force && gameFiles.value[folder]) return;
     try {
       const list = await listGameFiles(packId.value, folder);
       gameFiles.value = { ...gameFiles.value, [folder]: list };

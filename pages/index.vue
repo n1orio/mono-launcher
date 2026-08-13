@@ -3958,7 +3958,6 @@ function fileListScroll(e: Event) {
   const el = e.target as HTMLElement;
   fileListScrollTop.value = el.scrollTop;
   fileListViewportH.value = el.clientHeight;
-  measureFileRow();
 }
 
 const fileListTotal = computed(
@@ -4096,8 +4095,8 @@ async function deleteSelectedFiles() {
     clearFileSelection();
     fileDeleteArmed.value = false;
     notify(t("files.deleted", { n }), "success");
-    await loadGameFiles(folder);
-    await refreshModUpdates();
+    await loadGameFiles(folder, true);
+    await refreshModUpdates(true);
   } catch (e) {
     notify(t("err.deleteFiles", { e }));
   } finally {
@@ -4884,8 +4883,8 @@ async function installCurse(p: CurseSearchHit) {
     );
     closeSearch();
     const folder = (CURSE_FOLDER[modSearchKind.value] ?? "mods") as GameFolderKind;
-    await loadGameFiles(folder);
-    await refreshModUpdates();
+    await loadGameFiles(folder, true);
+    await refreshModUpdates(true);
   } catch (e) {
     notify(t("curse.installErr", { e }));
   }
@@ -4913,8 +4912,15 @@ async function searchMods() {
 }
 
 function modUpdateFor(f: GameFileEntry): ModUpdate | undefined {
-  return modUpdates.value.find((u) => u.fileName === f.name);
+  return updatesByFile.value.get(f.name);
 }
+
+/** Индекс обновлений по имени файла (O(1) вместо линейного поиска на строку). */
+const updatesByFile = computed(() => {
+  const map = new Map<string, ModUpdate>();
+  for (const u of modUpdates.value) map.set(u.fileName, u);
+  return map;
+});
 
 /** Версии мода: сперва подходящие под версию сборки, остальные ниже.
  *  По загрузчику фильтруем только моды — ресурспаки/шейдеры/датапаки
@@ -4989,11 +4995,11 @@ async function installModVersion(v: ModrinthVersion, closeAfter = true) {
     if (closeAfter) closeSearch();
     modVersions.value = null;
     if (folder !== "datapacks") {
-      await loadGameFiles(folder);
+      await loadGameFiles(folder, true);
     } else {
-      await loadGameFiles("saves");
+      await loadGameFiles("saves", true);
     }
-    await refreshModUpdates();
+    await refreshModUpdates(true);
     return true;
   } catch (e) {
     notify(t("mods.installErr", { kind: kindNoun(modSearchKind.value), e }));
@@ -5134,15 +5140,19 @@ async function quickDownloadPack(p: ModrinthProject, ev: Event) {
   }
 }
 
-/** Проверяет обновления установленных из Modrinth модов. */
-async function refreshModUpdates() {
+/** Проверяет обновления установленных из Modrinth модов (с кешем на 5 минут). */
+const updatesCheckedAt = ref(0);
+const UPDATES_TTL_MS = 5 * 60 * 1000;
+async function refreshModUpdates(force = false) {
   if (!isTauri() || !packId.value || !status.value?.installed) {
     modUpdates.value = [];
     trackedMods.value = [];
     return;
   }
+  if (!force && updatesCheckedAt.value && Date.now() - updatesCheckedAt.value < UPDATES_TTL_MS) return;
   try {
     modUpdates.value = await modrinthCheckUpdates(packId.value);
+    updatesCheckedAt.value = Date.now();
   } catch {
     modUpdates.value = [];
   }
@@ -5155,8 +5165,8 @@ async function updateOneMod(u: ModUpdate) {
   try {
     await modrinthUpdateMod(packId.value, u.fileName);
     notify(t("mods.updated", { kind: kindNoun(u.folder as ModrinthInstallFolder), name: u.newVersion.name }), "success");
-    await loadGameFiles(u.folder === "datapacks" ? "saves" : (u.folder as GameFolderKind));
-    await refreshModUpdates();
+    await loadGameFiles(u.folder === "datapacks" ? "saves" : (u.folder as GameFolderKind), true);
+    await refreshModUpdates(true);
   } catch (e) {
     notify(t("mods.updateErr", { kind: kindNoun(u.folder as ModrinthInstallFolder), e }));
   } finally {
@@ -5186,9 +5196,9 @@ async function updateAllMods() {
   );
   const tabs: GameFolderKind[] = ["mods", "resourcepacks", "shaderpacks", "saves"];
   if ((tabs as string[]).includes(playSubTab.value)) {
-    await loadGameFiles(playSubTab.value as GameFolderKind);
+    await loadGameFiles(playSubTab.value as GameFolderKind, true);
   }
-  await refreshModUpdates();
+  await refreshModUpdates(true);
   updateAllBusy.value = false;
 }
 
