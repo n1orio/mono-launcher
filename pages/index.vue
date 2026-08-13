@@ -3546,6 +3546,7 @@ import {
   renderInline,
   type ChangelogLine,
 } from "~/lib/changelog";
+import { formatPlaytimeShort as _formatPlaytimeShort } from "~/lib/format";
 
 /** Этот экземпляр страницы открыт как отдельное окно поиска файлов. */
 function isSearchWindowQuery() {
@@ -3703,6 +3704,9 @@ const {
 } = useLauncher({ keepPackId: isSearchWindowQuery() });
 
 const { t, locale, locales, setLocale } = useI18n();
+
+/** Компактное время в игре (часы/минуты), привязано к локали. */
+const formatPlaytimeShort = (seconds: number) => _formatPlaytimeShort(seconds, t);
 
 /** Автор и версия активного перевода — для строки «Перевод: …» в настройках лаунчера. */
 const activeLocaleAuthor = computed(() => getLocaleMeta(locale.value).author ?? "");
@@ -5544,12 +5548,6 @@ watch(
 );
 
 /** Время в игре: короткий формат для бейджа («3 ч» / «12 мин»). */
-function formatPlaytimeShort(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  if (h >= 1) return `${h} ${t("units.h")}`;
-  return `${Math.max(1, Math.round(seconds / 60))} ${t("units.min")}`;
-}
-
 const shotIdx = ref<number | null>(null);
 
 // ==== Тема сборки (theme.json автора): плавный перекрас CSS-переменных ====

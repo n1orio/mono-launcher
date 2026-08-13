@@ -85,8 +85,20 @@ import type {
 import type { GameFolderKind, PackAddedPayload } from "~/lib/bridge";
 import { useI18n } from "~/composables/useI18n";
 import { getCachedIcon, setCachedIcon } from "~/lib/iconCache";
+import {
+  formatBytes as _formatBytes,
+  formatDate as _formatDate,
+  formatUnixDate as _formatUnixDate,
+  formatPlaytime as _formatPlaytime,
+} from "~/lib/format";
 
 const { t, locale } = useI18n();
+
+/** Локализованные форматтеры (привязаны к активной локали). */
+const formatBytes = (bytes: number) => _formatBytes(bytes, t);
+const formatDate = (iso: string | null) => _formatDate(iso, locale.value);
+const formatUnixDate = (epoch: number | null) => _formatUnixDate(epoch, locale.value);
+const formatPlaytime = (seconds: number) => _formatPlaytime(seconds, t);
 
 export interface ProgressState {
   phase: string;
@@ -113,37 +125,6 @@ const THEME_KEY = "mono.theme";
 const CONSOLE_LIMIT = 2000;
 /** Размер партии иконок файлов за один IPC-вызов (чтобы большие сборки не блокировали UI). */
 const ICON_BATCH = 40;
-
-function formatBytes(bytes: number): string {
-  if (bytes <= 0) return `0 ${t("units.b")}`;
-  const units = [t("units.b"), t("units.kb"), t("units.mb"), t("units.gb")];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
-}
-
-function formatPlaytime(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return t("time.hm", { h, m });
-  return t("time.min", { m });
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString(locale.value === "en" ? "en-US" : "ru-RU", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-/** Дата из unix-секунд (для лицензий) в локальном формате. */
-function formatUnixDate(epoch: number | null): string {
-  if (!epoch) return "";
-  return formatDate(new Date(epoch * 1000).toISOString());
-}
 
 function capLog(entries: LaunchLogEntry[]): LaunchLogEntry[] {
   return entries.slice(-CONSOLE_LIMIT);
