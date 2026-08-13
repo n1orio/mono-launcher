@@ -1,4 +1,4 @@
-# NIO Launcher
+# Mono Launcher
 
 Десктопный лаунчер для сборок Minecraft, распространяемых в формате `.mrpack` через GitHub Releases.
 
