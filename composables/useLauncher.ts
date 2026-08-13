@@ -932,14 +932,15 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     await syncPackIcons();
   }
 
-  // Иконки кастомных сборок автор кладёт в репозиторий (icon.png в корне).
-  // Скачиваем один раз за сессию, дальше иконка лежит локально.
+  // Иконки сборок: у авторских — icon.png из репозитория, у сборок с
+  // Modrinth/CurseForge — иконка проекта с сайта. Скачиваем один раз за
+  // сессию, дальше иконка лежит локально.
   const iconFetchTried = new Set<string>();
   async function syncPackIcons() {
     if (!isTauri()) return;
     let changed = false;
     for (const p of packs.value) {
-      if (p.icon || p.id.startsWith("mrn-") || iconFetchTried.has(p.id)) continue;
+      if (p.icon || iconFetchTried.has(p.id)) continue;
       iconFetchTried.add(p.id);
       try {
         if (await fetchPackIcon(p.id)) changed = true;

@@ -1291,8 +1291,11 @@ fn set_pack_icon_command(pack_id: String, path: String) -> Result<(), String> {
     Ok(())
 }
 
-/// Скачивает иконку сборки из репозитория автора (`icon.png` в корне,
-/// raw.githubusercontent) в `packs/<id>/icon.png`. Возвращает, нашлась ли иконка.
+/// Скачивает иконку сборки в `packs/<id>/icon.png` (если её ещё нет):
+/// — авторские сборки (GitHub): `icon.png` из корня репозитория автора;
+/// — сборки с Modrinth (`mrn-<id>`): иконка проекта;
+/// — сборки с CurseForge (`cf-<id>`): логотип проекта.
+/// Возвращает, нашлась ли иконка.
 #[tauri::command]
 async fn fetch_pack_icon_command(
     state: State<'_, AppState>,
@@ -1301,24 +1304,47 @@ async fn fetch_pack_icon_command(
     let pack = config::find_pack(&pack_id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Сборка не найдена".to_string())?;
-    let Some((owner, repo)) = parse_github_repo(&pack) else {
-        return Ok(false);
-    };
-    let url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/icon.png");
     let dest = config::pack_dir(&pack_id)
         .map_err(|e| e.to_string())?
         .join("icon.png");
-    if let Ok(resp) = state.client.get(&url).send().await {
-        if resp.status().is_success() {
-            let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
-            if let Some(parent) = dest.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-            }
-            std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
-            return Ok(true);
-        }
+    if dest.exists() {
+        return Ok(true);
     }
-    Ok(false)
+    if let Some((owner, repo)) = parse_github_repo(&pack) {
+        let url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/icon.png");
+        if let Ok(resp) = state.client.get(&url).send().await {
+            if resp.status().is_success() {
+                let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+                if let Some(parent) = dest.parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                }
+                std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
+                return Ok(true);
+            }
+        }
+        return Ok(false);
+    }
+    let icon_url = if let Some(pid) = pack_id.strip_prefix("mrn-") {
+        modrinth::project_by_id(&state.client, pid)
+            .await
+            .map_err(|e| e.to_string())?
+            .icon_url
+    } else if let Some(pid) = pack_id.strip_prefix("cf-") {
+        let id: u32 = pid.parse::<u32>().map_err(|e| e.to_string())?;
+        curseforge::project(&state.client, id)
+            .await
+            .map_err(|e| e.to_string())?
+            .logo_url
+    } else {
+        None
+    };
+    let Some(icon_url) = icon_url else {
+        return Ok(false);
+    };
+    modrinth::download_icon(&state.client, &icon_url, &dest)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(true)
 }
 
 /// Скачивает и устанавливает модпак с Modrinth как отдельную сборку
