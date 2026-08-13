@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NIO Launcher — открыть сборку</title>
+<title>Mono Launcher — открыть сборку</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -61,23 +61,23 @@
 </head>
 <body>
   <div class="card">
-    <div class="logo">NIO</div>
-    <h1 id="title">Сборка для NIO Launcher</h1>
-    <p class="sub">Модпак для NIO Launcher</p>
+    <div class="logo">MONO</div>
+    <h1 id="title">Сборка для Mono Launcher</h1>
+    <p class="sub">Модпак для Mono Launcher</p>
     <p class="status" id="status">Открываем лаунчер…</p>
     <button class="btn primary" id="open" type="button">Открыть в лаунчере</button>
-    <a class="btn secondary" id="download" href="https://github.com/n1orio/nio-launcher/releases/latest">Скачать NIO Launcher</a>
+    <a class="btn secondary" id="download" href="https://github.com/n1orio/mono-launcher/releases/latest">Скачать Mono Launcher</a>
     <p class="repo" id="repo"></p>
     <p class="foot">
       Как опубликовать свою сборку — в
-      <a href="https://github.com/n1orio/nio-launcher/blob/main/README.md">README лаунчера</a>.
+      <a href="https://github.com/n1orio/mono-launcher/blob/main/README.md">README лаунчера</a>.
     </p>
   </div>
 <script>
   var params = new URLSearchParams(window.location.search);
   var PACK_URL = params.get("url") || "";
   var PACK_NAME = params.get("name") || "";
-  var LAUNCHER_URL = "https://github.com/n1orio/nio-launcher/releases/latest";
+  var LAUNCHER_URL = "https://github.com/n1orio/mono-launcher/releases/latest";
   var opened = false;
 
   var title = document.getElementById("title");
@@ -85,7 +85,7 @@
   document.getElementById("repo").textContent = PACK_URL;
 
   function deepLink() {
-    return "niol://add-pack?url=" + encodeURIComponent(PACK_URL);
+    return "mono://add-pack?url=" + encodeURIComponent(PACK_URL);
   }
 
   function openInLauncher() {
