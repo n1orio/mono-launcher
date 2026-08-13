@@ -117,7 +117,8 @@ fn custom_file(file: &IndexFile) -> Option<CustomFile> {
     }
 }
 
-/// Скачивает `.mrpack` по конкретному URL во временный файл.
+/// Скачивает `.mrpack` по конкретному URL во временный файл (с повторами
+/// при обрыве потока — CDN/GitHub иногда режут соединение на середине).
 pub async fn download_mrpack(
     app: &AppHandle,
     client: &Client,
@@ -126,7 +127,30 @@ pub async fn download_mrpack(
 ) -> Result<PathBuf> {
     let dest_dir = config::mrpack_cache_dir(pack_id)?;
     fs::create_dir_all(&dest_dir)?;
+    let path = config::mrpack_file_path(pack_id)?;
 
+    let mut last_err: Option<anyhow::Error> = None;
+    for attempt in 0..3 {
+        match download_mrpack_once(app, client, url, &path).await {
+            Ok(()) => return Ok(path),
+            Err(e) => {
+                last_err = Some(e);
+                if attempt < 2 {
+                    tokio::time::sleep(std::time::Duration::from_millis(600 * (attempt + 1)))
+                        .await;
+                }
+            }
+        }
+    }
+    Err(last_err.unwrap())
+}
+
+async fn download_mrpack_once(
+    app: &AppHandle,
+    client: &Client,
+    url: &str,
+    path: &Path,
+) -> Result<()> {
     let resp = client
         .get(url)
         .send()
@@ -139,8 +163,7 @@ pub async fn download_mrpack(
 
     let total = resp.content_length().unwrap_or(0);
     let mut stream = resp.bytes_stream();
-    let path = config::mrpack_file_path(pack_id)?;
-    let mut file = tokio::fs::File::create(&path).await?;
+    let mut file = tokio::fs::File::create(path).await?;
 
     let mut downloaded: u64 = 0;
     let mut last_report = std::time::Instant::now();
@@ -165,7 +188,7 @@ pub async fn download_mrpack(
         }
     }
     file.flush().await?;
-    Ok(path)
+    Ok(())
 }
 
 /// Распаковывает `.mrpack` во временную папку и возвращает её путь.
@@ -360,6 +383,9 @@ fn hashes_ok(path: &Path, hashes: &HashMap<String, String>) -> bool {
     true
 }
 
+/// Скачивает файл по URL с повторами при обрыве потока (до 3 попыток).
+/// Хэши всё равно сверяются после скачивания, поэтому частичный файл
+/// не переживёт — `File::create` перезаписывает с нуля.
 async fn download_file(
     client: &Client,
     url: &str,
@@ -368,7 +394,23 @@ async fn download_file(
 ) -> Result<u64> {
     let _permit = semaphore.acquire().await?;
     fs::create_dir_all(dest.parent().unwrap_or(Path::new(".")))?;
+    let mut last_err: Option<anyhow::Error> = None;
+    for attempt in 0..3 {
+        match download_file_once(client, url, dest).await {
+            Ok(len) => return Ok(len),
+            Err(e) => {
+                last_err = Some(e);
+                if attempt < 2 {
+                    tokio::time::sleep(std::time::Duration::from_millis(600 * (attempt + 1)))
+                        .await;
+                }
+            }
+        }
+    }
+    Err(last_err.unwrap())
+}
 
+async fn download_file_once(client: &Client, url: &str, dest: &Path) -> Result<u64> {
     let resp = client
         .get(url)
         .send()
