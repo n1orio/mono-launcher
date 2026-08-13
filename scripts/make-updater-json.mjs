@@ -8,7 +8,7 @@ import { join } from "node:path";
 const dir = process.argv[2];
 const out = process.argv[3] ?? "latest.json";
 const tag = process.env.TAG ?? "";
-const repo = "n1orio/nio-launcher";
+const repo = "n1orio/mono-launcher";
 if (!dir || !tag) {
   console.error("Usage: TAG=launcher-vX.Y.Z node scripts/make-updater-json.mjs <dir> [out.json]");
   process.exit(1);

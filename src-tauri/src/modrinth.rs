@@ -120,7 +120,7 @@ pub struct ModrinthDependency {
 }
 
 fn ua() -> &'static str {
-    "nio-launcher/0.3.0-alpha.1 (desktop launcher)"
+    "mono-launcher/0.3.0-alpha.2 (desktop launcher)"
 }
 
 /// Фильтры поиска Modrinth: категории+загрузчики, версии игры,
@@ -422,7 +422,7 @@ pub async fn update_file_to(
     file: &ModrinthFile,
     existing_path: &Path,
 ) -> Result<()> {
-    let tmp = existing_path.with_extension("nio-update");
+    let tmp = existing_path.with_extension("mono-update");
     let resp = client
         .get(&file.url)
         .header("User-Agent", ua())
@@ -528,7 +528,7 @@ fn default_track_folder() -> String {
 
 /// Файл трекинга установленных модов версии.
 fn track_file(pack_id: &str) -> Result<PathBuf> {
-    Ok(config::active_game_dir(pack_id)?.join(".nio-modrinth.json"))
+    Ok(config::active_game_dir(pack_id)?.join(".mono-modrinth.json"))
 }
 
 /// Текущий список отслеживаемых модов активной версии.

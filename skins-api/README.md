@@ -1,4 +1,4 @@
-# NIO Launcher — Skin API (Cloudflare Worker)
+# Mono Launcher — Skin API (Cloudflare Worker)
 
 Публичный скин-сервис для оффлайн-игроков. Загруженный в лаунчере скин
 становится доступен по нику и UUID — в одиночной игре и на серверах,
@@ -74,7 +74,7 @@ java -javaagent:authlib-injector-1.2.5.jar=<URL скин-API> -jar server.jar no
 
 3. `online-mode=false` НЕ включайте отключение проверки: при использовании
    authlib-injector сервер должен работать в online-режиме, но проверять
-   сессии он будет через наш API, а не через Mojang. Игроки лаунчера NIO
+   сессии он будет через наш API, а не через Mojang. Игроки лаунчера Mono
    (и любые игроки с тем же authlib-injector URL) будут заходить со своими
    скинами; остальные — получат скин Steve.
 

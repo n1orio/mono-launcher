@@ -191,7 +191,7 @@ pub struct CatalogEntry {
 }
 
 /// Источник каталога сборок (raw-файл в корне репозитория лаунчера).
-const CATALOG_URL: &str = "https://raw.githubusercontent.com/n1orio/nio-launcher/main/catalog.json";
+const CATALOG_URL: &str = "https://raw.githubusercontent.com/n1orio/mono-launcher/main/catalog.json";
 
 /// Информация о системе для ползунка RAM.
 #[derive(Debug, Serialize)]
@@ -385,7 +385,7 @@ async fn fetch_repo_releases(client: &reqwest::Client, owner: &str, repo: &str) 
     let url = format!("https://api.github.com/repos/{owner}/{repo}/releases");
     let Ok(resp) = client
         .get(&url)
-        .header("User-Agent", "nio-launcher")
+        .header("User-Agent", "mono-launcher")
         .send()
         .await
     else {
@@ -461,7 +461,7 @@ async fn fetch_launcher_releases_cached(client: &reqwest::Client) -> Vec<GhVersi
 
 /// Hub-репозиторий с глобальными постами/новостями (GitHub Discussions).
 /// Посты также считываются из репозиториев каждой сборки.
-const NEWS_REPO: (&str, &str) = ("n1orio", "nio-launcher");
+const NEWS_REPO: (&str, &str) = ("n1orio", "mono-launcher");
 
 /// Посты (обсуждения) из репозитория. Discussions должны быть включены,
 /// иначе репозиторий просто не даёт постов — не ошибка.
@@ -476,7 +476,7 @@ async fn fetch_discussions(
     let url = format!("https://api.github.com/repos/{owner}/{repo}/discussions?per_page=100");
     let Ok(resp) = client
         .get(&url)
-        .header("User-Agent", "nio-launcher")
+        .header("User-Agent", "mono-launcher")
         .send()
         .await
     else {
@@ -635,7 +635,7 @@ async fn add_pack_impl(
         );
         if let Ok(resp) = client
             .get(&json_url)
-            .header("User-Agent", "nio-launcher")
+            .header("User-Agent", "mono-launcher")
             .send()
             .await
         {
@@ -1445,11 +1445,11 @@ fn copy_pack_asset(src: Option<&str>, dest: &std::path::Path) -> Result<(), Stri
 }
 
 /// Определяет версию загрузчика под версию Minecraft. Возвращает (ключ зависимости
-/// в .nio-index.json, версию загрузчика) или None для ванили.
+/// в .mono-index.json, версию загрузчика) или None для ванили.
 async fn meta_json(client: &reqwest::Client, url: &str) -> Result<serde_json::Value, String> {
     client
         .get(url)
-        .header("User-Agent", "nio-launcher")
+        .header("User-Agent", "mono-launcher")
         .send()
         .await
         .map_err(|e| format!("Не удалось получить метаданные загрузчика: {e}"))?
@@ -1467,7 +1467,7 @@ async fn neoforge_versions(client: &reqwest::Client, mc: &str) -> Result<Vec<Str
         .ok_or_else(|| format!("Не удалось определить версию NeoForge для Minecraft {mc}"))?;
     let text = client
         .get(url)
-        .header("User-Agent", "nio-launcher")
+        .header("User-Agent", "mono-launcher")
         .send()
         .await
         .map_err(|e| format!("Не удалось получить версии NeoForge: {e}"))?
@@ -1527,7 +1527,7 @@ async fn loader_versions_from_meta(
 
 /// Определяет версию загрузчика под версию Minecraft. `requested` — выбранная
 /// пользователем версия (пустая строка → последняя). Возвращает (ключ зависимости
-/// в .nio-index.json, версию загрузчика) или None для ванили.
+/// в .mono-index.json, версию загрузчика) или None для ванили.
 async fn resolve_loader_version(
     client: &reqwest::Client,
     loader: &str,
@@ -1729,7 +1729,7 @@ async fn create_local_pack_command(
     let game_dir = config::version_dir(&pack_id, &version_id).map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&game_dir).map_err(|e| e.to_string())?;
     std::fs::write(
-        game_dir.join(".nio-index.json"),
+        game_dir.join(".mono-index.json"),
         serde_json::to_vec_pretty(&index).map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
@@ -1779,7 +1779,7 @@ async fn minecraft_versions_command(state: State<'_, AppState>) -> Result<Vec<Mc
     let resp: serde_json::Value = state
         .client
         .get(url)
-        .header("User-Agent", "nio-launcher")
+        .header("User-Agent", "mono-launcher")
         .send()
         .await
         .map_err(|e| format!("Не удалось получить список версий Minecraft: {e}"))?
@@ -1816,8 +1816,8 @@ async fn minecraft_versions_command(state: State<'_, AppState>) -> Result<Vec<Mc
     Ok(out)
 }
 
-const DEEP_LINK_SCHEME: &str = "niol";
-const DEEP_LINK_PREFIX: &str = "niol://";
+const DEEP_LINK_SCHEME: &str = "mono";
+const DEEP_LINK_PREFIX: &str = "mono://";
 
 /// Мьютекс, чтобы параллельные deep link не добавляли одну сборку дважды.
 static ADD_PACK_LOCK: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
@@ -1830,7 +1830,7 @@ fn add_pack_lock() -> &'static tokio::sync::Mutex<()> {
 /// аргументы приходят и в single-instance callback, и в событие плагина).
 static HANDLED_LINKS: OnceLock<std::sync::Mutex<Vec<(String, Instant)>>> = OnceLock::new();
 
-/// Разбирает deep link вида `niol://add-pack?url=<github-url>&name=<имя>&blog=<boosty-ник>`.
+/// Разбирает deep link вида `mono://add-pack?url=<github-url>&name=<имя>&blog=<boosty-ник>`.
 /// Параметры percent-encoded; возвращает (url сборки, имя, ник блога Boosty).
 fn parse_deep_link(url: &str) -> Option<(String, Option<String>, Option<String>)> {
     let rest = url.strip_prefix(DEEP_LINK_PREFIX)?;
@@ -2034,11 +2034,11 @@ mod tests {
     #[test]
     fn parses_deep_link_with_encoded_url() {
         let (url, name, blog) = parse_deep_link(&format!(
-            "niol://add-pack?url={}&name=My%20Pack&blog=My-Blog",
-            pct_decode("https%3A%2F%2Fgithub.com%2Fn1orio%2Fnio-pack-example")
+            "mono://add-pack?url={}&name=My%20Pack&blog=My-Blog",
+            pct_decode("https%3A%2F%2Fgithub.com%2Fn1orio%2Fmono-pack-example")
         ))
         .unwrap();
-        assert_eq!(url, "https://github.com/n1orio/nio-pack-example");
+        assert_eq!(url, "https://github.com/n1orio/mono-pack-example");
         assert_eq!(name.as_deref(), Some("My Pack"));
         assert_eq!(blog.as_deref(), Some("My-Blog"));
     }
@@ -2046,10 +2046,10 @@ mod tests {
     #[test]
     fn parses_deep_link_without_name() {
         let (url, name, blog) = parse_deep_link(
-            "niol://add-pack?url=https%3A%2F%2Fgithub.com%2Fn1orio%2Fnio-pack-example",
+            "mono://add-pack?url=https%3A%2F%2Fgithub.com%2Fn1orio%2Fmono-pack-example",
         )
         .unwrap();
-        assert_eq!(url, "https://github.com/n1orio/nio-pack-example");
+        assert_eq!(url, "https://github.com/n1orio/mono-pack-example");
         assert_eq!(name, None);
         assert_eq!(blog, None);
     }
@@ -2057,7 +2057,7 @@ mod tests {
     #[test]
     fn parses_deep_link_without_blog() {
         let (_, _, blog) = parse_deep_link(
-            "niol://add-pack?url=https%3A%2F%2Fgithub.com%2Fn1orio%2Fnio-pack-example&name=Pack",
+            "mono://add-pack?url=https%3A%2F%2Fgithub.com%2Fn1orio%2Fmono-pack-example&name=Pack",
         )
         .unwrap();
         assert_eq!(blog, None);
@@ -2065,9 +2065,9 @@ mod tests {
 
     #[test]
     fn rejects_other_paths_and_schemes() {
-        assert!(parse_deep_link("niol://install?url=x").is_none());
-        assert!(parse_deep_link("https://github.com/n1orio/nio-pack-example").is_none());
-        assert!(parse_deep_link("niol://add-pack").is_none());
+        assert!(parse_deep_link("mono://install?url=x").is_none());
+        assert!(parse_deep_link("https://github.com/n1orio/mono-pack-example").is_none());
+        assert!(parse_deep_link("mono://add-pack").is_none());
     }
 
     #[test]
@@ -2154,7 +2154,7 @@ async fn get_news_command(state: State<'_, AppState>) -> Result<Vec<NewsItem>, S
             NEWS_REPO.1,
             "post",
             "launcher",
-            "NIO Launcher",
+            "Mono Launcher",
         )
         .await,
     );
@@ -2163,7 +2163,7 @@ async fn get_news_command(state: State<'_, AppState>) -> Result<Vec<NewsItem>, S
         items.push(NewsItem {
             kind: "update".into(),
             pack_id: "launcher".into(),
-            pack_name: "NIO Launcher".into(),
+            pack_name: "Mono Launcher".into(),
             title: rel.name,
             body: rel.body,
             url: rel.url,
@@ -2224,7 +2224,7 @@ async fn fetch_pack_repo_content(
     let meta_url = format!("https://api.github.com/repos/{owner}/{repo}");
     if let Ok(resp) = client
         .get(&meta_url)
-        .header("User-Agent", "nio-launcher")
+        .header("User-Agent", "mono-launcher")
         .send()
         .await
     {
@@ -2638,25 +2638,36 @@ async fn get_status(pack_id: Option<String>) -> Result<AppStatus, String> {
     Ok(status)
 }
 
-/// Открывает в системном проводнике папку активной версии сборки.
-/// Если сборка ещё не установлена — открывает (создавая) папку данных сборки.
-#[tauri::command]
-fn open_pack_dir(app: AppHandle, pack_id: Option<String>) -> Result<(), String> {
-    use tauri_plugin_opener::OpenerExt;
+/// Папка, которую открывает «Папка сборки»: активная версия сборки, если
+/// установлена; иначе папка данных сборки (создаётся при надобности).
+fn resolve_pack_open_dir(pack_id: Option<String>) -> Result<std::path::PathBuf, String> {
     let pack = resolve_pack(pack_id)?;
-    let dir = config::active_version(&pack.id)
+    Ok(config::active_version(&pack.id)
         .ok()
         .filter(|v| !v.is_empty())
         .and_then(|v| config::version_dir(&pack.id, &v).ok())
         .filter(|d| d.exists())
         .or_else(|| config::versions_root(&pack.id).ok().filter(|d| d.exists()))
         .or_else(|| config::pack_dir(&pack.id).ok())
-        .unwrap_or_else(|| config::launcher_root().unwrap_or_else(|_| std::env::temp_dir()));
-    // Если папки нет (сборка не установлена) — создаём, чтобы проводник открыл её.
+        .unwrap_or_else(|| config::launcher_root().unwrap_or_else(|_| std::env::temp_dir())))
+}
+
+/// Открывает в системном проводнике папку активной версии сборки.
+/// Если сборка ещё не установлена — открывает (создавая) папку данных сборки.
+#[tauri::command]
+fn open_pack_dir(app: AppHandle, pack_id: Option<String>) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let dir = resolve_pack_open_dir(pack_id)?;
     let _ = std::fs::create_dir_all(&dir);
     app.opener()
         .open_path(dir.to_string_lossy().to_string(), None::<&str>)
         .map_err(|e| e.to_string())
+}
+
+/// Путь к папке сборки (для UI: подсказки, копирования пути в браузере и т.п.).
+#[tauri::command]
+fn get_pack_dir_command(pack_id: Option<String>) -> Result<String, String> {
+    resolve_pack_open_dir(pack_id).map(|d| d.to_string_lossy().into_owned())
 }
 
 /// Оффлайн-логин.
@@ -2997,6 +3008,30 @@ fn verify_game_command(pack_id: Option<String>) -> Result<mrpack::VerifyResult, 
     mrpack::verify_pack(&pack.id).map_err(|e| e.to_string())
 }
 
+/// Удаляет файлы/папки игры по именам (моды/ресурспаки/шейдеры/миры).
+/// Имена берутся только из списка UI (базовые имена, без путей).
+/// Снятые с учёта моды Modrinth вычищаются из трекинга обновлений.
+#[tauri::command]
+fn delete_game_files_command(
+    app: AppHandle,
+    pack_id: Option<String>,
+    folder: String,
+    names: Vec<String>,
+) -> Result<usize, String> {
+    let pack = resolve_pack(pack_id)?;
+    if !matches!(folder.as_str(), "mods" | "resourcepacks" | "shaderpacks" | "saves") {
+        return Err("Неизвестная папка".into());
+    }
+    let removed = files::delete_files(&pack.id, &folder, &names).map_err(|e| e.to_string())?;
+    if folder == "mods" {
+        for name in &names {
+            let _ = modrinth::remove_tracked_mod(&pack.id, name);
+        }
+    }
+    let _ = app.emit("mods-changed", ());
+    Ok(removed)
+}
+
 /// Открывает служебную папку игры: mods / screenshots / resourcepacks / shaderpacks / saves / logs.
 #[tauri::command]
 fn open_game_folder_command(
@@ -3050,7 +3085,7 @@ async fn get_skin_command(
     let resp = state
         .client
         .get(&url)
-        .header("User-Agent", "nio-launcher")
+        .header("User-Agent", "mono-launcher")
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -3135,6 +3170,7 @@ pub fn run() {
             get_launch_log,
             clear_launch_log,
             open_pack_dir,
+            get_pack_dir_command,
             launcher_version,
             open_url,
             list_java_command,
@@ -3149,6 +3185,7 @@ pub fn run() {
             get_news_command,
             list_game_files_command,
             toggle_game_file_command,
+            delete_game_files_command,
             get_game_file_icon_command,
             get_game_file_icons_command,
             pack_repo_content_command,

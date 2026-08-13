@@ -1,12 +1,12 @@
 # Maintainer: NIO <nio@users.noreply.github.com>
 # Contributor: NIO <nio@users.noreply.github.com>
 
-pkgname=nio-launcher
+pkgname=mono-launcher
 pkgver=0.1.6
 pkgrel=1
-pkgdesc="Фирменный монолаунчер для Minecraft-сборки NIO (.mrpack)"
+pkgdesc="Фирменный лаунчер Mono для Minecraft-сборок (.mrpack)"
 arch=('x86_64')
-url="https://github.com/n1orio/nio-launcher"
+url="https://github.com/n1orio/mono-launcher"
 license=('custom')
 depends=(
   'gcc-libs'
@@ -22,7 +22,7 @@ makedepends=(
   'nodejs'
   'npm'
 )
-source=("$pkgname-$pkgver.tar.gz::https://github.com/n1orio/nio-launcher/archive/refs/tags/launcher-v$pkgver.tar.gz")
+source=("$pkgname-$pkgver.tar.gz::https://github.com/n1orio/mono-launcher/archive/refs/tags/launcher-v$pkgver.tar.gz")
 sha256sums=('0d7f252dc4439bece3063a34341d7726e479e75dd04db9e73e9915a7e23302b2')
 
 build() {
@@ -35,19 +35,19 @@ build() {
 package() {
   cd "$srcdir/nio-launcher-launcher-v$pkgver"
 
-  install -Dm755 src-tauri/target/release/nio-launcher "$pkgdir/usr/bin/nio-launcher"
-  install -Dm644 src-tauri/icons/128x128.png "$pkgdir/usr/share/icons/hicolor/128x128/apps/nio-launcher.png"
-  install -Dm644 src-tauri/icons/32x32.png "$pkgdir/usr/share/icons/hicolor/32x32/apps/nio-launcher.png"
-  install -Dm644 src-tauri/icons/128x128@2x.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/nio-launcher.png"
+  install -Dm755 src-tauri/target/release/mono-launcher "$pkgdir/usr/bin/mono-launcher"
+  install -Dm644 src-tauri/icons/128x128.png "$pkgdir/usr/share/icons/hicolor/128x128/apps/mono-launcher.png"
+  install -Dm644 src-tauri/icons/32x32.png "$pkgdir/usr/share/icons/hicolor/32x32/apps/mono-launcher.png"
+  install -Dm644 src-tauri/icons/128x128@2x.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/mono-launcher.png"
 
-  install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/nio-launcher.desktop" <<'EOF'
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/mono-launcher.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
-Name=NIO Launcher
+Name=Mono Launcher
 GenericName=Minecraft Modpack Launcher
-Comment=Фирменный монолаунчер для Minecraft-сборки NIO
-Exec=nio-launcher
-Icon=nio-launcher
+Comment=Фирменный лаунчер Mono для Minecraft-сборок
+Exec=mono-launcher
+Icon=mono-launcher
 Terminal=false
 Categories=Game;
 StartupNotify=false

@@ -223,73 +223,54 @@
 
       <!-- Навигация -->
       <nav class="flex flex-col gap-0.5 overflow-y-auto p-2 border-b border-[var(--border)]">
-        <!-- Отдельная вкладка на каждую сборку: свои и GitHub сверху, Modrinth ниже -->
-        <template v-if="otherPacks.length > 0">
-          <button
-            type="button"
-            class="flex w-full items-center gap-1 px-3 pb-1 pt-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)] transition-colors hover:text-[color:var(--tx)]"
-            @click="toggleSidebarCat('custom')"
-          >
-            <svg viewBox="0 0 16 16" class="h-2.5 w-2.5 shrink-0 fill-current transition-transform" :class="sidebarCat.custom ? 'rotate-90' : ''">
-              <path d="M6 4l4 4-4 4V4Z"/>
-            </svg>
-            {{ t("side.catCustom") }}
-          </button>
-          <template v-if="sidebarCat.custom">
+        <!-- Вкладки категорий сборок: авторские / свои / Modrinth / CurseForge (перетаскиваются) -->
+        <template v-for="cat in packTabs" :key="cat">
+          <template v-if="packsBySource[cat].length > 0">
             <button
-              v-for="p in otherPacks"
-              :key="p.id"
               type="button"
-              class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
-              :class="tab === 'play' && packId === p.id ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
-              @click="openPackTab(p.id)"
+              draggable="true"
+              class="flex w-full items-center gap-1 px-3 pb-1 pt-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)] transition-colors hover:text-[color:var(--tx)]"
+              :class="[
+                dragPackTab === cat ? 'opacity-40' : '',
+                dragPackTab && dragPackTab !== cat ? 'text-[var(--accent)]' : '',
+              ]"
+              :title="t('side.catDrag')"
+              @click="toggleSidebarCat(cat)"
+              @dragstart="packTabDragStart($event, cat)"
+              @dragover="packTabDragOver"
+              @drop="packTabDrop($event, cat)"
+              @dragend="packTabDragEnd"
             >
-              <img
-                v-if="p.icon"
-                :src="convertFileSrc(p.icon)"
-                alt=""
-                class="h-4 w-4 shrink-0 rounded object-cover"
-              />
-              <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
-                <path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/>
+              <svg viewBox="0 0 16 16" class="h-2.5 w-2.5 shrink-0 fill-current transition-transform" :class="sidebarCat[cat] ? 'rotate-90' : ''">
+                <path d="M6 4l4 4-4 4V4Z"/>
               </svg>
-              <span class="min-w-0 flex-1 truncate text-left">{{ p.name }}</span>
-              <span v-if="p.id === packId" class="h-2 w-2 shrink-0 rounded-full" :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"></span>
+              {{ t(PACK_CAT_LABELS[cat]) }}
+              <span class="ml-auto shrink-0 rounded bg-[var(--input-50)] px-1.5 py-0.5 text-[9px] font-bold tabular-nums">
+                {{ packsBySource[cat].length }}
+              </span>
             </button>
-          </template>
-        </template>
-        <template v-if="modrinthPacks.length > 0">
-          <button
-            type="button"
-            class="flex w-full items-center gap-1 px-3 pb-1 pt-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)] transition-colors hover:text-[color:var(--tx)]"
-            @click="toggleSidebarCat('modrinth')"
-          >
-            <svg viewBox="0 0 16 16" class="h-2.5 w-2.5 shrink-0 fill-current transition-transform" :class="sidebarCat.modrinth ? 'rotate-90' : ''">
-              <path d="M6 4l4 4-4 4V4Z"/>
-            </svg>
-            {{ t("side.catModrinth") }}
-          </button>
-          <template v-if="sidebarCat.modrinth">
-            <button
-              v-for="p in modrinthPacks"
-              :key="p.id"
-              type="button"
-              class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
-              :class="tab === 'play' && packId === p.id ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
-              @click="openPackTab(p.id)"
-            >
-              <img
-                v-if="p.icon"
-                :src="convertFileSrc(p.icon)"
-                alt=""
-                class="h-4 w-4 shrink-0 rounded object-cover"
-              />
-              <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
-                <path d="M3.25 1A1.75 1.75 0 0 0 1.5 2.75v10.5c0 .966.784 1.75 1.75 1.75h9.5a1.75 1.75 0 0 0 1.75-1.75V2.75A1.75 1.75 0 0 0 12.75 1h-9.5Zm-.25 2c0-.14.11-.25.25-.25h9.5c.14 0 .25.11.25.25v3h-10V3Zm10 4.5v4.75c0 .14-.11.25-.25.25h-9.5a.25.25 0 0 1-.25-.25V7.5h10Zm-7.5 1.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75Z"/>
-              </svg>
-              <span class="min-w-0 flex-1 truncate text-left">{{ p.name }}</span>
-              <span v-if="p.id === packId" class="h-2 w-2 shrink-0 rounded-full" :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"></span>
-            </button>
+            <template v-if="sidebarCat[cat]">
+              <button
+                v-for="p in packsBySource[cat]"
+                :key="p.id"
+                type="button"
+                class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+                :class="tab === 'play' && packId === p.id ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+                @click="openPackTab(p.id)"
+              >
+                <img
+                  v-if="p.icon"
+                  :src="convertFileSrc(p.icon)"
+                  alt=""
+                  class="h-4 w-4 shrink-0 rounded object-cover"
+                />
+                <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
+                  <path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/>
+                </svg>
+                <span class="min-w-0 flex-1 truncate text-left">{{ p.name }}</span>
+                <span v-if="p.id === packId" class="h-2 w-2 shrink-0 rounded-full" :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"></span>
+              </button>
+            </template>
           </template>
         </template>
         <button
@@ -430,8 +411,9 @@
           <div class="flex items-center gap-1.5">
             <button
               type="button"
-              class="flex h-6 w-6 items-center justify-center rounded-md border border-[var(--border)] text-[var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
-              :title="themeLevel < 0.5 ? t('theme.dark') : t('theme.light')"
+              class="flex h-6 w-6 items-center justify-center rounded-md border border-[var(--border)] text-[var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)] disabled:cursor-not-allowed disabled:opacity-40"
+              :title="packThemeActive ? t('theme.disabled') : (themeLevel < 0.5 ? t('theme.dark') : t('theme.light'))"
+              :disabled="packThemeActive"
               @click="toggleTheme"
             >
               <svg v-if="themeLevel >= 0.5" viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
@@ -978,6 +960,40 @@
                   >
                     {{ t("files.clear") }}
                   </button>
+                  <template v-if="!fileDeleteArmed">
+                    <button
+                      type="button"
+                      class="flex items-center gap-1 rounded-md border border-[#f85149]/40 bg-[#f85149]/10 px-2 py-1 text-[11px] font-semibold text-[#f85149] transition-colors hover:bg-[#f85149]/20 disabled:opacity-50"
+                      :disabled="fileDeleteBusy"
+                      :title="t('files.deleteSelHint')"
+                      @click="fileDeleteArmed = true"
+                    >
+                      <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M5 1.75A1.75 1.75 0 0 1 6.75 0h2.5A1.75 1.75 0 0 1 11 1.75V3h3a.75.75 0 0 1 0 1.5h-.75l-.77 9.006A1.75 1.75 0 0 1 10.738 15H5.262a1.75 1.75 0 0 1-1.742-1.494L2.75 4.5H2a.75.75 0 0 1 0-1.5h3V1.75ZM6.5 3h3V1.75a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25V3ZM4.26 4.5l.763 8.91a.25.25 0 0 0 .249.214h5.456a.25.25 0 0 0 .249-.214L11.74 4.5H4.26Zm2.36 2.25a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-1.5 0v-4.5Zm3 0a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-1.5 0v-4.5Z"/></svg>
+                      {{ t("files.delete") }}
+                    </button>
+                  </template>
+                  <template v-else>
+                    <button
+                      type="button"
+                      class="flex items-center gap-1 rounded-md border border-[#f85149]/40 bg-[#f85149]/10 px-2 py-1 text-[11px] font-semibold text-[#f85149] transition-colors hover:bg-[#f85149]/20 disabled:opacity-50"
+                      :disabled="fileDeleteBusy"
+                      :title="t('files.deleteConfirm')"
+                      @click="deleteSelectedFiles()"
+                    >
+                      <svg v-if="fileDeleteBusy" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+                        <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                      </svg>
+                      <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+                      {{ t("files.deleteConfirm") }}
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-white"
+                      @click="fileDeleteArmed = false"
+                    >
+                      {{ t("files.cancel") }}
+                    </button>
+                  </template>
                 </div>
                 <div class="flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--bg)] p-0.5">
                   <button
@@ -1094,7 +1110,7 @@
                     <button
                       type="button"
                       class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
-                      @click="fileMenuOpen = false; selectAllFiles(playSubTab as GameFolderKind)"
+                      @click="fileMenuOpen = false; selectAllFiles(playSubTab as GameFolderKind, fileListFiltered)"
                     >
                       <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 2A1.75 1.75 0 0 1 3.5.25h9A1.75 1.75 0 0 1 14.25 2v9A1.75 1.75 0 0 1 12.5 12.75h-9A1.75 1.75 0 0 1 1.75 11V2ZM6 4.5H4.5v1.5H6V4.5Zm0 3H4.5V9H6V7.5Zm1.25-3h4.25V4.5H7.25V4.5Z"/></svg>
                       {{ t("files.selectAll") }}
@@ -1485,7 +1501,7 @@
                     : 'border-[var(--border)] bg-[var(--input)] text-[color:var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx)]'"
                   @click="newsFilter = src"
                 >
-                  {{ src === "launcher" ? "NIO Launcher" : packNameFor(src) }}
+                  {{ src === "launcher" ? "Mono Launcher" : packNameFor(src) }}
                 </button>
                 <button
                   type="button"
@@ -1629,7 +1645,7 @@
                 <button
                   type="button"
                   class="rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)]"
-                  @click="openExternal('https://github.com/n1orio/nio-launcher/issues/new?title=' + encodeURIComponent(t('catalog.proposeTitle')) + '&body=' + encodeURIComponent(t('catalog.proposeBody')))"
+                  @click="openExternal('https://github.com/n1orio/mono-launcher/issues/new?title=' + encodeURIComponent(t('catalog.proposeTitle')) + '&body=' + encodeURIComponent(t('catalog.proposeBody')))"
                 >
                   {{ t("catalog.propose") }}
                 </button>
@@ -1916,7 +1932,7 @@
                   </div>
                 </div>
                 <div class="rounded-md border border-[#238636]/30 bg-[#238636]/10 p-3 text-[11px] text-[color:var(--tx)]">
-                  <p class="mb-2 font-semibold text-[#3fb950]">niol://</p>
+                  <p class="mb-2 font-semibold text-[#3fb950]">mono://</p>
                   <p class="mb-2">{{ t("dev.docsDeep") }}</p>
                   <code class="block overflow-x-auto rounded bg-[var(--bg-60)] px-2 py-1.5 font-mono text-[10px] text-[color:var(--tx-strong)]">{{ deepLinkExample }}</code>
                   <div class="mt-2.5 flex flex-wrap gap-2">
@@ -3184,56 +3200,168 @@
           />
         </div>
         <div v-if="searchService === 'modrinth'" class="min-h-0 flex-1 overflow-y-auto p-4">
+          <div
+            v-if="selModrinth.size > 0 && !modSearchLoading && !modDetail"
+            class="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-3 py-2"
+          >
+            <span class="text-[11px] font-medium text-[var(--accent)]">
+              {{ t("mods.selected", { n: selModrinth.size }) }}
+            </span>
+            <button
+              type="button"
+              class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
+              :disabled="multiSelBusy || quickModBusy !== null || modInstallBusy !== null"
+              @click="downloadSelectedMods"
+            >
+              <svg v-if="multiSelBusy" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+                <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+              </svg>
+              <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
+              </svg>
+              {{ multiSelBusy ? t("mods.installingSel") : t("mods.downloadSel") }}
+            </button>
+            <button
+              type="button"
+              class="rounded-md px-1.5 py-0.5 text-[11px] text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
+              :title="t('files.clear')"
+              @click="clearSelAll"
+            >
+              ×
+            </button>
+          </div>
           <div v-if="modSearchErr" class="rounded-md border border-[var(--border)] bg-[var(--input-50)] p-6 text-center text-xs text-[color:var(--tx-muted)]">
             <p class="mb-2">{{ modSearchErr }}</p>
             <button type="button" class="text-[var(--accent)] hover:underline" @click="searchMods">{{ t("catalog.retry") }}</button>
           </div>
-          <template v-else-if="modVersions">
+          <template v-else-if="modDetail">
             <button
               type="button"
               class="mb-3 flex items-center gap-1 text-xs text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]"
-              @click="modVersions = null"
+              @click="modDetail = null; modVersions = null"
             >
               <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M7.28 3.22a.75.75 0 0 1 0 1.06L3.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Zm4 0a.75.75 0 0 1 0 1.06L7.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"/></svg>
               {{ t("mods.back") }}
             </button>
-            <div v-if="modVersions.length === 0" class="py-8 text-center text-xs text-[color:var(--tx-muted)]">{{ t("mods.noVersions") }}</div>
-            <div v-else class="space-y-2">
-              <div
-                v-for="v in modVersions"
-                :key="v.id"
-                class="flex items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2"
-              >
-                <div class="min-w-0 flex-1">
-                  <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span class="truncate text-xs font-medium text-[color:var(--tx-strong)]">{{ v.name }}</span>
-                    <span class="rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 font-mono text-[10px] text-[color:var(--tx-muted)]">{{ v.versionNumber }}</span>
-                    <span
-                      v-if="status?.minecraft_version && v.gameVersions.includes(status.minecraft_version)"
-                      class="rounded-full border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent)]"
-                    >
-                      {{ t("mods.versionMatch") }}
-                    </span>
-                  </div>
-                  <div class="mt-0.5 truncate text-[10px] text-[color:var(--tx-muted)]">
-                    {{ v.gameVersions.slice(0, 2).join(", ") }} · {{ v.loaders.join(", ") }} · {{ formatDate(v.datePublished) }}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-                  :disabled="modInstallBusy !== null"
-                  @click="installModVersion(v)"
-                >
-                  <svg v-if="modInstallBusy === v.id" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
-                    <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-                  </svg>
-                  <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                    <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
-                  </svg>
-                  {{ t("mods.install") }}
-                </button>
+            <div class="mb-3 flex items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5">
+              <img v-if="modDetail.iconUrl" :src="searchIconUrl(modDetail.iconUrl)" :alt="modDetail.title" loading="lazy" class="h-11 w-11 shrink-0 rounded-md object-cover" />
+              <div v-else class="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-[11px] text-[color:var(--tx-muted)]">
+                {{ modDetail.title.slice(0, 2).toUpperCase() }}
               </div>
+              <div class="min-w-0 flex-1">
+                <h4 class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">{{ modDetail.title }}</h4>
+                <div class="mt-0.5 flex flex-wrap items-center gap-3 text-[10px] text-[color:var(--tx-muted)]">
+                  <span>{{ t("mods.byAuthor", { author: modDetail.author }) }}</span>
+                  <span class="flex items-center gap-1">
+                    <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                    {{ modDetail.downloads.toLocaleString() }}
+                  </span>
+                  <span v-if="modDetail.categories.length">{{ modDetail.categories.slice(0, 4).join(", ") }}</span>
+                  <button
+                    v-if="modDetail.slug"
+                    type="button"
+                    class="text-[var(--accent)] hover:underline"
+                    @click="openExternal(`https://modrinth.com/mod/${modDetail!.slug}`)"
+                  >
+                    {{ t("mods.openPage") }}
+                  </button>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                :disabled="quickModBusy !== null || modInstallBusy !== null"
+                :title="t('mods.downloadHint')"
+                @click="quickDownloadMod(modDetail, $event)"
+              >
+                <svg v-if="quickModBusy === modDetail.projectId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+                  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                </svg>
+                <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                  <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
+                </svg>
+                {{ t("mods.download") }}
+              </button>
+            </div>
+            <!-- Вкладки как на Modrinth: описание / версии / галерея -->
+            <div class="mb-3 flex shrink-0 items-center gap-1 border-b border-[var(--border)] pb-2">
+              <button
+                v-for="tb in modDetailTabs"
+                :key="tb.kind"
+                type="button"
+                class="rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors"
+                :class="modDetailTab === tb.kind
+                  ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
+                  : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+                @click="modDetailTab = tb.kind"
+              >
+                {{ t("mods.tab" + tb.kind) }}
+              </button>
+            </div>
+            <div v-if="modDetailTab === 'about'" class="max-h-[46vh] overflow-y-auto rounded-md border border-[var(--border)] bg-[var(--bg)] px-4 py-3">
+              <Markdown v-if="modDetail.body" :source="modDetail.body" />
+              <p v-else class="py-6 text-center text-xs italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
+            </div>
+            <div v-else-if="modDetailTab === 'versions'">
+              <div v-if="modVersions === null" class="flex items-center justify-center py-10 text-xs text-[color:var(--tx-muted)]">
+                <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
+                  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                </svg>
+                {{ t("mods.searching") }}
+              </div>
+              <div v-else-if="modVersions.length === 0" class="py-8 text-center text-xs text-[color:var(--tx-muted)]">{{ t("mods.noVersions") }}</div>
+              <div v-else class="space-y-2">
+                <div
+                  v-for="v in modVersions"
+                  :key="v.id"
+                  class="flex items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2"
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span class="truncate text-xs font-medium text-[color:var(--tx-strong)]">{{ v.name }}</span>
+                      <span class="rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 font-mono text-[10px] text-[color:var(--tx-muted)]">{{ v.versionNumber }}</span>
+                      <span
+                        v-if="status?.minecraft_version && v.gameVersions.includes(status.minecraft_version)"
+                        class="rounded-full border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent)]"
+                      >
+                        {{ t("mods.versionMatch") }}
+                      </span>
+                    </div>
+                    <div class="mt-0.5 truncate text-[10px] text-[color:var(--tx-muted)]">
+                      {{ v.gameVersions.slice(0, 2).join(", ") }} · {{ v.loaders.join(", ") }} · {{ formatDate(v.datePublished) }}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                    :disabled="modInstallBusy !== null"
+                    @click="installModVersion(v)"
+                  >
+                    <svg v-if="modInstallBusy === v.id" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+                      <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                    </svg>
+                    <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                      <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
+                    </svg>
+                    {{ t("mods.install") }}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div v-else>
+              <div v-if="modDetail.gallery.length" class="grid grid-cols-2 gap-2">
+                <img
+                  v-for="g in modDetail.gallery"
+                  :key="g.url"
+                  :src="g.url"
+                  :alt="g.title ?? ''"
+                  loading="lazy"
+                  class="h-32 w-full cursor-zoom-in rounded-md border border-[var(--border)] object-cover transition-transform hover:scale-[1.02]"
+                  :title="g.title ?? undefined"
+                  @click="openExternal(g.url)"
+                />
+              </div>
+              <p v-else class="py-10 text-center text-xs italic text-[color:var(--tx-muted)]">{{ t("mods.noGallery") }}</p>
             </div>
           </template>
           <template v-else-if="modSearchLoading">
@@ -3255,9 +3383,22 @@
                 v-for="p in modSearchResults"
                 :key="p.projectId"
                 class="flex cursor-pointer items-start gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
-                @click="openModVersions(p)"
+                @click="openModDetail(p)"
               >
-                <img v-if="p.iconUrl" :src="p.iconUrl" alt="" loading="lazy" class="h-10 w-10 shrink-0 rounded-md object-cover" />
+                <button
+                  type="button"
+                  class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors"
+                  :class="selModrinth.has(p.projectId)
+                    ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]'
+                    : 'border-[var(--border)] hover:border-[var(--tx-muted)]'"
+                  :title="selModrinth.has(p.projectId) ? t('files.clear') : t('mods.selForDownload')"
+                  @click.stop="toggleModrinthSel(p.projectId)"
+                >
+                  <svg v-if="selModrinth.has(p.projectId)" viewBox="0 0 16 16" class="h-3 w-3 fill-[var(--accent)]">
+                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                  </svg>
+                </button>
+                <img v-if="p.iconUrl" :src="searchIconUrl(p.iconUrl)" alt="" loading="lazy" class="h-10 w-10 shrink-0 rounded-md object-cover" />
                 <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-[10px] text-[color:var(--tx-muted)]">
                   {{ p.title.slice(0, 2).toUpperCase() }}
                 </div>
@@ -3297,6 +3438,36 @@
           </template>
         </div>
         <div v-else class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <div
+            v-if="selCurse.size > 0 && !curseLoading"
+            class="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-3 py-2"
+          >
+            <span class="text-[11px] font-medium text-[var(--accent)]">
+              {{ t("mods.selected", { n: selCurse.size }) }}
+            </span>
+            <button
+              type="button"
+              class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
+              :disabled="multiSelBusy || curseInstallBusy !== null"
+              @click="downloadSelectedCurse"
+            >
+              <svg v-if="multiSelBusy" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+                <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+              </svg>
+              <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
+              </svg>
+              {{ multiSelBusy ? t("mods.installingSel") : t("mods.downloadSel") }}
+            </button>
+            <button
+              type="button"
+              class="rounded-md px-1.5 py-0.5 text-[11px] text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
+              :title="t('files.clear')"
+              @click="clearSelAll"
+            >
+              ×
+            </button>
+          </div>
           <p v-if="!curseSearched" class="py-8 text-center text-[11px] text-[color:var(--tx-muted)]">{{ t("curse.help") }}</p>
           <p v-else-if="curseLoading" class="flex items-center justify-center gap-2 py-8 text-[11px] text-[color:var(--tx-muted)]">
             <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
@@ -3315,9 +3486,22 @@
               :key="p.projectId"
               class="flex items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2"
             >
+              <button
+                type="button"
+                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors"
+                :class="selCurse.has(p.projectId)
+                  ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]'
+                  : 'border-[var(--border)] hover:border-[var(--tx-muted)]'"
+                :title="selCurse.has(p.projectId) ? t('files.clear') : t('mods.selForDownload')"
+                @click="toggleCurseSel(p.projectId)"
+              >
+                <svg v-if="selCurse.has(p.projectId)" viewBox="0 0 16 16" class="h-3 w-3 fill-[var(--accent)]">
+                  <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                </svg>
+              </button>
               <img
                 v-if="p.iconUrl"
-                :src="p.iconUrl"
+                :src="searchIconUrl(p.iconUrl)"
                 :alt="p.name"
                 loading="lazy"
                 class="h-10 w-10 shrink-0 rounded-md object-cover"
@@ -3358,11 +3542,12 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { computed, nextTick, onBeforeUnmount, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
-import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured } from "~/lib/bridge";
+import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, deleteGameFiles } from "~/lib/bridge";
 import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit, CursePackFile } from "~/lib/bridge";
-import type { CatalogEntry, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
+import type { CatalogEntry, CurseInstallResult, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n } from "~/composables/useI18n";
+import { getCachedIcon, setCachedIcon } from "~/lib/iconCache";
 
 /** Этот экземпляр страницы открыт как отдельное окно поиска файлов. */
 function isSearchWindowQuery() {
@@ -3526,24 +3711,100 @@ const addUrlInput = ref<HTMLInputElement | null>(null);
 
 const catalogBannerBroken = ref(new Set<string>());
 
+/** Категории сборок в сайдбаре: авторские (GitHub), свои, с Modrinth, с CurseForge. */
+type PackCat = "github" | "custom" | "modrinth" | "curseforge";
+const PACK_CATS: PackCat[] = ["github", "custom", "modrinth", "curseforge"];
+/** Ключи переводов для названий вкладок. */
+const PACK_CAT_LABELS: Record<PackCat, string> = {
+  github: "side.catGitHub",
+  custom: "side.catCustom",
+  modrinth: "side.catModrinth",
+  curseforge: "side.catCurse",
+};
+
 /** Сворачиваемые категории сайдбара (состояние в localStorage). */
-const SIDEBAR_CATS_KEY = "nio.sidebarCats";
-const sidebarCat = reactive({
+const SIDEBAR_CATS_KEY = "mono.sidebarCats";
+const sidebarCat = reactive<Record<PackCat, boolean>>({
+  github: true,
   custom: true,
   modrinth: true,
-  ...(typeof localStorage !== "undefined"
-    ? JSON.parse(localStorage.getItem(SIDEBAR_CATS_KEY) || "{}")
-    : {}),
+  curseforge: true,
 });
-function toggleSidebarCat(k: "custom" | "modrinth") {
+{
+  const saved =
+    typeof localStorage !== "undefined"
+      ? (JSON.parse(localStorage.getItem(SIDEBAR_CATS_KEY) || "{}") as Partial<Record<PackCat, boolean>>)
+      : {};
+  for (const k of PACK_CATS) if (typeof saved[k] === "boolean") sidebarCat[k] = saved[k];
+}
+function toggleSidebarCat(k: PackCat) {
   sidebarCat[k] = !sidebarCat[k];
   localStorage.setItem(SIDEBAR_CATS_KEY, JSON.stringify(sidebarCat));
 }
 
-/** Сборки с Modrinth (id = mrn-*) — отдельная категория в сайдбаре. */
-const modrinthPacks = computed(() => packs.value.filter((p) => p.id.startsWith("mrn-")));
-/** Остальные: встроенные, GitHub, свои. */
-const otherPacks = computed(() => packs.value.filter((p) => !p.id.startsWith("mrn-")));
+/** Порядок вкладок категорий — меняется перетаскиванием (localStorage). */
+const PACK_TABS_KEY = "mono.packTabs";
+const packTabs = ref<PackCat[]>([...PACK_CATS]);
+{
+  const saved: unknown =
+    typeof localStorage !== "undefined"
+      ? JSON.parse(localStorage.getItem(PACK_TABS_KEY) || "null")
+      : null;
+  if (Array.isArray(saved)) {
+    const order = saved.filter((k): k is PackCat => PACK_CATS.includes(k as PackCat));
+    for (const k of PACK_CATS) if (!order.includes(k)) order.push(k);
+    packTabs.value = order;
+  }
+}
+function persistPackTabs() {
+  localStorage.setItem(PACK_TABS_KEY, JSON.stringify(packTabs.value));
+}
+
+/** Перетаскиваемая вкладка (для drag&drop перестановки). */
+const dragPackTab = ref<PackCat | null>(null);
+function packTabDragStart(e: DragEvent, cat: PackCat) {
+  dragPackTab.value = cat;
+  e.dataTransfer?.setData("text/plain", cat);
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer?.setDragImage(e.currentTarget as Element, 12, 12);
+}
+function packTabDragOver(e: DragEvent) {
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+}
+function packTabDrop(e: DragEvent, target: PackCat) {
+  e.preventDefault();
+  const cat = dragPackTab.value;
+  dragPackTab.value = null;
+  if (!cat || cat === target) return;
+  const from = packTabs.value.indexOf(cat);
+  const to = packTabs.value.indexOf(target);
+  if (from < 0 || to < 0) return;
+  packTabs.value.splice(from, 1);
+  packTabs.value.splice(to, 0, cat);
+  persistPackTabs();
+}
+function packTabDragEnd() {
+  dragPackTab.value = null;
+}
+
+/** Разбивка сборок по источнику: id mrn-* → Modrinth, cf-* → CurseForge,
+ *  local-* / local:// → свои, остальные (встроенные и GitHub) → авторские. */
+type PacksBySource = Record<PackCat, PackDescriptor[]>;
+const packsBySource = computed<PacksBySource>(() => {
+  const out: PacksBySource = { github: [], custom: [], modrinth: [], curseforge: [] };
+  for (const p of packs.value) {
+    const group: PackCat = p.id.startsWith("mrn-")
+      ? "modrinth"
+      : p.id.startsWith("cf-")
+        ? "curseforge"
+        : p.id.startsWith("local-") || p.url.startsWith("local://")
+          ? "custom"
+          : "github";
+    out[group].push(p);
+  }
+  return out;
+});
 
 /** Баннер сборки каталога: banner.png в корне её GitHub-репозитория. */
 function catalogBannerUrl(entry: CatalogEntry): string {
@@ -3572,7 +3833,7 @@ async function submitAdd() {
   if (!addingPack.value) showAddPack.value = false;
 }
 
-const EXAMPLE_PACK_REPO = "https://github.com/n1orio/nio-pack-example/releases/latest";
+const EXAMPLE_PACK_REPO = "https://github.com/n1orio/mono-pack-example/releases/latest";
 
 const examplePackJson = `{
   "name": "Example Pack",
@@ -3590,8 +3851,8 @@ async function openExamplePack() {
 }
 
 const deepLinkExample =
-  "https://n1orio.github.io/nio-launcher/?url=" +
-  encodeURIComponent("https://github.com/n1orio/nio-pack-example") +
+  "https://n1orio.github.io/mono-launcher/?url=" +
+  encodeURIComponent("https://github.com/n1orio/mono-pack-example") +
   "&name=" +
   encodeURIComponent("Example Pack");
 
@@ -3615,7 +3876,7 @@ async function openExampleInLauncher() {
  *  (blog — ник блога Boosty издателя, чтобы сборка пришла платной). */
 function inviteLinkFor(pack: { name: string; url: string; boostyBlog?: string | null }): string {
   let link =
-    "https://n1orio.github.io/nio-launcher/?url=" + encodeURIComponent(pack.url);
+    "https://n1orio.github.io/mono-launcher/?url=" + encodeURIComponent(pack.url);
   if (pack.name) link += "&name=" + encodeURIComponent(pack.name);
   if (pack.boostyBlog) link += "&blog=" + encodeURIComponent(pack.boostyBlog);
   return link;
@@ -3819,6 +4080,42 @@ function isFileToggling(folder: string, entry: GameFileEntry): boolean {
 // ---- Метаданные Modrinth (название + аватар проекта), подгружаются лениво -----
 const modrinthMeta = ref<Record<string, { title: string; icon: string }>>({});
 
+// ---- Мультивыбор-удаление файлов (моды/ресурспаки/шейдеры/миры) ----
+const fileDeleteArmed = ref(false);
+const fileDeleteBusy = ref(false);
+
+/** Удаляет выделенные файлы/папки текущей вкладки (с двойным подтверждением). */
+async function deleteSelectedFiles() {
+  if (!isTauri() || !packId.value || fileDeleteBusy.value) return;
+  const folder = playSubTab.value as GameFolderKind;
+  const targets = Object.values(selectedFiles.value).filter(
+    (s) => s.folder === folder && isFileSafeToDelete(folder, s.entry)
+  );
+  if (targets.length === 0) {
+    fileDeleteArmed.value = false;
+    return;
+  }
+  fileDeleteBusy.value = true;
+  try {
+    const n = await deleteGameFiles(packId.value, folder, targets.map((s) => s.entry.name));
+    clearFileSelection();
+    fileDeleteArmed.value = false;
+    notify(t("files.deleted", { n }), "success");
+    await loadGameFiles(folder);
+    await refreshModUpdates();
+  } catch (e) {
+    notify(t("err.deleteFiles", { e }));
+  } finally {
+    fileDeleteBusy.value = false;
+  }
+}
+
+/** Не даём выбрать для удаления мусорные записи (папки-миры можно, но без точек). */
+function isFileSafeToDelete(_folder: GameFolderKind, entry: GameFileEntry): boolean {
+  const n = entry.name;
+  return n !== "" && n !== "." && n !== ".." && !n.includes("/") && !n.includes("\\") && !n.startsWith(".");
+}
+
 function modrinthProjectId(url: string): string | null {
   return url.match(/\/mod\/([^/]+)/)?.[1] ?? null;
 }
@@ -3832,17 +4129,66 @@ function modrinthMetaFor(f: GameFileEntry) {
 async function fetchModrinthMeta(url: string) {
   const id = modrinthProjectId(url);
   if (!id || modrinthMeta.value[id]) return;
+  const cacheKey = `mr:${id}`;
+  const cached = getCachedIcon(cacheKey);
+  if (cached) {
+    try {
+      const j = JSON.parse(cached.data) as { title?: string; icon?: string };
+      if (j && typeof j.title === "string") {
+        modrinthMeta.value = {
+          ...modrinthMeta.value,
+          [id]: { title: j.title, icon: typeof j.icon === "string" ? j.icon : "" },
+        };
+        if (!cached.stale) return;
+      }
+    } catch {
+      /* повреждённая запись — перезагрузим с API */
+    }
+  }
   try {
     const res = await fetch(`https://api.modrinth.com/v2/project/${id}?fields=title,icon_url`);
     if (!res.ok) return;
     const j = await res.json();
     if (typeof j?.title !== "string") return;
-    modrinthMeta.value = {
-      ...modrinthMeta.value,
-      [id]: { title: j.title, icon: typeof j.icon_url === "string" ? j.icon_url : "" },
+    const meta = {
+      title: j.title,
+      icon: typeof j.icon_url === "string" ? j.icon_url : "",
     };
+    modrinthMeta.value = { ...modrinthMeta.value, [id]: meta };
+    setCachedIcon(cacheKey, JSON.stringify(meta));
   } catch {
     /* метаданные некритичны */
+  }
+}
+
+// ---- Иконки из поиска: кеш data-URL, чтобы повторные поиски не дёргали сеть ----
+const searchIconData = ref<Record<string, string>>({});
+
+function searchIconUrl(url: string): string {
+  return searchIconData.value[url] ?? url;
+}
+
+async function warmSearchIcon(url: string) {
+  if (!url || searchIconData.value[url]) return;
+  const cached = getCachedIcon(`pic:${url}`);
+  if (cached) {
+    searchIconData.value = { ...searchIconData.value, [url]: cached.data };
+    if (!cached.stale) return;
+  }
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = () => reject(new Error("file read"));
+      r.readAsDataURL(blob);
+    });
+    searchIconData.value = { ...searchIconData.value, [url]: dataUrl };
+    setCachedIcon(`pic:${url}`, dataUrl);
+  } catch {
+    /* иконки некритичны */
   }
 }
 
@@ -3892,6 +4238,8 @@ function closeSearch() {
   }
   searchOpen.value = false;
   modVersions.value = null;
+  modDetail.value = null;
+  clearSelAll();
   window.removeEventListener("pointermove", moveSearchWin);
 }
 /** Открывает поиск файлов. В Tauri — настоящее отдельное окно, в браузере — плавающая панель. */
@@ -3928,6 +4276,7 @@ async function openSearch(kind: ModrinthSearchKind, service: SearchService = "mo
   modSearchResults.value = [];
   modSearchErr.value = "";
   modVersions.value = null;
+  modDetail.value = null;
   modFilters.versions = [];
   modFilters.loaders = [];
   modFilters.categories = [];
@@ -4410,6 +4759,19 @@ const curseQuery = ref("");
 const curseLoading = ref(false);
 const curseSearched = ref(false);
 const curseResults = ref<CurseSearchHit[]>([]);
+
+// Тёплый кеш иконок для видимых результатов поиска (оба сервиса). Объявлен после
+// результатов: watch исполняет геттер сразу при setup и не должен ссылаться
+// на ещё не инициализированные ref'ы (TDZ).
+watch(
+  () => [modSearchResults.value.map((r) => r.iconUrl), curseResults.value.map((r) => r.iconUrl)],
+  ([m, c]) => {
+    for (const u of [...m, ...c]) {
+      if (u) warmSearchIcon(u);
+    }
+  },
+  { deep: true }
+);
 const curseErr = ref("");
 const curseInstallBusy = ref<number | null>(null);
 const curseKeyOk = ref(true);
@@ -4492,6 +4854,7 @@ const curseSortOptions = CURSE_SORT.map((s) => ({ value: s.value, label: t(s.lab
 /** Поиск на CurseForge. */
 async function searchCurse() {
   if (!isTauri() || !packId.value || curseLoading.value) return;
+  selCurse.value = new Set();
   curseLoading.value = true;
   curseSearched.value = true;
   curseErr.value = "";
@@ -4512,33 +4875,49 @@ async function searchCurse() {
   }
 }
 
-/** Скачивает последний подходящий файл проекта CurseForge в папку вкладки. */
-async function installCurse(p: CurseSearchHit) {
-  if (!isTauri() || !packId.value || curseInstallBusy.value !== null) return;
+/** Скачивает последний подходящий файл проекта CurseForge в папку вкладки.
+ *  Возвращает результат установки (false — ошибка/нет данных). */
+async function installCurseCore(p: CurseSearchHit): Promise<CurseInstallResult | null> {
+  if (!isTauri() || !packId.value) return null;
   curseInstallBusy.value = p.projectId;
   try {
     const file = await curseforgeLatestFile(packId.value, p.projectId);
     const folder = (CURSE_FOLDER[modSearchKind.value] ?? "mods") as GameFolderKind;
-    const res = await curseforgeInstallFile(packId.value, file, folder);
+    return await curseforgeInstallFile(packId.value, file, folder);
+  } finally {
+    curseInstallBusy.value = null;
+  }
+}
+
+/** Скачивает один проект CurseForge с уведомлением и обновлением списка файлов. */
+async function installCurse(p: CurseSearchHit) {
+  if (!isTauri() || !packId.value || curseInstallBusy.value !== null) return;
+  try {
+    const res = await installCurseCore(p);
+    if (!res) {
+      notify(t("curse.installErr", { e: "unknown" }));
+      return;
+    }
     notify(
-      res.depsInstalled
+      res.depsInstalled > 0
         ? t("curse.installedDeps", { name: p.name, deps: res.depsInstalled })
         : t("curse.installed", { name: p.name }),
       "success"
     );
     closeSearch();
+    const folder = (CURSE_FOLDER[modSearchKind.value] ?? "mods") as GameFolderKind;
     await loadGameFiles(folder);
     await refreshModUpdates();
   } catch (e) {
     notify(t("curse.installErr", { e }));
-  } finally {
-    curseInstallBusy.value = null;
   }
 }
 
 /** Поиск модов/ресурспаков/шейдеров/датапаков для добавления в сборку. */
 async function searchMods() {
   if (!isTauri() || !packId.value) return;
+  selModrinth.value = new Set();
+  modDetail.value = null;
   modSearchLoading.value = true;
   modSearchErr.value = "";
   try {
@@ -4581,6 +4960,29 @@ async function openModVersions(p: ModrinthProject) {
   }
 }
 
+/** Открывает «страницу» ресурса: вкладки описание/версии/галерея (как в сборках). */
+const modDetail = ref<ModrinthProject | null>(null);
+const modDetailTab = ref<"about" | "versions" | "gallery">("about");
+const modDetailTabs: { kind: "about" | "versions" | "gallery" }[] = [
+  { kind: "about" },
+  { kind: "versions" },
+  { kind: "gallery" },
+];
+
+async function openModDetail(p: ModrinthProject) {
+  modDetail.value = p;
+  modDetailTab.value = "about";
+  modVersions.value = null;
+  openModVersions(p);
+  if (!p.body) {
+    try {
+      modDetail.value = await modrinthProject(p.projectId);
+    } catch {
+      /* остаётся карточка из поиска */
+    }
+  }
+}
+
 /** Мир, в который ставятся датапаки. */
 const modDatapackWorld = ref<string | null>(null);
 const datapackWorlds = computed(() => (gameFiles.value.saves ?? []).filter((s) => s.kind === "dir").map((s) => s.name));
@@ -4594,19 +4996,19 @@ const modDatapackWorldSel = computed({
 
 /** Устанавливает выбранную версию в папку активной сборки
  *  (датапаки — в saves/<мир>/datapacks). */
-async function installModVersion(v: ModrinthVersion) {
+async function installModVersion(v: ModrinthVersion, closeAfter = true) {
   if (!packId.value || modInstallBusy.value) return;
   const folder = MOD_KIND_FOLDER[modSearchKind.value];
   const world = modSearchKind.value === "datapack" ? (modDatapackWorld.value ?? undefined) : undefined;
   if (modSearchKind.value === "datapack" && !world) {
     notify(t("mods.pickWorld"), "info");
-    return;
+    return false;
   }
   modInstallBusy.value = v.id;
   try {
     await modrinthInstallMod(packId.value, v.id, folder, world);
     notify(t("mods.installed", { kind: kindNoun(modSearchKind.value), name: v.name }), "success");
-    closeSearch();
+    if (closeAfter) closeSearch();
     modVersions.value = null;
     if (folder !== "datapacks") {
       await loadGameFiles(folder);
@@ -4614,30 +5016,36 @@ async function installModVersion(v: ModrinthVersion) {
       await loadGameFiles("saves");
     }
     await refreshModUpdates();
+    return true;
   } catch (e) {
     notify(t("mods.installErr", { kind: kindNoun(modSearchKind.value), e }));
+    return false;
   } finally {
     modInstallBusy.value = null;
   }
 }
 
-/** Быстрое скачивание мода: последняя версия под MC и загрузчик сборки
+/** Подбирает версию проекта под версию Minecraft и загрузчик сборки
  *  (загрузчик учитываем только для модов). */
+async function pickModVersion(p: ModrinthProject): Promise<ModrinthVersion | null> {
+  const all = await modrinthProjectVersions(p.projectId);
+  const mc = status.value?.minecraft_version;
+  const loader = status.value?.loader?.replace("-loader", "");
+  const matchLoader = modSearchKind.value === "mod" && loader
+    ? (v: ModrinthVersion) => v.loaders.includes(loader)
+    : () => true;
+  if (!mc) return all[0] ?? null;
+  return all.find((v) => v.gameVersions.includes(mc) && matchLoader(v)) ?? null;
+}
+
+/** Быстрое скачивание мода: последняя версия под MC и загрузчик сборки. */
 const quickModBusy = ref<string | null>(null);
 async function quickDownloadMod(p: ModrinthProject, ev: Event) {
   ev.stopPropagation();
   if (quickModBusy.value || !packId.value) return;
   quickModBusy.value = p.projectId;
   try {
-    const all = await modrinthProjectVersions(p.projectId);
-    const mc = status.value?.minecraft_version;
-    const loader = status.value?.loader?.replace("-loader", "");
-    const matchLoader = modSearchKind.value === "mod" && loader
-      ? (v: ModrinthVersion) => v.loaders.includes(loader)
-      : () => true;
-    const pick = mc
-      ? all.find((v) => v.gameVersions.includes(mc) && matchLoader(v))
-      : all[0];
+    const pick = await pickModVersion(p);
     if (!pick) {
       notify(t("mods.noMatchVersion"), "info");
       return;
@@ -4648,6 +5056,80 @@ async function quickDownloadMod(p: ModrinthProject, ev: Event) {
   } finally {
     quickModBusy.value = null;
   }
+}
+
+// ---- Мультивыбор в поиске: скачивание сразу нескольких ресурсов ----
+const selModrinth = ref<Set<string>>(new Set());
+const selCurse = ref<Set<number>>(new Set());
+const multiSelBusy = ref(false);
+
+function toggleModrinthSel(id: string) {
+  const s = new Set(selModrinth.value);
+  if (s.has(id)) s.delete(id);
+  else s.add(id);
+  selModrinth.value = s;
+}
+
+function toggleCurseSel(id: number) {
+  const s = new Set(selCurse.value);
+  if (s.has(id)) s.delete(id);
+  else s.add(id);
+  selCurse.value = s;
+}
+
+function clearSelAll() {
+  selModrinth.value = new Set();
+  selCurse.value = new Set();
+}
+
+/** Скачивает все выделенные проекты Modrinth подряд (последние подходящие версии). */
+async function downloadSelectedMods() {
+  if (!isTauri() || !packId.value || multiSelBusy.value) return;
+  if (modSearchKind.value === "datapack" && !modDatapackWorld.value) {
+    notify(t("mods.pickWorld"), "info");
+    return;
+  }
+  const ids = [...selModrinth.value];
+  if (ids.length === 0) return;
+  multiSelBusy.value = true;
+  let ok = 0;
+  for (const id of ids) {
+    const p = modSearchResults.value.find((r) => r.projectId === id);
+    if (!p) continue;
+    try {
+      const pick = await pickModVersion(p);
+      if (!pick) continue;
+      if (await installModVersion(pick, false)) ok++;
+    } catch (e) {
+      notify(t("mods.installErr", { kind: kindNoun(modSearchKind.value), e }));
+    }
+  }
+  multiSelBusy.value = false;
+  clearSelAll();
+  closeSearch();
+  if (ok > 0) notify(t("mods.installedSel", { n: ok }), "success");
+}
+
+/** Скачивает все выделенные проекты CurseForge подряд (последние подходящие файлы). */
+async function downloadSelectedCurse() {
+  if (!isTauri() || !packId.value || multiSelBusy.value) return;
+  const ids = [...selCurse.value];
+  if (ids.length === 0) return;
+  multiSelBusy.value = true;
+  let ok = 0;
+  for (const id of ids) {
+    const p = curseResults.value.find((r) => r.projectId === id);
+    if (!p) continue;
+    try {
+      if ((await installCurseCore(p)) !== null) ok++;
+    } catch (e) {
+      notify(t("curse.installErr", { e }));
+    }
+  }
+  multiSelBusy.value = false;
+  clearSelAll();
+  closeSearch();
+  if (ok > 0) notify(t("mods.installedSel", { n: ok }), "success");
 }
 
 /** Быстрое скачивание модпака: последняя версия (с учётом выбранного загрузчика). */
@@ -5140,25 +5622,76 @@ function applyPackTheme(theme: PackTheme | null) {
   root.classList.add("pack-theme-fade");
   if (packThemeFadeTimer) clearTimeout(packThemeFadeTimer);
   packThemeFadeTimer = setTimeout(() => root.classList.remove("pack-theme-fade"), 700);
+  const overridden = new Set<string>();
+  const setOrRemove = (cssVar: string, val: string | null | undefined) => {
+    if (val) {
+      root.style.setProperty(cssVar, val);
+      overridden.add(cssVar);
+    } else {
+      root.style.removeProperty(cssVar);
+    }
+  };
+  // Только те переменные, что тема реально задала: у остальных остаётся
+  // управление ползунком темы (иначе частичные theme.json «замораживают» UI).
   for (const [key, cssVar] of PACK_THEME_VARS) {
-    const val = theme?.[key] ?? null;
-    if (val) root.style.setProperty(cssVar, val);
-    else root.style.removeProperty(cssVar);
+    setOrRemove(cssVar, theme?.[key]);
   }
-  // Фон окна (--app-bg) чуть темнее основного фона.
-  const bg = theme?.bg ?? null;
-  if (bg) root.style.setProperty("--app-bg", mixWithBlack(bg, 0.6));
-  else root.style.removeProperty("--app-bg");
+  // Фон окна (--app-bg) чуть темнее основного фона — только если задан bg.
+  setOrRemove("--app-bg", theme?.bg ? mixWithBlack(theme.bg, 0.6) : null);
+  // Производные переменные тоже тянем из палитры сборки. Без этого в светлой
+  // теме градиенты панелей, тени и полупрозрачные подложки остаются «светлыми»,
+  // пока фон и панели уже перекрашены тёмной темой сборки (и наоборот).
+  const hex6 = (v?: string | null): string | null =>
+    v && /^#[\da-fA-F]{6}$/.test(v) ? v : null;
+  const a = (v: string | null | undefined, alpha: number) => {
+    const h = hex6(v);
+    return h ? rgbaHex(h, alpha) : null;
+  };
+  // Свои переменные панелей/подложек: alpha-варианты из базовых цветов.
+  setOrRemove("--input-50", a(theme?.input, 0.5));
+  setOrRemove("--bg-60", a(theme?.bg, 0.6));
+  setOrRemove("--bg-30", a(theme?.bg, 0.3));
+  setOrRemove("--panel-soft", a(theme?.panel, 0.5));
+  // Градиент панелей и состояние hover — из панели/поля сборки.
+  const panel = hex6(theme?.panel);
+  if (panel) setOrRemove("--panel-grad", `linear-gradient(180deg, ${mixWithWhite(panel, 0.05)} 0%, ${mixWithBlack(panel, 0.05)} 100%)`);
+  const input = hex6(theme?.input);
+  if (input) setOrRemove("--hover", mixWithWhite(input, 0.08));
+  // Тени и навигационные оверлеи — по яркости фона сборки (а не текущей темы приложения).
+  const bg = hex6(theme?.bg);
+  if (bg) {
+    const r = parseInt(bg.slice(1, 3), 16);
+    const g = parseInt(bg.slice(3, 5), 16);
+    const b = parseInt(bg.slice(5, 7), 16);
+    const darkLike = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.5;
+    setOrRemove("--field-shadow", darkLike ? "inset 0 1px 3px rgba(0, 0, 0, 0.5)" : "inset 0 1px 2px rgba(31, 35, 40, 0.08)");
+    setOrRemove("--toast-shadow", darkLike ? "rgba(0, 0, 0, 0.4)" : "rgba(31, 35, 40, 0.2)");
+    setOrRemove("--nav-hover", darkLike ? "rgba(255, 255, 255, 0.06)" : "rgba(9, 30, 66, 0.06)");
+    setOrRemove("--nav-active", darkLike ? "rgba(255, 255, 255, 0.08)" : "rgba(9, 30, 66, 0.09)");
+  }
+  // Скроллбар — из рамки/полей сборки.
+  setOrRemove("--scrollbar", theme?.border ?? theme?.input);
+  setOrRemove("--scrollbar-hover", theme?.txMuted);
   // Сообщаем слайдеру темы, какие переменные занимает тема сборки,
   // чтобы он их не перезаписывал при движении ползунка.
-  const overridden = new Set<string>();
-  if (theme) {
-    for (const [, cssVar] of PACK_THEME_VARS) overridden.add(cssVar);
-    if (bg) overridden.add("--app-bg");
-    overridden.add("--panel-grad");
-    overridden.add("--field-shadow");
-  }
   setPackThemeVars(overridden);
+}
+
+/** Смешивает hex-цвет с белым. */
+function mixWithWhite(hex: string, factor: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * factor);
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+}
+
+/** hex (#rrggbb) → rgba(). */
+function rgbaHex(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 /** Смешивает hex-цвет с чёрным. */
@@ -5237,7 +5770,7 @@ const sidebarWidth = ref(readSidebarWidth());
 const sidebarDragging = ref(false);
 
 function readSidebarWidth(): number {
-  const saved = parseInt(localStorage.getItem("nio.sidebarWidth") ?? "", 10);
+  const saved = parseInt(localStorage.getItem("mono.sidebarWidth") ?? "", 10);
   return Number.isFinite(saved) ? Math.min(420, Math.max(200, saved)) : 256;
 }
 
@@ -5260,7 +5793,7 @@ function endSidebarDrag(e: PointerEvent) {
   } catch {
     /* ignore */
   }
-  localStorage.setItem("nio.sidebarWidth", String(sidebarWidth.value));
+  localStorage.setItem("mono.sidebarWidth", String(sidebarWidth.value));
 }
 
 function pickSkinFile() {

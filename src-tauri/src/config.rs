@@ -226,7 +226,7 @@ pub fn remove_user_pack(id: &str) -> Result<bool> {
 pub fn launcher_root() -> Result<PathBuf> {
     let base = data_dir()
         .ok_or_else(|| anyhow::anyhow!("Не удалось определить папку данных"))?
-        .join("NioLauncher");
+        .join("MonoLauncher");
     Ok(base)
 }
 

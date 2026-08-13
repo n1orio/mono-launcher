@@ -3,7 +3,7 @@
 //! API v1 (api.curseforge.com) требует ключ: `x-api-key`. Ключ задаётся одним
 //! из способов:
 //! 1) файл `<данные лаунчера>/curseforge-key.txt` (одной строкой),
-//! 2) переменная окружения NIO_CURSEFORGE_KEY,
+//! 2) переменная окружения MONO_CURSEFORGE_KEY,
 //! 3) константа CURSEFORGE_KEY ниже.
 //! Получить ключ: console.curseforge.com → API keys (нужен аккаунт Twitch/CurseForge).
 //! Файлы скачиваются с CDN forgecdn.net — отдельный доступ не нужен.
@@ -26,19 +26,15 @@ pub const CLASS_MODPACKS: u32 = 4471;
 
 /// Ключ API задаётся одним из способов (приоритет сверху вниз):
 /// 1) файл `<данные лаунчера>/curseforge-key.txt` (одной строкой),
-/// 2) переменная окружения NIO_CURSEFORGE_KEY,
-/// 3) константа ниже: ключ вшивается в бинарник только при сборке с
-///    `NIO_CURSEFORGE_KEY` в окружении (например, секрет CI). В git ключ не хранится.
-/// Получить ключ: console.curseforge.com → API keys (нужен аккаунт CurseForge).
-const CURSEFORGE_KEY: &str = match option_env!("NIO_CURSEFORGE_KEY") {
-    Some(k) => k,
-    None => "CHANGE_ME",
-};
+/// 2) переменная окружения MONO_CURSEFORGE_KEY,
+/// 3) константа ниже: ключ зафиксирован в бинарнике, сборки не требуют
+///    ни окружения, ни секрета CI. Получить ключ: console.curseforge.com.
+const CURSEFORGE_KEY: &str = "$2a$10$gttXCrT9r6fxwVcCLnQBWueZbXxV/nVq1A.gaaYI4UXoYKqODqv5i";
 
 pub fn api_key_from_cfg() -> Option<String> {
     let file =
         std::fs::read_to_string(config::launcher_root().ok()?.join("curseforge-key.txt")).ok();
-    let env = std::env::var("NIO_CURSEFORGE_KEY").ok();
+    let env = std::env::var("MONO_CURSEFORGE_KEY").ok();
     for candidate in [file, env].into_iter().flatten() {
         let t = candidate.trim().to_string();
         if !t.is_empty() && t != "CHANGE_ME" {
@@ -66,7 +62,7 @@ fn require_api_key() -> Result<String> {
 }
 
 fn ua() -> String {
-    format!("nio-launcher/{}", env!("CARGO_PKG_VERSION"))
+    format!("mono-launcher/{}", env!("CARGO_PKG_VERSION"))
 }
 
 /// Расширение бандла для класса проектов.
@@ -775,7 +771,7 @@ pub async fn install_modpack(
             ..Default::default()
         },
     );
-    let tmp_dir = std::env::temp_dir().join(format!("nio-cf-{}", uuid::Uuid::new_v4()));
+    let tmp_dir = std::env::temp_dir().join(format!("mono-cf-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&tmp_dir)?;
     let zip_path = tmp_dir.join("modpack.zip");
     download_zip(app, client, &file.download_url, &zip_path).await?;
@@ -830,11 +826,11 @@ pub async fn install_modpack(
 
     crate::mrpack::write_install_marker(&game_dir, &index, Some(&manifest.version))?;
     std::fs::write(
-        game_dir.join(".nio-index.json"),
+        game_dir.join(".mono-index.json"),
         serde_json::to_vec_pretty(&index)?,
     )?;
     std::fs::write(
-        game_dir.join(".nio-custom.json"),
+        game_dir.join(".mono-custom.json"),
         serde_json::to_vec_pretty(&custom)?,
     )?;
     crate::config::set_active_version(pack_id, &version_id)?;

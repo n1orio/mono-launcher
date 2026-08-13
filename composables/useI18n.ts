@@ -5,7 +5,7 @@ import ukJson from "../locales/uk.json";
 
 export type Locale = "ru" | "en" | "uk";
 
-const STORAGE_KEY = "nio.language";
+const STORAGE_KEY = "mono.language";
 const DEFAULT_LOCALE: Locale = "ru";
 
 const ru: Record<string, string> = ruJson;

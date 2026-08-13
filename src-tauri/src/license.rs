@@ -130,7 +130,7 @@ pub async fn check_subscription(
     let me: serde_json::Value = client
         .get(format!("{BOOSTY_API}/user/me"))
         .header("Authorization", &bearer)
-        .header("User-Agent", "nio-launcher")
+        .header("User-Agent", "mono-launcher")
         .send()
         .await
         .context("Boosty недоступен")?
@@ -158,7 +158,7 @@ pub async fn check_subscription(
         let resp = client
             .get(&url)
             .header("Authorization", &bearer)
-            .header("User-Agent", "nio-launcher")
+            .header("User-Agent", "mono-launcher")
             .send()
             .await
             .context("Boosty недоступен")?;

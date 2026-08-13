@@ -1,12 +1,12 @@
 [package]
-name = "nio-launcher"
-version = "0.3.0-alpha.1"
+name = "mono-launcher"
+version = "0.3.0-alpha.2"
 description = "Фирменный моно-лаунчер для сборки Minecraft (.mrpack)"
 authors = ["NIO"]
 edition = "2021"
 
 [lib]
-name = "nio_launcher_lib"
+name = "mono_launcher_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

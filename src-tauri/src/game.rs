@@ -821,7 +821,7 @@ pub async fn launch_game(
 
     // 1. Определяем версию Minecraft и модлоадер из активной установленной версии.
     let game_dir = config::active_game_dir(pack_id)?;
-    let index_path = game_dir.join(".nio-index.json");
+    let index_path = game_dir.join(".mono-index.json");
     if !index_path.exists() {
         return Err(anyhow!(
             "Сборка не установлена. Нажмите «Скачать и играть»."
@@ -1157,7 +1157,7 @@ pub async fn launch_game(
         });
     }
 
-    // Учёт времени игры в экземпляре: пишем в .nio-playtime.json каждые 30 секунд
+    // Учёт времени игры в экземпляре: пишем в .mono-playtime.json каждые 30 секунд
     // и финально при завершении процесса.
     let version_id = game_dir
         .file_name()

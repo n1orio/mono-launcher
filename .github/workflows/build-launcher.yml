@@ -18,7 +18,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            --repo n1orio/nio-launcher \
+            --repo n1orio/mono-launcher \
             --title "Launcher v${GITHUB_REF_NAME#launcher-v}" \
             --notes "Сборка..." \
             --draft || true
@@ -72,12 +72,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          NIO_CURSEFORGE_KEY: ${{ secrets.NIO_CURSEFORGE_KEY }}
+          MONO_CURSEFORGE_KEY: ${{ secrets.MONO_CURSEFORGE_KEY }}
         with:
           tagName: launcher-v__VERSION__
           releaseName: "Launcher v__VERSION__"
           releaseDraft: true
-          releaseBody: "Фирменный лаунчер сборки NIO."
+          releaseBody: "Лаунчер Mono для сборок."
           args: ${{ matrix.args }}
           prerelease: false
           updateRelease: true
@@ -116,5 +116,5 @@ jobs:
         run: |
           TAG="$GITHUB_REF_NAME"
           VER="${TAG#launcher-v}"
-          BODY="$(node scripts/release-notes.mjs "$VER" "Фирменный лаунчер сборки NIO.")" || exit 0
+          BODY="$(node scripts/release-notes.mjs "$VER" "Лаунчер Mono для сборок.")" || exit 0
           gh release edit "$TAG" --notes "$BODY"

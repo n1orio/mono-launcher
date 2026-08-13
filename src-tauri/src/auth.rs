@@ -116,11 +116,11 @@ const AZURE_CLIENT_ID: &str = "CHANGE_ME";
 
 /// Client id можно задать без пересборки:
 /// 1) файл `<данные лаунчера>/azure-client-id` (одной строкой),
-/// 2) либо переменная окружения NIO_AZURE_CLIENT_ID,
+/// 2) либо переменная окружения MONO_AZURE_CLIENT_ID,
 /// 3) либо константа AZURE_CLIENT_ID в этом файле.
 fn azure_client_id() -> Option<String> {
     let file = read_client_id_file();
-    let env = std::env::var("NIO_AZURE_CLIENT_ID").ok();
+    let env = std::env::var("MONO_AZURE_CLIENT_ID").ok();
     for candidate in [file, env].into_iter().flatten() {
         let t = candidate.trim().to_string();
         if !t.is_empty() && t != "CHANGE_ME" {
@@ -334,7 +334,7 @@ pub async fn ms_poll(
 ///
 /// Client id задаётся так же, как для Azure:
 /// 1) файл `<данные лаунчера>/ely-client-id` (одной строкой),
-/// 2) переменная окружения NIO_ELY_CLIENT_ID,
+/// 2) переменная окружения MONO_ELY_CLIENT_ID,
 /// 3) константа ELY_CLIENT_ID ниже.
 /// Зарегистрировать приложение: account.ely.by → «Создать приложение» (любой тип,
 /// device flow обходится без redirect URI), в настройках приложения скопировать clientId.
@@ -346,7 +346,7 @@ const ELY_SCOPES: &str = "account_info offline_access minecraft_server_session";
 
 fn ely_client_id_from_cfg() -> Option<String> {
     let file = std::fs::read_to_string(config::launcher_root().ok()?.join("ely-client-id")).ok();
-    let env = std::env::var("NIO_ELY_CLIENT_ID").ok();
+    let env = std::env::var("MONO_ELY_CLIENT_ID").ok();
     for candidate in [file, env].into_iter().flatten() {
         let t = candidate.trim().to_string();
         if !t.is_empty() && t != "CHANGE_ME" {

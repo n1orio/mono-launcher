@@ -242,6 +242,11 @@ export function openPackDir(packId: string): Promise<void> {
   return invoke("open_pack_dir", { packId });
 }
 
+/** Путь к папке сборки (для UI-подсказок; без открытия проводника). */
+export function getPackDir(packId: string): Promise<string> {
+  return invoke("get_pack_dir_command", { packId });
+}
+
 export function launcherVersion(): Promise<string> {
   return invoke("launcher_version");
 }
@@ -276,6 +281,11 @@ export type GameFolder =
 
 export function openGameFolder(packId: string, folder: GameFolder): Promise<void> {
   return invoke("open_game_folder_command", { packId, folder });
+}
+
+/** Удаляет файлы/папки игры (моды/ресурспаки/шейдеры/миры) по именам. */
+export function deleteGameFiles(packId: string, folder: GameFolder, names: string[]): Promise<number> {
+  return invoke("delete_game_files_command", { packId, folder, names });
 }
 
 export function getSkin(uuid: string): Promise<string | null> {

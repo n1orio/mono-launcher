@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "NIO Launcher",
-  "version": "0.3.0-alpha.1",
-  "identifier": "ru.nio.launcher",
+  "productName": "Mono Launcher",
+  "version": "0.3.0-alpha.2",
+  "identifier": "ru.mono.launcher",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "NIO Launcher",
+        "title": "Mono Launcher",
         "width": 1100,
         "height": 700,
         "minWidth": 900,
@@ -49,13 +49,13 @@
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["niol"]
+        "schemes": ["mono"]
       }
     },
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdCNTk0QzA0NUI4QThCNjAKUldSZ2k0cGJCRXhaZTVNbWNPc2pSWktRNjJBL0ppMlNxNFdCT1Mvd1RRWnVIaWJ5R25XRmsyWTkK",
       "endpoints": [
-        "https://github.com/n1orio/nio-launcher/releases/latest/download/latest.json"
+        "https://github.com/n1orio/mono-launcher/releases/latest/download/latest.json"
       ]
     }
   }

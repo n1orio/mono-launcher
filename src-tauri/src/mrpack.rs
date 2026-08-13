@@ -170,7 +170,7 @@ pub async fn download_mrpack(
 
 /// Распаковывает `.mrpack` во временную папку и возвращает её путь.
 pub async fn extract_mrpack(app: &AppHandle, mrpack_path: &Path) -> Result<PathBuf> {
-    let tmp_dir = std::env::temp_dir().join(format!("nio-mrpack-{}", uuid::Uuid::new_v4()));
+    let tmp_dir = std::env::temp_dir().join(format!("mono-mrpack-{}", uuid::Uuid::new_v4()));
     fs::create_dir_all(&tmp_dir)?;
 
     let file = fs::File::open(mrpack_path)?;
@@ -543,7 +543,7 @@ fn collect_files(src: &Path, prefix: &Path, out: &mut Vec<PathBuf>) {
 }
 
 /// Маркер установки: файл с версией в папке игры.
-const INSTALL_MARKER: &str = ".nio-installed.json";
+const INSTALL_MARKER: &str = ".mono-installed.json";
 
 /// Установленная версия с её маркерными данными.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -554,7 +554,7 @@ pub struct InstalledVersion {
     pub total_seconds: u64,
 }
 
-const PLAYTIME_FILE: &str = ".nio-playtime.json";
+const PLAYTIME_FILE: &str = ".mono-playtime.json";
 
 /// Накопленное время игры в версии (секунды).
 pub fn read_playtime(dir: &Path) -> u64 {
@@ -652,7 +652,7 @@ pub fn installed_details(pack_id: &str) -> Vec<InstalledVersion> {
 /// Возвращает индекс установленной версии из её папки (если есть).
 pub fn read_version_index(pack_id: &str, version_id: &str) -> Option<ModrinthIndex> {
     let dir = config::version_dir(pack_id, version_id).ok()?;
-    for name in [".mcpack.json", ".nio-index.json"] {
+    for name in [".mcpack.json", ".mono-index.json"] {
         let path = dir.join(name);
         if path.exists() {
             if let Ok(raw) = fs::read_to_string(&path) {
@@ -710,7 +710,7 @@ pub struct VerifyResult {
 /// (файлы без хэшей — только по наличию).
 pub fn verify_pack(pack_id: &str) -> Result<VerifyResult> {
     let game_dir = config::active_game_dir(pack_id)?;
-    let index_path = game_dir.join(".nio-index.json");
+    let index_path = game_dir.join(".mono-index.json");
     let raw = fs::read_to_string(&index_path)
         .context("Сборка не установлена (нет индекса). Нажмите «Скачать и играть».")?;
     let index: ModrinthIndex = serde_json::from_str(&raw)?;
@@ -780,7 +780,7 @@ pub fn verify_pack(pack_id: &str) -> Result<VerifyResult> {
 
 /// Полное скачивание + распаковка + установка конкретной версии.
 /// Маркер со списком кастомных файлов установленной версии.
-const CUSTOM_MODS_FILE: &str = ".nio-custom.json";
+const CUSTOM_MODS_FILE: &str = ".mono-custom.json";
 
 /// Собирает `.jar`-файлы из папки `overrides` сборки — это моды, которые
 /// Prism положил в архив без записей об источнике (кастомные).
@@ -866,7 +866,7 @@ pub async fn install_mrpack(
     // Маркер установки + копия индекса в папке версии.
     write_install_marker(&game_dir, &index, source_tag)?;
     fs::write(
-        game_dir.join(".nio-index.json"),
+        game_dir.join(".mono-index.json"),
         serde_json::to_vec_pretty(&index)?,
     )?;
     fs::write(

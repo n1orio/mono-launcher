@@ -2385,6 +2385,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "mono-launcher"
+version = "0.3.0-alpha.2"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "chrono",
+ "dirs 5.0.1",
+ "discord-rich-presence",
+ "flate2",
+ "futures",
+ "indicatif",
+ "qrcode",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha1",
+ "sha2",
+ "sysinfo",
+ "tar",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-deep-link",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-updater",
+ "tokio",
+ "uuid 1.24.0",
+ "zip 2.4.2",
+]
+
+[[package]]
 name = "muda"
 version = "0.19.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2434,39 +2467,6 @@ name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
-
-[[package]]
-name = "nio-launcher"
-version = "0.3.0-alpha.1"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "chrono",
- "dirs 5.0.1",
- "discord-rich-presence",
- "flate2",
- "futures",
- "indicatif",
- "qrcode",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha1",
- "sha2",
- "sysinfo",
- "tar",
- "tauri",
- "tauri-build",
- "tauri-plugin-deep-link",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-single-instance",
- "tauri-plugin-updater",
- "tokio",
- "uuid 1.24.0",
- "zip 2.4.2",
-]
 
 [[package]]
 name = "ntapi"

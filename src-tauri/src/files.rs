@@ -22,7 +22,7 @@ pub struct GameFileEntry {
     pub size_bytes: u64,
     /// unix-секунды последнего изменения файла (для сортировки «по дате»).
     pub modified: i64,
-    /// Точная страница мода на Modrinth (из downloads в .nio-index.json), если файл оттуда.
+    /// Точная страница мода на Modrinth (из downloads в .mono-index.json), если файл оттуда.
     pub modrinth_url: Option<String>,
 }
 
@@ -31,12 +31,12 @@ fn folder_dir(pack_id: &str, folder: &str) -> Result<PathBuf> {
 }
 
 /// Карта `относительный путь -> URL первой загрузки` из индекса установленной
-/// версии (`.nio-index.json`). Точная ссылка нужна для кнопки «открыть на Modrinth».
+/// версии (`.mono-index.json`). Точная ссылка нужна для кнопки «открыть на Modrinth».
 fn install_urls(pack_id: &str) -> HashMap<String, String> {
     let mut map = HashMap::new();
     let index_path = config::active_game_dir(pack_id)
         .ok()
-        .map(|d| d.join(".nio-index.json"));
+        .map(|d| d.join(".mono-index.json"));
     let Some(index_path) = index_path else {
         return map;
     };
@@ -169,6 +169,65 @@ pub fn toggle_file(pack_id: &str, folder: &str, name: &str, enabled: bool) -> Re
     std::fs::rename(&cur, &next)
         .with_context(|| format!("Не удалось переименовать {}", cur.display()))?;
     Ok(())
+}
+
+/// Проверяет, что имя — простое имя файла/папки (без путей), чтобы
+/// удаление нельзя было увести из папки игры (../etc, подстановки пути).
+fn is_safe_name(name: &str) -> bool {
+    !name.is_empty()
+        && name != "."
+        && name != ".."
+        && !name.contains('/')
+        && !name.contains('\\')
+        && !name.contains('\0')
+        && !name.starts_with('.')
+}
+
+/// Удаляет файлы/папки из папки игры по базовым именам (обычно выделенные
+/// моды/ресурспаки в UI). Удаляет и парную версию `*.disabled`, если есть.
+/// Папки (миры) удаляются рекурсивно. Возвращает число удалённых элементов.
+pub fn delete_files(pack_id: &str, folder: &str, names: &[String]) -> Result<usize> {
+    let dir = folder_dir(pack_id, folder)?;
+    if !dir.exists() {
+        return Ok(0);
+    }
+    let mut removed = 0usize;
+    for name in names {
+        if !is_safe_name(name) {
+            continue;
+        }
+        for cand in [dir.join(name), dir.join(format!("{name}.disabled"))] {
+            let num = if cand.is_dir() {
+                std::fs::remove_dir_all(&cand).map(|_| 1)
+            } else if cand.is_file() {
+                std::fs::remove_file(&cand).map(|_| 1)
+            } else {
+                continue;
+            };
+            num.with_context(|| format!("Не удалось удалить {}", cand.display()))?;
+            removed += 1;
+        }
+    }
+    Ok(removed)
+}
+
+/// Проверяет имя на опасные составляющие (пути, служебные символы).
+#[cfg(test)]
+fn assert_safe(name: &str, expect: bool) {
+    assert_eq!(is_safe_name(name), expect, "имя: {name:?}");
+}
+
+#[test]
+fn rejects_path_names() {
+    assert_safe("mod.jar", true);
+    assert_safe("world", true);
+    assert_safe("../evil.jar", false);
+    assert_safe("a/b.jar", false);
+    assert_safe("a\\b.jar", false);
+    assert_safe(".hidden", false);
+    assert_safe("", false);
+    assert_safe("..", false);
+    assert_safe(".", false);
 }
 
 /// Иконка файла, возвращаемая батч-командой.

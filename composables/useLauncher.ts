@@ -83,6 +83,7 @@ import type {
 } from "~/lib/types";
 import type { GameFolderKind, PackAddedPayload } from "~/lib/bridge";
 import { useI18n } from "~/composables/useI18n";
+import { getCachedIcon, setCachedIcon } from "~/lib/iconCache";
 
 const { t, locale } = useI18n();
 
@@ -103,11 +104,11 @@ export interface Notice {
   reportable?: boolean;
 }
 
-const PACK_KEY = "nio.pack";
-const RAM_KEY = "nio.ram";
-const WIN_W_KEY = "nio.win.w";
-const WIN_H_KEY = "nio.win.h";
-const THEME_KEY = "nio.theme";
+const PACK_KEY = "mono.pack";
+const RAM_KEY = "mono.ram";
+const WIN_W_KEY = "mono.win.w";
+const WIN_H_KEY = "mono.win.h";
+const THEME_KEY = "mono.theme";
 const CONSOLE_LIMIT = 2000;
 /** Размер партии иконок файлов за один IPC-вызов (чтобы большие сборки не блокировали UI). */
 const ICON_BATCH = 40;
@@ -373,10 +374,12 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   }
 
   function toggleTheme() {
+    if (packThemeActive.value) return;
     applyThemeLevel(themeLevel.value < 0.5 ? 1 : 0);
   }
 
   function setThemeLevel(level: number) {
+    if (packThemeActive.value) return;
     applyThemeLevel(level);
   }
 
@@ -405,7 +408,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const deviceFlow = computed<MsDeviceCodeInfo | null>(() => msFlow.value ?? elyFlow.value);
   const accounts = ref<Accounts>({ active: null, list: [] });
   const accountBusy = ref(false);
-  const ISSUES_URL = "https://github.com/n1orio/nio-launcher/issues/new";
+  const ISSUES_URL = "https://github.com/n1orio/mono-launcher/issues/new";
   const appUpdate = ref<{ version: string; notes: string } | null>(null);
   const appUpdating = ref(false);
   const appUpdateProgress = ref<number | null>(null);
@@ -462,11 +465,11 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     selectedFiles.value = {};
   }
 
-  /** Выделить все ПКМ-выбранные... нет: выделяет все файлы текущей папки. */
-  function selectAllFiles(folder: GameFolderKind) {
-    const list = gameFiles.value[folder] ?? [];
+  /** Выделяет все файлы текущей папки (или переданный отфильтрованный список). */
+  function selectAllFiles(folder: GameFolderKind, list?: GameFileEntry[]) {
+    const src = list ?? gameFiles.value[folder] ?? [];
     const next = { ...selectedFiles.value };
-    for (const entry of list) {
+    for (const entry of src) {
       next[fileEntryKey(folder, entry)] = { folder, entry };
     }
     selectedFiles.value = next;
@@ -541,23 +544,42 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   async function preloadIcons(folder: GameFolderKind, list: GameFileEntry[]) {
     if (!isTauri() || !packId.value || list.length === 0) return;
     const key = `${folder}/`;
-    // Уже загруженные пропускаем; лимит — не грузить сотни архивов разом.
-    const missing = list
-      .filter((f) => fileIcons.value[key + f.name] === undefined)
-      .map((f) => f.name)
-      .slice(0, 200);
+    const prefix = `file:${packId.value}/${key}`;
+    // 1) Мгновенно показываем закешированные иконки; устаревшие и отсутствующие
+    //    догружаем в фоне (лимит — не грузить сотни архивов разом).
+    const patch: Record<string, string> = {};
+    const refetch: string[] = [];
+    for (const f of list) {
+      const k = key + f.name;
+      if (fileIcons.value[k] !== undefined) continue;
+      const cached = getCachedIcon(prefix + f.name);
+      if (cached) {
+        patch[k] = cached.data;
+        if (cached.stale) refetch.push(f.name);
+      } else {
+        refetch.push(f.name);
+      }
+    }
+    if (Object.keys(patch).length) {
+      fileIcons.value = { ...fileIcons.value, ...patch };
+    }
+    if (refetch.length === 0) return;
+    const missing = refetch.slice(0, 200);
     // Небольшими партиями, с уступкой между ними: большие сборки не блокируют UI,
     // иконки появляются постепенно, а не одним гигантским (медленным) вызовом.
     for (let i = 0; i < missing.length; i += ICON_BATCH) {
       const batch = missing.slice(i, i + ICON_BATCH);
       try {
         const icons = await getGameFileIcons(packId.value, folder, batch);
-        const patch: Record<string, string> = {};
+        const newPatch: Record<string, string> = {};
         for (const ic of icons) {
-          if (ic.data) patch[key + ic.name] = ic.data;
+          if (ic.data) {
+            newPatch[key + ic.name] = ic.data;
+            setCachedIcon(prefix + ic.name, ic.data);
+          }
         }
-        if (Object.keys(patch).length) {
-          fileIcons.value = { ...fileIcons.value, ...patch };
+        if (Object.keys(newPatch).length) {
+          fileIcons.value = { ...fileIcons.value, ...newPatch };
         }
       } catch (e) {
         // Иконки некритичны — покажем заглушку. Причина логируется для диагностики.
@@ -1021,7 +1043,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     removeArmed.value = null;
   }
 
-  /** Обрабатывает результат добавления сборки по deep link (nio://add-pack...). */
+  /** Обрабатывает результат добавления сборки по deep link (mono://add-pack...). */
   function handlePackAdded(p: PackAddedPayload) {
     if (!p.ok) {
       notify(t("dev.errAdd", { e: p.error ?? "?" }), "error");
@@ -1256,7 +1278,11 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   }
 
   async function openFolder(folder: GameFolderKind | "screenshots" | "logs") {
-    if (!isTauri() || !packId.value) return;
+    if (!packId.value) return;
+    if (!isTauri()) {
+      notify(t("err.desktopOnly"), "info");
+      return;
+    }
     try {
       await openGameFolder(packId.value, folder);
     } catch (e) {
@@ -1710,7 +1736,11 @@ notify(t("err.switch", { e }));
   }
 
   async function handleOpenPackDir() {
-    if (!isTauri() || !packId.value) return;
+    if (!packId.value) return;
+    if (!isTauri()) {
+      notify(t("err.desktopOnly"), "info");
+      return;
+    }
     try {
       await openPackDir(packId.value);
     } catch (e) {

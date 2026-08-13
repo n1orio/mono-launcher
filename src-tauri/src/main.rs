@@ -18,5 +18,5 @@ fn apply_webkit_workarounds() {
 
 fn main() {
     apply_webkit_workarounds();
-    nio_launcher_lib::run()
+    mono_launcher_lib::run()
 }

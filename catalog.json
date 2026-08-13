@@ -9,8 +9,8 @@
   },
   {
     "name": "Example Pack",
-    "url": "https://github.com/n1orio/nio-pack-example",
-    "description": "Минимальная сборка-шаблон: пример pack.json и структуры релиза для авторов NIO Launcher.",
+    "url": "https://github.com/n1orio/mono-pack-example",
+    "description": "Минимальная сборка-шаблон: пример pack.json и структуры релиза для авторов Mono Launcher.",
     "author": "n1orio",
     "tags": ["шаблон", "пустая"]
   }

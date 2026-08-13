@@ -1,5 +1,5 @@
 /**
- * NIO Launcher — публичный скин-сервис (оффлайн-скины).
+ * Mono Launcher — публичный скин-сервис (оффлайн-скины).
  * Хранение: Cloudflare KV. Совместим с authlib-injector (yggdrasil-lite).
  *
  * Ключи KV:
@@ -102,7 +102,7 @@ export default {
     // ---- authlib-injector: проверка API ----
     if (path === "/api/authlib-injector/checker") {
       return json(
-        { meta: { serverName: "NIO Launcher Skins", implementationName: "nio-skins", implementationVersion: "1.0.0" } },
+        { meta: { serverName: "Mono Launcher Skins", implementationName: "nio-skins", implementationVersion: "1.0.0" } },
         200,
         { "Authlib-Injector-API-Location": "/api/yggdrasil" }
       );
