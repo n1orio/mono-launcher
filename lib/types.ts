@@ -248,6 +248,21 @@ export interface CurseSearchHit {
   iconUrl?: string;
 }
 
+/** Полное описание проекта CurseForge (деталка сборки: описание/скриншоты). */
+export interface CurseProjectDetail {
+  projectId: number;
+  name: string;
+  slug: string;
+  summary: string;
+  description: string;
+  author: string;
+  downloadCount: number;
+  iconUrl?: string;
+  screenshots: string[];
+  categories: string[];
+  websiteUrl: string;
+}
+
 /** Категория класса проектов CurseForge (для фильтра поиска). */
 export interface CurseCategory {
   id: number;
@@ -317,6 +332,14 @@ export interface GameFileEntry {
   /** unix-секунды последнего изменения файла. */
   modified: number;
   modrinthUrl?: string | null;
+  /** слаг проекта Modrinth (из .mono-modrinth.json), если файл установлен вручную с Modrinth. */
+  modrinthProjectId?: string | null;
+  /** ID проекта CurseForge (для меты/иконки), если файл установлен вручную с CurseForge. */
+  curseforgeProjectId?: number | null;
+  /** Название проекта CurseForge (из трекера) — показывается без API-запроса. */
+  curseforgeTitle?: string | null;
+  /** URL логотипа проекта CurseForge (из трекера). */
+  curseforgeIcon?: string | null;
 }
 
 export interface GameFileIcon {

@@ -1153,8 +1153,8 @@
                     </svg>
                     <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[var(--border)] bg-[var(--bg)]">
                       <img
-                        v-if="gameFileIcon(playSubTab, f.name) || modrinthMetaFor(f)?.icon"
-                        :src="gameFileIcon(playSubTab, f.name) || modrinthMetaFor(f)?.icon"
+                        v-if="gameFileIcon(playSubTab, f.name) || modrinthMetaFor(f)?.icon || curseMetaFor(f)?.icon"
+                        :src="gameFileIcon(playSubTab, f.name) || modrinthMetaFor(f)?.icon || curseMetaFor(f)?.icon"
                         alt=""
                         loading="lazy"
                         class="h-full w-full object-contain"
@@ -1166,21 +1166,40 @@
                 <div class="min-w-0 flex-1">
                   <div
                     class="truncate text-xs font-medium text-[color:var(--tx)]"
-                    :title="modrinthMetaFor(f)?.title ? `${modrinthMetaFor(f)!.title} — ${f.name}` : f.name"
+                    :title="fileMetaTitle(f)"
                   >
-                    {{ modrinthMetaFor(f)?.title ?? f.displayName }}
+                    {{ fileMetaTitle(f) }}
                   </div>
                   <div class="truncate text-[10px] text-[color:var(--tx-muted)]">
-                    <template v-if="modrinthMetaFor(f)?.title">{{ f.displayName }} · </template>{{ f.kind === "dir" ? t("files.dir") : `${formatBytes(f.sizeBytes)} · ${formatUnixDate(f.modified)} · ${f.enabled ? t("files.enabled") : t("files.disabled")}` }}
+                    <template v-if="modrinthMetaFor(f)?.title || curseMetaFor(f)?.title">{{ f.displayName }} · </template>{{ f.kind === "dir" ? t("files.dir") : `${formatBytes(f.sizeBytes)} · ${formatUnixDate(f.modified)} · ${f.enabled ? t("files.enabled") : t("files.disabled")}` }}
                   </div>
                 </div>
                 <button
+                  v-if="playSubTab !== 'saves' && f.curseforgeProjectId"
+                  type="button"
+                  class="flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[10px] font-medium text-[color:var(--tx-muted)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)]"
+                  :title="t('files.curseforge')"
+                  @click.stop="openFileOnCurseForge(playSubTab as GameFolderKind, f)"
+                >
+                  CurseForge
+                </button>
+                <button
+                  v-if="playSubTab !== 'saves' && !f.curseforgeProjectId"
                   type="button"
                   class="flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[10px] font-medium text-[color:var(--tx-muted)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)]"
                   :title="t('files.modrinth')"
                   @click.stop="openFileOnModrinth(playSubTab as GameFolderKind, f)"
                 >
                   Modrinth
+                </button>
+                <button
+                  v-if="playSubTab !== 'saves' && (f.modrinthProjectId || f.modrinthUrl || f.curseforgeProjectId)"
+                  type="button"
+                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--input)] text-[color:var(--tx-muted)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)]"
+                  :title="t('files.view')"
+                  @click.stop="openFileDetail(playSubTab as GameFolderKind, f)"
+                >
+                  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M8 3.75a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5Zm0 8.5A8.75 8.75 0 0 1 0 8a8.75 8.75 0 0 1 8-4.25A8.75 8.75 0 0 1 16 8a8.75 8.75 0 0 1-8 4.25Z"/></svg>
                 </button>
                 <button
                   v-if="playSubTab !== 'saves' && modUpdateFor(f)"
@@ -1470,6 +1489,131 @@
               </div>
             </div>
           </section>
+          </div>
+
+          <!-- ======= Просмотр ресурса (страница в лаунчере): обновить + перейти на сервис ======= -->
+          <div
+            v-if="fileDetail && fileDetail.folder === playSubTab"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+            @click.self="fileDetail = null"
+          >
+            <div class="flex max-h-[82vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
+              <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
+                <h3 class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">
+                  {{ fileDetail.entry.displayName }}
+                </h3>
+                <button
+                  type="button"
+                  class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
+                  @click="fileDetail = null"
+                >
+                  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+                </button>
+              </div>
+
+              <div class="flex min-h-0 flex-col gap-3 overflow-y-auto p-4">
+                <div class="flex items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5">
+                  <img
+                    v-if="fileDetailMr?.iconUrl"
+                    :src="fileDetailMr.iconUrl"
+                    :alt="fileDetailMr.title"
+                    loading="lazy"
+                    class="h-11 w-11 shrink-0 rounded-md object-cover"
+                  />
+                  <img
+                    v-else-if="fileDetailCf?.iconUrl"
+                    :src="fileDetailCf.iconUrl"
+                    :alt="fileDetailCf.name"
+                    loading="lazy"
+                    class="h-11 w-11 shrink-0 rounded-md object-cover"
+                  />
+                  <div v-else class="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-[11px] text-[color:var(--tx-muted)]">
+                    {{ (fileDetailMr?.title || fileDetailCf?.name || fileDetail.entry.displayName).slice(0, 2).toUpperCase() }}
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <h4 class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">
+                      {{ fileDetailMr?.title || fileDetailCf?.name || fileDetail.entry.displayName }}
+                    </h4>
+                    <p class="truncate text-[10px] text-[color:var(--tx-muted)]">
+                      {{ fileDetail.entry.name }}
+                      <template v-if="fileDetailMr || fileDetailCf"> · {{ fileDetailMr ? t("mods.serviceModrinth") : t("mods.serviceCurseforge") }}</template>
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  class="flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-2 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                  :disabled="fileDetailMrLoading || fileDetailCfLoading || updatingFileDetail"
+                  @click="updateFileDetail()"
+                >
+                  <svg v-if="updatingFileDetail" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
+                    <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                  </svg>
+                  <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+                    <path d="M4.5 3.75a.75.75 0 0 0-1.5 0v2.5A.75.75 0 0 0 3.75 7h2.5a.75.75 0 0 0 0-1.5H5.07a4.5 4.5 0 1 1 .57 6.44.75.75 0 0 0-.98-1.13 6 6 0 1 0-.16-8.5v.49Z"/>
+                  </svg>
+                  {{ t("files.update") }}
+                </button>
+
+                <template v-if="fileDetailMr">
+                  <div class="rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[11px] text-[color:var(--tx-muted)]">
+                    <p class="line-clamp-3">{{ fileDetailMr.description }}</p>
+                    <p class="mt-1 flex flex-wrap items-center gap-3">
+                      <span>{{ t("mods.byAuthor", { author: fileDetailMr.author }) }}</span>
+                      <span v-if="fileDetailMr.categories.length">{{ fileDetailMr.categories.slice(0, 4).join(", ") }}</span>
+                    </p>
+                  </div>
+                  <p class="text-[10px] text-[color:var(--tx-muted)]">{{ t("files.versionsTitle") }}</p>
+                  <div v-if="fileDetailMrVersions === null" class="flex items-center justify-center py-4 text-[11px] text-[color:var(--tx-muted)]">
+                    <svg viewBox="0 0 16 16" class="mr-2 h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+                    {{ t("mods.searching") }}
+                  </div>
+                  <div v-else-if="fileDetailMrVersions.length === 0" class="rounded-md border border-[var(--border)] bg-[var(--input-50)] p-4 text-center text-[11px] text-[color:var(--tx-muted)]">
+                    {{ t("mods.noVersions") }}
+                  </div>
+                  <div v-else class="space-y-1">
+                    <button
+                      v-for="v in fileDetailMrVersions"
+                      :key="v.id"
+                      type="button"
+                      class="flex w-full items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-left transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] disabled:opacity-50"
+                      :disabled="fileDetailMrVersionBusy !== null"
+                      @click="installFileDetailVersion(v)"
+                    >
+                      <svg v-if="fileDetailMrVersionBusy === v.id" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-[var(--accent)]"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+                      <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-[var(--accent)]"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/></svg>
+                      <span class="min-w-0 flex-1 truncate text-[11px] text-[color:var(--tx)]">
+                        {{ v.versionNumber }} · {{ v.gameVersions.slice(0, 2).join(", ") }} {{ v.loaders.slice(0, 2).join(", ") }}
+                      </span>
+                      <span class="shrink-0 text-[10px] text-[color:var(--tx-muted)]">{{ formatDate(v.datePublished) }}</span>
+                    </button>
+                  </div>
+                </template>
+
+                <template v-else-if="fileDetailCf">
+                  <div class="rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[11px] text-[color:var(--tx-muted)]">
+                    <p class="max-h-40 overflow-y-auto whitespace-pre-wrap">{{ fileDetailCf.description }}</p>
+                  </div>
+                </template>
+                <p v-else-if="fileDetailMrLoading || fileDetailCfLoading" class="flex items-center justify-center py-6 text-[11px] text-[color:var(--tx-muted)]">
+                  <svg viewBox="0 0 16 16" class="mr-2 h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+                  {{ t("mods.searching") }}
+                </p>
+              </div>
+
+              <div class="flex shrink-0 items-center justify-end gap-2 border-t border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
+                <a
+                  v-if="fileDetailExternalUrl()"
+                  href="#"
+                  class="flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                  @click.prevent="openExternal(fileDetailExternalUrl()!)"
+                >
+                  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-2l6 6V7.5a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75H5.5a.75.75 0 0 1 0-1.5h2l-6-6v2a.75.75 0 0 1-1.5 0V3.5A1.75 1.75 0 0 1 1.75 1.75h2a.75.75 0 0 1 0 1.5Z"/></svg>
+                  {{ t("files.openPage") }}
+                </a>
+              </div>
+            </div>
           </div>
         </template>
 
@@ -2668,52 +2812,131 @@
             <button
               type="button"
               class="mb-3 flex items-center gap-1 text-xs text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]"
-              @click="cpProject = null; cpFiles = null; cpErr = ''"
+              @click="cpProject = null; cpFiles = null; cpDetail = null; cpErr = ''"
             >
               <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M7.28 3.22a.75.75 0 0 1 0 1.06L3.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Zm4 0a.75.75 0 0 1 0 1.06L7.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"/></svg>
               {{ t("mods.back") }}
             </button>
-            <div class="mb-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-4 py-3">
-              <h4 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ cpProject.name }}</h4>
-              <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[color:var(--tx-muted)]">
-                <span>{{ t("mods.byAuthor", { author: cpProject.author }) }}</span>
-                <span>{{ cpProject.downloadCount.toLocaleString() }}</span>
-              </div>
-            </div>
-            <div v-if="cpFiles === null" class="flex items-center justify-center py-10 text-xs text-[color:var(--tx-muted)]">
-              <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
-                <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-              </svg>
-              {{ t("mods.searching") }}
-            </div>
-            <div v-else-if="cpFiles.length === 0" class="py-8 text-center text-xs text-[color:var(--tx-muted)]">{{ t("curse.noFiles") }}</div>
-            <div v-else class="space-y-2">
-              <div
-                v-for="f in cpFiles"
-                :key="f.fileId"
-                class="flex items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2"
-              >
+            <div class="mb-3 rounded-md border border-[var(--border)] bg-[var(--bg)]">
+              <div class="flex items-start gap-3 px-4 py-3">
+                <img
+                  v-if="cpProject.iconUrl"
+                  :src="cpProject.iconUrl"
+                  alt=""
+                  class="h-14 w-14 shrink-0 rounded-md object-cover"
+                />
+                <div v-else class="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-sm font-bold text-[color:var(--tx-muted)]">
+                  {{ cpProject.name.slice(0, 2).toUpperCase() }}
+                </div>
                 <div class="min-w-0 flex-1">
-                  <div class="truncate text-xs font-medium text-[color:var(--tx-strong)]">{{ f.displayName }}</div>
-                  <div class="mt-0.5 truncate text-[10px] text-[color:var(--tx-muted)]">
-                    {{ f.gameVersion }} · {{ formatDate(f.fileDate) }}
+                  <h4 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ cpProject.name }}</h4>
+                  <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[color:var(--tx-muted)]">
+                    <span>{{ t("mods.byAuthor", { author: cpProject.author }) }}</span>
+                    <span class="flex items-center gap-1">
+                      <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                      {{ cpProject.downloadCount.toLocaleString() }}
+                    </span>
+                    <span v-if="cpDetail?.categories.length">{{ cpDetail.categories.slice(0, 4).join(", ") }}</span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-                  :disabled="cpBusy !== null"
-                  @click="installCpPack(f)"
+                <a
+                  v-if="cpWebsiteUrl"
+                  href="#"
+                  class="flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                  @click.prevent="openExternal(cpWebsiteUrl)"
                 >
-                  <svg v-if="cpBusy === f.fileId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
-                    <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-                  </svg>
-                  <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                    <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
-                  </svg>
-                  {{ t("mods.install") }}
-                </button>
+                  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-2l6 6V7.5a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75H5.5a.75.75 0 0 1 0-1.5h2l-6-6v2a.75.75 0 0 1-1.5 0V3.5A1.75 1.75 0 0 1 1.75 1.75h2a.75.75 0 0 1 0 1.5Z"/></svg>
+                  {{ t("mods.openPage") }}
+                </a>
               </div>
+            </div>
+
+            <!-- Вкладки как на Modrinth: описание / версии / скриншоты -->
+            <div class="mt-3 mb-3 flex shrink-0 items-center gap-1 border-b border-[var(--border)] pb-2">
+              <button
+                v-for="tb in cpTabs"
+                :key="tb"
+                type="button"
+                class="rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors"
+                :class="cpTab === tb
+                  ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
+                  : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+                @click="cpTab = tb"
+              >
+                {{ t("curse.tab" + tb) }}
+              </button>
+            </div>
+
+            <div v-if="cpTab === 'about'">
+              <div v-if="cpDetailLoading" class="flex items-center justify-center py-10 text-xs text-[color:var(--tx-muted)]">
+                <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
+                  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                </svg>
+                {{ t("mods.searching") }}
+              </div>
+              <div v-else-if="cpDetail?.description" class="max-h-[46vh] overflow-y-auto rounded-md border border-[var(--border)] bg-[var(--bg)] px-4 py-3 leading-relaxed">
+                <p class="whitespace-pre-wrap text-xs text-[color:var(--tx)]">{{ cpDetail.description }}</p>
+              </div>
+              <div v-else class="py-8 text-center text-xs italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</div>
+            </div>
+
+            <div v-else-if="cpTab === 'versions'">
+              <div v-if="cpFiles === null" class="flex items-center justify-center py-10 text-xs text-[color:var(--tx-muted)]">
+                <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
+                  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                </svg>
+                {{ t("mods.searching") }}
+              </div>
+              <div v-else-if="cpFiles.length === 0" class="py-8 text-center text-xs text-[color:var(--tx-muted)]">{{ t("curse.noFiles") }}</div>
+              <div v-else class="space-y-2">
+                <div
+                  v-for="f in cpFiles"
+                  :key="f.fileId"
+                  class="flex items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2"
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="truncate text-xs font-medium text-[color:var(--tx-strong)]">{{ f.displayName }}</div>
+                    <div class="mt-0.5 truncate text-[10px] text-[color:var(--tx-muted)]">
+                      {{ f.gameVersion }} · {{ formatDate(f.fileDate) }}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                    :disabled="cpBusy !== null"
+                    @click="installCpPack(f)"
+                  >
+                    <svg v-if="cpBusy === f.fileId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+                      <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                    </svg>
+                    <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                      <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
+                    </svg>
+                    {{ t("mods.install") }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div v-else>
+              <div v-if="cpDetailLoading" class="flex items-center justify-center py-10 text-xs text-[color:var(--tx-muted)]">
+                <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
+                  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                </svg>
+                {{ t("mods.searching") }}
+              </div>
+              <div v-else-if="cpDetail?.screenshots.length" class="grid grid-cols-2 gap-2">
+                <img
+                  v-for="(s, i) in cpDetail.screenshots"
+                  :key="i"
+                  :src="s"
+                  alt=""
+                  loading="lazy"
+                  class="h-32 w-full cursor-zoom-in rounded-md border border-[var(--border)] object-cover transition-transform hover:scale-[1.02]"
+                  @click="openExternal(s)"
+                />
+              </div>
+              <div v-else class="py-8 text-center text-xs text-[color:var(--tx-muted)]">{{ t("curse.noScreenshots") }}</div>
             </div>
           </template>
           <template v-else-if="cpResults.length === 0">
@@ -3411,17 +3634,20 @@
                 <button
                   type="button"
                   class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-                  :disabled="quickModBusy !== null || modInstallBusy !== null"
+                  :disabled="quickModBusy !== null || modInstallBusy !== null || installedModrinthSlugs.has(p.slug)"
                   :title="t('mods.downloadHint')"
                   @click="quickDownloadMod(p, $event)"
                 >
                   <svg v-if="quickModBusy === p.projectId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
                     <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
                   </svg>
+                  <svg v-else-if="installedModrinthSlugs.has(p.slug)" viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                  </svg>
                   <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
                     <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
                   </svg>
-                  {{ t("mods.download") }}
+                  {{ installedModrinthSlugs.has(p.slug) ? t("mods.installedBadge") : t("mods.download") }}
                 </button>
                 <svg viewBox="0 0 16 16" class="mt-1 h-3.5 w-3.5 shrink-0 fill-[var(--tx-muted)]"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
               </div>
@@ -3515,10 +3741,14 @@
               <button
                 type="button"
                 class="shrink-0 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-                :disabled="curseInstallBusy !== null && curseInstallBusy !== p.projectId"
+                :disabled="curseInstallBusy !== null && curseInstallBusy !== p.projectId || installedCurseIds.has(p.projectId)"
                 @click="installCurse(p)"
               >
-                {{ t("mods.download") }}
+                <template v-if="installedCurseIds.has(p.projectId)">
+                  <svg viewBox="0 0 16 16" class="mr-1 inline h-3 w-3 fill-current"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+                  {{ t("mods.installedBadge") }}
+                </template>
+                <template v-else>{{ t("mods.download") }}</template>
               </button>
             </div>
           </div>
@@ -3533,8 +3763,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { computed, nextTick, onBeforeUnmount, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
-import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, deleteGameFiles } from "~/lib/bridge";
-import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit, CursePackFile } from "~/lib/bridge";
+import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles } from "~/lib/bridge";
+import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit, CursePackFile, CurseProjectDetail } from "~/lib/bridge";
 import type { CatalogEntry, CurseInstallResult, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n, getLocaleMeta } from "~/composables/useI18n";
@@ -4074,6 +4304,55 @@ function isFileToggling(folder: string, entry: GameFileEntry): boolean {
 // ---- Метаданные Modrinth (название + аватар проекта), подгружаются лениво -----
 const modrinthMeta = ref<Record<string, { title: string; icon: string }>>({});
 
+// ---- Метаданные CurseForge (название + иконка проекта), подгружаются лениво ----
+const curseMeta = ref<Record<number, { title: string; icon: string }>>({});
+
+function curseMetaFor(f: GameFileEntry) {
+  // Мета напрямую из трекера (уже в GameFileEntry) — без API-запроса.
+  if (f.curseforgeTitle || f.curseforgeIcon) {
+    return { title: f.curseforgeTitle ?? "", icon: f.curseforgeIcon ?? "" };
+  }
+  if (!f.curseforgeProjectId) return undefined;
+  return curseMeta.value[f.curseforgeProjectId];
+}
+
+/** Человекочитаемое название файла в списке: мета Modrinth или CurseForge, иначе имя файла. */
+function fileMetaTitle(f: GameFileEntry): string {
+  const mr = modrinthMetaFor(f)?.title;
+  if (mr) return mr;
+  const cf = curseMetaFor(f)?.title;
+  if (cf) return cf;
+  return f.name;
+}
+
+async function fetchCurseMeta(projectId: number) {
+  if (!projectId || curseMeta.value[projectId]) return;
+  const cacheKey = `cf:${projectId}`;
+  const cached = getCachedIcon(cacheKey);
+  if (cached) {
+    try {
+      const j = JSON.parse(cached.data) as { title?: string; icon?: string };
+      if (j && typeof j.title === "string") {
+        curseMeta.value = {
+          ...curseMeta.value,
+          [projectId]: { title: j.title, icon: typeof j.icon === "string" ? j.icon : "" },
+        };
+        if (!cached.stale) return;
+      }
+    } catch {
+      /* повреждённая запись — перезагрузим с API */
+    }
+  }
+  try {
+    const d = await curseforgeProjectDetail(projectId);
+    const meta = { title: d.name, icon: d.iconUrl ?? "" };
+    curseMeta.value = { ...curseMeta.value, [projectId]: meta };
+    setCachedIcon(cacheKey, JSON.stringify(meta));
+  } catch {
+    curseMeta.value = { ...curseMeta.value, [projectId]: { title: "", icon: "" } };
+  }
+}
+
 // ---- Мультивыбор-удаление файлов (моды/ресурспаки/шейдеры/миры) ----
 const fileDeleteArmed = ref(false);
 const fileDeleteBusy = ref(false);
@@ -4190,6 +4469,7 @@ async function warmSearchIcon(url: string) {
 watch(fileListVisible, (rows) => {
   for (const f of rows) {
     if (f.modrinthUrl) fetchModrinthMeta(f.modrinthUrl);
+    if (f.curseforgeProjectId) fetchCurseMeta(f.curseforgeProjectId);
   }
 });
 
@@ -4355,6 +4635,127 @@ const cpResults = ref<CurseSearchHit[]>([]);
 const cpProject = ref<CurseSearchHit | null>(null);
 const cpFiles = ref<CursePackFile[] | null>(null);
 const cpBusy = ref<number | null>(null);
+const cpDetail = ref<CurseProjectDetail | null>(null);
+const cpDetailLoading = ref(false);
+const cpTab = ref<"about" | "versions" | "screenshots">("about");
+const cpTabs: ("about" | "versions" | "screenshots")[] = ["about", "versions", "screenshots"];
+const cpTabBusy = ref(false);
+/** Ссылка на сайт сборки для кнопки «Открыть страницу». */
+const cpWebsiteUrl = ref("");
+
+// ---- Просмотр ресурса из списка установленных файлов (страница в лаунчере) ----
+const fileDetail = ref<{ folder: GameFolderKind; entry: GameFileEntry } | null>(null);
+const fileDetailMrLoading = ref(false);
+const fileDetailMr = ref<ModrinthProject | null>(null);
+const fileDetailMrVersions = ref<ModrinthVersion[] | null>(null);
+const fileDetailMrVersionBusy = ref<string | null>(null);
+const fileDetailCfLoading = ref(false);
+const updatingFileDetail = ref(false);
+const fileDetailCf = ref<CurseProjectDetail | null>(null);
+/** Строка — с какого проекта CurseForge открыт просмотр (для кнопки «обновить»). */
+const fileDetailFolder = ref<GameFolderKind>("mods");
+
+async function openFileDetail(folder: GameFolderKind, entry: GameFileEntry) {
+  fileDetail.value = { folder, entry };
+  fileDetailFolder.value = folder;
+  fileDetailMr.value = null;
+  fileDetailMrVersions.value = null;
+  fileDetailCf.value = null;
+  // Modrinth: slug из трекера или из точной ссылки индекса.
+  let slug = entry.modrinthProjectId || "";
+  const m = /\/mod\/([^/]+)\/?$/.exec(entry.modrinthUrl ?? "");
+  if (!slug && m) slug = m[1];
+  if (slug) {
+    fileDetailMrLoading.value = true;
+    try {
+      fileDetailMr.value = await modrinthProject(slug);
+      const fl = folder === "saves" && (entry.kind === "dir" ? true : false) ? "mods" : folder;
+      void loadFileDetailVersions(slug, fl);
+    } catch {
+      /* не удалось — остаётся placeholder проекта */
+    } finally {
+      fileDetailMrLoading.value = false;
+    }
+  } else if (entry.curseforgeProjectId) {
+    fileDetailCfLoading.value = true;
+    try {
+      fileDetailCf.value = await curseforgeProjectDetail(entry.curseforgeProjectId);
+    } catch {
+      fileDetailCf.value = null;
+    } finally {
+      fileDetailCfLoading.value = false;
+    }
+  }
+}
+
+async function loadFileDetailVersions(slug: string, folder: GameFolderKind) {
+  try {
+    fileDetailMrVersions.value = await modrinthProjectVersions(slug, undefined, undefined);
+  } catch {
+    fileDetailMrVersions.value = [];
+  }
+}
+
+/** Кнопка «открыть страницу» внешнего сервиса. */
+function fileDetailExternalUrl(): string | null {
+  const d = fileDetail.value;
+  if (!d) return null;
+  if (d.entry.curseforgeProjectId && fileDetailCf.value?.websiteUrl) {
+    return fileDetailCf.value.websiteUrl;
+  }
+  const slug = fileDetailMr.value?.slug || d.entry.modrinthProjectId;
+  const m = /\/mod\/([^/]+)\/?$/.exec(d.entry.modrinthUrl ?? "");
+  if (slug) return `https://modrinth.com/mod/${slug}`;
+  if (m) return `https://modrinth.com/mod/${m[1]}`;
+  return null;
+}
+
+/** Обновление: Modrinth — текущая версия через update, CurseForge — последняя версия. */
+async function updateFileDetail() {
+  const d = fileDetail.value;
+  if (!d || !packId.value || updatingFileDetail.value) return;
+  const folder = fileDetailFolder.value === "saves" ? "mods" : fileDetailFolder.value;
+  updatingFileDetail.value = true;
+  try {
+    if (d.entry.curseforgeProjectId) {
+      const file = await curseforgeLatestFile(packId.value, d.entry.curseforgeProjectId);
+      await curseforgeInstallFile(packId.value, file, folder);
+    } else if (d.entry.modrinthProjectId && d.entry.name) {
+      await modrinthUpdateMod(packId.value, d.entry.name);
+    } else if (fileDetailMr.value) {
+      // Нет трекера, но есть slug — установим последнюю версию поверх (через версии).
+      if (fileDetailMrVersions.value?.length) {
+        await modrinthInstallMod(packId.value, fileDetailMrVersions.value[0].id, folder as ModrinthInstallFolder);
+      }
+    }
+    await loadGameFiles(fileDetailFolder.value, true);
+    await refreshModUpdates(true);
+    notify(t("files.updated"), "success");
+  } catch (e) {
+    notify(t("files.updateErr", { e }));
+  } finally {
+    updatingFileDetail.value = false;
+  }
+}
+
+/** Установка конкретной версии из просмотра ресурса (Modrinth). */
+async function installFileDetailVersion(v: ModrinthVersion) {
+  const d = fileDetail.value;
+  if (!d || !packId.value || fileDetailMrVersionBusy.value) return;
+  if (d.entry.curseforgeProjectId) return;
+  const folder = (fileDetailFolder.value === "saves" ? "mods" : fileDetailFolder.value) as ModrinthInstallFolder;
+  fileDetailMrVersionBusy.value = v.id;
+  try {
+    await modrinthInstallMod(packId.value, v.id, folder);
+    await loadGameFiles(fileDetailFolder.value, true);
+    await refreshModUpdates(true);
+    notify(t("mods.installed", { kind: kindNoun(folder), name: v.name }), "success");
+  } catch (e) {
+    notify(t("files.updateErr", { e }));
+  } finally {
+    fileDetailMrVersionBusy.value = null;
+  }
+}
 
 /** Фильтры поиска сборок на CurseForge (категория/версия/сортировка). */
 const cpCatOptions = ref<{ value: string; label: string }[]>([]);
@@ -4402,6 +4803,7 @@ async function openModPackModal(service: "modrinth" | "curseforge" = "modrinth")
   modPackTab.value = "about";
   cpProject.value = null;
   cpFiles.value = null;
+  cpDetail.value = null;
   cpErr.value = "";
   cpSearched.value = false;
   await loadModrinthTags("modpack");
@@ -4421,6 +4823,7 @@ function switchPackService(s: "modrinth" | "curseforge") {
   modPackVersions.value = null;
   cpProject.value = null;
   cpFiles.value = null;
+  cpDetail.value = null;
   cpErr.value = "";
   cpVersion.value = "";
   if (s === "curseforge") {
@@ -4444,6 +4847,7 @@ async function searchCursePacks() {
   cpErr.value = "";
   cpProject.value = null;
   cpFiles.value = null;
+  cpDetail.value = null;
   try {
     cpResults.value = await curseforgeSearch(
       modPackQuery.value.trim(),
@@ -4465,11 +4869,31 @@ async function openCpFiles(p: CurseSearchHit) {
   cpProject.value = p;
   cpFiles.value = null;
   cpErr.value = "";
+  cpTab.value = "about";
+  // Деталка (описание/скриншоты/категории) подгружается независимо и не блокирует список файлов.
+  void loadCpDetail(p.projectId);
   try {
     cpFiles.value = await curseforgeModpackFiles(p.projectId);
   } catch (e) {
     cpErr.value = String(e);
     cpFiles.value = [];
+  }
+}
+
+/** Загружает полное описание проекта CurseForge (описание/скриншоты/категории). */
+async function loadCpDetail(projectId: number) {
+  cpDetailLoading.value = true;
+  cpDetail.value = null;
+  cpWebsiteUrl.value = "";
+  try {
+    const d = await curseforgeProjectDetail(projectId);
+    cpDetail.value = d;
+    cpWebsiteUrl.value = d.websiteUrl;
+  } catch (e) {
+    cpDetail.value = null;
+    notify(t("err.curseDetail", { e }));
+  } finally {
+    cpDetailLoading.value = false;
   }
 }
 
@@ -4483,6 +4907,7 @@ async function installCpPack(f: CursePackFile) {
     modPackOpen.value = false;
     cpProject.value = null;
     cpFiles.value = null;
+    cpDetail.value = null;
     await loadPacks();
     await nextTick();
     openPackTab(pack.id);
@@ -4753,6 +5178,30 @@ const curseErr = ref("");
 const curseInstallBusy = ref<number | null>(null);
 const curseKeyOk = ref(true);
 
+// Установленные в активной сборке проекты — для плашки «Установлено» в поиске.
+// Modrinth: slug из трекера (.mono-modrinth.json) или из modrinth_url (`/mod/{slug}`);
+// CurseForge: project_id из трекера (.mono-curseforge.json).
+const installedModrinthSlugs = computed(() => {
+  const set = new Set<string>();
+  for (const list of Object.values(gameFiles.value)) {
+    for (const f of list) {
+      if (f.modrinthProjectId) set.add(f.modrinthProjectId);
+      const m = /\/mod\/([^/]+)\/?$/.exec(f.modrinthUrl ?? "");
+      if (m) set.add(m[1]);
+    }
+  }
+  return set;
+});
+const installedCurseIds = computed(() => {
+  const set = new Set<number>();
+  for (const list of Object.values(gameFiles.value)) {
+    for (const f of list) {
+      if (f.curseforgeProjectId) set.add(f.curseforgeProjectId);
+    }
+  }
+  return set;
+});
+
 async function loadCurseKeyStatus() {
   if (!isTauri()) return;
   try {
@@ -4860,7 +5309,7 @@ async function installCurseCore(p: CurseSearchHit): Promise<CurseInstallResult |
   try {
     const file = await curseforgeLatestFile(packId.value, p.projectId);
     const folder = (CURSE_FOLDER[modSearchKind.value] ?? "mods") as GameFolderKind;
-    return await curseforgeInstallFile(packId.value, file, folder);
+    return await curseforgeInstallFile(packId.value, file, folder, p.name, p.iconUrl);
   } finally {
     curseInstallBusy.value = null;
   }
@@ -4881,6 +5330,10 @@ async function installCurse(p: CurseSearchHit) {
         : t("curse.installed", { name: p.name }),
       "success"
     );
+    // Сразу сохраняем мету из поискового хита (название + иконка) в кеш, чтобы
+    // main-окно показало их без отдельного API-запроса project_detail.
+    curseMeta.value = { ...curseMeta.value, [p.projectId]: { title: p.name, icon: p.iconUrl ?? "" } };
+    setCachedIcon(`cf:${p.projectId}`, JSON.stringify({ title: p.name, icon: p.iconUrl ?? "" }));
     closeSearch();
     const folder = (CURSE_FOLDER[modSearchKind.value] ?? "mods") as GameFolderKind;
     await loadGameFiles(folder, true);
@@ -5930,6 +6383,10 @@ if (isSearchWin.value) {
       if (!curseKeyOk.value) return;
     }
     if (kind === "datapack") await loadGameFiles("saves");
+    else
+      await loadGameFiles(
+        (CURSE_FOLDER[(kind as ModrinthSearchKind)] ?? "mods") as GameFolderKind
+      );
     await runInitialSearch();
   })();
 }

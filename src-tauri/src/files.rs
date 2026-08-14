@@ -6,6 +6,8 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 
 use crate::config;
+use crate::curseforge;
+use crate::modrinth;
 
 /// Запись в папке игры: мод/ресурспак/шейдер/мир.
 #[derive(Debug, Clone, Serialize)]
@@ -24,6 +26,14 @@ pub struct GameFileEntry {
     pub modified: i64,
     /// Точная страница мода на Modrinth (из downloads в .mono-index.json), если файл оттуда.
     pub modrinth_url: Option<String>,
+    /// slug проекта Modrinth (из .mono-modrinth.json), если файл установлен вручную с Modrinth.
+    pub modrinth_project_id: Option<String>,
+    /// ID проекта CurseForge (если файл установлен вручную с CurseForge) — для меты/иконки.
+    pub curseforge_project_id: Option<u32>,
+    /// Название проекта CurseForge (из трекера) — для показа без API-запроса.
+    pub curseforge_title: Option<String>,
+    /// URL логотипа проекта CurseForge (из трекера).
+    pub curseforge_icon: Option<String>,
 }
 
 fn folder_dir(pack_id: &str, folder: &str) -> Result<PathBuf> {
@@ -82,6 +92,11 @@ pub fn list_files(pack_id: &str, folder: &str) -> Result<Vec<GameFileEntry>> {
         return Ok(Vec::new());
     }
     let urls = install_urls(pack_id);
+    let curse_meta = curseforge::tracked_meta(pack_id, folder);
+    let modrinth_map: HashMap<(String, String), String> = modrinth::tracked_mods(pack_id)
+        .into_iter()
+        .map(|m| ((m.folder.clone(), m.file_name.clone()), m.project_id))
+        .collect();
     let mut out: Vec<GameFileEntry> = Vec::new();
     for e in std::fs::read_dir(&dir)? {
         let Ok(e) = e else { continue };
@@ -126,6 +141,29 @@ pub fn list_files(pack_id: &str, folder: &str) -> Result<Vec<GameFileEntry>> {
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
+        let curseforge_project_id = if is_file {
+            curse_meta.get(&raw).or_else(|| curse_meta.get(&name)).map(|m| m.0)
+        } else {
+            None
+        };
+        let curseforge_title = if is_file {
+            curse_meta.get(&raw).or_else(|| curse_meta.get(&name)).and_then(|m| (!m.1.is_empty()).then_some(m.1.clone()))
+        } else {
+            None
+        };
+        let curseforge_icon = if is_file {
+            curse_meta.get(&raw).or_else(|| curse_meta.get(&name)).and_then(|m| (!m.2.is_empty()).then_some(m.2.clone()))
+        } else {
+            None
+        };
+        let modrinth_project_id = if is_file {
+            modrinth_map
+                .get(&(folder.to_string(), raw.clone()))
+                .or_else(|| modrinth_map.get(&(folder.to_string(), name.clone())))
+                .cloned()
+        } else {
+            None
+        };
         out.push(GameFileEntry {
             name: raw,
             display_name,
@@ -136,6 +174,11 @@ pub fn list_files(pack_id: &str, folder: &str) -> Result<Vec<GameFileEntry>> {
             // Точная страница Modrinth — только для файлов из индекса сборки;
             // у добавленных вручную её нет, фронтенд делает поиск.
             modrinth_url,
+            modrinth_project_id,
+            // CurseForge-проект (для меты/иконки), если файл установлен вручную с CurseForge.
+            curseforge_project_id,
+            curseforge_title,
+            curseforge_icon,
         });
     }
     // Включённые сверху, дальше по алфавиту.

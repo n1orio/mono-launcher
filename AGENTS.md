@@ -11,7 +11,7 @@ Desktop Minecraft modpack launcher. **Tauri 2** (Rust backend) + **Nuxt 3 / Vue 
 | `npm run tauri build` | Release binary; runs `npm run build` first via `beforeBuildCommand` |
 | `npm run tauri:appimage` | Linux AppImage; requires `NO_STRIP=true` (set in script) |
 | `cargo check` / `cargo clippy` | Rust checks from `src-tauri/` |
-| `cargo test --lib` | Unit tests (spread across 8 modules: mrpack, curseforge, modrinth, skins, ping, nbt, license, jre) — **run before committing Rust** |
+| `cargo test --lib` | Unit tests (10 modules: mrpack, curseforge, modrinth, skins, ping, nbt, license, jre, **files**, **lib**) — **run before committing Rust** |
 | `scripts/dev-headless.sh` | Headless UI smoke (Xvfb `:99`, software GL + WebKit workarounds) |
 
 ## Critical Gotchas
@@ -26,6 +26,8 @@ Desktop Minecraft modpack launcher. **Tauri 2** (Rust backend) + **Nuxt 3 / Vue 
 - `pages/index.vue` — entire UI (single page). `composables/useLauncher.ts` = all state + handlers
 - `lib/bridge.ts` — typed Tauri IPC wrapper (`invoke`/`listen`). **Add new commands here**
 - `lib/types.ts` — shared TypeScript types
+- `lib/{misc,labels,format,changelog,iconCache}.ts` — pure UI helpers (recently extracted from `useLauncher.ts`). Put new reusable, side-effect-free helpers here, not in the composable
+- `locales/` = `en.json`, `ru.json`, `uk.json`
 - `composables/useI18n.ts` — **dynamic locales**: all `locales/*.json` loaded via `import.meta.glob` — drop a new JSON, language appears in UI automatically. Flat keys via `t()`. Each file has `"__meta__": {"author", "version"}` (translator + launcher version the translation targets) shown in the launcher settings. **Add every new key to EVERY locale JSON in `locales/` (incl. `__meta__` presence check)**
 - `assets/css/main.css` — Tailwind entry + **theme CSS variables** (`--bg`, `--panel`, `--input`, `--border`, `--tx*`, `--accent*`, alpha variants). **Never hardcode colors**; theme toggled via `.theme-light` on `documentElement`, persisted in `localStorage.mono.theme`
 - `src-tauri/src/` — Rust backend. `lib.rs` registers all `#[tauri::command]` in `run()`. Modules: `config.rs`, `mrpack.rs`, `auth.rs`, `game.rs`, `license.rs`, `curseforge.rs`, `modrinth.rs`, `skins.rs`, `files.rs`, `jre.rs`, `nbt.rs`, `ping.rs`, `discord_rp.rs`

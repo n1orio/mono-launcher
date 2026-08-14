@@ -1017,6 +1017,17 @@ async fn curseforge_modpack_files_command(
         .map_err(|e| e.to_string())
 }
 
+/// Полное описание проекта CurseForge (деталка сборки: описание/скриншоты).
+#[tauri::command]
+async fn curseforge_project_detail_command(
+    state: State<'_, AppState>,
+    project_id: u32,
+) -> Result<curseforge::CurseProjectDetail, String> {
+    curseforge::project_detail(&state.client, project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Подходящий файл проекта CurseForge (последний под версию Minecraft сборки,
 /// либо просто последний) — готов к установке.
 #[tauri::command]
@@ -1044,6 +1055,8 @@ async fn curseforge_install_command(
     pack_id: String,
     file: curseforge::CurseFile,
     folder: String,
+    title: Option<String>,
+    icon: Option<String>,
 ) -> Result<curseforge::InstallResult, String> {
     let pack = resolve_pack(Some(pack_id))?;
     let game_dir = config::active_game_dir(&pack.id).map_err(|e| e.to_string())?;
@@ -1054,6 +1067,19 @@ async fn curseforge_install_command(
     let name = curseforge::download_to(&state.client, &file, &target_dir)
         .await
         .map_err(|e| e.to_string())?;
+    // Трекинг до установки зависимостей: файл уже на диске, и даже если
+    // автодокачка required-зависимостей упадёт, в списке файлов будет мета/иконка
+    // проекта CurseForge (иначе плашка и иконка теряются).
+    curseforge::upsert_tracked(
+        &pack.id,
+        &curseforge::CurseTracked {
+            file_name: name.clone(),
+            folder: folder.clone(),
+            project_id: file.project_id,
+            title: title.unwrap_or_default(),
+            icon: icon.unwrap_or_default(),
+        },
+    );
     // Автодокачка required-зависимостей (до FileDependency::MAX_DEPTH уровней, без циклов).
     let deps_installed = curseforge::install_dependencies(
         &state.client,
@@ -2239,7 +2265,7 @@ async fn get_news_command(
 }
 
 /// Свежие сверху (без даты — вниз).
-fn sort_news(items: &mut Vec<NewsItem>) {
+fn sort_news(items: &mut [NewsItem]) {
     items.sort_by(|a, b| match (&b.date, &a.date) {
         (Some(x), Some(y)) => x.cmp(y),
         (Some(_), None) => std::cmp::Ordering::Greater,
@@ -3199,6 +3225,7 @@ pub fn run() {
             curseforge_latest_file_command,
             curseforge_install_command,
             curseforge_modpack_files_command,
+            curseforge_project_detail_command,
             curseforge_install_pack_command,
             curseforge_key_configured_command,
             list_accounts_command,

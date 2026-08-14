@@ -156,7 +156,7 @@ impl<'a> Parser<'a> {
             4 | 6 => self.bump(8),
             7 => {
                 let n = self.i32()?;
-                self.bump((n.max(0) as usize) * 1)
+                self.bump(n.max(0) as usize)
             }
             11 => {
                 let n = self.i32()?;

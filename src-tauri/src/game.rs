@@ -202,11 +202,7 @@ fn rules_allow(rules: &[serde_json::Value]) -> bool {
             }
         }
         let name = os["name"].as_str().map(|s| s.to_string());
-        let os_ok = match &name {
-            Some(n) if n != os_name() => false,
-            _ => true,
-        };
-        if !os_ok {
+        if matches!(&name, Some(n) if n != os_name()) {
             continue;
         }
         let arch_ok = match os["arch"].as_str() {
@@ -280,11 +276,7 @@ async fn resolve_libraries(
         } else {
             maven_url(&lib.name)
         };
-        let artifact_path = if !lib.downloads.artifact.url.is_empty() {
-            libraries_dir.join(maven_path(&lib.name))
-        } else {
-            libraries_dir.join(maven_path(&lib.name))
-        };
+        let artifact_path = libraries_dir.join(maven_path(&lib.name));
         let artifact_sha = lib.downloads.artifact.sha1.clone();
         ensure_download(client, &artifact_url, &artifact_sha, &artifact_path).await?;
         classpath.push(artifact_path.clone());
@@ -294,7 +286,7 @@ async fn resolve_libraries(
         // Извлекаем их .so/.dll/.dylib в natives_dir: без этого -Djava.library.path
         // пуст и LWJGL падает с "Failed to locate library: liblwjgl.so".
         let natives_classifier = format!("natives-{}", os_name());
-        let name_classifier = lib.name.split(':').last().unwrap_or("");
+        let name_classifier = lib.name.split(':').next_back().unwrap_or("");
         let is_native_entry = name_classifier == natives_classifier;
 
         let native_jar =
@@ -368,13 +360,14 @@ fn detect_loader(index: &serde_json::Value) -> Option<(String, String)> {
 ///   при неудаче — version.json из installer jar'а
 /// - forge: version.json из installer jar'а
 /// - fabric/quilt: профиль с их meta-API
+///
 /// Профиль наследует ванильный (inheritsFrom), поэтому библиотеки и аргументы объединяются.
 async fn fetch_loader_profile(
     client: &reqwest::Client,
     loader: &str,
     mc_version: &str,
     loader_version: &str,
-    cache_dir: &PathBuf,
+    cache_dir: &Path,
     root: &Path,
 ) -> Result<Option<VersionJson>> {
     match loader {
@@ -464,7 +457,7 @@ async fn run_neoforge_installer(
     let mc_jar = mc_dir.join(format!("{mc_version}.jar"));
     if !mc_json.exists() {
         let manifest: VersionManifest = fetch_json(
-            &client,
+            client,
             "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
         )
         .await?;
@@ -664,9 +657,9 @@ fn split_args(args: &[serde_json::Value]) -> Vec<String> {
     for arg in args {
         match arg {
             serde_json::Value::String(s) => out.push(s.clone()),
-            serde_json::Value::Object(obj) => {
+            serde_json::Value::Object(obj)
                 // conditionallyAllowed / rules
-                if rules_allow(&obj["rules"].as_array().cloned().unwrap_or_default()) {
+                if rules_allow(&obj["rules"].as_array().cloned().unwrap_or_default()) => {
                     if let Some(v) = obj["value"].as_str() {
                         out.push(v.to_string());
                     } else if let Some(v) = obj["value"].as_array() {
@@ -677,7 +670,6 @@ fn split_args(args: &[serde_json::Value]) -> Vec<String> {
                         }
                     }
                 }
-            }
             _ => {}
         }
     }

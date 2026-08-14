@@ -380,7 +380,7 @@ pub async fn ensure_bundled_java(app: &AppHandle, client: &Client) -> Result<Str
         file.write_all(&chunk).await?;
         if last_report.elapsed().as_millis() >= 200 {
             let pct = if total > 0 {
-                format!("{}%", (downloaded * 100 / total))
+                format!("{}%", downloaded.checked_mul(100).map(|v| v / total).unwrap_or(0))
             } else {
                 format!("{:.1} МБ", downloaded as f64 / 1048576.0)
             };

@@ -1419,7 +1419,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
         playSubTab.value === "shaderpacks" ||
         playSubTab.value === "saves"
       ) {
-        loadGameFiles(playSubTab.value);
+        loadGameFiles(playSubTab.value, true);
       }
     }).then((fn) => (unlistenModsChangedSync = fn));
     onGameExited((e) => {

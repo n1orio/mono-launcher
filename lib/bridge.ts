@@ -8,6 +8,7 @@ import type {
   CurseFile,
   CurseInstallResult,
   CursePackFile,
+  CurseProjectDetail,
   CurseSearchHit,
   DownloadProgress,
   GameFileEntry,
@@ -150,13 +151,19 @@ export function curseforgeLatestFile(packId: string, projectId: number): Promise
 export function curseforgeInstallFile(
   packId: string,
   file: CurseFile,
-  folder: string
+  folder: string,
+  title?: string,
+  icon?: string
 ): Promise<CurseInstallResult> {
-  return invoke("curseforge_install_command", { packId, file, folder });
+  return invoke("curseforge_install_command", { packId, file, folder, title, icon });
 }
 
 export function curseforgeModpackFiles(projectId: number): Promise<CursePackFile[]> {
   return invoke("curseforge_modpack_files_command", { projectId });
+}
+
+export function curseforgeProjectDetail(projectId: number): Promise<CurseProjectDetail> {
+  return invoke("curseforge_project_detail_command", { projectId });
 }
 
 export function curseforgeInstallPack(projectId: number, fileId: number): Promise<PackDescriptor> {
@@ -415,7 +422,7 @@ export interface ModrinthSearchOpts {
 /** Тип проекта Modrinth, по которому идёт поиск. */
 export type ModrinthSearchKind = "mod" | "modpack" | "resourcepack" | "shaderpack" | "datapack";
 
-export type { CurseCategory, CurseFile, CurseInstallResult, CursePackFile, CurseSearchHit } from "./types";
+export type { CurseCategory, CurseFile, CurseInstallResult, CursePackFile, CurseProjectDetail, CurseSearchHit } from "./types";
 
 /** Папка игры, куда ставится файл с Modrinth. */
 export type ModrinthInstallFolder = "mods" | "resourcepacks" | "shaderpacks" | "datapacks";

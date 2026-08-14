@@ -5,6 +5,7 @@
 //! 1) файл `<данные лаунчера>/curseforge-key.txt` (одной строкой),
 //! 2) переменная окружения MONO_CURSEFORGE_KEY,
 //! 3) константа CURSEFORGE_KEY ниже.
+//!
 //! Получить ключ: console.curseforge.com → API keys (нужен аккаунт Twitch/CurseForge).
 //! Файлы скачиваются с CDN forgecdn.net — отдельный доступ не нужен.
 
@@ -20,9 +21,90 @@ const GAME_MINECRAFT: u32 = 432;
 
 /// Классы проектов Minecraft на CurseForge.
 pub const CLASS_MODS: u32 = 6;
+/// Используются для фильтрации и показа расширений файлов (см. тесты).
+#[allow(dead_code)]
 pub const CLASS_RESOURCEPACKS: u32 = 12;
+#[allow(dead_code)]
 pub const CLASS_SHADERPACKS: u32 = 6552;
+#[allow(dead_code)]
 pub const CLASS_MODPACKS: u32 = 4471;
+
+/// Запись об установленном вручную файле CurseForge (для показа меты в списке).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CurseTracked {
+    pub file_name: String,
+    pub folder: String,
+    pub project_id: u32,
+    /// Название проекта (из поискового хита) — чтобы не ходить за метой на API.
+    #[serde(default)]
+    pub title: String,
+    /// URL логотипа проекта (миниатюра), из поискового хита.
+    #[serde(default)]
+    pub icon: String,
+}
+
+/// Путь к файлу трекинга установленных вручную CurseForge-файлов.
+fn curse_track_file(pack_id: &str) -> Result<std::path::PathBuf> {
+    Ok(config::active_game_dir(pack_id)?.join(".mono-curseforge.json"))
+}
+
+/// Текущий список отслеживаемых CurseForge-файлов активной версии.
+fn tracked(pack_id: &str) -> Vec<CurseTracked> {
+    let Ok(path) = curse_track_file(pack_id) else {
+        return Vec::new();
+    };
+    if !path.exists() {
+        return Vec::new();
+    }
+    let Ok(raw) = std::fs::read_to_string(&path) else {
+        return Vec::new();
+    };
+    serde_json::from_str(&raw).unwrap_or_default()
+}
+
+fn save_tracked(pack_id: &str, mods: &[CurseTracked]) {
+    let Ok(path) = curse_track_file(pack_id) else {
+        return;
+    };
+    if let Some(parent) = path.parent() {
+        if std::fs::create_dir_all(parent).is_err() {
+            return;
+        }
+    }
+    let _ = std::fs::write(&path, serde_json::to_string(mods).unwrap_or_default());
+}
+
+/// Добавляет/обновляет запись (имя файла + папка → project_id).
+pub fn upsert_tracked(pack_id: &str, t: &CurseTracked) {
+    let mut mods = tracked(pack_id);
+    if let Some(existing) = mods
+        .iter_mut()
+        .find(|m| m.file_name == t.file_name && m.folder == t.folder)
+    {
+        *existing = t.clone();
+    } else {
+        mods.push(t.clone());
+    }
+    save_tracked(pack_id, &mods);
+}
+
+/// Мета отслеживаемого файла папки игры: «имя файла (включая .disabled)» → (project_id, title, icon).
+pub fn tracked_meta(
+    pack_id: &str,
+    folder: &str,
+) -> std::collections::HashMap<String, (u32, String, String)> {
+    tracked(pack_id)
+        .into_iter()
+        .filter(|m| m.folder == folder)
+        .map(|m| {
+            (
+                m.file_name.clone(),
+                (m.project_id, m.title.clone(), m.icon.clone()),
+            )
+        })
+        .collect()
+}
 
 /// Ключ API задаётся одним из способов (приоритет сверху вниз):
 /// 1) файл `<данные лаунчера>/curseforge-key.txt` (одной строкой),
@@ -102,6 +184,7 @@ struct SearchItem {
     download_count: u64,
     authors: Vec<Author>,
     #[serde(default)]
+    #[allow(dead_code)]
     latest_files_indexes: Vec<LatestFileIndex>,
     #[serde(default)]
     logo: Option<SearchLogo>,
@@ -122,7 +205,9 @@ struct Author {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct LatestFileIndex {
+    #[allow(dead_code)]
     game_version: String,
+    #[allow(dead_code)]
     file_id: u32,
 }
 
@@ -479,12 +564,53 @@ struct ProjectResp {
 struct ProjectItem {
     id: u32,
     name: String,
+    slug: String,
+    summary: String,
+    description: String,
     logo: Option<LogoItem>,
+    #[serde(default)]
+    screenshots: Vec<LogoItem>,
+    #[serde(default)]
+    categories: Vec<CategoryItem>,
+    #[serde(default)]
+    authors: Vec<Author>,
+    download_count: u64,
+    links: ProjectLinks,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct LogoItem {
     url: String,
+    #[serde(default)]
+    thumbnail_url: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProjectLinks {
+    website_url: String,
+}
+
+/// Полное описание проекта CurseForge (деталка сборки: описание/скриншоты).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CurseProjectDetail {
+    pub project_id: u32,
+    pub name: String,
+    pub slug: String,
+    pub summary: String,
+    pub description: String,
+    pub author: String,
+    pub download_count: u64,
+    pub icon_url: Option<String>,
+    /// URL-ы скриншотов (полные).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub screenshots: Vec<String>,
+    /// Категории (имена).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub categories: Vec<String>,
+    pub website_url: String,
 }
 
 pub async fn project(client: &reqwest::Client, project_id: u32) -> Result<CfProject> {
@@ -503,7 +629,54 @@ pub async fn project(client: &reqwest::Client, project_id: u32) -> Result<CfProj
     Ok(CfProject {
         id: resp.data.id,
         name: resp.data.name,
-        logo_url: resp.data.logo.map(|l| l.url),
+        logo_url: resp.data.logo.map(|l| {
+            if !l.thumbnail_url.is_empty() {
+                l.thumbnail_url
+            } else {
+                l.url
+            }
+        }),
+    })
+}
+
+pub async fn project_detail(
+    client: &reqwest::Client,
+    project_id: u32,
+) -> Result<CurseProjectDetail> {
+    let key = require_api_key()?;
+    let resp: ProjectResp = client
+        .get(format!("{API_BASE}/mods/{project_id}"))
+        .header("x-api-key", &key)
+        .header("User-Agent", ua())
+        .send()
+        .await
+        .context("Не удалось получить проект CurseForge")?
+        .error_for_status()
+        .context("CurseForge отклонил запрос (проверьте API-ключ)")?
+        .json()
+        .await?;
+    let d = resp.data;
+    Ok(CurseProjectDetail {
+        project_id: d.id,
+        name: d.name,
+        slug: d.slug,
+        summary: d.summary,
+        description: d.description,
+        author: d.authors.first().map(|a| a.name.clone()).unwrap_or_default(),
+        download_count: d.download_count,
+        icon_url: d
+            .logo
+            .as_ref()
+            .map(|l| {
+                if !l.thumbnail_url.is_empty() {
+                    l.thumbnail_url.clone()
+                } else {
+                    l.url.clone()
+                }
+            }),
+        screenshots: d.screenshots.into_iter().map(|s| s.url).collect(),
+        categories: d.categories.into_iter().map(|c| c.name).collect(),
+        website_url: d.links.website_url,
     })
 }
 

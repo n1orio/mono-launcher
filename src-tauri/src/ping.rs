@@ -197,11 +197,7 @@ fn parse_status_json(raw: &str) -> Result<PingData, String> {
         Some(serde_json::Value::Object(obj)) => {
             if let Some(text) = obj.get("text").and_then(|v| v.as_str()) {
                 Some(text.to_string())
-            } else if let Some(key) = obj.get("translate").and_then(|v| v.as_str()) {
-                Some(format!("{{translate:{key}}}"))
-            } else {
-                None
-            }
+            } else { obj.get("translate").and_then(|v| v.as_str()).map(|key| format!("{{translate:{key}}}")) }
         }
         _ => None,
     };

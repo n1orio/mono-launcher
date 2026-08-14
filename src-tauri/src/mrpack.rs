@@ -520,7 +520,7 @@ pub async fn download_all_files(
                 Err(e) => emit_progress(
                     &app,
                     &DownloadProgress {
-                        phase: format!("Ошибка: {e}").into(),
+                        phase: format!("Ошибка: {e}"),
                         ..Default::default()
                     },
                 ),

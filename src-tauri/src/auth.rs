@@ -336,6 +336,7 @@ pub async fn ms_poll(
 /// 1) файл `<данные лаунчера>/ely-client-id` (одной строкой),
 /// 2) переменная окружения MONO_ELY_CLIENT_ID,
 /// 3) константа ELY_CLIENT_ID ниже.
+///
 /// Зарегистрировать приложение: account.ely.by → «Создать приложение» (любой тип,
 /// device flow обходится без redirect URI), в настройках приложения скопировать clientId.
 const ELY_CLIENT_ID: &str = "CHANGE_ME";
@@ -454,7 +455,7 @@ pub async fn ely_poll(
         .json()
         .await?;
     let uuid = Uuid::parse_str(&user.uuid)
-        .unwrap_or_else(|_| Uuid::new_v3(&Uuid::NAMESPACE_DNS, &user.uuid.as_bytes()))
+        .unwrap_or_else(|_| Uuid::new_v3(&Uuid::NAMESPACE_DNS, user.uuid.as_bytes()))
         .to_string();
     Ok(UserSession {
         username: user.name,
