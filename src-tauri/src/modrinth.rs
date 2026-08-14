@@ -120,7 +120,7 @@ pub struct ModrinthDependency {
 }
 
 fn ua() -> &'static str {
-    "mono-launcher/0.3.0-alpha.3 (desktop launcher)"
+    "mono-launcher/1.0.0 (desktop launcher)"
 }
 
 /// Фильтры поиска Modrinth: категории+загрузчики, версии игры,

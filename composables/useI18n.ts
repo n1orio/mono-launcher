@@ -3,7 +3,7 @@ import { ref } from "vue";
 /**
  * Метаданные перевода. Лежат в корне файла локали как "__meta__":
  *   {
- *     "__meta__": { "author": "n1orio", "version": "0.3.0-alpha.3" },
+ *     "__meta__": { "author": "n1orio", "version": "1.0.0" },
  *     "nav.news": "Новости",
  *     ...
  *   }

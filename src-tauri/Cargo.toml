@@ -1,6 +1,6 @@
 [package]
 name = "mono-launcher"
-version = "0.3.0-alpha.3"
+version = "1.0.0"
 description = "Фирменный моно-лаунчер для сборки Minecraft (.mrpack)"
 authors = ["NIO"]
 edition = "2021"
