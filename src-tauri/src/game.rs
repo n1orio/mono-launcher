@@ -223,7 +223,29 @@ fn rules_allow(rules: &[serde_json::Value]) -> bool {
     allowed && any_applied
 }
 
+/// Зеркала для библиотек, которые Mojang удалил с libraries.minecraft.net
+/// (jinput-platform, twitch-external, lwjgl-platform 2.x и т.п.) — там 404.
+/// BMCLAPI зеркалит структуру maven-репозитория Mojang; путь файла тот же.
+const LIBRARY_MIRRORS: &[&str] = &["https://bmclapi2.bangbang93.com/maven"];
+
+/// Возвращает список URL для скачивания: основной + зеркала (тот же путь).
+fn download_candidates(url: &str) -> Vec<String> {
+    let mut out = vec![url.to_string()];
+    if let Ok(parsed) = reqwest::Url::parse(url) {
+        let path = parsed.path().trim_start_matches('/');
+        for mirror in LIBRARY_MIRRORS {
+            out.push(format!(
+                "{}/{}",
+                mirror.trim_end_matches('/'),
+                path
+            ));
+        }
+    }
+    out
+}
+
 /// Скачивает файл в `dest`, если его там нет (проверяя sha1).
+/// При недоступности основного URL (404/ошибка сети/несовпадение хэша) пробует зеркала.
 async fn ensure_download(
     client: &reqwest::Client,
     url: &str,
@@ -242,6 +264,25 @@ async fn ensure_download(
     if let Some(parent) = dest.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
+
+    let mut last_err: Option<anyhow::Error> = None;
+    for candidate in download_candidates(url) {
+        let res = download_verify(client, &candidate, sha1, dest).await;
+        match res {
+            Ok(()) => return Ok(()),
+            Err(e) => last_err = Some(e),
+        }
+    }
+    Err(last_err.unwrap_or_else(|| anyhow!("Не удалось скачать {url}")))
+}
+
+/// Скачивает один URL и проверяет sha1. При несовпадении хэша файл удаляется.
+async fn download_verify(
+    client: &reqwest::Client,
+    url: &str,
+    sha1: &str,
+    dest: &Path,
+) -> Result<()> {
     let resp = client
         .get(url)
         .send()
@@ -283,15 +324,24 @@ async fn resolve_libraries(
             continue;
         }
 
-        let artifact_url = if !lib.downloads.artifact.url.is_empty() {
+        // Библиотеки вида "natives-only" (напр. net.java.jinput:jinput-platform): базового
+        // .jar у них нет вовсе (на CDN 404 — файла не существует), есть только
+        // natives-классификаторы. Базовый jar не нужен на classpath, поэтому не скачиваем
+        // его (иначе падение при запуске старых версий), но natives обрабатываем ниже.
+        let has_artifact_url = !lib.downloads.artifact.url.is_empty();
+        let natives_only = !has_artifact_url && !lib.downloads.classifiers.is_empty();
+
+        let artifact_url = if has_artifact_url {
             lib.downloads.artifact.url.clone()
         } else {
             maven_url(&lib.name)
         };
         let artifact_path = libraries_dir.join(maven_path(&lib.name));
         let artifact_sha = lib.downloads.artifact.sha1.clone();
-        ensure_download(client, &artifact_url, &artifact_sha, &artifact_path).await?;
-        classpath.push(artifact_path.clone());
+        if !natives_only {
+            ensure_download(client, &artifact_url, &artifact_sha, &artifact_path).await?;
+            classpath.push(artifact_path.clone());
+        }
 
         // Нативные библиотеки. В version.json 1.21.1 natives — отдельные записи
         // (org.lwjgl:lwjgl:3.3.3:natives-linux с правилами на ОС), а не classifiers.
