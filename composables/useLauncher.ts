@@ -3,6 +3,7 @@ import { check as checkAppUpdate, type Update as AppUpdate } from "@tauri-apps/p
 import { relaunch } from "@tauri-apps/plugin-process";
 import {
   addPack,
+  analyzeCrash,
   checkForUpdates,
   clearLaunchLog,
   clearLocalSkin,
@@ -28,6 +29,7 @@ import {
   loginOffline,
   msDeviceCode,
   msPoll,
+  onCrashAnalyzed,
   onDownloadProgress,
   onGameExited,
   onLaunchLog,
@@ -83,6 +85,7 @@ import type {
   UserSession,
   VerifyResult,
   VersionsInfo,
+  CrashAnalysis,
 } from "~/lib/types";
 import type { GameFolderKind, PackAddedPayload } from "~/lib/bridge";
 import { useI18n } from "~/composables/useI18n";
@@ -468,7 +471,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const removeArmed = ref<string | null>(null);
 
   // ==== Вкладки файлов игры (моды/ресурспаки/шейдеры/миры/консоль) ====
-  const playSubTab = ref<"releases" | "mods" | "resourcepacks" | "shaderpacks" | "saves" | "screenshots" | "servers" | "console">("releases");
+  const playSubTab = ref<"releases" | "mods" | "resourcepacks" | "shaderpacks" | "saves" | "screenshots" | "servers" | "console" | "settings">("releases");
   const gameFiles = ref<Partial<Record<GameFolderKind, GameFileEntry[]>>>({});
   const fileIcons = ref<Record<string, string>>({});
   const fileSearch = ref("");
@@ -766,7 +769,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     const body = [
       t("report.desc"),
       "```",
-      (errorText || t("report.empty")).slice(0, 3000),
+      (errorText || t("report.empty")).slice(0, 600),
       "```",
       "",
       t("report.env"),
@@ -785,7 +788,9 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
       "",
       t("report.log"),
       "```",
-      (log || t("report.logEmpty")).slice(-50000),
+      // Хвост лога — самое ценное для диагностики (исключение всегда в конце).
+      // GitHub/браузеры обрезают длинные query-string, так что лимит жёсткий.
+      (log || t("report.logEmpty")).slice(-3500),
       "```",
     ]
       .filter((l): l is string => l !== null)
@@ -829,6 +834,8 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     const ver =
       status.value?.active_source_tag ?? status.value?.active_version ?? t("reportPack.unknown");
     const logLines = bugLog.value.split("\n").slice(-LOG_IN_ISSUE_LINES);
+    // Ограничиваем размер лога в отчёте (GitHub/браузер режут длинные URL).
+    const logBlock = logLines.join("\n").slice(-3500);
     const body = [
       t("reportPack.desc"),
       "",
@@ -852,7 +859,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
             "<summary>launch.log</summary>",
             "",
             "```",
-            ...logLines,
+            logBlock,
             "```",
             "</details>",
           ].join("\n")
@@ -917,6 +924,25 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     }
   }
 
+  /** Текущий анализ краш-репорта (null = не было сбоя / ещё не анализировали). */
+  const crashAnalysis = ref<CrashAnalysis | null>(null);
+
+  /** Запускает анализ свежих краш-артефактов текущей сборки. */
+  async function runCrashAnalysis() {
+    const packId = activePack.value?.id;
+    if (!packId || !isTauri()) return;
+    try {
+      const a = await analyzeCrash(packId);
+      crashAnalysis.value = a.hasCause ? a : null;
+    } catch {
+      crashAnalysis.value = null;
+    }
+  }
+
+  function closeCrashAnalysis() {
+    crashAnalysis.value = null;
+  }
+
   const packs = ref<PackDescriptor[]>([]);
   const packId = ref("");
 
@@ -927,6 +953,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   let unlistenPlaytimeSync: (() => void) | undefined;
   let unlistenModsChangedSync: (() => void) | undefined;
   let unlistenGameExitedSync: (() => void) | undefined;
+  let unlistenCrashSync: (() => void) | undefined;
   let unlistenDeepLinkSync: (() => void) | undefined;
   let unlistenNewsChunk: (() => void) | undefined;
 
@@ -935,7 +962,22 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const pendingLog: LaunchLogEntry[] = [];
   let logFlushTimer: ReturnType<typeof setTimeout> | undefined;
 
+  /** Маркеры фатальных сбоев в живом логе игры. */
+  const FATAL_LOG_RE =
+    // eslint-disable-next-line no-misleading-character-class
+    /(Failed to locate library:|Could not initialize class |ExceptionInInitializerError|NoClassDefFoundError|ThreadGroup:uncaughtException|A fatal error has been detected|Uncaught exception|Minecraft Crashed!|Fatal error)/;
+  /** Флаг: уведомили о фатальном маркере в тек. сессии (без спама). */
+  let crashMarkerNotified = false;
+
   function pushLog(entries: LaunchLogEntry[]) {
+    for (const e of entries) {
+      if (FATAL_LOG_RE.test(e.line)) e.fatal = true;
+    }
+    const hit = entries.some((e) => e.fatal);
+    if (hit && !crashMarkerNotified) {
+      crashMarkerNotified = true;
+      notify(t("crash.logDetected"), "error");
+    }
     pendingLog.push(...entries);
     if (pendingLog.length > CONSOLE_LIMIT) {
       pendingLog.splice(0, pendingLog.length - CONSOLE_LIMIT);
@@ -1485,6 +1527,9 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
         notify(t("game.exitError", { code }), "error");
       }
     }).then((fn) => (unlistenGameExitedSync = fn));
+    onCrashAnalyzed((a) => {
+      crashAnalysis.value = a.hasCause ? a : null;
+    }).then((fn) => (unlistenCrashSync = fn));
     onPackAdded((p) => {
       handlePackAdded(p);
     }).then((fn) => (unlistenDeepLinkSync = fn));
@@ -1561,6 +1606,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     unlistenPlaytimeSync?.();
     unlistenModsChangedSync?.();
     unlistenGameExitedSync?.();
+    unlistenCrashSync?.();
     unlistenDeepLinkSync?.();
     unlistenNewsChunk?.();
   });
@@ -1773,6 +1819,7 @@ notify(t("err.switch", { e }));
         windowHeight.value,
         server
       );
+      crashMarkerNotified = false;
       gameRunning.value = true;
     } catch (e) {
       notify(t("err.launch", { e }));
@@ -1930,6 +1977,9 @@ notify(t("err.switch", { e }));
     bugReportOpen,
     bugBody,
     bugLog,
+    crashAnalysis,
+    runCrashAnalysis,
+    closeCrashAnalysis,
     bugCopied,
     closeBugReport,
     copyBugReport,

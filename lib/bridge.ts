@@ -38,6 +38,7 @@ import type {
   VerifyResult,
   VersionsInfo,
   ExportSourceItem,
+  CrashAnalysis,
 } from "./types";
 
 export const isTauri = () =>
@@ -244,6 +245,16 @@ export function getLaunchLog(): Promise<string> {
 
 export function clearLaunchLog(): Promise<void> {
   return invoke("clear_launch_log");
+}
+
+export function analyzeCrash(packId: string): Promise<CrashAnalysis> {
+  return invoke("analyze_crash_command", { packId });
+}
+
+export function onCrashAnalyzed(
+  cb: (a: CrashAnalysis) => void
+): Promise<UnlistenFn> {
+  return listen<CrashAnalysis>("crash-analyzed", (event) => cb(event.payload));
 }
 
 export function openPackDir(packId: string): Promise<void> {

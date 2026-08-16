@@ -181,10 +181,15 @@ fn maven_path(name: &str) -> PathBuf {
 
 fn maven_url(name: &str) -> String {
     // https://libraries.minecraft.net/ используется для большинства библиотек.
-    format!(
-        "https://libraries.minecraft.net/{}",
-        maven_path(name).display()
-    )
+    // Артефакты Fabric (net.fabricmc:* — loader, sponge-mixin, intermediary и т.д.)
+    // и asm (org.ow2.asm:*, который Fabric-профиль отдаёт без URL) лежат только на
+    // maven.fabricmc.net — на Mojang CDN их нет, там 404.
+    let base = if name.starts_with("net.fabricmc:") || name.starts_with("org.ow2.asm:") {
+        "https://maven.fabricmc.net"
+    } else {
+        "https://libraries.minecraft.net"
+    };
+    format!("{}/{}", base, maven_path(name).display())
 }
 
 /// Проверяет правила библиотеки для текущей ОС и «фич» (features не задаём вовсе —
@@ -420,7 +425,7 @@ async fn fetch_loader_profile(
         }
         "fabric" => {
             let url = format!(
-                "https://meta.fabricmc.net/v2/versions/loader/{mc_version}/{loader_version}/{loader_version}/profile/json"
+                "https://meta.fabricmc.net/v2/versions/loader/{mc_version}/{loader_version}/profile/json"
             );
             fetch_json::<VersionJson>(client, &url).await.map(Some)
         }
@@ -737,7 +742,7 @@ pub fn parse_server_address(raw: &str) -> Option<ServerAddress> {
 async fn ensure_authlib_agent(app: &AppHandle, client: &reqwest::Client, api: &str) -> Result<String> {
     let root = config::launcher_root()?;
     let jar = root.join("authlib-injector.jar");
-    const JAR_URL: &str = "https://github.com/yushijinhun/authlib-injector/releases/download/1.2.5/authlib-injector-1.2.5.jar";
+    const JAR_URL: &str = "https://github.com/yushijinhun/authlib-injector/releases/download/v1.2.8/authlib-injector-1.2.8.jar";
     if !jar.exists() || std::fs::metadata(&jar)?.len() < 10_000 {
         emit_log(
             app,
@@ -801,11 +806,25 @@ pub async fn launch_game(
     let loader = detect_loader(&index);
 
     // Проверяем Java ДО скачиваний: без неё нечего качать сотни мегабайт.
-    // Предпочитаем версию Java, заданную для сборки, иначе — требование версии
-    // Minecraft (8 / 17 / 21). Явный выбор пользователя всегда в приоритете.
+    // Требуемую Java берём из реальных модов сборки (depends.java в fabric/quilt
+    // mod.json), а эвристику по версии Minecraft оставляем только как нижнюю
+    // границу. Явный выбор пользователя (pack_java) всегда в приоритете.
     let pack_java = config::pack_java(pack_id);
-    // Предпочитаем версию Java, заданную для сборки, иначе — требование версии Minecraft.
-    let preferred_java = pack_java.or_else(|| required_java(minecraft_version));
+    let mc_required = required_java(minecraft_version);
+    let mods_required = required_java_from_mods(&game_dir);
+    if let Some(m) = mods_required {
+        emit_log(
+            &app,
+            "sys",
+            &format!("Моды сборки требуют Java {m}+ — учтено при выборе Java."),
+        );
+    }
+    let required = match (mc_required, mods_required) {
+        (Some(a), Some(b)) => Some(a.max(b)),
+        (a, b) => a.or(b),
+    };
+    // Предпочитаем версию Java, заданную для сборки, иначе — требование выше.
+    let preferred_java = pack_java.or(required);
     if let Some(m) = pack_java {
         emit_log(
             &app,
@@ -817,7 +836,7 @@ pub async fn launch_game(
 
     // Нужна ли автоматическая установка: Java вообще нет, либо найденная не
     // подходит под требование (младше требуемой, или сборка требует точную версию).
-    let found_major = java_major(Path::new(&java));
+    let mut found_major = java_major(Path::new(&java));
     let mut need_download = java_arch == JavaArch::Unknown;
     if java_arch != JavaArch::Unknown {
         if let Some(p) = pack_java {
@@ -862,6 +881,8 @@ pub async fn launch_game(
             }
         }
     }
+    // После возможной переустановки — обновляем известную мажорную версию Java.
+    found_major = java_major(Path::new(&java)).or(found_major);
     let mut heap_gb = ram_gb.max(1);
     if java_arch == JavaArch::Bit32 {
         if heap_gb > 3 {
@@ -1089,6 +1110,12 @@ pub async fn launch_game(
         if a.starts_with("-XstartOnFirstThread") && !cfg!(target_os = "macos") {
             continue;
         }
+        // `--sun-misc-unsafe-memory-access=...` появился только в JDK 22+ (версия 26.2
+        // кладёт его в arguments.jvm). На Java ≤21 JVM не знает этот флаг и падает
+        // с «Unrecognized option», не создавая JVM.
+        if a.starts_with("--sun-misc-unsafe-memory-access=") && found_major.unwrap_or(0) < 22 {
+            continue;
+        }
         final_args.push(replace_placeholders(&a, &placeholders));
     }
     final_args.push("-cp".into());
@@ -1262,6 +1289,14 @@ pub async fn launch_game(
                 code: exit.code().unwrap_or(i32::MIN),
             },
         );
+        // Прямой сбой (ненулевой код) — пробуем распознать причину и шлём
+        // анализ фронтенду, чтобы показать блок «Вероятная причина».
+        if !success && !pack_id_owned.is_empty() {
+            let analysis = crate::crash::analyze_pack(&pack_id_owned);
+            if analysis.has_crash {
+                let _ = app2.emit("crash-analyzed", analysis);
+            }
+        }
         let msg = if success {
             "Процесс Minecraft завершился (код 0)".to_string()
         } else {
@@ -1330,4 +1365,103 @@ fn replace_placeholders(arg: &str, map: &HashMap<String, String>) -> String {
         out = out.replace(k, v);
     }
     out
+}
+
+/// Нижняя граница Java из диапазона версий `fabric.mod.json`/`quilt.mod.json`
+/// (`depends.java`): `">=25"`/`"21"`/`"[25,)"` → 25, `"(17,21]"` → 18 (нижняя
+/// граница исключена).
+fn parse_java_range_min(range: &str) -> Option<u32> {
+    let exclusive_lower = range.starts_with('(');
+    let digits: String = range
+        .chars()
+        .skip_while(|c| !c.is_ascii_digit())
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
+    let n: u32 = digits.parse().ok()?;
+    Some(if exclusive_lower { n + 1 } else { n })
+}
+
+/// Максимальная требуемая Java среди модов сборки (по `depends.java`).
+/// Считывает `fabric.mod.json`/`quilt.mod.json` из каждого jar в `<root>/mods/`.
+fn required_java_from_mods(game_dir: &Path) -> Option<u32> {
+    let mods_dir = game_dir.join("mods");
+    if !mods_dir.is_dir() {
+        return None;
+    }
+    let mut max_req: Option<u32> = None;
+    let entries = std::fs::read_dir(&mods_dir).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !matches!(path.extension().and_then(|e| e.to_str()), Some("jar")) {
+            continue;
+        }
+        if let Some(r) = mod_required_java(&path) {
+            max_req = Some(max_req.map_or(r, |m| m.max(r)));
+        }
+    }
+    max_req
+}
+
+/// Требуемая Java из одного jar-мода (или None, если её нет).
+fn mod_required_java(jar: &Path) -> Option<u32> {
+    let file = std::fs::File::open(jar).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    let mut idx: Option<usize> = None;
+    for i in 0..archive.len() {
+        let name = archive.by_index(i).ok()?.name().to_string();
+        if name == "fabric.mod.json" || name == "quilt.mod.json" {
+            idx = Some(i);
+            break;
+        }
+    }
+    let mut entry = archive.by_index(idx?).ok()?;
+    let mut buf = Vec::new();
+    std::io::Read::read_to_end(&mut entry, &mut buf).ok()?;
+    let v: serde_json::Value = serde_json::from_slice(&buf).ok()?;
+    let dep = v.get("depends")?.get("java")?;
+    let range = dep
+        .as_str()
+        .map(|s| s.to_string())
+        .or_else(|| dep.get("version").and_then(|x| x.as_str().map(|s| s.to_string())))?;
+    parse_java_range_min(&range)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn maven_url_routes_fabric_libs_to_fabricmc() {
+        assert_eq!(
+            maven_url("net.fabricmc:sponge-mixin:0.17.3+mixin.0.8.7"),
+            "https://maven.fabricmc.net/net/fabricmc/sponge-mixin/0.17.3+mixin.0.8.7/sponge-mixin-0.17.3+mixin.0.8.7.jar"
+        );
+        assert_eq!(
+            maven_url("net.fabricmc:fabric-loader:0.19.3"),
+            "https://maven.fabricmc.net/net/fabricmc/fabric-loader/0.19.3/fabric-loader-0.19.3.jar"
+        );
+        assert_eq!(
+            maven_url("org.ow2.asm:asm:9.10.1"),
+            "https://maven.fabricmc.net/org/ow2/asm/asm/9.10.1/asm-9.10.1.jar"
+        );
+    }
+
+    #[test]
+    fn maven_url_keeps_mojang_cdn_for_vanilla_libs() {
+        assert_eq!(
+            maven_url("com.google.code.gson:gson:2.11.0"),
+            "https://libraries.minecraft.net/com/google/code/gson/gson/2.11.0/gson-2.11.0.jar"
+        );
+    }
+
+    #[test]
+    fn parses_java_range_min() {
+        assert_eq!(parse_java_range_min(">=25"), Some(25));
+        assert_eq!(parse_java_range_min("21"), Some(21));
+        assert_eq!(parse_java_range_min("[25,)"), Some(25));
+        assert_eq!(parse_java_range_min("[17,21)"), Some(17));
+        assert_eq!(parse_java_range_min("(17,21]"), Some(18));
+        assert_eq!(parse_java_range_min(">=17"), Some(17));
+        assert_eq!(parse_java_range_min("no-java"), None);
+    }
 }

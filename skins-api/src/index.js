@@ -100,7 +100,10 @@ export default {
     }
 
     // ---- authlib-injector: проверка API ----
-    if (path === "/api/authlib-injector/checker") {
+    // authlib-injector первым делом дёргает сам «корень» API-URL и читает оттуда
+    // метаданные (либо путь из подсказки). Отдаём их и на «/», и на checker — так
+    // любой порядок пробинга резолвится без 404/FileNotFoundException.
+    if ((path === "/api/authlib-injector/checker" || path === "/") && request.method === "GET") {
       return json(
         { meta: { serverName: "Mono Launcher Skins", implementationName: "nio-skins", implementationVersion: "1.0.0" } },
         200,

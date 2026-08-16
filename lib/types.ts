@@ -234,6 +234,8 @@ export interface SystemInfo {
 export interface LaunchLogEntry {
   stream: "out" | "err" | "sys";
   line: string;
+  /** Помечен как фатальный маркер краша (подсветка в консоли). */
+  fatal?: boolean;
 }
 
 /** Фаза 1 device code flow (Microsoft и Ely.by) — код и страница подтверждения. */
@@ -452,4 +454,22 @@ export interface Accounts {
 export interface GameExited {
   success: boolean;
   code: number;
+}
+
+/** Подозреваемый мод из анализа краш-репорта. */
+export interface SuspectedMod {
+  name: string;
+  file: string;
+  package: string;
+}
+
+/** Результат анализа краш-артефактов (analyze_crash_command / событие crash-analyzed). */
+export interface CrashAnalysis {
+  hasCause: boolean;
+  file: string;
+  kind: string;
+  exception: string;
+  description: string;
+  javaHint: number | null;
+  suspected: SuspectedMod[];
 }

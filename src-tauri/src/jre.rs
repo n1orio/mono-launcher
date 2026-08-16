@@ -223,6 +223,9 @@ pub fn required_java(minecraft_version: &str) -> Option<u32> {
     let major: u32 = it.next()?.parse().ok()?;
     let minor: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
     let patch: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+    if major >= 25 {
+        return Some(25);
+    }
     if major > 1 {
         return Some(21);
     }
@@ -607,5 +610,16 @@ mod tests {
         assert_eq!(java_version_from_name("java-17-openjdk"), Some((17, 0)));
         assert_eq!(java_version_from_name("jre-1.8"), Some((8, 0)));
         assert_eq!(java_version_from_name("no-java-here"), None);
+    }
+
+    #[test]
+    fn required_java_for_new_version_scheme() {
+        // 26.2 — fabric-моды (fabric-api 0.156.0+26.2 и др.) требуют Java >= 25.
+        assert_eq!(super::required_java("26.2"), Some(25));
+        assert_eq!(super::required_java("25.1"), Some(25));
+        // Старые схемы не трогаем.
+        assert_eq!(super::required_java("1.21"), Some(21));
+        assert_eq!(super::required_java("1.20.5"), Some(21));
+        assert_eq!(super::required_java("1.8.9"), Some(8));
     }
 }

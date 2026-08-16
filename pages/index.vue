@@ -222,7 +222,7 @@
       </div>
 
       <!-- Навигация -->
-      <nav class="flex flex-col gap-0.5 overflow-y-auto p-2 border-b border-[var(--border)]">
+      <nav class="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2 border-b border-[var(--border)]">
         <!-- Вкладки категорий сборок: авторские / свои / Modrinth / CurseForge (перетаскиваются) -->
         <template v-for="cat in packTabs" :key="cat">
           <template v-if="packsBySource[cat].length > 0">
@@ -273,6 +273,9 @@
             </template>
           </template>
         </template>
+      </nav>
+
+      <nav class="flex flex-col gap-0.5 p-2 border-b border-[var(--border)]">
         <button
           type="button"
           class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
@@ -480,6 +483,7 @@
         </label>
       </div>
 
+
       <!-- Ручка изменения ширины панели -->
       <div
         class="absolute inset-y-0 -right-[3px] z-40 w-[6px] cursor-col-resize transition-colors hover:bg-[var(--accent)] active:bg-[var(--accent-strong)]"
@@ -491,7 +495,14 @@
 
     <!-- ==== Основной контент ==== -->
     <main class="relative flex-1 overflow-hidden bg-[var(--bg)]">
-      <div class="mx-auto flex h-full w-full max-w-4xl flex-col px-8 py-6">
+      <!-- Scalable main column: width = user-draggable (наплыва inner-контента),
+           по умолчанию растягивается на всю доступную ширину. -->
+      <div class="relative flex h-full w-full">
+        <div
+          class="relative h-full min-w-0 flex-1 overflow-hidden"
+          :style="mainWidth > 0 ? `max-width:${mainWidth}px` : ''"
+        >
+        <div class="mx-auto flex h-full w-full flex-col px-4 py-6 sm:px-6 md:px-8">
         <!-- ======= Вкладка: Релизы ======= -->
         <template v-if="tab === 'play'">
           <div class="flex min-h-0 flex-1 flex-col">
@@ -799,10 +810,10 @@
               v-for="st in playSubTabsVisible"
               :key="st.kind"
               type="button"
-              class="relative flex items-center justify-center rounded-md px-7 py-1.5 text-[11px] font-medium transition-colors"
+              class="relative flex items-center justify-center rounded-md border border-[var(--border)] bg-[var(--input)] px-7 py-1.5 text-[11px] font-medium text-[color:var(--tx)] transition-colors"
               :class="playSubTab === st.kind
-                ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
-                : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+                ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[color:var(--tx-strong)] ring-1 ring-inset ring-[var(--accent)]'
+                : 'hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]'"
               @click="playSubTab = st.kind"
             >
               <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-1.5 h-3.5 w-3.5 shrink-0 fill-current" v-html="st.icon"></svg>
@@ -1503,6 +1514,189 @@
             </div>
           </template>
 
+          <!-- Настройки сборки -->
+          <template v-else-if="playSubTab === 'settings'">
+            <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div class="max-w-2xl space-y-6">
+                <!-- ОЗУ -->
+                <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+                  <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5 flex justify-between items-center">
+                    <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.ram") }}</h3>
+                    <span class="font-mono text-xs font-semibold text-[var(--accent)]">{{ ram }} {{ t("units.gb") }}</span>
+                  </div>
+                  <div class="p-4 space-y-2">
+                    <input
+                      type="range"
+                      min="2"
+                      :max="maxRam"
+                      step="1"
+                      v-model.number="ram"
+                      class="w-full accent-[var(--accent-deep)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <div class="flex justify-between text-[11px] text-[color:var(--tx-muted)] font-mono">
+                      <span>2 {{ t("units.gb") }}</span>
+                      <span>{{ t("settings.ramMax", { n: maxRam }) }}</span>
+                    </div>
+                    <p v-if="systemRam && systemRam.total_ram_gb > 0" class="text-[11px] text-[color:var(--tx-muted)]">
+                      {{ t("settings.ramTotal", { total: systemRam.total_ram_gb, avail: systemRam.available_ram_gb }) }}
+                    </p>
+                    <p
+                      v-if="activePack?.minRam"
+                      class="text-[11px]"
+                      :class="(ram * 1024) < activePack.minRam ? 'font-medium text-[#f0883e]' : 'text-[color:var(--tx-muted)]'"
+                    >
+                      {{ t("settings.ramMin", { name: activePack.name, min: activePack.minRam / 1024, gb: ram }) }}
+                    </p>
+                  </div>
+                </section>
+
+                <!-- Размер окна игры -->
+                <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+                  <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5 flex justify-between items-center">
+                    <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.win") }}</h3>
+                    <span class="font-mono text-xs font-semibold text-[var(--accent)]">{{ windowWidth }}×{{ windowHeight }}</span>
+                  </div>
+                  <div class="p-4 space-y-2">
+                    <div class="flex items-center gap-3">
+                      <label class="w-16 text-[11px] text-[color:var(--tx-muted)]" for="win-width">{{ t("settings.width") }}</label>
+                      <input
+                        id="win-width"
+                        type="number"
+                        min="320"
+                        max="7680"
+                        step="1"
+                        v-model.number="windowWidth"
+                        class="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] focus:border-[var(--accent)] focus:outline-none"
+                      />
+                      <label class="w-16 text-[11px] text-[color:var(--tx-muted)]" for="win-height">{{ t("settings.height") }}</label>
+                      <input
+                        id="win-height"
+                        type="number"
+                        min="240"
+                        max="4320"
+                        step="1"
+                        v-model.number="windowHeight"
+                        class="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] focus:border-[var(--accent)] focus:outline-none"
+                      />
+                    </div>
+                    <p class="text-[11px] text-[color:var(--tx-muted)]">
+                      {{ t("settings.winNote") }}
+                    </p>
+                  </div>
+                </section>
+
+                <!-- Java -->
+                <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+                  <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
+                    <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.java") }}</h3>
+                  </div>
+                  <div class="p-4 space-y-3">
+                    <div class="flex items-center gap-2">
+                      <select
+                        :value="javaSelected"
+                        class="flex-1 appearance-none rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 pr-8 text-xs text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] focus:border-[var(--accent)] focus:outline-none"
+                        :disabled="javaBusy || busy"
+                        @change="onJavaChange"
+                      >
+                        <option value="">{{ t("settings.javaAuto") }}</option>
+                        <option v-for="j in javaList" :key="j.path" :value="j.path">
+                          {{ j.label }} — {{ j.version }} [{{ javaArchLabel(j.arch) }}]
+                        </option>
+                      </select>
+                      <button
+                        type="button"
+                        class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
+                        :disabled="javaBusy || busy"
+                        @click="downloadJava"
+                      >
+                        {{ javaBusy ? t("settings.javaDownloading") : t("settings.javaDownload") }}
+                      </button>
+                    </div>
+                    <p v-if="javaMsg" class="text-[11px] text-[color:var(--tx-muted)] break-all">{{ javaMsg }}</p>
+                    <p class="text-[11px] text-[color:var(--tx-muted)]">
+                      {{ t("settings.javaNote") }}
+                    </p>
+                  </div>
+                </section>
+
+                <!-- Discord Rich Presence -->
+                <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+                  <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
+                    <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.discord") }}</h3>
+                  </div>
+                  <div class="p-4">
+                    <label class="flex cursor-pointer items-center gap-3">
+                      <input
+                        type="checkbox"
+                        class="h-4 w-4 accent-[#5865F2]"
+                        :checked="discordRp"
+                        @change="toggleDiscordRp(($event.target as HTMLInputElement).checked)"
+                      />
+                      <span class="text-xs text-[color:var(--tx)]">{{ t("settings.discordLabel") }}</span>
+                    </label>
+                    <p class="mt-2 text-[11px] text-[color:var(--tx-muted)]">
+                      {{ t("settings.discordNote") }}
+                    </p>
+                  </div>
+                </section>
+
+                <!-- Предупреждение о кастомных модах -->
+                <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+                  <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
+                    <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.warnCustomMods") }}</h3>
+                  </div>
+                  <div class="p-4">
+                    <label class="flex cursor-pointer items-center gap-3">
+                      <input
+                        type="checkbox"
+                        class="h-4 w-4 accent-[#f0883e]"
+                        :checked="warnCustomMods"
+                        @change="toggleWarnCustomMods(($event.target as HTMLInputElement).checked)"
+                      />
+                      <span class="text-xs text-[color:var(--tx)]">{{ t("settings.warnCustomModsLabel") }}</span>
+                    </label>
+                    <p class="mt-2 text-[11px] text-[color:var(--tx-muted)]">
+                      {{ t("settings.warnCustomModsNote") }}
+                    </p>
+                  </div>
+                </section>
+
+                <!-- Проверка целостности -->
+                <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+                  <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5 flex justify-between items-center">
+                    <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.verify") }}</h3>
+                  </div>
+                  <div class="p-4 space-y-3">
+                    <p class="text-[11px] text-[color:var(--tx-muted)]">
+                      {{ t("settings.verifyNote") }}
+                    </p>
+                    <button
+                      type="button"
+                      class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
+                      :disabled="verifyBusy || busy"
+                      @click="handleVerify"
+                    >
+                      {{ verifyBusy ? t("settings.verifying") : t("settings.verifyBtn") }}
+                    </button>
+                    <div
+                      v-if="verifyResult"
+                      class="rounded-md border bg-[var(--bg-60)] p-3 text-[11px]"
+                      :class="verifyResult.broken.length === 0 ? 'border-[#238636]/40' : 'border-[#f85149]/40'"
+                    >
+                      <p class="font-medium" :class="verifyResult.broken.length === 0 ? 'text-[#3fb950]' : 'text-[#f85149]'">
+                        {{ verifyResult.broken.length === 0 ? t("settings.verifyOk") : t("settings.verifyBroken", { n: verifyResult.broken.length }) }}
+                      </p>
+                      <p class="mt-0.5 text-[color:var(--tx-muted)]">{{ t("settings.verifyStats", { checked: verifyResult.checked, ok: verifyResult.ok }) }}</p>
+                      <ul v-if="verifyResult.broken.length > 0" class="mt-2 max-h-32 space-y-1 overflow-y-auto font-mono text-[10px] text-[#f85149]">
+                        <li v-for="b in verifyResult.broken" :key="b">{{ b }}</li>
+                      </ul>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </template>
+
           <!-- Консоль / логи -->
           <section v-else class="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-[var(--border)] bg-[var(--panel)]">
             <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2">
@@ -1550,6 +1744,7 @@
                   'text-[#f85149]': e.stream === 'err',
                   'text-[var(--accent)]': e.stream === 'sys',
                   'text-[color:var(--tx)]': e.stream === 'out',
+                  'font-bold !text-[#f85149]': e.fatal,
                 }"
               >
                 {{ e.line }}
@@ -2419,185 +2614,68 @@
               </div>
             </section>
 
-            <!-- ОЗУ -->
+            <!-- Тема -->
             <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-              <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5 flex justify-between items-center">
-                <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.ram") }}</h3>
-                <span class="font-mono text-xs font-semibold text-[var(--accent)]">{{ ram }} {{ t("units.gb") }}</span>
+              <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
+                <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.theme") }}</h3>
+                <span class="text-[10px] font-medium text-[color:var(--tx-muted)]">
+                  {{ themeLevel >= 0.5 ? t("theme.dark") : t("theme.light") }}
+                </span>
               </div>
-              <div class="p-4 space-y-2">
+              <div class="p-4 space-y-3">
                 <input
                   type="range"
-                  min="2"
-                  :max="maxRam"
-                  step="1"
-                  v-model.number="ram"
-                  class="w-full accent-[var(--accent-deep)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  :value="themeLevel"
+                  :disabled="packThemeActive"
+                  class="w-full accent-[var(--accent-deep)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
+                  @input="setThemeLevel(Number(($event.target as HTMLInputElement).value))"
                 />
-                <div class="flex justify-between text-[11px] text-[color:var(--tx-muted)] font-mono">
-                  <span>2 {{ t("units.gb") }}</span>
-                  <span>{{ t("settings.ramMax", { n: maxRam }) }}</span>
-                </div>
-                <p v-if="systemRam && systemRam.total_ram_gb > 0" class="text-[11px] text-[color:var(--tx-muted)]">
-                  {{ t("settings.ramTotal", { total: systemRam.total_ram_gb, avail: systemRam.available_ram_gb }) }}
-                </p>
-                <p
-                  v-if="activePack?.minRam"
-                  class="text-[11px]"
-                  :class="(ram * 1024) < activePack.minRam ? 'font-medium text-[#f0883e]' : 'text-[color:var(--tx-muted)]'"
-                >
-                  {{ t("settings.ramMin", { name: activePack.name, min: activePack.minRam / 1024, gb: ram }) }}
-                </p>
-              </div>
-            </section>
-
-            <!-- Размер окна игры -->
-            <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-              <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5 flex justify-between items-center">
-                <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.win") }}</h3>
-                <span class="font-mono text-xs font-semibold text-[var(--accent)]">{{ windowWidth }}×{{ windowHeight }}</span>
-              </div>
-              <div class="p-4 space-y-2">
-                <div class="flex items-center gap-3">
-                  <label class="w-16 text-[11px] text-[color:var(--tx-muted)]" for="win-width">{{ t("settings.width") }}</label>
-                  <input
-                    id="win-width"
-                    type="number"
-                    min="320"
-                    max="7680"
-                    step="1"
-                    v-model.number="windowWidth"
-                    class="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] focus:border-[var(--accent)] focus:outline-none"
-                  />
-                  <label class="w-16 text-[11px] text-[color:var(--tx-muted)]" for="win-height">{{ t("settings.height") }}</label>
-                  <input
-                    id="win-height"
-                    type="number"
-                    min="240"
-                    max="4320"
-                    step="1"
-                    v-model.number="windowHeight"
-                    class="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] focus:border-[var(--accent)] focus:outline-none"
-                  />
-                </div>
-                <p class="text-[11px] text-[color:var(--tx-muted)]">
-                  {{ t("settings.winNote") }}
-                </p>
-              </div>
-            </section>
-
-            <!-- Java -->
-            <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-              <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
-                <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.java") }}</h3>
-              </div>
-              <div class="p-4 space-y-3">
-                <div class="flex items-center gap-2">
-                  <select
-                    :value="javaSelected"
-                    class="flex-1 appearance-none rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 pr-8 text-xs text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] focus:border-[var(--accent)] focus:outline-none"
-                    :disabled="javaBusy || busy"
-                    @change="onJavaChange"
-                  >
-                    <option value="">{{ t("settings.javaAuto") }}</option>
-                    <option v-for="j in javaList" :key="j.path" :value="j.path">
-                      {{ j.label }} — {{ j.version }} [{{ javaArchLabel(j.arch) }}]
-                    </option>
-                  </select>
-                  <button
-                    type="button"
-                    class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
-                    :disabled="javaBusy || busy"
-                    @click="downloadJava"
-                  >
-                    {{ javaBusy ? t("settings.javaDownloading") : t("settings.javaDownload") }}
-                  </button>
-                </div>
-                <p v-if="javaMsg" class="text-[11px] text-[color:var(--tx-muted)] break-all">{{ javaMsg }}</p>
-                <p class="text-[11px] text-[color:var(--tx-muted)]">
-                  {{ t("settings.javaNote") }}
-                </p>
-              </div>
-            </section>
-
-            <!-- Discord Rich Presence -->
-            <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-              <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
-                <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.discord") }}</h3>
-              </div>
-              <div class="p-4">
-                <label class="flex cursor-pointer items-center gap-3">
-                  <input
-                    type="checkbox"
-                    class="h-4 w-4 accent-[#5865F2]"
-                    :checked="discordRp"
-                    @change="toggleDiscordRp(($event.target as HTMLInputElement).checked)"
-                  />
-                  <span class="text-xs text-[color:var(--tx)]">{{ t("settings.discordLabel") }}</span>
-                </label>
-                <p class="mt-2 text-[11px] text-[color:var(--tx-muted)]">
-                  {{ t("settings.discordNote") }}
-                </p>
-              </div>
-            </section>
-
-            <!-- Предупреждение о кастомных модах -->
-            <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-              <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
-                <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.warnCustomMods") }}</h3>
-              </div>
-              <div class="p-4">
-                <label class="flex cursor-pointer items-center gap-3">
-                  <input
-                    type="checkbox"
-                    class="h-4 w-4 accent-[#f0883e]"
-                    :checked="warnCustomMods"
-                    @change="toggleWarnCustomMods(($event.target as HTMLInputElement).checked)"
-                  />
-                  <span class="text-xs text-[color:var(--tx)]">{{ t("settings.warnCustomModsLabel") }}</span>
-                </label>
-                <p class="mt-2 text-[11px] text-[color:var(--tx-muted)]">
-                  {{ t("settings.warnCustomModsNote") }}
-                </p>
-              </div>
-            </section>
-
-            <!-- Проверка целостности -->
-            <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-              <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5 flex justify-between items-center">
-                <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.verify") }}</h3>
-              </div>
-              <div class="p-4 space-y-3">
-                <p class="text-[11px] text-[color:var(--tx-muted)]">
-                  {{ t("settings.verifyNote") }}
-                </p>
                 <button
                   type="button"
-                  class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
-                  :disabled="verifyBusy || busy"
-                  @click="handleVerify"
+                  class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                  :disabled="packThemeActive"
+                  @click="toggleTheme"
                 >
-                  {{ verifyBusy ? t("settings.verifying") : t("settings.verifyBtn") }}
+                  {{ t("settings.themeToggle") }}
                 </button>
-                <div
-                  v-if="verifyResult"
-                  class="rounded-md border bg-[var(--bg-60)] p-3 text-[11px]"
-                  :class="verifyResult.broken.length === 0 ? 'border-[#238636]/40' : 'border-[#f85149]/40'"
+                <p v-if="packThemeActive" class="text-[11px] text-[var(--accent)]">
+                  {{ t("theme.disabled") }}
+                </p>
+              </div>
+            </section>
+
+            <!-- Язык интерфейса -->
+            <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+              <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
+                <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.language") }}</h3>
+              </div>
+              <div class="p-4 space-y-3">
+                <select
+                  :value="locale"
+                  class="w-full appearance-none rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 pr-8 text-xs text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] focus:border-[var(--accent)] focus:outline-none"
+                  @change="setLocale(($event.target as HTMLSelectElement).value)"
                 >
-                  <p class="font-medium" :class="verifyResult.broken.length === 0 ? 'text-[#3fb950]' : 'text-[#f85149]'">
-                    {{ verifyResult.broken.length === 0 ? t("settings.verifyOk") : t("settings.verifyBroken", { n: verifyResult.broken.length }) }}
-                  </p>
-                  <p class="mt-0.5 text-[color:var(--tx-muted)]">{{ t("settings.verifyStats", { checked: verifyResult.checked, ok: verifyResult.ok }) }}</p>
-                  <ul v-if="verifyResult.broken.length > 0" class="mt-2 max-h-32 space-y-1 overflow-y-auto font-mono text-[10px] text-[#f85149]">
-                    <li v-for="b in verifyResult.broken" :key="b">{{ b }}</li>
-                  </ul>
-                </div>
+                  <option v-for="l in locales" :key="l" :value="l">{{ localeLabel(l) }}</option>
+                </select>
+                <p class="flex items-center gap-1 text-[11px] text-[color:var(--tx-muted)]">
+                  <span>{{ t("lang.byAuthor") }}</span>
+                  <span class="font-medium text-[color:var(--tx)]">{{ activeLocaleAuthor || "—" }}</span>
+                  <template v-if="activeLocaleVersion">
+                    <span>·</span>
+                    <span>{{ t("lang.launcherVer") }} {{ activeLocaleVersion }}</span>
+                  </template>
+                </p>
               </div>
             </section>
           </div>
           </div>
         </template>
-      </div>
+        </div>
+        </div>
+        </div>
     </main>
 
 
@@ -3331,6 +3409,72 @@
             @click="openBugReportIssue"
           >
             {{ t("reportPack.open") }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модалка: вероятная причина краша (анализ crash-report / hs_err / лога) -->
+    <div
+      v-if="crashAnalysis"
+      class="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-6"
+      @click.self="closeCrashAnalysis"
+    >
+      <div class="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
+        <div class="flex shrink-0 items-start justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
+          <div class="flex items-center gap-2">
+            <svg viewBox="0 0 16 16" class="h-4 w-4 fill-[var(--accent-deep)]"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm.75 8.5a.75.75 0 0 1-1.5 0V5.25a.75.75 0 0 1 1.5 0Zm-0.75 2.25a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8Z"/></svg>
+            <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("crash.title") }}</h3>
+          </div>
+          <button
+            type="button"
+            class="rounded-md px-2 py-1 text-xs text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+            @click="closeCrashAnalysis"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
+          <div>
+            <div class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ crashView(crashAnalysis).title }}</div>
+            <p class="mt-0.5 text-xs leading-relaxed text-[color:var(--tx)]">{{ crashView(crashAnalysis).msg }}</p>
+          </div>
+          <div v-if="crashAnalysis.exception" class="rounded-md border border-[var(--border)] bg-[var(--input-50)] px-3 py-2">
+            <div class="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[color:var(--tx-muted)]">{{ t("crash.exception") }}</div>
+            <code class="break-words font-mono text-[11px] text-[color:var(--tx)]">{{ crashAnalysis.exception }}</code>
+          </div>
+          <div v-if="crashAnalysis.description" class="rounded-md border border-[var(--border)] bg-[var(--input-50)] px-3 py-2">
+            <div class="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[color:var(--tx-muted)]">{{ t("crash.description") }}</div>
+            <div class="break-words text-[11px] text-[color:var(--tx)]">{{ crashAnalysis.description }}</div>
+          </div>
+          <div v-if="crashAnalysis.suspected.length" class="rounded-md border border-[var(--border)] bg-[var(--input-50)] px-3 py-2">
+            <div class="mb-1 text-[10px] font-medium uppercase tracking-wide text-[color:var(--tx-muted)]">{{ t("crash.suspected") }}</div>
+            <ul class="space-y-1">
+              <li v-for="m in crashAnalysis.suspected" :key="m.file" class="flex items-center justify-between gap-2 text-[11px]">
+                <span class="min-w-0 truncate text-[color:var(--tx)]">{{ m.name }}</span>
+                <code class="shrink-0 font-mono text-[10px] text-[var(--tx-muted)]">{{ m.file }}</code>
+              </li>
+            </ul>
+          </div>
+          <div class="rounded-md border border-[var(--border)] bg-[var(--input-50)] px-3 py-2">
+            <div class="text-[10px] uppercase tracking-wide text-[color:var(--tx-muted)]">{{ t("crash.file") }}</div>
+            <code class="font-mono text-[11px] text-[color:var(--tx)]">{{ crashAnalysis.file }}</code>
+          </div>
+        </div>
+        <div class="flex shrink-0 items-center justify-between gap-2 border-t border-[var(--border)] px-4 py-3">
+          <button
+            type="button"
+            class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+            @click="copyCrashAnalysis"
+          >
+            {{ t("reportPack.copy") }}
+          </button>
+          <button
+            type="button"
+            class="rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)]"
+            @click="openCrashIssue"
+          >
+            {{ t("crash.report") }}
           </button>
         </div>
       </div>
@@ -4255,7 +4399,7 @@ import { computed, nextTick, onBeforeUnmount, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
 import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, editPackVersion, getPackJava, setPackJava, exportPack as exportPackFn, exportSourceList, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles } from "~/lib/bridge";
 import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit, CursePackFile, CurseProjectDetail } from "~/lib/bridge";
-import type { CatalogEntry, CurseInstallResult, ExportSourceItem, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
+import type { CatalogEntry, CrashAnalysis, CurseInstallResult, ExportSourceItem, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n, getLocaleMeta } from "~/composables/useI18n";
 import { getCachedIcon, setCachedIcon } from "~/lib/iconCache";
@@ -4427,6 +4571,8 @@ const {
   closeBugReport,
   copyBugReport,
   openBugReportIssue,
+  crashAnalysis,
+  closeCrashAnalysis,
   catalog,
   catalogLoading,
   catalogError,
@@ -4448,6 +4594,76 @@ const localeLabel = (code: string) => _localeLabel(code, getLocaleMeta);
 /** Автор и версия активного перевода — для строки «Перевод: …» в настройках лаунчера. */
 const activeLocaleAuthor = computed(() => getLocaleMeta(locale.value).author ?? "");
 const activeLocaleVersion = computed(() => getLocaleMeta(locale.value).version ?? "");
+
+/** Локализованный заголовок и совет для краш-анализа по его kind. */
+function crashView(a: CrashAnalysis) {
+  const k = `crash.kind.${a.kind}`;
+  if (a.kind === "oom") {
+    return { title: t(`${k}.title`), msg: t(`${k}.msg`, { ram: ram.value }) };
+  }
+  if (a.kind === "javaVersion") {
+    return {
+      title: t(`${k}.title`),
+      msg: a.javaHint ? t(`${k}.msg`, { java: a.javaHint }) : t(`${k}.msgAuto`),
+    };
+  }
+  return { title: t(`${k}.title`), msg: t(`${k}.msg`) };
+}
+
+/** Копирует текстовое резюме краш-анализа в буфер. */
+async function copyCrashAnalysis() {
+  const a = crashAnalysis.value;
+  if (!a) return;
+  const v = crashView(a);
+  const lines = [
+    v.title,
+    v.msg,
+    "",
+    a.exception ? `Exception: ${a.exception}` : "",
+    a.description ? `Description: ${a.description}` : "",
+    a.suspected.length
+      ? `Suspected: ${a.suspected.map((m) => `${m.name} (${m.file})`).join(", ")}`
+      : "",
+    `File: ${a.file}`,
+  ].filter(Boolean);
+  try {
+    await navigator.clipboard.writeText(lines.join("\n"));
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = lines.join("\n");
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+}
+
+/** Открывает GitHub Issues сборки с предзаполненным краш-анализом. */
+function openCrashIssue() {
+  const pack = activePack.value;
+  const rest = (pack?.url || "").replace(/^https?:\/\/github\.com\//, "");
+  const [owner, repo] = rest.split("/");
+  if (!owner || !repo || owner === "USER" || repo === "REPO") return;
+  const a = crashAnalysis.value;
+  if (!a) return;
+  const v = crashView(a);
+  const body = [
+    v.title,
+    v.msg,
+    "",
+    a.exception ? `Exception: ${a.exception}` : "",
+    a.description ? `Description: ${a.description}` : "",
+    a.suspected.length
+      ? `Suspected: ${a.suspected.map((m) => `${m.name} (${m.file})`).join(", ")}`
+      : "",
+    `File: ${a.file}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const url = `https://github.com/${owner}/${repo}/issues/new?title=${encodeURIComponent(t("reportPack.title", { name: pack?.name ?? "?" }))}&body=${encodeURIComponent(body)}`;
+  if (isTauri()) openExternal(url).catch(() => window.open(url, "_blank"));
+  else window.open(url, "_blank");
+}
 
 const showAddPack = ref(false);
 const customModsOpen = ref(false);
@@ -4654,6 +4870,8 @@ const ICON_IMAGE =
   "M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-1 1v.878A2.25 2.25 0 1 1 2 13.378V2.5ZM5.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm5.912.5a.75.75 0 0 1 .232 1.136l-3.75 4.5a.75.75 0 0 1-1.136.029L4.22 4.441a.75.75 0 0 0-1.014.023L.22 7.341A.75.75 0 0 1-.252 6.22l3.47-3.47a2.25 2.25 0 0 1 3.043-.07l1.714 1.53 3.15-3.781a.75.75 0 0 1 1.087-.071Z";
 const ICON_SERVER =
   "M3 1.5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2ZM1.5 4.5H14.5v1.5H1.5ZM1.5 8H14.5v1.25H1.5Zm0 3.25H7v1.5H1.5A.5.5 0 0 1 1 12.25v-1ZM8.5 12.75v-1.5h6v1.5A.5.5 0 0 1 14.5 13h-5a1 1 0 0 1-1-.25ZM2 5.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm3 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM2 9.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm3 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z";
+const ICON_GEAR =
+  "M8 0a1.5 1.5 0 0 1 1.5 1.5v.364a4.98 4.98 0 0 1 1.424.845l.319-.19a1.5 1.5 0 0 1 1.5 2.598l-.322.19a4.97 4.97 0 0 1 0 1.784l.322.19a1.5 1.5 0 0 1-1.5 2.598l-.319-.19a4.98 4.98 0 0 1-1.424.845V13a1.5 1.5 0 0 1-3 0v-.364a4.98 4.98 0 0 1-1.424-.845l-.319.19a1.5 1.5 0 0 1-1.5-2.598l.322-.19a4.97 4.97 0 0 1 0-1.784l-.322-.19a1.5 1.5 0 0 1 1.5-2.598l.319.19A4.98 4.98 0 0 1 6.5 1.864V1.5A1.5 1.5 0 0 1 8 0Zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z";
 
 const playSubTabs = [
   { kind: "releases" as const, icon: ICON_TAG },
@@ -4664,6 +4882,7 @@ const playSubTabs = [
   { kind: "screenshots" as const, icon: ICON_IMAGE },
   { kind: "servers" as const, icon: ICON_SERVER },
   { kind: "console" as const, icon: ICON_TERMINAL },
+  { kind: "settings" as const, icon: ICON_GEAR },
 ];
 
 /** Релизы GitHub есть только у авторских сборок (kind "remote" = GitHub-репозиторий). */
@@ -4673,6 +4892,7 @@ const playSubTabsVisible = computed(() =>
     : playSubTabs.filter((st) => st.kind !== "releases")
 );
 
+/** Иконки глобальных вкладок правого верхнего угла (Сборка/Новости/Каталог/Настройки/Разработчикам). */
 const FILE_OVERSCAN = 10;
 const fileListRef = ref<HTMLElement | null>(null);
 const fileListScrollTop = ref(0);
@@ -7022,6 +7242,48 @@ const packIconInput = ref<HTMLInputElement | null>(null);
 const packIconTarget = ref<string | null>(null);
 const sidebarWidth = ref(readSidebarWidth());
 const sidebarDragging = ref(false);
+
+/** Пользовательская ширина основного контента (0 = авто, растягивается). */
+const mainWidth = ref(readMainWidth());
+let mainDrag = { active: false, left: 0, max: 0 };
+
+/** Вкладка правой панели (глобальные разделы). */
+const rightTab = ref<"settings" | "dev" | "news" | "catalog">("settings");
+
+function readMainWidth(): number {
+  const saved = parseInt(localStorage.getItem("mono.mainWidth") ?? "", 10);
+  return Number.isFinite(saved) ? Math.max(0, saved) : 0;
+}
+
+function startMainDrag(e: PointerEvent) {
+  const row = (e.currentTarget as HTMLElement).parentElement;
+  if (!row) return;
+  const r = row.getBoundingClientRect();
+  mainDrag = { active: true, left: r.left, max: r.right - 10 };
+  mainWidth.value = Math.max(420, Math.min(mainDrag.max, e.clientX - r.left));
+  (e.target as HTMLElement).setPointerCapture(e.pointerId);
+}
+
+function onMainDrag(e: PointerEvent) {
+  if (!mainDrag.active) return;
+  mainWidth.value = Math.max(420, Math.min(mainDrag.max, e.clientX - mainDrag.left));
+}
+
+function endMainDrag(e: PointerEvent) {
+  if (!mainDrag.active) return;
+  mainDrag.active = false;
+  try {
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+  } catch {
+    /* ignore */
+  }
+  if (mainWidth.value > 0) localStorage.setItem("mono.mainWidth", String(mainWidth.value));
+}
+
+function resetMainWidth() {
+  mainWidth.value = 0;
+  localStorage.setItem("mono.mainWidth", "0");
+}
 
 function readSidebarWidth(): number {
   const saved = parseInt(localStorage.getItem("mono.sidebarWidth") ?? "", 10);

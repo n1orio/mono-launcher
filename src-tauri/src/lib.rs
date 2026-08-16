@@ -1,5 +1,6 @@
 mod auth;
 mod config;
+mod crash;
 mod curseforge;
 mod discord_rp;
 mod export;
@@ -3244,6 +3245,13 @@ fn clear_launch_log() -> Result<(), String> {
     Ok(())
 }
 
+/// Анализирует свежие краш-артефакты сборки и классифицирует причину.
+#[tauri::command]
+fn analyze_crash_command(pack_id: Option<String>) -> crash::CrashAnalysis {
+    let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
+    crash::analyze_pack(&pack_id)
+}
+
 /// Версия лаунчера (из Cargo.toml) — для отчётов об ошибках.
 #[tauri::command]
 fn launcher_version() -> String {
@@ -3474,6 +3482,7 @@ pub fn run() {
             list_servers_command,
             get_launch_log,
             clear_launch_log,
+            analyze_crash_command,
             open_pack_dir,
             get_pack_dir_command,
             launcher_version,
