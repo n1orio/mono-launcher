@@ -102,6 +102,47 @@ export interface ExportSourceItem {
   defaultIncluded: boolean;
 }
 
+/** Конфигурация «авторской» сборки для экспорта (мастер автора). */
+export interface AuthorServer {
+  name: string;
+  ip: string;
+  port?: number | null;
+  desc?: string | null;
+}
+
+export interface AuthorSocial {
+  name: string;
+  url: string;
+  color?: string | null;
+}
+
+export interface AuthorTheme {
+  bg?: string | null;
+  panel?: string | null;
+  input?: string | null;
+  border?: string | null;
+  tx?: string | null;
+  txStrong?: string | null;
+  txMuted?: string | null;
+  accent?: string | null;
+  accentStrong?: string | null;
+  accentHover?: string | null;
+  accentDeep?: string | null;
+}
+
+export interface AuthorPackConfig {
+  name: string;
+  author: string;
+  description?: string | null;
+  boostyBlog?: string | null;
+  minRam?: number | null;
+  servers: AuthorServer[];
+  socials: AuthorSocial[];
+  theme?: AuthorTheme | null;
+  /** Язык генерируемого README.md (ru | en | uk). */
+  readmeLang?: string;
+}
+
 /** Доступное обновление установленного из Modrinth файла. */
 export interface ModUpdate {
   fileName: string;

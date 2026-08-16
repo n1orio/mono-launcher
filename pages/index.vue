@@ -480,8 +480,16 @@
             class="min-w-0 flex-1 disabled:cursor-not-allowed disabled:opacity-40"
             @input="setThemeLevel(Number(($event.target as HTMLInputElement).value))"
           />
-        </label>
-      </div>
+</label>
+              </div>
+              <label class="block">
+                <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorReadmeLang") }}</span>
+                <select v-model="authorReadmeLang" class="w-full cursor-pointer rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]">
+                  <option value="ru">Русский</option>
+                  <option value="en">English</option>
+                  <option value="uk">Українська</option>
+                </select>
+              </label>
 
 
       <!-- Ручка изменения ширины панели -->
@@ -573,32 +581,54 @@
                   {{ t("pack.folder") }}
                 </button>
                 <template v-if="activePack?.kind === 'local' && status?.installed">
-                  <button
-                    type="button"
-                    class="ml-1 flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
-                    :title="t('pack.exportMrpack')"
-                    :disabled="exportBusy"
-                    @click="openExport('mrpack')"
-                  >
-                    <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
-                      <path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/>
-                      <path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/>
-                    </svg>
-                    .mrpack
-                  </button>
-                  <button
-                    type="button"
-                    class="ml-1 flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
-                    :title="t('pack.exportCurseforge')"
-                    :disabled="exportBusy"
-                    @click="openExport('curseforge')"
-                  >
-                    <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
-                      <path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/>
-                      <path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/>
-                    </svg>
-                    CurseForge
-                  </button>
+                  <div ref="exportMenuRef" class="relative ml-1">
+                    <button
+                      type="button"
+                      class="flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+                      :title="t('pack.exportTitle')"
+                      :disabled="exportBusy"
+                      @click="exportMenuOpen = !exportMenuOpen"
+                    >
+                      <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+                        <path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/>
+                        <path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/>
+                      </svg>
+                      <span>{{ t("pack.exportBtn") }}</span>
+                      <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current opacity-60"><path d="m4.22 6 3.72 3.72a.75.75 0 0 0 1.06 0L12.72 6l-1.06-1.06L8 8.09 5.28 4.94 4.22 6Z"/></svg>
+                    </button>
+                    <div
+                      v-if="exportMenuOpen"
+                      class="absolute right-0 top-[calc(100%+4px)] z-50 flex w-44 flex-col overflow-hidden rounded-md border border-[var(--border)] bg-[var(--panel)] p-1 shadow-xl"
+                    >
+                      <button
+                        type="button"
+                        class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                        :disabled="exportBusy"
+                        @click="exportMenuOpen = false; openExport('mrpack')"
+                      >
+                        <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current opacity-70"><path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/><path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/></svg>
+                        .mrpack
+                      </button>
+                      <button
+                        type="button"
+                        class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                        :disabled="exportBusy"
+                        @click="exportMenuOpen = false; openAuthorExport()"
+                      >
+                        <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current opacity-70"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v5.5h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5h-5.5a.75.75 0 0 1 0-1.5h5.5v-5.5Z"/></svg>
+                        {{ t("pack.exportAuthorShort") }}
+                      </button>
+                      <button
+                        type="button"
+                        class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                        :disabled="exportBusy"
+                        @click="exportMenuOpen = false; openExport('curseforge')"
+                      >
+                        <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current opacity-70"><path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/><path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/></svg>
+                        CurseForge
+                      </button>
+                    </div>
+                  </div>
                 </template>
               </div>
             </div>
@@ -667,6 +697,7 @@
                 {{ t("pack.repo") }}
               </button>
               <button
+                v-if="activePackRepo"
                 type="button"
                 class="inline-flex items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-2.5 py-1 text-[11px] font-medium text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)]"
                 :title="t('pack.reportBugTitle')"
@@ -3666,9 +3697,9 @@
 
     <!-- Модалка: выбор папок и файлов для экспорта сборки -->
     <div v-if="exportOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" @click.self="exportOpen = false">
-      <div class="flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
+      <div class="flex max-h-[80vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
         <div class="flex items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
-          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("pack.exportTitle") }}</h3>
+          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ exportFormat === "author" ? t("pack.exportAuthorTitle") : t("pack.exportTitle") }}</h3>
           <button
             type="button"
             class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
@@ -3679,9 +3710,10 @@
         </div>
         <div class="flex items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2">
           <p class="text-[11px] text-[color:var(--tx-muted)]">
-            {{ exportFormat === "curseforge" ? t("pack.exportFormatCurseforge") : t("pack.exportFormatMrpack") }}
+            {{ exportFormat === "curseforge" ? t("pack.exportFormatCurseforge") : exportFormat === "author" ? t("pack.exportAuthorHint") : t("pack.exportFormatMrpack") }}
           </p>
           <button
+            v-if="exportFormat !== 'author'"
             type="button"
             class="text-[11px] font-medium text-[var(--accent)] transition-colors hover:underline disabled:opacity-50"
             :disabled="exportLoading"
@@ -3690,7 +3722,7 @@
             {{ exportAllChecked ? t("pack.exportNone") : t("pack.exportAll") }}
           </button>
         </div>
-        <div class="grid grid-cols-2 gap-2 border-b border-[var(--border)] px-4 py-2">
+        <div v-if="exportFormat !== 'author'" class="grid grid-cols-2 gap-2 border-b border-[var(--border)] px-4 py-2">
           <label class="block">
             <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportNameLabel") }}</span>
             <input
@@ -3709,6 +3741,123 @@
           </label>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto px-2 py-1">
+          <template v-if="exportFormat === 'author'">
+            <div class="space-y-3 px-2 py-2">
+              <div class="grid grid-cols-2 gap-2">
+                <label class="block">
+                  <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorName") }}</span>
+                  <input v-model="authorName" class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" />
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorAuthor") }}</span>
+                  <input v-model="authorAuthor" class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" :placeholder="t('pack.exportAuthorAuthorPh')" />
+                </label>
+              </div>
+              <label class="block">
+                <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorDesc") }}</span>
+                <textarea v-model="authorDesc" rows="2" class="w-full resize-none rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" :placeholder="t('pack.exportAuthorDescPh')"></textarea>
+              </label>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="block">
+                  <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorBoosty") }}</span>
+                  <input v-model="authorBoosty" class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" :placeholder="t('pack.exportAuthorBoostyPh')" />
+                </label>
+                <label class="flex items-end gap-2 pb-1">
+                  <span class="w-full">
+                    <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorMinRam") }}</span>
+                    <span class="flex items-center gap-2">
+                      <input v-model="authorMinRam" type="checkbox" class="h-4 w-4 accent-[var(--accent)]" />
+                      <input v-if="authorMinRam" v-model.number="authorMinRamMb" type="number" min="1" class="w-20 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" />
+                      <span v-else class="text-[10px] text-[color:var(--tx-muted)]">—</span>
+                    </span>
+                  </span>
+                </label>
+              </div>
+
+              <div class="rounded-lg border border-[var(--border)] bg-[var(--bg-30)] p-2">
+                <div class="mb-1.5 flex items-center justify-between px-1">
+                  <span class="flex items-center gap-1.5 text-[11px] font-medium text-[color:var(--tx-muted)]">
+                    <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M3 1.5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2ZM1.5 4.5H14.5v1.5H1.5ZM1.5 8H14.5v1.25H1.5Zm0 3.25H7v1.5H1.5A.5.5 0 0 1 1 12.25v-1ZM8.5 12.75v-1.5h6v1.5A.5.5 0 0 1 14.5 13h-5a1 1 0 0 1-1-.25ZM2 5.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm3 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM2 9.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm3 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/></svg>
+                    {{ t("pack.exportAuthorServers") }}
+                  </span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] tabular-nums text-[color:var(--tx-muted)]">{{ authorServers.length }}/{{ AUTHOR_MAX_SERVERS }}</span>
+                    <button type="button" class="flex h-5 w-5 items-center justify-center rounded-md border border-[var(--border)] text-xs leading-none text-[var(--accent)] transition-colors hover:bg-[var(--input-50)] disabled:opacity-30 disabled:hover:bg-transparent" :disabled="authorServers.length >= AUTHOR_MAX_SERVERS" @click="addAuthorServer" title="+">+</button>
+                  </div>
+                </div>
+                <div v-for="(_, i) in authorServers" :key="i" class="mb-1 flex items-center gap-1 rounded-md bg-[var(--panel)] p-1 last:mb-0">
+                  <input v-model="authorServers[i].name" class="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" :placeholder="t('pack.exportServerNamePh')" />
+                  <input v-model="authorServers[i].ip" class="w-[7rem] rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 font-mono text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" :placeholder="t('pack.exportServerIpPh')" />
+                  <div class="relative">
+                    <input v-model.number="authorServers[i].port" type="number" class="w-16 rounded-md border border-[var(--border)] bg-[var(--input)] px-1.5 py-1.5 font-mono text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" :placeholder="t('pack.exportServerPortPh')" />
+                  </div>
+                  <button type="button" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[#f85149]" :title="t('files.remove')" @click="removeAuthorServer(i)">
+                    <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="rounded-lg border border-[var(--border)] bg-[var(--bg-30)] p-2">
+                <div class="mb-1.5 flex items-center justify-between px-1">
+                  <span class="flex items-center gap-1.5 text-[11px] font-medium text-[color:var(--tx-muted)]">
+                    <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M8 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm.75 7h-1.5A5.25 5.25 0 0 0 2 13.25c0 .414.336.75.75.75h10.5a.75.75 0 0 0 .75-.75A5.25 5.25 0 0 0 8.75 8Z"/></svg>
+                    {{ t("pack.exportAuthorSocials") }}
+                  </span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] tabular-nums text-[color:var(--tx-muted)]">{{ authorSocials.length }}/{{ AUTHOR_MAX_SOCIALS }}</span>
+                    <button type="button" class="flex h-5 w-5 items-center justify-center rounded-md border border-[var(--border)] text-xs leading-none text-[var(--accent)] transition-colors hover:bg-[var(--input-50)] disabled:opacity-30 disabled:hover:bg-transparent" :disabled="authorSocials.length >= AUTHOR_MAX_SOCIALS" @click="addAuthorSocial" title="+">+</button>
+                  </div>
+                </div>
+                <div v-for="(_, i) in authorSocials" :key="i" class="mb-1 flex items-center gap-1 rounded-md bg-[var(--panel)] p-1 last:mb-0">
+                  <input v-model="authorSocials[i].name" class="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" :placeholder="t('pack.exportSocialNamePh')" />
+                  <input v-model="authorSocials[i].url" class="w-[9rem] rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 font-mono text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" :placeholder="t('pack.exportSocialUrlPh')" />
+                  <div class="relative shrink-0">
+                    <input v-model="authorSocials[i].color" class="w-16 rounded-md border border-[var(--border)] bg-[var(--input)] pl-6 py-1.5 font-mono text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" :placeholder="t('pack.exportSocialColorPh')" />
+                    <span class="pointer-events-none absolute left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border border-black/20" :style="{ background: themePreview(authorSocials[i].color) }"></span>
+                  </div>
+                  <button type="button" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[#f85149]" :title="t('files.remove')" @click="removeAuthorSocial(i)">
+                    <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="rounded-lg border border-[var(--border)] bg-[var(--bg-30)] p-2">
+                <div class="mb-1.5 flex items-center justify-between px-1">
+                  <span class="flex items-center gap-1.5 text-[11px] font-medium text-[color:var(--tx-muted)]">
+                    <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M8 1a3 3 0 1 1 0 6 3 3 0 0 1 0-6Zm.75 7h-1.5A5.25 5.25 0 0 0 2 13.25c0 .414.336.75.75.75h10.5a.75.75 0 0 0 .75-.75A5.25 5.25 0 0 0 8.75 8ZM8 15a7 7 0 1 1 7-7 7 7 0 0 1-7 7Zm0-1.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11Z"/></svg>
+                    {{ t("pack.exportAuthorTheme") }}
+                  </span>
+                  <span class="text-[10px] text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorThemeAuto") }}</span>
+                </div>
+                <div class="mb-2 flex items-center gap-1.5 rounded-md bg-[var(--panel)] p-1.5">
+                  <div class="relative shrink-0">
+                    <input v-model="authorAccent" class="w-24 rounded-md border border-[var(--border)] bg-[var(--input)] pl-6 py-1.5 font-mono text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" placeholder="#rrggbb" @input="applyAuthorAccent" @change="applyAuthorAccent" />
+                    <label class="absolute left-1.5 top-1/2 block h-3.5 w-3.5 -translate-y-1/2 cursor-pointer overflow-hidden rounded-full border border-black/25" :style="{ background: themePreview(authorAccent) }" :title="t('pack.exportAuthorAccentPicker')">
+                      <input type="color" class="pointer-events-none absolute -left-2 -top-2 h-8 w-8 opacity-0" :value="themePreview(authorAccent) === '#000000' ? '#000000' : authorAccent" @input="applyAuthorAccentColor" />
+                    </label>
+                  </div>
+                  <span class="min-w-0 flex-1 text-[10px] leading-tight text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorAccentHint") }}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-1.5">
+                  <label v-for="f in authorThemeFields" :key="f.key" class="rounded-md bg-[var(--panel)] px-1.5 py-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="pointer-events-none h-3.5 w-3.5 shrink-0 rounded-full border border-black/25" :style="{ background: themePreview(authorTheme[f.key]) }"></span>
+                      <input v-model="authorTheme[f.key]" class="min-w-0 flex-1 rounded-md border border-transparent bg-transparent py-0.5 font-mono text-[10px] text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" placeholder="#rrggbb" />
+                    </div>
+                    <span class="mt-0.5 block pl-[1.375rem] text-[9px] leading-tight text-[color:var(--tx-muted)]">{{ t(f.cap) }}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 border-t border-[var(--border)] px-2 pt-2 pb-1">
+              <span class="shrink-0 text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorFiles") }}</span>
+              <span class="shrink-0 rounded bg-[var(--input-50)] px-1.5 py-0.5 text-[10px] font-bold tabular-nums">{{ exportSelected.size }}</span>
+              <span class="h-px flex-1 bg-[var(--border)]"></span>
+              <button type="button" class="text-[11px] font-medium text-[var(--accent)] hover:underline disabled:opacity-50" :disabled="exportLoading" @click="toggleExportAll">
+                {{ exportAllChecked ? t("pack.exportNone") : t("pack.exportAll") }}
+              </button>
+            </div>
+          </template>
           <div v-if="exportLoading" class="flex items-center justify-center gap-2 py-8 text-xs text-[color:var(--tx-muted)]">
             <svg viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
             {{ t("pack.exportLoading") }}
@@ -3759,10 +3908,10 @@
             type="button"
             class="flex items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-3 py-1.5 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
             :disabled="exportBusy || exportLoading || exportSelected.size === 0"
-            @click="doExport"
+            @click="exportFormat === 'author' ? doAuthorExport() : doExport()"
           >
             <svg v-if="exportBusy" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
-            {{ t("pack.exportBtn") }}
+            {{ exportFormat === "author" ? t("pack.exportAuthorBtn") : t("pack.exportBtn") }}
           </button>
         </div>
       </div>
@@ -4397,9 +4546,9 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { save } from "@tauri-apps/plugin-dialog";
 import { computed, nextTick, onBeforeUnmount, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
-import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, editPackVersion, getPackJava, setPackJava, exportPack as exportPackFn, exportSourceList, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles } from "~/lib/bridge";
+import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, editPackVersion, getPackJava, setPackJava, exportPack as exportPackFn, exportSourceList, exportAuthorPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles } from "~/lib/bridge";
 import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit, CursePackFile, CurseProjectDetail } from "~/lib/bridge";
-import type { CatalogEntry, CrashAnalysis, CurseInstallResult, ExportSourceItem, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
+import type { AuthorPackConfig, AuthorServer, AuthorSocial, AuthorTheme, CatalogEntry, CrashAnalysis, CurseInstallResult, ExportSourceItem, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n, getLocaleMeta } from "~/composables/useI18n";
 import { getCachedIcon, setCachedIcon } from "~/lib/iconCache";
@@ -4412,7 +4561,7 @@ import {
 } from "~/lib/changelog";
 import { formatPlaytimeShort as _formatPlaytimeShort } from "~/lib/format";
 import { phaseLabel as _phaseLabel, javaArchLabel as _javaArchLabel, localeLabel as _localeLabel } from "~/lib/labels";
-import { verCmp, cap, sanitizeSvg } from "~/lib/misc";
+import { verCmp, cap, sanitizeSvg, themeFromAccent, normalizeHex } from "~/lib/misc";
 
 /** Этот экземпляр страницы открыт как отдельное окно поиска файлов. */
 function isSearchWindowQuery() {
@@ -4944,13 +5093,19 @@ function setFileStatusFilter(k: "all" | "enabled" | "disabled" | "updates") {
 }
 const fileMenuOpen = ref(false);
 const fileMenuRef = ref<HTMLElement | null>(null);
+const exportMenuOpen = ref(false);
+const exportMenuRef = ref<HTMLElement | null>(null);
 onMounted(() => {
   document.addEventListener("mousedown", onFileMenuDoc);
   document.addEventListener("keydown", onFileMenuKey);
+  document.addEventListener("mousedown", onExportMenuDoc);
+  document.addEventListener("keydown", onExportMenuKey);
 });
 onBeforeUnmount(() => {
   document.removeEventListener("mousedown", onFileMenuDoc);
   document.removeEventListener("keydown", onFileMenuKey);
+  document.removeEventListener("mousedown", onExportMenuDoc);
+  document.removeEventListener("keydown", onExportMenuKey);
 });
 function onFileMenuDoc(e: MouseEvent) {
   if (!fileMenuOpen.value) return;
@@ -4959,6 +5114,14 @@ function onFileMenuDoc(e: MouseEvent) {
 }
 function onFileMenuKey(e: KeyboardEvent) {
   if (e.key === "Escape") fileMenuOpen.value = false;
+}
+function onExportMenuDoc(e: MouseEvent) {
+  if (!exportMenuOpen.value) return;
+  if (exportMenuRef.value && exportMenuRef.value.contains(e.target as Node)) return;
+  exportMenuOpen.value = false;
+}
+function onExportMenuKey(e: KeyboardEvent) {
+  if (e.key === "Escape") exportMenuOpen.value = false;
 }
 const fileListFiltered = computed(() => {
   let list = gameFiles.value[playSubTab.value as GameFolderKind] ?? [];
@@ -6571,7 +6734,7 @@ const editVerOpen = ref(false);
 const editVerBusy = ref(false);
 const exportBusy = ref(false);
 const exportOpen = ref(false);
-const exportFormat = ref<"mrpack" | "curseforge">("mrpack");
+const exportFormat = ref<"mrpack" | "curseforge" | "author">("mrpack");
 const exportLoading = ref(false);
 const exportItems = ref<ExportSourceItem[]>([]);
 const exportSelected = ref(new Set<string>());
@@ -6784,7 +6947,7 @@ function toggleExportAll() {
 /** Подтверждает выбор, показывает диалог сохранения и запускает экспорт. */
 async function doExport() {
   if (exportBusy.value || !packId.value || !isTauri()) return;
-  const format = exportFormat.value;
+  const format = exportFormat.value === "author" ? "mrpack" : exportFormat.value;
   const include = [...exportSelected.value];
   const name = exportName.value.trim() || activePack?.value?.name || "pack";
   const ext = format === "mrpack" ? "mrpack" : "zip";
@@ -6802,6 +6965,127 @@ async function doExport() {
     exportOpen.value = false;
   } catch (e) {
     notify(t("pack.exportErr", { e }));
+  } finally {
+    exportBusy.value = false;
+  }
+}
+
+/* ================= Экспорт «авторской» сборки ================= */
+const authorName = ref("");
+const authorAuthor = ref("");
+const authorDesc = ref("");
+const authorBoosty = ref("");
+const authorMinRam = ref(false);
+const authorMinRamMb = ref<number | null>(null);
+const authorServers = ref<AuthorServer[]>([{ name: "", ip: "", port: null, desc: "" }]);
+const authorSocials = ref<AuthorSocial[]>([{ name: "", url: "", color: "" }]);
+const authorTheme = ref<AuthorTheme>({});
+const authorAccent = ref("");
+const authorReadmeLang = ref("ru");
+const AUTHOR_MAX_SERVERS = 5;
+const AUTHOR_MAX_SOCIALS = 4;
+
+function openAuthorExport() {
+  if (exportBusy.value || !packId.value || !isTauri()) return;
+  exportFormat.value = "author";
+  authorName.value = activePack?.value?.name || "pack";
+  authorAuthor.value = activePack?.value?.author || "";
+  authorDesc.value = "";
+  authorBoosty.value = activePack?.value?.boostyBlog || "";
+  const mr = activePack?.value?.minRam ?? null;
+  authorMinRam.value = !!mr;
+  authorMinRamMb.value = mr ? Math.round(mr / 1024) : null;
+  authorServers.value = [{ name: "", ip: "", port: null, desc: "" }];
+  authorSocials.value = [{ name: "", url: "", color: "" }];
+  authorTheme.value = {};
+  authorAccent.value = "";
+  authorReadmeLang.value = "ru";
+  exportOpen.value = true;
+  exportExpanded.value = new Set();
+  void loadExportList();
+}
+
+const authorThemeFields: Array<{ key: keyof AuthorTheme; cap: string }> = [
+  { key: "accent", cap: "pack.exportThemeAccent" },
+  { key: "accentStrong", cap: "pack.exportThemeAccentStrong" },
+  { key: "accentHover", cap: "pack.exportThemeAccentHover" },
+  { key: "accentDeep", cap: "pack.exportThemeAccentDeep" },
+  { key: "bg", cap: "pack.exportThemeBg" },
+  { key: "panel", cap: "pack.exportThemePanel" },
+  { key: "input", cap: "pack.exportThemeInput" },
+  { key: "border", cap: "pack.exportThemeBorder" },
+  { key: "tx", cap: "pack.exportThemeTx" },
+  { key: "txStrong", cap: "pack.exportThemeTxStrong" },
+  { key: "txMuted", cap: "pack.exportThemeTxMuted" },
+];
+
+function addAuthorServer() { if (authorServers.value.length < AUTHOR_MAX_SERVERS) authorServers.value.push({ name: "", ip: "", port: null, desc: "" }); }
+function removeAuthorServer(i: number) { if (authorServers.value.length > 1) authorServers.value.splice(i, 1); else authorServers.value = [{ name: "", ip: "", port: null, desc: "" }]; }
+function addAuthorSocial() { if (authorSocials.value.length < AUTHOR_MAX_SOCIALS) authorSocials.value.push({ name: "", url: "", color: "" }); }
+function removeAuthorSocial(i: number) { if (authorSocials.value.length > 1) authorSocials.value.splice(i, 1); else authorSocials.value = [{ name: "", url: "", color: "" }]; }
+
+/** По одному введённому цвету автозаполняет акцентную тему. */
+function applyAuthorAccent() {
+  const t = themeFromAccent(authorAccent.value);
+  if (t) authorTheme.value = t;
+}
+
+/** Событие нативного color-picker: ставит валидный hex и применяет тему. */
+function applyAuthorAccentColor(ev: Event) {
+  const v = (ev.target as HTMLInputElement).value;
+  if (!v) return;
+  authorAccent.value = v;
+  applyAuthorAccent();
+}
+
+function themePreview(hex?: string | null): string {
+  return normalizeHex(hex ?? "") ?? "#000";
+}
+
+function authorConfig(): AuthorPackConfig {
+  return {
+    name: authorName.value.trim() || activePack?.value?.name || "pack",
+    author: authorAuthor.value.trim(),
+    description: authorDesc.value.trim() ? authorDesc.value.trim() : null,
+    boostyBlog: authorBoosty.value.trim() ? authorBoosty.value.trim() : null,
+    minRam: authorMinRam.value ? (authorMinRamMb.value ?? null) : null,
+    servers: authorServers.value
+      .filter((s) => s.name.trim() || s.ip.trim())
+      .map((s) => ({ name: s.name.trim(), ip: s.ip.trim(), port: s.port ?? null, desc: s.desc?.trim() ? s.desc.trim() : null })),
+    socials: authorSocials.value
+      .filter((s) => s.name.trim() && s.url.trim())
+      .map((s) => ({ name: s.name.trim(), url: s.url.trim(), color: s.color?.trim() ? s.color.trim() : null })),
+    theme: authorThemeFields.some((f) => (authorTheme.value[f.key] ?? "").trim())
+      ? Object.fromEntries(
+          authorThemeFields
+            .filter((f) => (authorTheme.value[f.key] ?? "").trim())
+            .map((f) => [f.key, authorTheme.value[f.key]!.trim()])
+        ) as AuthorTheme
+      : null,
+    readmeLang: authorReadmeLang.value,
+  };
+}
+
+async function doAuthorExport() {
+  if (exportBusy.value || !packId.value || !isTauri()) return;
+  const include = [...exportSelected.value];
+  if (include.length === 0) {
+    notify(t("pack.exportEmpty"), "info");
+    return;
+  }
+  const cfg = authorConfig();
+  const dest = await save({
+    defaultPath: `${cfg.name.replace(/[^a-zа-яё0-9-]+/gi, "-").toLowerCase() || "pack"}.zip`,
+    filters: [{ name: "ZIP", extensions: ["zip"] }],
+  });
+  if (!dest) return;
+  exportBusy.value = true;
+  try {
+    await exportAuthorPack(packId.value, "", dest, include, cfg);
+    notify(t("pack.exportAuthorDone"), "success");
+    exportOpen.value = false;
+  } catch (e) {
+    notify(t("pack.exportAuthorErr", { e }));
   } finally {
     exportBusy.value = false;
   }

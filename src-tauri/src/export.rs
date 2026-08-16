@@ -212,7 +212,7 @@ fn copy_tree(src: &Path, dst: &Path) -> Result<()> {
 }
 
 /// Упаковывает папку `tmp` в zip-архив по пути `dest`.
-fn zip_dir(tmp: &Path, dest: &Path) -> Result<()> {
+pub(crate) fn zip_dir(tmp: &Path, dest: &Path) -> Result<()> {
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -256,7 +256,7 @@ fn zip_dir(tmp: &Path, dest: &Path) -> Result<()> {
     Ok(())
 }
 
-fn temp_dir(pack_id: &str) -> Result<PathBuf> {
+pub(crate) fn temp_dir(pack_id: &str) -> Result<PathBuf> {
     let name = format!("mono-export-{pack_id}-{}", std::process::id());
     let dir = std::env::temp_dir().join(name);
     if dir.exists() {

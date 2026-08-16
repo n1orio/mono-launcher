@@ -39,6 +39,7 @@ import type {
   VersionsInfo,
   ExportSourceItem,
   CrashAnalysis,
+  AuthorPackConfig,
 } from "./types";
 
 export const isTauri = () =>
@@ -606,4 +607,21 @@ export function exportPack(
 /** Папки и файлы папки игры выбранной версии (плоский список дерева) для выбора при экспорте. */
 export function exportSourceList(packId: string, versionId: string): Promise<ExportSourceItem[]> {
   return invoke("export_list_command", { packId, versionId });
+}
+
+/** Экспортирует «авторскую» сборку: zip с .mrpack, pack.json, servers/socials/theme.json и README. */
+export function exportAuthorPack(
+  packId: string,
+  versionId: string,
+  destPath: string,
+  include: string[],
+  config: AuthorPackConfig
+): Promise<void> {
+  return invoke("export_author_pack_command", {
+    packId,
+    versionId,
+    destPath,
+    include,
+    config,
+  });
 }

@@ -1,4 +1,5 @@
 mod auth;
+mod author;
 mod config;
 mod crash;
 mod curseforge;
@@ -25,6 +26,7 @@ use tauri::{Emitter, Listener};
 
 use crate::auth::{login_offline, save_session, UserSession};
 use crate::config::{default_pack_id, PackInfo};
+use crate::author::export_author_pack_command;
 use crate::export::{export_list_command, export_pack_command};
 
 /// Глобальное состояние лаунчера (HTTP-клиент).
@@ -3529,6 +3531,7 @@ pub fn run() {
             minecraft_versions_command,
             export_pack_command,
             export_list_command,
+            export_author_pack_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
