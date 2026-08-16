@@ -1,6 +1,6 @@
 # Mono Launcher
 
-_[Беларуская](README.be.md) · [Русский](README.md) · [English](README.en.md) · [Українська](README.uk.md) · [Deutsch](README.de.md)_
+_[Беларуская](README.be.md) · [Русский](README.ru.md) · [English](README.md) · [Українська](README.uk.md) · [Deutsch](README.de.md)_
 
 Дэсктопны лаўнчар для зборак Minecraft, якія распаўсюджваюцца ў фармаце `.mrpack` праз GitHub Releases. Таксама даступныя рэсурсы з Modrinth і CurseForge.
 

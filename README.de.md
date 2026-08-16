@@ -1,6 +1,6 @@
 # Mono Launcher
 
-_[Deutsch](README.de.md) · [English](README.en.md) · [Русский](README.md) · [Українська](README.uk.md) · [Беларуская](README.be.md)_
+_[Deutsch](README.de.md) · [English](README.md) · [Русский](README.ru.md) · [Українська](README.uk.md) · [Беларуская](README.be.md)_
 
 Ein Desktop-Launcher für Minecraft-Modpacks, die als `.mrpack` über GitHub Releases verbreitet werden. Ressourcen von Modrinth und CurseForge werden ebenfalls unterstützt.
 
