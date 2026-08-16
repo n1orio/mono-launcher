@@ -11,14 +11,19 @@ if (!ver) {
 }
 
 const md = fs.readFileSync(new URL("../CHANGELOG.md", import.meta.url), "utf8");
-const esc = ver.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const re = new RegExp(`## \\[${esc}\\][^\\n]*\\n([\\s\\S]*?)(?=^## \\[|\\z)`, "m");
-const m = md.match(re);
-if (!m) {
+const header = `## [${ver}]`;
+const lineIdx = md.indexOf(header);
+if (lineIdx === -1) {
   console.error(`Секция [${ver}] не найдена в CHANGELOG.md`);
   process.exit(1);
 }
+// конец строки заголовка — начало тела секции
+const headerEnd = md.indexOf("\n", lineIdx);
+const rest = headerEnd === -1 ? "" : md.slice(headerEnd + 1);
+// тело заканчивается перед следующим заголовком `## [` (или в конце файла)
+const nextIdx = rest.indexOf("\n## [");
+const body = (nextIdx === -1 ? rest : rest.slice(0, nextIdx)).trim();
 
 process.stdout.write(
-  [intro, "", `## Изменения в ${ver}`, "", m[1].trim()].filter(Boolean).join("\n")
+  [intro, "", `## Изменения в ${ver}`, "", body].filter(Boolean).join("\n")
 );
