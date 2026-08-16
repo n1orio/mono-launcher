@@ -552,7 +552,6 @@
   "pack.exportAuthorBoosty": "Boosty blog (paid pack)",
   "pack.exportAuthorBoostyPh": "blog nickname",
   "pack.exportAuthorMinRam": "Min RAM",
-  "pack.exportAuthorReadmeLang": "README language",
   "pack.exportAuthorServers": "Servers (servers.json)",
   "pack.exportAuthorSocials": "Social links (socials.json)",
   "pack.exportAuthorTheme": "Theme colors (theme.json)",

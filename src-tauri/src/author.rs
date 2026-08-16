@@ -72,9 +72,6 @@ pub struct AuthorPackConfig {
     pub socials: Vec<AuthorSocial>,
     #[serde(default)]
     pub theme: Option<AuthorTheme>,
-    /// Язык генерируемого `README.md` (`ru`, `en`, `uk`).
-    #[serde(default)]
-    pub readme_lang: String,
 }
 
 fn write_json<T: Serialize>(dir: &Path, name: &str, value: &T) -> Result<()> {
@@ -160,16 +157,12 @@ fn copy_if_exists(src: &Path, dst: &Path) {
     }
 }
 
-/// Генерирует README в языке `config.readme_lang` (ru/en/uk, по умолчанию ru).
+/// Генерирует README (по умолчанию на русском).
 fn readme(config: &AuthorPackConfig, mrpack_name: &str) -> String {
     let author_line = if config.author.trim().is_empty() {
         String::new()
     } else {
-        format!("\n**{author_label}:** {}\n", config.author.trim(), author_label = match config.readme_lang.as_str() {
-            "en" => "Author",
-            "uk" => "Автор",
-            _ => "Автор",
-        })
+        format!("\n**Автор:** {}\n", config.author.trim())
     };
     let desc_line = config
         .description
@@ -178,38 +171,12 @@ fn readme(config: &AuthorPackConfig, mrpack_name: &str) -> String {
         .unwrap_or_default();
     let repo = repo_name(config);
 
-    let (rel, share) = match config.readme_lang.as_str() {
-        "en" => (
-            format!("3. Create a GitHub Release and attach the `{mrpack_name}.mrpack` and `pack.json` files to it.\n"),
-            format!("4. Share the pack link:\n\n   https://n1orio.github.io/mono-launcher/?url={repo}\n\n   The link will open the launcher and add the pack automatically.\n"),
-        ),
-        "uk" => (
-            format!("3. Створіть GitHub Release і прикріпіть до нього файли `{mrpack_name}.mrpack` та `pack.json`.\n"),
-            format!("4. Поділіться посиланням на збірку:\n\n   https://n1orio.github.io/mono-launcher/?url={repo}\n\n   Посилання відкриє лаунчер та автоматично додасть збірку.\n"),
-        ),
-        _ => (
-            format!("3. Создайте GitHub Release и прикрепите к нему файл `{mrpack_name}.mrpack` и `pack.json`.\n"),
-            format!("4. Поделитесь ссылкой на сборку:\n\n   https://n1orio.github.io/mono-launcher/?url={repo}\n\n   Ссылка откроет лаунчер и автоматически добавит сборку.\n"),
-        ),
-    };
+    let rel = format!("3. Создайте GitHub Release и прикрепите к нему файл `{mrpack_name}.mrpack` и `pack.json`.\n");
+    let share = format!("4. Поделитесь ссылкой на сборку:\n\n   https://n1orio.github.io/mono-launcher/?url={repo}\n\n   Ссылка откроет лаунчер и автоматически добавит сборку.\n");
 
-    let (howto, steps, boosty) = match config.readme_lang.as_str() {
-        "en" => (
-            "## How to publish\n",
-            "1. Create a repository on GitHub.\n2. Upload the contents of this archive into the repository.\n",
-            "5. Paid packs (Boosty) and the minimum RAM are configured in `pack.json`.\n",
-        ),
-        "uk" => (
-            "## Як опублікувати\n",
-            "1. Створіть репозиторій на GitHub.\n2. Завантажте вміст цього архіву в репозиторій.\n",
-            "5. Платні збірки (Boosty) і мінімальна оперативна пам'ять налаштовуються у `pack.json`.\n",
-        ),
-        _ => (
-            "## Как опубликовать\n",
-            "1. Создайте репозиторий на GitHub.\n2. Загрузите содержимое этого архива в репозиторий.\n",
-            "5. Платные сборки (Boosty) и минимальная оперативка настраиваются в `pack.json`.\n",
-        ),
-    };
+    let howto = "## Как опубликовать\n";
+    let steps = "1. Создайте репозиторий на GitHub.\n2. Загрузите содержимое этого архива в репозиторий.\n";
+    let boosty = "5. Платные сборки (Boosty) и минимальная оперативка настраиваются в `pack.json`.\n";
 
     format!(
         "# {}\n{}{}\n{}{}{}{}{}",

@@ -139,8 +139,6 @@ export interface AuthorPackConfig {
   servers: AuthorServer[];
   socials: AuthorSocial[];
   theme?: AuthorTheme | null;
-  /** Язык генерируемого README.md (ru | en | uk). */
-  readmeLang?: string;
 }
 
 /** Доступное обновление установленного из Modrinth файла. */

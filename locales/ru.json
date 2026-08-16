@@ -552,7 +552,6 @@
   "pack.exportAuthorBoosty": "Блог Boosty (платная сборка)",
   "pack.exportAuthorBoostyPh": "ник блога",
   "pack.exportAuthorMinRam": "Мин. ОЗУ",
-  "pack.exportAuthorReadmeLang": "Язык README",
   "pack.exportAuthorServers": "Сервера (servers.json)",
   "pack.exportAuthorSocials": "Соцсети (socials.json)",
   "pack.exportAuthorTheme": "Цвета темы (theme.json)",

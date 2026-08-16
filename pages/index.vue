@@ -482,17 +482,7 @@
           />
 </label>
               </div>
-              <label class="block">
-                <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorReadmeLang") }}</span>
-                <select v-model="authorReadmeLang" class="w-full cursor-pointer rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]">
-                  <option value="ru">Русский</option>
-                  <option value="en">English</option>
-                  <option value="uk">Українська</option>
-                </select>
-              </label>
-
-
-      <!-- Ручка изменения ширины панели -->
+              <!-- Ручка изменения ширины панели -->
       <div
         class="absolute inset-y-0 -right-[3px] z-40 w-[6px] cursor-col-resize transition-colors hover:bg-[var(--accent)] active:bg-[var(--accent-strong)]"
         @pointerdown="startSidebarDrag"
@@ -6981,7 +6971,6 @@ const authorServers = ref<AuthorServer[]>([{ name: "", ip: "", port: null, desc:
 const authorSocials = ref<AuthorSocial[]>([{ name: "", url: "", color: "" }]);
 const authorTheme = ref<AuthorTheme>({});
 const authorAccent = ref("");
-const authorReadmeLang = ref("ru");
 const AUTHOR_MAX_SERVERS = 5;
 const AUTHOR_MAX_SOCIALS = 4;
 
@@ -6999,7 +6988,6 @@ function openAuthorExport() {
   authorSocials.value = [{ name: "", url: "", color: "" }];
   authorTheme.value = {};
   authorAccent.value = "";
-  authorReadmeLang.value = "ru";
   exportOpen.value = true;
   exportExpanded.value = new Set();
   void loadExportList();
@@ -7062,7 +7050,6 @@ function authorConfig(): AuthorPackConfig {
             .map((f) => [f.key, authorTheme.value[f.key]!.trim()])
         ) as AuthorTheme
       : null,
-    readmeLang: authorReadmeLang.value,
   };
 }
 
