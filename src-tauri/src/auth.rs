@@ -294,18 +294,25 @@ pub async fn ms_poll(
         .to_string();
 
     // Minecraft: обмениваем XSTS-токен на игровой токен.
-    let mine: MineTokenResp = client
+    let mine_resp = client
         .post("https://api.minecraftservices.com/authentication/login_with_xbox")
         .json(&json!({
             "identityToken": format!("XBL3.0 x={uhs};{xsts_token}"),
         }))
         .send()
         .await
-        .context("Не удалось связаться с Minecraft Services")?
-        .error_for_status()
-        .context("Minecraft Services отклонил XSTS-токен")?
+        .context("Не удалось связаться с Minecraft Services")?;
+    if !mine_resp.status().is_success() {
+        let status = mine_resp.status();
+        let body = mine_resp.text().await.unwrap_or_default();
+        return Err(anyhow!(
+            "Minecraft Services отклонил XSTS-токен ({status}): {body}"
+        ));
+    }
+    let mine: MineTokenResp = mine_resp
         .json()
-        .await?;
+        .await
+        .context("Minecraft Services вернул некорректный ответ")?;
 
     // Профиль: ник и UUID.
     let profile = client
