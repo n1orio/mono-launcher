@@ -7,7 +7,7 @@ Desktop Minecraft modpack launcher. **Tauri 2** (Rust backend) + **Nuxt 3 / Vue 
 |---------|-------------|
 | `npm run dev` | Nuxt dev server on **port 1420** (SSR off) |
 | `npm run tauri dev` | Dev app (Nuxt + Rust). Vite devUrl at `localhost:1420` |
-| `npm run build` | **Typecheck + build** (`nuxt typecheck && nuxt build`). Output to `dist/` (what Tauri bundles). **CI test** |
+| `npm run build` | **Typecheck + build** (`nuxt typecheck && nuxt build`). Output to `dist/` (what Tauri bundles). **CI test** (workflow invokes this to validate types) |
 | `npm run tauri build` | Release binary; runs `npm run build` first via `beforeBuildCommand` |
 | `npm run tauri:appimage` | Linux AppImage; requires `NO_STRIP=true` (set in script) |
 | `cargo check` / `cargo clippy` | Rust checks from `src-tauri/` |
@@ -18,7 +18,7 @@ Desktop Minecraft modpack launcher. **Tauri 2** (Rust backend) + **Nuxt 3 / Vue 
 - **Build race**: running `tauri dev` watcher wipes `dist/` — never run `npm run build` while dev is alive
 - **SSR off** + Nitro `preset: static` → SPA talking to Rust at runtime. Browser-only APIs (`window`, `navigator.clipboard`) used in `useLauncher.ts`; guard Tauri IPC with `isTauri()`
 - **Port 1420 fixed** — Tauri `devUrl` depends on it (`vite.server.strictPort`)
-- **Typecheck quirk**: Nuxt's generated `tsconfig.json` includes `../**/*` pulling `src-tauri/target`; root `tsconfig.json` overrides `exclude` — extend if adding large dirs
+- **Typecheck quirk**: Nuxt's generated `tsconfig.json` includes `../**/*` pulling `src-tauri/target`; root `tsconfig.json` overrides `exclude` — extend if adding large dirs. Strictness comes from `typescript.strict: true` in `nuxt.config.ts`; `nuxt typecheck` (vue-tsc) is what gates `npm run build`
 - **Signing required**: `bundle.createUpdaterArtifacts: true` → build fails without minisign key. Local: `export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/mono-launcher.key)"` + `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 - **Single-instance before deep-link**: in `lib.rs` `run()`, `tauri-plugin-single-instance` must register before `tauri-plugin-deep-link`
 

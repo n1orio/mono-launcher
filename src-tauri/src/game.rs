@@ -12,7 +12,8 @@ use tokio::process::Command;
 
 use crate::auth::UserSession;
 use crate::config;
-use crate::jre::{ensure_bundled_java, find_java, JavaArch};
+use crate::jre::{ensure_java, find_java, java_major, required_java, JavaArch};
+use crate::mrpack::verify_sha1;
 
 /// GET + JSON с проверкой Content-Type и понятными ошибками.
 /// На случай, когда сервер отдаёт HTML/пустую страницу вместо JSON
@@ -225,7 +226,13 @@ async fn ensure_download(
     dest: &Path,
 ) -> Result<()> {
     if dest.exists() {
-        return Ok(());
+        // Проверяем sha1 даже уже существующего файла — повреждённый от обрыва
+        // файл не должен молча использоваться (упадёт на загрузке ассетов).
+        if !sha1.is_empty() && !verify_sha1(dest, sha1)? {
+            tokio::fs::remove_file(dest).await.ok();
+        } else {
+            return Ok(());
+        }
     }
     if let Some(parent) = dest.parent() {
         tokio::fs::create_dir_all(parent).await?;
@@ -486,7 +493,7 @@ async fn run_neoforge_installer(
         tokio::fs::write(&profiles, "{\"profiles\":{}}").await?;
     }
 
-    let (java, _java_arch) = find_java()?;
+    let (java, _java_arch) = find_java(None)?;
     let log_file = config::launch_log_file().ok();
     if let Some(path) = &log_file {
         if let Some(parent) = path.parent() {
@@ -710,6 +717,13 @@ pub fn parse_server_address(raw: &str) -> Option<ServerAddress> {
                 port: port.parse::<u16>().ok(),
             })
         }
+        Some((host, port)) if !host.is_empty() && port.is_empty() => {
+            // Ведущий пустой порт ("host:") — порт не указан, не тащим двоеточие в хост.
+            Some(ServerAddress {
+                host: host.to_string(),
+                port: None,
+            })
+        }
         _ => Some(ServerAddress {
             host: raw.to_string(),
             port: None,
@@ -771,26 +785,80 @@ pub async fn launch_game(
     let versions_dir = root.join("versions-libs");
     let client = reqwest::Client::new();
 
+    // 1. Определяем версию Minecraft и модлоадер из активной установленной версии.
+    let game_dir = config::active_game_dir(pack_id)?;
+    let index_path = game_dir.join(".mono-index.json");
+    if !index_path.exists() {
+        return Err(anyhow!(
+            "Сборка не установлена. Нажмите «Скачать и играть»."
+        ));
+    }
+    let raw = tokio::fs::read_to_string(&index_path).await?;
+    let index: serde_json::Value = serde_json::from_str(&raw)?;
+    let minecraft_version = index["dependencies"]["minecraft"]
+        .as_str()
+        .ok_or_else(|| anyhow!("Не найдена версия Minecraft"))?;
+    let loader = detect_loader(&index);
+
     // Проверяем Java ДО скачиваний: без неё нечего качать сотни мегабайт.
-    // Авто-детект выбирает 64-битную; 32-битную куча ограничена ~3-4G.
-    // Если Java нигде нет — автоматически скачиваем встроенную (JRE 21).
-    let (mut java, mut java_arch) = find_java()?;
-    if java_arch == JavaArch::Unknown {
+    // Предпочитаем версию Java, заданную для сборки, иначе — требование версии
+    // Minecraft (8 / 17 / 21). Явный выбор пользователя всегда в приоритете.
+    let pack_java = config::pack_java(pack_id);
+    // Предпочитаем версию Java, заданную для сборки, иначе — требование версии Minecraft.
+    let preferred_java = pack_java.or_else(|| required_java(minecraft_version));
+    if let Some(m) = pack_java {
         emit_log(
             &app,
             "sys",
-            "Java не найдена — скачиваем встроенную (Adoptium JRE 21)…",
+            &format!("Для сборки указана Java {m} — ищем подходящую…"),
         );
-        match ensure_bundled_java(&app, &client).await {
+    }
+    let (mut java, mut java_arch) = find_java(preferred_java)?;
+
+    // Нужна ли автоматическая установка: Java вообще нет, либо найденная не
+    // подходит под требование (младше требуемой, или сборка требует точную версию).
+    let found_major = java_major(Path::new(&java));
+    let mut need_download = java_arch == JavaArch::Unknown;
+    if java_arch != JavaArch::Unknown {
+        if let Some(p) = pack_java {
+            if found_major != Some(p) {
+                need_download = true;
+            }
+        } else if let Some(p) = preferred_java {
+            if let Some(m) = found_major {
+                if m < p {
+                    need_download = true;
+                }
+            }
+        }
+    }
+    if need_download {
+        let dl_major = preferred_java.unwrap_or(21);
+        emit_log(
+            &app,
+            "sys",
+            &format!("Нет подходящей Java — скачиваем Adoptium JRE {dl_major}…"),
+        );
+        match ensure_java(&app, &client, dl_major).await {
             Ok(path) => {
                 java = path;
                 java_arch = JavaArch::Bit64;
             }
             Err(e) => {
-                return Err(anyhow!(
-                    "Java не найдена и автоматическая установка не удалась: {e}\n\
-                     Установите Java 17+ вручную (например OpenJDK 21) или повторите позже."
-                ));
+                if java_arch == JavaArch::Unknown {
+                    return Err(anyhow!(
+                        "Java не найдена и автоматическая установка не удалась: {e}\n\
+                         Установите нужную Java вручную (OpenJDK {}) или повторите позже.",
+                        preferred_java.unwrap_or(21)
+                    ));
+                }
+                emit_log(
+                    &app,
+                    "sys",
+                    &format!(
+                        "Не удалось скачать Java {dl_major}: {e}. Используем найденную и продолжаем."
+                    ),
+                );
             }
         }
     }
@@ -810,21 +878,6 @@ pub async fn launch_game(
     } else {
         emit_log(&app, "sys", &format!("Java: {java}, куча {heap_gb}G"));
     }
-
-    // 1. Определяем версию Minecraft и модлоадер из активной установленной версии.
-    let game_dir = config::active_game_dir(pack_id)?;
-    let index_path = game_dir.join(".mono-index.json");
-    if !index_path.exists() {
-        return Err(anyhow!(
-            "Сборка не установлена. Нажмите «Скачать и играть»."
-        ));
-    }
-    let raw = tokio::fs::read_to_string(&index_path).await?;
-    let index: serde_json::Value = serde_json::from_str(&raw)?;
-    let minecraft_version = index["dependencies"]["minecraft"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Не найдена версия Minecraft"))?;
-    let loader = detect_loader(&index);
 
     // 2. Получаем manifest и ванильный version json.
     emit_log(&app, "sys", "Получение манифеста версий Minecraft…");
@@ -1004,11 +1057,7 @@ pub async fn launch_game(
     let mut final_args = Vec::new();
     final_args.push(java);
     final_args.push(format!("-Xmx{}G", heap_gb));
-    let xms_gb = if java_arch == JavaArch::Bit32 {
-        (heap_gb / 2).min(1)
-    } else {
-        (heap_gb / 2).max(1)
-    };
+    let xms_gb = (heap_gb / 2).max(1);
     final_args.push(format!("-Xms{}G", xms_gb));
 
     // Альтернативная авторизация через authlib-injector:
@@ -1079,17 +1128,25 @@ pub async fn launch_game(
 
     // Захватываем «эксклюзив»: между проверкой и записью здесь нет await-ов,
     // поэтому два одновременных запуска не проскочат мимо друг друга.
+    let mut conflicting: Option<u32> = None;
     {
         let mut guard = GAME_RUNNING
             .lock()
             .map_err(|_| anyhow!("guard poisoned"))?;
-        if guard.is_some() {
-            return Err(anyhow!(
-                "Игра уже запущена (PID {}). Сначала закройте окно Minecraft.",
-                guard.unwrap()
-            ));
+        let existing = *guard;
+        if existing.is_some() {
+            conflicting = existing;
+        } else {
+            *guard = Some(pid);
         }
-        *guard = Some(pid);
+    }
+    if let Some(existing) = conflicting {
+        // Мы уже успели спавнить дочерний процесс — убиваем его (после снятия
+        // блокировки), чтобы не оставить осиротевшую Java без отслеживания.
+        let _ = child.kill().await;
+        return Err(anyhow!(
+            "Игра уже запущена (PID {existing}). Сначала закройте окно Minecraft."
+        ));
     }
 
     // Discord Rich Presence: «Играет в <сборка>» + суммарное наигранное время.
@@ -1179,7 +1236,11 @@ pub async fn launch_game(
             }
         };
         if let Ok(mut guard) = GAME_RUNNING.lock() {
-            *guard = None;
+            // Сбрасываем только если мы по-прежнему владелец текущей игры,
+            // чтобы второй (осиротевший) запуск не затирал живой процесс.
+            if guard.as_ref() == Some(&pid) {
+                *guard = None;
+            }
         }
         let delta = last.elapsed().as_secs();
         if !version_id.is_empty() && delta >= 1 {

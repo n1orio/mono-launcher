@@ -3,8 +3,7 @@
 //! API v1 (api.curseforge.com) требует ключ: `x-api-key`. Ключ задаётся одним
 //! из способов:
 //! 1) файл `<данные лаунчера>/curseforge-key.txt` (одной строкой),
-//! 2) переменная окружения MONO_CURSEFORGE_KEY,
-//! 3) константа CURSEFORGE_KEY ниже.
+//! 2) переменная окружения MONO_CURSEFORGE_KEY.
 //!
 //! Получить ключ: console.curseforge.com → API keys (нужен аккаунт Twitch/CurseForge).
 //! Файлы скачиваются с CDN forgecdn.net — отдельный доступ не нужен.
@@ -17,6 +16,10 @@ use serde::{Deserialize, Serialize};
 use crate::config;
 
 const API_BASE: &str = "https://api.curseforge.com/v1";
+
+/// Маркер «проект/файл удалён на CurseForge» — такие записи манифеста
+/// пропускаем, в отличие от сетевых/серверных ошибок.
+const CF_NOT_FOUND: &str = "CF_NOT_FOUND";
 const GAME_MINECRAFT: u32 = 432;
 
 /// Классы проектов Minecraft на CurseForge.
@@ -108,11 +111,9 @@ pub fn tracked_meta(
 
 /// Ключ API задаётся одним из способов (приоритет сверху вниз):
 /// 1) файл `<данные лаунчера>/curseforge-key.txt` (одной строкой),
-/// 2) переменная окружения MONO_CURSEFORGE_KEY,
-/// 3) константа ниже: ключ зафиксирован в бинарнике, сборки не требуют
-///    ни окружения, ни секрета CI. Получить ключ: console.curseforge.com.
-const CURSEFORGE_KEY: &str = "$2a$10$gttXCrT9r6fxwVcCLnQBWueZbXxV/nVq1A.gaaYI4UXoYKqODqv5i";
-
+/// 2) переменная окружения MONO_CURSEFORGE_KEY.
+///
+/// Секрет в бинарник не зашивается.
 pub fn api_key_from_cfg() -> Option<String> {
     let file =
         std::fs::read_to_string(config::launcher_root().ok()?.join("curseforge-key.txt")).ok();
@@ -122,9 +123,6 @@ pub fn api_key_from_cfg() -> Option<String> {
         if !t.is_empty() && t != "CHANGE_ME" {
             return Some(t);
         }
-    }
-    if CURSEFORGE_KEY != "CHANGE_ME" {
-        return Some(CURSEFORGE_KEY.to_string());
     }
     None
 }
@@ -526,13 +524,19 @@ pub async fn file_by_id(
     file_id: u32,
 ) -> Result<CurseFile> {
     let key = require_api_key()?;
-    let resp: SingleFileResp = client
+    let resp = client
         .get(format!("{API_BASE}/mods/{project_id}/files/{file_id}"))
         .header("x-api-key", &key)
         .header("User-Agent", ua())
         .send()
         .await
-        .context("Не удалось получить файл проекта CurseForge")?
+        .context("Не удалось получить файл проекта CurseForge")?;
+    let status = resp.status();
+    if status == reqwest::StatusCode::NOT_FOUND || status == reqwest::StatusCode::GONE {
+        // Удалённый на платформе проект/файл — известное отсутствие (не сеть и не рейт-лимит).
+        return Err(anyhow!("{CF_NOT_FOUND}"));
+    }
+    let resp: SingleFileResp = resp
         .error_for_status()
         .context("CurseForge отклонил запрос (проверьте API-ключ)")?
         .json()
@@ -891,8 +895,16 @@ async fn resolve_manifest_files(
         let file_id = e.file_id;
         tasks.push(tokio::spawn(async move {
             let _permit = semaphore.acquire().await.map_err(|_| anyhow!("sema"))?;
-            let Ok(file) = file_by_id(&client, project_id, file_id).await else {
-                return Ok(None);
+            let file = match file_by_id(&client, project_id, file_id).await {
+                Ok(f) => f,
+                // Проект/файл удалён на платформе — пропускаем (известное отсутствие).
+                Err(e) if e.to_string().starts_with(CF_NOT_FOUND) => return Ok(None),
+                // Сеть, рейт-лимит, 5xx — не глотаем, прерываем установку.
+                Err(e) => {
+                    return Err(anyhow!(
+                        "CurseForge не отдал файл проекта {project_id} ({file_id}): {e}"
+                    ))
+                }
             };
             if file.download_url.is_empty() {
                 return Ok(None);

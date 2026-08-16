@@ -16,8 +16,12 @@ pub struct SavedServer {
 
 /// Разбирает содержимое servers.dat (gzip → NBT) и наполняет `out`.
 pub fn parse_servers_dat(data: &[u8], out: &mut Vec<SavedServer>) -> Result<(), String> {
+    // Лимит на распакованный размер: настоящий servers.dat — килобайты.
+    // Ограничение защищает от zip-bomb (враждебный/повреждённый файл сжимается
+    // до мегабайт, а распаковывается в гигабайты — OOM).
+    const MAX_NBT_SIZE: u64 = 16 * 1024 * 1024;
     let mut raw = Vec::new();
-    let mut decoder = flate2::read::GzDecoder::new(data);
+    let mut decoder = flate2::read::GzDecoder::new(data).take(MAX_NBT_SIZE);
     decoder
         .read_to_end(&mut raw)
         .map_err(|e| format!("servers.dat: распаковка gzip: {e}"))?;

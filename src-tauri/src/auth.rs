@@ -323,7 +323,9 @@ pub async fn ms_poll(
 
     Ok(UserSession {
         username: user.name,
-        uuid: user.uuid,
+        uuid: Uuid::parse_str(&user.uuid)
+            .map(|u| u.to_string())
+            .unwrap_or_else(|_| Uuid::new_v3(&Uuid::NAMESPACE_DNS, user.uuid.as_bytes()).to_string()),
         access_token: mine.access_token,
         user_type: "microsoft".into(),
     })

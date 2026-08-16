@@ -105,6 +105,20 @@ pub fn clear_skin_local() -> Result<()> {
     Ok(())
 }
 
+/// Ник, закодированный для сегмента пути (без '/' и URL-reserved символов).
+fn nick_segment(nick: &str) -> String {
+    let mut out = String::new();
+    for b in nick.to_lowercase().bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'@' => {
+                out.push(b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
 /// Загружает скин в публичный API (`PUT /skins/<ник>`, тело — PNG).
 pub async fn upload_skin(
     client: &reqwest::Client,
@@ -112,7 +126,7 @@ pub async fn upload_skin(
     bytes: &[u8],
     model: &str,
 ) -> Result<()> {
-    let url = format!("{SKINS_API_URL}/skins/{}", nick.to_lowercase());
+    let url = format!("{SKINS_API_URL}/skins/{}", nick_segment(nick));
     let resp = client
         .put(&url)
         .header("X-Skin-Model", model)
@@ -129,7 +143,7 @@ pub async fn upload_skin(
 
 /// Удаляет скин из API.
 pub async fn delete_remote_skin(client: &reqwest::Client, nick: &str) -> Result<()> {
-    let url = format!("{SKINS_API_URL}/skins/{}", nick.to_lowercase());
+    let url = format!("{SKINS_API_URL}/skins/{}", nick_segment(nick));
     let resp = client.delete(&url).send().await?;
     if !resp.status().is_success() && resp.status().as_u16() != 404 {
         return Err(anyhow!("Скин-API вернул ошибку: {}", resp.status()));

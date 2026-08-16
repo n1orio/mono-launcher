@@ -192,14 +192,16 @@ fn parse_status_json(raw: &str) -> Result<PingData, String> {
     }
 
     let s: Status = serde_json::from_str(raw).map_err(|e| format!("Некорректный JSON: {e}"))?;
-    let motd = match s.description {
-        Some(serde_json::Value::String(t)) => Some(t),
-        Some(serde_json::Value::Object(obj)) => {
-            if let Some(text) = obj.get("text").and_then(|v| v.as_str()) {
-                Some(text.to_string())
-            } else { obj.get("translate").and_then(|v| v.as_str()).map(|key| format!("{{translate:{key}}}")) }
+    let motd = match &s.description {
+        Some(d) => {
+            let m = flatten_component(d);
+            if m.trim().is_empty() {
+                None
+            } else {
+                Some(m)
+            }
         }
-        _ => None,
+        None => None,
     };
 
     let players = s
@@ -222,6 +224,37 @@ fn parse_status_json(raw: &str) -> Result<PingData, String> {
         players_max: s.players.as_ref().and_then(|p| p.max),
         players,
     })
+}
+
+/// Разворачивает chat-component `description` (String / объект с text·extra /
+/// массив) в плоскую строку. Так 1.16+ сервера, отдающие MOTD массивом или
+/// с `extra`, не остаются с пустым описанием.
+fn flatten_component(v: &serde_json::Value) -> String {
+    match v {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::Array(items) => items.iter().map(flatten_component).collect(),
+        serde_json::Value::Object(o) => {
+            let mut out = String::new();
+            if let Some(t) = o.get("text").and_then(|v| v.as_str()) {
+                out.push_str(t);
+            } else if let Some(k) = o.get("translate").and_then(|v| v.as_str()) {
+                out.push_str(&format!("{{translate:{k}}}"));
+                if let Some(with) = o.get("with").and_then(|v| v.as_array()) {
+                    for w in with {
+                        out.push_str(&flatten_component(w));
+                    }
+                }
+            }
+            if let Some(extra) = o.get("extra").and_then(|v| v.as_array()) {
+                for e in extra {
+                    out.push_str(&flatten_component(e));
+                }
+            }
+            out
+        }
+        _ => String::new(),
+    }
 }
 
 fn write_varint(buf: &mut Vec<u8>, val: i32) {

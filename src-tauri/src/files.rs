@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
 
 use crate::config;
@@ -195,6 +195,10 @@ pub fn list_files(pack_id: &str, folder: &str) -> Result<Vec<GameFileEntry>> {
 /// Включает/выключает файл: переименование имя.jar <-> имя.jar.disabled.
 /// name — базовое имя (без .disabled), enabled — целевое состояние.
 pub fn toggle_file(pack_id: &str, folder: &str, name: &str, enabled: bool) -> Result<()> {
+    // folder_dir просто джойнит folder — не даём увести путь из папки игры.
+    if !is_safe_name(folder) || !is_safe_name(name) {
+        return Err(anyhow!("Недопустимое имя файла или папки"));
+    }
     let dir = folder_dir(pack_id, folder)?;
     let cur = if enabled {
         dir.join(format!("{name}.disabled"))

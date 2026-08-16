@@ -64,6 +64,14 @@ html.pack-theme-fade * {
     color 0.6s ease;
 }
 
+/* Глушим все transition, пока тянут ползунок темы, чтобы элементы с собственными
+   `transition-colors/all` не «запаздывали» за остальными при перекрасе. */
+html.no-theme-transition *,
+html.no-theme-transition *::before,
+html.no-theme-transition *::after {
+  transition: none !important;
+}
+
 @layer components {
   .mc-title {
     font-weight: 800;

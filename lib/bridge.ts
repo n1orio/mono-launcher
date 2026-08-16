@@ -37,6 +37,7 @@ import type {
   UserSession,
   VerifyResult,
   VersionsInfo,
+  ExportSourceItem,
 } from "./types";
 
 export const isTauri = () =>
@@ -270,8 +271,18 @@ export function setJavaPath(path: string | null): Promise<void> {
   return invoke("set_java_path_command", { path });
 }
 
-export function ensureJava(): Promise<string> {
-  return invoke("ensure_java_command");
+/** Версия Java, заданная для сборки (мажорный номер; null — авто). */
+export function getPackJava(packId: string): Promise<number | null> {
+  return invoke("get_pack_java_command", { packId });
+}
+
+/** Задаёт версию Java для сборки (null — авто по версии Minecraft). */
+export function setPackJava(packId: string, version: number | null): Promise<void> {
+  return invoke("set_pack_java_command", { packId, version });
+}
+
+export function ensureJava(major?: number): Promise<string> {
+  return invoke("ensure_java_command", { major: major ?? null });
 }
 
 export function verifyGame(packId: string): Promise<VerifyResult> {
@@ -293,6 +304,14 @@ export function openGameFolder(packId: string, folder: GameFolder): Promise<void
 /** Удаляет файлы/папки игры (моды/ресурспаки/шейдеры/миры) по именам. */
 export function deleteGameFiles(packId: string, folder: GameFolder, names: string[]): Promise<number> {
   return invoke("delete_game_files_command", { packId, folder, names });
+}
+
+export function packLocked(packId: string | null | undefined): Promise<boolean> {
+  return invoke("pack_locked_command", { packId: packId || null });
+}
+
+export function setPackLocked(packId: string, locked: boolean): Promise<boolean> {
+  return invoke("set_pack_locked_command", { packId, locked });
 }
 
 export function getSkin(uuid: string): Promise<string | null> {
@@ -535,4 +554,45 @@ export function localLoaderVersions(
 /** Релизные и снапшот-версии Minecraft (для выбора при создании своей сборки). */
 export function minecraftVersions(): Promise<McVersionInfo[]> {
   return invoke("minecraft_versions_command");
+}
+
+/** Меняет версию Minecraft / загрузчик / версию загрузчика у активной версии своей сборки. */
+export function editPackVersion(
+  packId: string,
+  minecraftVersion: string,
+  loader: string,
+  loaderVersion: string
+): Promise<void> {
+  return invoke("edit_pack_version_command", {
+    packId,
+    minecraftVersion,
+    loader,
+    loaderVersion,
+  });
+}
+
+/** Экспортирует сборку (указанной версии, с выбором файлов) в архив заданного формата. */
+export function exportPack(
+  packId: string,
+  versionId: string,
+  format: "mrpack" | "curseforge",
+  destPath: string,
+  include: string[],
+  name: string,
+  version: string
+): Promise<void> {
+  return invoke("export_pack_command", {
+    packId,
+    versionId,
+    format,
+    destPath,
+    include,
+    name,
+    version,
+  });
+}
+
+/** Папки и файлы папки игры выбранной версии (плоский список дерева) для выбора при экспорте. */
+export function exportSourceList(packId: string, versionId: string): Promise<ExportSourceItem[]> {
+  return invoke("export_list_command", { packId, versionId });
 }

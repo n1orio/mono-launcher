@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Context, Result};
 use futures::future::try_join_all;
@@ -78,6 +79,37 @@ pub(crate) fn emit_progress(app: &AppHandle, progress: &DownloadProgress) {
     let _ = app.emit("download-progress", progress);
 }
 
+/// Контекст для стримингового прогресса одного файла сборки.
+#[derive(Clone)]
+pub struct DlCtx {
+    pub app: AppHandle,
+    pub phase: String,
+    pub file_index: usize,
+    pub file_total: usize,
+    pub current_file: String,
+}
+
+/// Эмитит прогресс текущего файла. Троттлинг (~80 мс) не даёт заваливать UI
+/// частыми событиями, из-за которых плашка прогресса «лагала».
+fn emit_file_progress(ctx: &DlCtx, done: u64, total: u64, last: &mut Instant, force: bool) {
+    if !force && last.elapsed() < Duration::from_millis(80) {
+        return;
+    }
+    *last = Instant::now();
+    let _ = ctx.app.emit(
+        "download-progress",
+        &DownloadProgress {
+            phase: ctx.phase.clone(),
+            current: done,
+            total,
+            file_index: ctx.file_index,
+            file_total: ctx.file_total,
+            current_file: ctx.current_file.clone(),
+            bytes_per_sec: 0,
+        },
+    );
+}
+
 fn resolve_url(file: &IndexFile) -> Option<&str> {
     file.downloads
         .first()
@@ -115,6 +147,26 @@ fn custom_file(file: &IndexFile) -> Option<CustomFile> {
             url,
         })
     }
+}
+
+/// Проверяет, что путь файла из индекса сборки безопасен: относительный и без
+/// обхода каталогов (`..`, absolute, `.`). Предохраняет от записи за пределами
+/// `game_dir` враждебной сборкой.
+fn safe_rel_path(rel: &str) -> Result<&str> {
+    if rel.is_empty() {
+        return Err(anyhow!("Пустой путь в индексе сборки"));
+    }
+    let p = Path::new(rel);
+    if !p.is_relative() {
+        return Err(anyhow!("Недопустимый абсолютный путь в индексе: {rel}"));
+    }
+    for c in p.components() {
+        match c {
+            std::path::Component::Normal(_) | std::path::Component::CurDir => {}
+            _ => return Err(anyhow!("Недопустимый путь в индексе сборки: {rel}")),
+        }
+    }
+    Ok(rel)
 }
 
 /// Скачивает `.mrpack` по конкретному URL во временный файл (с повторами
@@ -269,7 +321,7 @@ pub fn parse_index(extract_dir: &Path) -> Result<(ModrinthIndex, PackInfo)> {
     Ok((index, info))
 }
 
-fn verify_sha1(path: &Path, expected: &str) -> Result<bool> {
+pub(crate) fn verify_sha1(path: &Path, expected: &str) -> Result<bool> {
     Ok(compute_sha1(path)?.eq_ignore_ascii_case(expected))
 }
 
@@ -277,7 +329,7 @@ fn verify_sha512(path: &Path, expected: &str) -> Result<bool> {
     Ok(compute_sha512(path)?.eq_ignore_ascii_case(expected))
 }
 
-fn compute_sha1(path: &Path) -> Result<String> {
+pub(crate) fn compute_sha1(path: &Path) -> Result<String> {
     let mut hasher = Sha1::new();
     stream_update(path, |b| {
         hasher.update(b);
@@ -391,18 +443,18 @@ async fn download_file(
     url: &str,
     dest: &Path,
     semaphore: Arc<Semaphore>,
+    ctx: DlCtx,
 ) -> Result<u64> {
     let _permit = semaphore.acquire().await?;
     fs::create_dir_all(dest.parent().unwrap_or(Path::new(".")))?;
     let mut last_err: Option<anyhow::Error> = None;
     for attempt in 0..3 {
-        match download_file_once(client, url, dest).await {
+        match download_file_once(client, url, dest, &ctx).await {
             Ok(len) => return Ok(len),
             Err(e) => {
                 last_err = Some(e);
                 if attempt < 2 {
-                    tokio::time::sleep(std::time::Duration::from_millis(600 * (attempt + 1)))
-                        .await;
+                    tokio::time::sleep(Duration::from_millis(600 * (attempt + 1))).await;
                 }
             }
         }
@@ -410,7 +462,12 @@ async fn download_file(
     Err(last_err.unwrap())
 }
 
-async fn download_file_once(client: &Client, url: &str, dest: &Path) -> Result<u64> {
+async fn download_file_once(
+    client: &Client,
+    url: &str,
+    dest: &Path,
+    ctx: &DlCtx,
+) -> Result<u64> {
     let resp = client
         .get(url)
         .send()
@@ -418,14 +475,22 @@ async fn download_file_once(client: &Client, url: &str, dest: &Path) -> Result<u
         .with_context(|| format!("Не удалось скачать {url}"))?
         .error_for_status()?;
 
+    let total = resp.content_length().unwrap_or(0);
     let mut file = tokio::fs::File::create(dest).await?;
     let mut stream = resp.bytes_stream();
+    let mut done: u64 = 0;
+    let mut last = Instant::now();
+    emit_file_progress(ctx, 0, total, &mut last, true);
     while let Some(chunk) = stream.next().await {
-        file.write_all(&chunk.context("Ошибка чтения файла")?)
-            .await?;
+        let chunk = chunk.context("Ошибка чтения файла")?;
+        file.write_all(&chunk).await?;
+        done += chunk.len() as u64;
+        emit_file_progress(ctx, done, total, &mut last, false);
     }
     file.flush().await?;
-    Ok(fs::metadata(dest)?.len())
+    let len = fs::metadata(dest)?.len();
+    emit_file_progress(ctx, len, len, &mut last, true);
+    Ok(len)
 }
 
 /// Скачивает все файлы из индекса параллельно (или копирует из других версий,
@@ -454,7 +519,8 @@ pub async fn download_all_files(
     let mut custom = Vec::new();
 
     for (i, file) in index.files.iter().enumerate() {
-        let dest = game_dir.join(&file.path);
+        let rel = safe_rel_path(&file.path)?;
+        let dest = game_dir.join(rel);
         if dest.exists() && hashes_ok(&dest, &file.hashes) {
             continue;
         }
@@ -471,9 +537,16 @@ pub async fn download_all_files(
         let client = client.clone();
         let app = app.clone();
         let semaphore = semaphore.clone();
-        let path_name = file.path.clone();
+        let path_name = rel.to_string();
         let hashes = file.hashes.clone();
         let total_files = index.files.len();
+        let ctx = DlCtx {
+            app: app.clone(),
+            phase: "Установка модов".into(),
+            file_index: i,
+            file_total: total_files,
+            current_file: path_name.clone(),
+        };
 
         // Есть ли этот файл в другой установленной версии?
         let key = file
@@ -490,7 +563,7 @@ pub async fn download_all_files(
                 tokio::fs::copy(&src, &dest).await?;
                 Ok(tokio::fs::metadata(&dest).await?.len())
             } else {
-                download_file(&client, &url, &dest, semaphore).await
+                download_file(&client, &url, &dest, semaphore, ctx).await
             };
             // Пост-загрузочная проверка целостности против хэшей из индекса:
             // ловит подмену файла по пути от источника до диска.
@@ -770,20 +843,29 @@ pub fn verify_pack(pack_id: &str) -> Result<VerifyResult> {
         .map(|n| n.get())
         .unwrap_or(4)
         .min(16);
+    let chunk_size = files.len().div_ceil(workers).max(1);
     let broken_indexes: Vec<usize> = std::thread::scope(|scope| {
         let game_dir_ref = &game_dir;
         let handles: Vec<_> = files
-            .chunks(files.len().div_ceil(workers).max(1))
+            .chunks(chunk_size)
             .enumerate()
             .map(|(ci, chunk)| {
                 scope.spawn(move || {
                     let mut bad = Vec::new();
                     for (i, file) in chunk.iter().enumerate() {
-                        let dest = game_dir_ref.join(&file.path);
-                        if !dest.exists()
-                            || (!file.hashes.is_empty() && !hashes_ok(&dest, &file.hashes))
-                        {
-                            bad.push(ci * chunk.len() + i);
+                        // Небезопасный/неотносительный путь считаем битым.
+                        let ok = match safe_rel_path(&file.path) {
+                            Ok(rel) => {
+                                let dest = game_dir_ref.join(rel);
+                                dest.exists()
+                                    && (file.hashes.is_empty() || hashes_ok(&dest, &file.hashes))
+                            }
+                            Err(_) => false,
+                        };
+                        if !ok {
+                            // Глобальный индекс: фиксированный размер чанка,
+                            // т.к. последний чанк может быть короче.
+                            bad.push(ci * chunk_size + i);
                         }
                     }
                     bad

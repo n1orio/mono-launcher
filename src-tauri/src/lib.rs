@@ -2,6 +2,7 @@ mod auth;
 mod config;
 mod curseforge;
 mod discord_rp;
+mod export;
 mod files;
 mod game;
 mod jre;
@@ -23,6 +24,7 @@ use tauri::{Emitter, Listener};
 
 use crate::auth::{login_offline, save_session, UserSession};
 use crate::config::{default_pack_id, PackInfo};
+use crate::export::{export_list_command, export_pack_command};
 
 /// Глобальное состояние лаунчера (HTTP-клиент).
 pub struct AppState {
@@ -34,6 +36,7 @@ pub struct AppStatus {
     pub installed: bool,
     pub minecraft_version: Option<String>,
     pub loader: Option<String>,
+    pub loader_version: Option<String>,
     pub pack_name: Option<String>,
     pub session: Option<UserSession>,
     pub mrpack_url: String,
@@ -680,6 +683,9 @@ async fn add_pack_impl(
         json_min_ram,
     )
     .map_err(|e| e.to_string())?;
+    // GitHub-сборки добавляются уже заблокированными (управляемыми): пользователь
+    // может их отвязать, чтобы самому менять файлы.
+    let _ = config::set_pack_locked(&id, true);
     Ok(PackDescriptor {
         id,
         name: pack_name,
@@ -701,6 +707,9 @@ async fn add_pack_command(
     name: Option<String>,
     blog: Option<String>,
 ) -> Result<PackDescriptor, String> {
+    // Сериализуем с deep-link добавлением, иначе щустрый клик по UI и ссылка
+    // могут прочитать/записать packs.json одновременно.
+    let _guard = add_pack_lock().lock().await;
     add_pack_impl(&state.client, &url, name.as_deref(), blog.as_deref()).await
 }
 
@@ -817,6 +826,7 @@ async fn modrinth_install_mod_command(
     world: Option<String>,
 ) -> Result<(modrinth::TrackedMod, u32), String> {
     let pack = resolve_pack(Some(pack_id.clone()))?;
+    ensure_unlocked(&pack.id)?;
     let version = modrinth::version_by_id(&state.client, &version_id)
         .await
         .map_err(|e| e.to_string())?;
@@ -848,6 +858,16 @@ async fn modrinth_install_mod_command(
         }
         other => return Err(format!("Неизвестная папка: {other}")),
     };
+    // При установке версии уже установленного проекта (та же сборка) — заменяем,
+    // удаляя старый файл этого проекта, а не добавляем рядом дубль.
+    let tracked = modrinth::tracked_mods(&pack.id);
+    for t in tracked {
+        if t.project_id == version.project_id && t.folder == folder {
+            for p in [target_dir.join(&t.file_name), target_dir.join(format!("{}.disabled", t.file_name))] {
+                let _ = std::fs::remove_file(&p);
+            }
+        }
+    }
     // Поверх существующего файла не перезаписываем: сначала удалите старый
     // или используйте обновление (modrinth_update_mod_command).
     let (file_name, _) = modrinth::download_file(&state.client, file, &target_dir)
@@ -1135,6 +1155,9 @@ async fn curseforge_install_pack_command(
     curseforge::install_modpack(&app, &state.client, &pack_id, project_id, file_id)
         .await
         .map_err(|e| e.to_string())?;
+    // Сборка с CurseForge — управляемая по умолчанию (правки заблокированы,
+    // пока пользователь не «отвяжет» её).
+    let _ = config::set_pack_locked(&pack_id, true);
     if let Some(logo_url) = &project.logo_url {
         let icon_path = config::pack_dir(&pack_id)
             .map_err(|e| e.to_string())?
@@ -1173,49 +1196,103 @@ pub struct ModUpdate {
 }
 
 /// Проверяет обновления установленных из Modrinth модов активной версии.
+///
+/// Проверяются НЕ только отслеживаемые моды (`tracked_mods`), а ВСЕ файлы в
+/// папках mods/resourcepacks/shaderpacks (в т.ч. пришедшие со сборкой из .mrpack).
+/// Так у ресурсов, скачанных из пака, тоже появляется плашка обновления.
 #[tauri::command]
 async fn modrinth_check_updates_command(
     state: State<'_, AppState>,
     pack_id: String,
 ) -> Result<Vec<ModUpdate>, String> {
     let pack = resolve_pack(Some(pack_id.clone()))?;
+    let game_dir = config::active_game_dir(&pack.id).map_err(|e| e.to_string())?;
     let tracked = modrinth::tracked_mods(&pack.id);
-    if tracked.is_empty() {
+
+    // name -> (folder, local sha1, id версии обновления на текущий момент).
+    let mut files: HashMap<String, (String, String, Option<String>)> = HashMap::new();
+    for t in &tracked {
+        if !t.sha1.is_empty() {
+            files
+                .entry(t.file_name.clone())
+                .or_insert_with(|| {
+                    (t.folder.clone(), t.sha1.clone(), Some(t.version_id.clone()))
+                });
+        }
+    }
+    // Остальные файлы сборки (без записи отслеживания) — хэшируем на лету.
+    for folder in ["mods", "resourcepacks", "shaderpacks"] {
+        let dir = game_dir.join(folder);
+        if !dir.exists() {
+            continue;
+        }
+        let Ok(rd) = std::fs::read_dir(&dir) else { continue };
+        for e in rd.flatten() {
+            let Ok(meta) = e.metadata() else { continue };
+            if meta.is_dir() {
+                continue;
+            }
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') {
+                continue;
+            }
+            let active = name.strip_suffix(".disabled").unwrap_or(&name);
+            if !(active.ends_with(".jar") || active.ends_with(".zip")) {
+                continue;
+            }
+            if files.contains_key(active) {
+                continue;
+            }
+            if let Ok(sha) = mrpack::compute_sha1(&e.path()) {
+                files.insert(active.to_string(), (folder.to_string(), sha, None));
+            }
+        }
+    }
+    if files.is_empty() {
         return Ok(Vec::new());
     }
-    let hashes: HashMap<String, String> = tracked
-        .iter()
-        .filter(|t| !t.sha1.is_empty())
-        .map(|t| (t.file_name.clone(), t.sha1.clone()))
-        .collect();
-    let game_versions = vec![tracked[0].game_version.clone()];
-    let loaders = vec![tracked[0].loader.clone()];
-    let updates = modrinth::check_updates(
-        &state.client,
-        &hashes,
-        &game_versions,
-        &loaders,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
+    // sha1 -> имя файла (для привязки ответа Modrinth по хэшу).
+    let mut by_sha: HashMap<String, String> = HashMap::new();
+    let mut hashes: Vec<String> = Vec::with_capacity(files.len());
+    for (n, (_, sha, _)) in &files {
+        by_sha.insert(sha.clone(), n.clone());
+        hashes.push(sha.clone());
+    }
+    // Пустые game_versions/loaders → каждый хэш резолвится в свою последнюю версию.
+    let updates = modrinth::check_updates(&state.client, &hashes, &[], &[])
+        .await
+        .map_err(|e| e.to_string())?;
+
     let mut out = Vec::new();
-    for t in &tracked {
-        let Some(new) = updates.get(&t.file_name) else {
+    for (sha, new) in updates {
+        let Some(name) = by_sha.get(&sha) else {
             continue;
         };
-        if new.id != t.version_id {
-            out.push(ModUpdate {
-                file_name: t.file_name.clone(),
-                folder: t.folder.clone(),
-                new_version: new.clone(),
-            });
+        let Some((folder, local_sha, tracked_vid)) = files.get(name) else {
+            continue;
+        };
+        // Уже актуальная версия — обновление не показываем.
+        let is_latest = new.files.iter().any(|f| {
+            f.hashes
+                .get("sha1")
+                .is_some_and(|s| s.eq_ignore_ascii_case(local_sha))
+        });
+        let is_same_as_tracked = tracked_vid.as_ref().is_some_and(|vid| vid == &new.id);
+        if is_latest || is_same_as_tracked {
+            continue;
         }
+        out.push(ModUpdate {
+            file_name: name.clone(),
+            folder: folder.clone(),
+            new_version: new,
+        });
     }
     Ok(out)
 }
 
 /// Обновляет один файл из Modrinth до последней подходящей версии
-/// (файл в своей папке перезаписывается).
+/// (файл в своей папке перезаписывается). Работает и для файлов, пришедших
+/// со сборкой из .mrpack — их ищем по имени среди установленных.
 #[tauri::command]
 async fn modrinth_update_mod_command(
     state: State<'_, AppState>,
@@ -1223,48 +1300,72 @@ async fn modrinth_update_mod_command(
     file_name: String,
 ) -> Result<modrinth::TrackedMod, String> {
     let pack = resolve_pack(Some(pack_id.clone()))?;
-    let tracked = modrinth::tracked_mods(&pack.id);
-    let Some(current) = tracked.iter().find(|t| t.file_name == file_name) else {
-        return Err(format!("Файл {file_name} не отслеживается (не из Modrinth)"));
-    };
-    let hashes: HashMap<String, String> =
-        [(current.file_name.clone(), current.sha1.clone())].into();
-    let updates = modrinth::check_updates(
-        &state.client,
-        &hashes,
-        std::slice::from_ref(&current.game_version),
-        std::slice::from_ref(&current.loader),
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-    let Some(new) = updates.get(&file_name) else {
-        return Err("Для этого файла нет обновлений".into());
-    };
-    let file = primary_file(new)?;
+    ensure_unlocked(&pack.id)?;
     let game_dir = config::active_game_dir(&pack.id).map_err(|e| e.to_string())?;
-    let dir = match current.folder.as_str() {
-        "datapacks" => game_dir
+    let tracked = modrinth::tracked_mods(&pack.id);
+    let tracked_entry = tracked.iter().find(|t| t.file_name == file_name);
+
+    // Запись отслеживания (мир/папка) либо обыскиваем папки.
+    let (folder, world, gap_loader): (String, Option<String>, Option<String>) =
+        match tracked_entry {
+            Some(t) => (t.folder.clone(), t.world.clone(), None),
+            None => {
+                let found = ["mods", "resourcepacks", "shaderpacks"]
+                    .iter()
+                    .find(|f| game_dir.join(f).join(&file_name).exists());
+                match found {
+                    Some(f) => ((*f).to_string(), None, None),
+                    None => {
+                        return Err(format!(
+                            "Файл {file_name} не найден в папках игры (не из Modrinth)"
+                        ))
+                    }
+                }
+            }
+        };
+
+    let dir = if folder == "datapacks" {
+        game_dir
             .join("saves")
-            .join(current.world.as_deref().unwrap_or(""))
-            .join("datapacks"),
-        f => game_dir.join(f),
+            .join(world.as_deref().unwrap_or(""))
+            .join("datapacks")
+    } else {
+        game_dir.join(&folder)
     };
     let path = dir.join(&file_name);
     if !path.exists() {
-        return Err(format!("Файл {file_name} не найден в папке {}/", current.folder));
+        return Err(format!("Файл {file_name} не найден в папке {folder}/"));
     }
+    let local_sha = mrpack::compute_sha1(&path).map_err(|e| e.to_string())?;
+    let hashes: Vec<String> = vec![local_sha.clone()];
+    let updates = modrinth::check_updates(&state.client, &hashes, &[], &[])
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(new) = updates.get(&local_sha) else {
+        return Err("Для этого файла нет обновлений".into());
+    };
+    let file = primary_file(new)?;
     modrinth::update_file_to(&state.client, file, &path)
         .await
         .map_err(|e| e.to_string())?;
     let updated = modrinth::TrackedMod {
-        file_name,
-        folder: current.folder.clone(),
-        world: current.world.clone(),
+        file_name: file_name.clone(),
+        folder: folder.clone(),
+        world: world.clone(),
         version_id: new.id.clone(),
         project_id: new.project_id.clone(),
         sha1: file.hashes.get("sha1").cloned().unwrap_or_default(),
-        game_version: current.game_version.clone(),
-        loader: current.loader.clone(),
+        game_version: new
+            .game_versions
+            .first()
+            .cloned()
+            .or_else(|| gap_loader.clone())
+            .unwrap_or_default(),
+        loader: new
+            .loaders
+            .first()
+            .cloned()
+            .unwrap_or_else(|| gap_loader.unwrap_or_default()),
     };
     modrinth::upsert_tracked_mod(&pack.id, &updated).map_err(|e| e.to_string())?;
     Ok(updated)
@@ -1274,6 +1375,7 @@ async fn modrinth_update_mod_command(
 #[tauri::command]
 fn modrinth_remove_mod_command(pack_id: String, file_name: String) -> Result<(), String> {
     let pack = resolve_pack(Some(pack_id.clone()))?;
+    ensure_unlocked(&pack.id)?;
     let game_dir = config::active_game_dir(&pack.id).map_err(|e| e.to_string())?;
     let tracked = modrinth::tracked_mods(&pack.id);
     let entry = tracked.iter().find(|t| t.file_name == file_name);
@@ -1401,6 +1503,7 @@ async fn modrinth_install_pack_command(
         mrpack::install_mrpack(app, &state.client, &pack_id, &mrpack.url, Some(&version.version_number))
             .await
             .map_err(|e| e.to_string())?;
+        let _ = config::set_pack_locked(&pack_id, true);
         if let Some(icon_url) = &project.icon_url {
             let icon_path = config::pack_dir(&pack_id)
                 .map_err(|e| e.to_string())?
@@ -1440,6 +1543,9 @@ async fn modrinth_install_pack_command(
     )
     .await
     .map_err(|e| e.to_string())?;
+    // Сборка с Modrinth — управляемая по умолчанию (правки заблокированы,
+    // пока пользователь не «отвяжет» её).
+    let _ = config::set_pack_locked(&pack_id, true);
     if let Some(icon_url) = &project.icon_url {
         let icon_path = config::pack_dir(&pack_id)
             .map_err(|e| e.to_string())?
@@ -1813,6 +1919,64 @@ async fn create_local_pack_command(
     })
 }
 
+/// Меняет версию Minecraft / загрузчик / версию загрузчика у активной версии
+/// уже установленной сборки. Доступно только для своих (локальных) сборок:
+/// у чужих сборок из .mrpack набор версий определяется релизами и менять его
+/// нельзя. Загрузчик версии (или «последняя подходящая») резолвится так же,
+/// как при создании сборки. Заменяет зависимости в индексе активной версии и
+/// переписывает маркер установки.
+#[tauri::command]
+async fn edit_pack_version_command(
+    state: State<'_, AppState>,
+    pack_id: String,
+    minecraft_version: String,
+    loader: String,
+    loader_version: String,
+) -> Result<(), String> {
+    let pack = resolve_pack(Some(pack_id.clone()))?;
+    if pack.kind != "local" {
+        return Err("Версии Minecraft/загрузчика можно менять только у своих сборок".into());
+    }
+    let mc = minecraft_version.trim().to_string();
+    if mc.is_empty() {
+        return Err("Укажите версию Minecraft".into());
+    }
+    let loader = loader.trim().to_string();
+    if !LOCAL_LOADERS.contains(&loader.as_str()) {
+        return Err(format!(
+            "Загрузчик «{loader}» не поддерживается для своих сборок (доступно: vanilla, fabric, quilt, forge, neoforge)"
+        ));
+    }
+    let active = config::active_version(&pack.id).map_err(|e| e.to_string())?;
+    let mut index = mrpack::read_version_index(&pack.id, &active)
+        .ok_or_else(|| "Не найден индекс активной версии сборки".to_string())?;
+
+    let requested = if loader_version.trim().is_empty() {
+        None
+    } else {
+        Some(loader_version.trim())
+    };
+    let resolver = resolve_loader_version(&state.client, &loader, &mc, requested).await?;
+
+    // Убираем прежний загрузчик и выставляем новый + версию Minecraft.
+    for key in ["neoforge", "forge", "fabric-loader", "quilt-loader"] {
+        index.dependencies.remove(key);
+    }
+    index.dependencies.insert("minecraft".into(), mc.clone());
+    if let Some((dep_key, lv)) = &resolver {
+        index.dependencies.insert(dep_key.clone(), lv.clone());
+    }
+
+    let game_dir = config::version_dir(&pack.id, &active).map_err(|e| e.to_string())?;
+    std::fs::write(
+        game_dir.join(".mono-index.json"),
+        serde_json::to_vec_pretty(&index).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    mrpack::write_install_marker(&game_dir, &index, None).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Версия Minecraft для выбора при создании своей сборки.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1894,7 +2058,11 @@ fn parse_deep_link(url: &str) -> Option<(String, Option<String>, Option<String>)
     let mut name: Option<String> = None;
     let mut blog: Option<String> = None;
     for pair in query.split('&') {
-        let (key, value) = pair.split_once('=')?;
+        let Some((key, value)) = pair.split_once('=') else {
+            // Кусок без '=' (например "mono://add-pack?url=X&name") — игнорируем,
+            // а не роняем разбор всей ссылки.
+            continue;
+        };
         match key {
             "url" => pack_url = Some(pct_decode(value)),
             "name" => name = Some(pct_decode(value)),
@@ -2168,7 +2336,36 @@ fn toggle_game_file_command(
     enabled: bool,
 ) -> Result<(), String> {
     let pack = resolve_pack(pack_id)?;
+    ensure_unlocked(&pack.id)?;
     files::toggle_file(&pack.id, &folder, &name, enabled).map_err(|e| e.to_string())
+}
+
+/// Заблокировано ли изменение файлов сборки (подписка/managed-сборка).
+#[tauri::command]
+fn pack_locked_command(pack_id: Option<String>) -> Result<bool, String> {
+    let pack = resolve_pack(pack_id)?;
+    Ok(config::pack_locked(&pack.id))
+}
+
+/// Включает/снимает блокировку правок сборки («отвязка» — пользователь сам
+/// вносит изменения). Возвращает новое состояние.
+#[tauri::command]
+fn set_pack_locked_command(pack_id: String, locked: bool) -> Result<bool, String> {
+    let pack = resolve_pack(Some(pack_id))?;
+    config::set_pack_locked(&pack.id, locked).map_err(|e| e.to_string())?;
+    Ok(config::pack_locked(&pack.id))
+}
+
+/// Не даёт менять файлы сборки, пока она заблокирована.
+fn ensure_unlocked(pack_id: &str) -> Result<(), String> {
+    if config::pack_locked(pack_id) {
+        Err(
+            "Сборка заблокирована: чтобы вносить изменения, отвяжите её в настройках сборки."
+                .into(),
+        )
+    } else {
+        Ok(())
+    }
 }
 
 /// Иконка файла/папки (data-URL PNG) для отображения в списках.
@@ -2647,9 +2844,16 @@ async fn install_mrpack(
             None => (pack.url.to_string(), None),
         },
     };
-    mrpack::install_mrpack(app, &client, &pack.id, &url, install_tag.as_deref())
+    let installed = mrpack::install_mrpack(app, &client, &pack.id, &url, install_tag.as_deref())
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    // Сборки, скачиваемые из удалённого источника (GitHub/Modrinth/CurseForge) —
+    // управляемые по умолчанию: правки файлов заблокированы, пока пользователь
+    // не «отвяжет» сборку. Локальные сборки не трогаем.
+    if pack.kind == "remote" {
+        let _ = config::set_pack_locked(&pack.id, true);
+    }
+    Ok(installed)
 }
 
 /// Определяет, установлена ли сборка и возвращает общий статус.
@@ -2696,6 +2900,9 @@ async fn get_status(pack_id: Option<String>) -> Result<AppStatus, String> {
             .iter()
             .find(|k| idx.dependencies.contains_key(**k))
             .map(|k| k.replace("-loader", ""));
+        status.loader_version = ["fabric-loader", "forge", "neoforge", "quilt"]
+            .iter()
+            .find_map(|k| idx.dependencies.get(*k).cloned());
 
         let game_dir = config::version_dir(&pack.id, &idx.version_id).map_err(|e| e.to_string())?;
         status.installed = mrpack::is_installed(&game_dir, &idx);
@@ -3046,6 +3253,15 @@ fn launcher_version() -> String {
 /// Открывает URL во внешнем браузере.
 #[tauri::command]
 fn open_url(app: AppHandle, url: String) -> Result<(), String> {
+    // Разрешаем только web/mailto — строки приходят из сторонних metadata
+    // (socials.json и т.п.), нельзя допускать file:// и произвольных схем.
+    let lower = url.to_ascii_lowercase();
+    if !(lower.starts_with("https://")
+        || lower.starts_with("http://")
+        || lower.starts_with("mailto:"))
+    {
+        return Err("Недопустимая ссылка (разрешены только http/https/mailto)".into());
+    }
     use tauri_plugin_opener::OpenerExt;
     app.opener()
         .open_url(&url, None::<&str>)
@@ -3064,10 +3280,26 @@ fn set_java_path_command(path: Option<String>) -> Result<(), String> {
     config::set_java_selection(path.as_deref()).map_err(|e| e.to_string())
 }
 
-/// Скачивает и распаковывает встроенную JRE 21 (если её ещё нет).
+/// Версия Java, заданная для сборки (мажорный номер; None — авто).
 #[tauri::command]
-async fn ensure_java_command(app: AppHandle, state: State<'_, AppState>) -> Result<String, String> {
-    jre::ensure_bundled_java(&app, &state.client)
+fn get_pack_java_command(pack_id: String) -> Option<u32> {
+    config::pack_java(&pack_id)
+}
+
+/// Задаёт версию Java для сборки (None — авто по версии Minecraft).
+#[tauri::command]
+fn set_pack_java_command(pack_id: String, version: Option<u32>) -> Result<(), String> {
+    config::set_pack_java(&pack_id, version).map_err(|e| e.to_string())
+}
+
+/// Скачивает и распаковывает Java нужного мажора (по умолчанию 21), если её ещё нет.
+#[tauri::command]
+async fn ensure_java_command(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    major: Option<u32>,
+) -> Result<String, String> {
+    jre::ensure_java(&app, &state.client, major.unwrap_or(21))
         .await
         .map_err(|e| e.to_string())
 }
@@ -3090,6 +3322,7 @@ fn delete_game_files_command(
     names: Vec<String>,
 ) -> Result<usize, String> {
     let pack = resolve_pack(pack_id)?;
+    ensure_unlocked(&pack.id)?;
     if !matches!(folder.as_str(), "mods" | "resourcepacks" | "shaderpacks" | "saves") {
         return Err("Неизвестная папка".into());
     }
@@ -3247,6 +3480,8 @@ pub fn run() {
             open_url,
             list_java_command,
             set_java_path_command,
+            get_pack_java_command,
+            set_pack_java_command,
             ensure_java_command,
             verify_game_command,
             open_game_folder_command,
@@ -3257,6 +3492,8 @@ pub fn run() {
             get_news_command,
             list_game_files_command,
             toggle_game_file_command,
+            pack_locked_command,
+            set_pack_locked_command,
             delete_game_files_command,
             get_game_file_icon_command,
             get_game_file_icons_command,
@@ -3278,8 +3515,11 @@ pub fn run() {
             modrinth_remove_mod_command,
             modrinth_install_pack_command,
             create_local_pack_command,
+            edit_pack_version_command,
             local_loader_versions_command,
             minecraft_versions_command,
+            export_pack_command,
+            export_list_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

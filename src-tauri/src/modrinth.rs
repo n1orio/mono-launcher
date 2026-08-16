@@ -319,10 +319,10 @@ pub async fn project_versions(
 }
 
 /// Проверка обновлений по sha1: POST /version_files/update.
-/// Возвращает «проект id -> новая версия», когда есть более свежая.
+/// Возвращает «sha1 -> новая версия» (ключ ответа — сам хэш), когда есть более свежая.
 pub async fn check_updates(
     client: &reqwest::Client,
-    hashes: &HashMap<String, String>,
+    hashes: &[String],
     game_versions: &[String],
     loaders: &[String],
 ) -> Result<HashMap<String, ModrinthVersion>> {
@@ -453,7 +453,8 @@ fn safe_file_name(raw: &str) -> String {
         .chars()
         .filter(|c| !matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'))
         .collect();
-    if cleaned.is_empty() {
+    // "." / ".." не должны стать путём, ведущим из папки игры.
+    if cleaned.is_empty() || cleaned == "." || cleaned == ".." {
         "mod.jar".into()
     } else {
         cleaned

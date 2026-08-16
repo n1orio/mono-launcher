@@ -205,6 +205,39 @@ pub fn java_version_string(java: &Path) -> Option<String> {
     }
 }
 
+/// Мажорный номер версии Java (21, 17, 8...) по пути к бинарю.
+pub fn java_major(path: &Path) -> Option<u32> {
+    let v = java_version_string(path)?;
+    let s = if let Some(stripped) = v.strip_prefix("1.") {
+        stripped
+    } else {
+        &v
+    };
+    s.split('.').next()?.parse().ok()
+}
+
+/// Требуемая мажорная версия Java для версии Minecraft.
+/// 1.21+ / 1.20.5+ → 21; 1.17–1.20.4 → 17; до 1.17 → 8.
+pub fn required_java(minecraft_version: &str) -> Option<u32> {
+    let mut it = minecraft_version.split('.');
+    let major: u32 = it.next()?.parse().ok()?;
+    let minor: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+    let patch: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+    if major > 1 {
+        return Some(21);
+    }
+    if minor >= 21 {
+        return Some(21);
+    }
+    if minor == 20 && patch >= 5 {
+        return Some(21);
+    }
+    if minor >= 17 {
+        return Some(17);
+    }
+    Some(8)
+}
+
 /// Описание найденной Java для UI.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -220,9 +253,6 @@ pub struct JavaInfo {
 /// Вся найденная Java (встроенная + установленная + из PATH) для UI.
 pub fn list_javas() -> Vec<JavaInfo> {
     let selected = config::java_selection();
-    let bundled = config::java_root()
-        .map(|r| r.join("bin").join(java_exe_name()))
-        .ok();
     let mut out = Vec::new();
 
     let mut push = |path: PathBuf, bundled: bool, is_path_cmd: bool| {
@@ -254,8 +284,8 @@ pub fn list_javas() -> Vec<JavaInfo> {
         });
     };
 
-    if let Some(b) = bundled {
-        if b.exists() {
+    for b in bundled_javas() {
+        if probe_java(&b).is_some() {
             push(b, true, false);
         }
     }
@@ -285,8 +315,10 @@ pub fn list_javas() -> Vec<JavaInfo> {
 /// Ищет Java: выбранную пользователем → встроенную в лаунчер →
 /// авто-детект установленных → из PATH («java»).
 /// Приоритет: сначала рабочие 64-битные (свежие по версии), затем 32-битные.
+/// Если задан `preferred_major`, среди 64-битных предпочитается Java с
+/// версией == `preferred_major`, иначе — не младше требуемой.
 /// Возвращает путь и разрядность (для ограничения -Xmx).
-pub fn find_java() -> Result<(String, JavaArch)> {
+pub fn find_java(preferred_major: Option<u32>) -> Result<(String, JavaArch)> {
     // 1. Явный выбор пользователя (файл java.txt в папке данных лаунчера).
     if let Some(selected) = config::java_selection() {
         let p = PathBuf::from(&selected);
@@ -295,27 +327,40 @@ pub fn find_java() -> Result<(String, JavaArch)> {
         }
     }
 
-    let bundled = bundled_java_path();
-    if bundled.exists() {
-        if let Some(arch) = probe_java(&bundled) {
-            return Ok((bundled.to_string_lossy().to_string(), arch));
+    let mut cands: Vec<(String, JavaArch, Option<u32>)> = Vec::new();
+    for b in bundled_javas() {
+        if let Some(arch) = probe_java(&b) {
+            cands.push((b.to_string_lossy().to_string(), arch, java_major(&b)));
         }
     }
-    let mut best_32: Option<(String, JavaArch)> = None;
     for cand in java_candidates() {
-        let Some(arch) = probe_java(&cand) else {
-            continue;
-        };
-        let path = cand.to_string_lossy().to_string();
-        if arch == JavaArch::Bit64 {
-            return Ok((path, arch));
-        }
-        if best_32.is_none() {
-            best_32 = Some((path, arch));
+        if let Some(arch) = probe_java(&cand) {
+            cands.push((cand.to_string_lossy().to_string(), arch, java_major(&cand)));
         }
     }
-    if let Some((path, arch)) = best_32 {
-        return Ok((path, arch));
+
+    // pick(true) — по 64-битным, pick(false) — по 32-битным.
+    let pick = |want64: bool| -> Option<(String, JavaArch)> {
+        let bucket: Vec<_> = cands
+            .iter()
+            .filter(|c| (c.1 == JavaArch::Bit64) == want64)
+            .collect();
+        if let Some(pref) = preferred_major {
+            if let Some(c) = bucket.iter().find(|c| c.2 == Some(pref)) {
+                return Some((c.0.clone(), c.1));
+            }
+            if let Some(c) = bucket.iter().find(|c| c.2.map(|m| m >= pref).unwrap_or(false)) {
+                return Some((c.0.clone(), c.1));
+            }
+        }
+        bucket.first().map(|c| (c.0.clone(), c.1))
+    };
+
+    if let Some(r) = pick(true) {
+        return Ok(r);
+    }
+    if let Some(r) = pick(false) {
+        return Ok(r);
     }
     if let Some(arch) = probe_java(Path::new("java")) {
         return Ok(("java".into(), arch));
@@ -323,18 +368,57 @@ pub fn find_java() -> Result<(String, JavaArch)> {
     Ok(("java".into(), JavaArch::Unknown))
 }
 
-/// Скачивает и распаковывает встроенную Java (Adoptium JRE 21) в папку лаунчера.
-/// Возвращает путь к java-бинарию.
-pub async fn ensure_bundled_java(app: &AppHandle, client: &Client) -> Result<String> {
-    let root = config::java_root()?;
-    let bundled = bundled_java_path();
-    if bundled.exists() {
-        if let Some(arch) = probe_java(&bundled) {
-            if arch == JavaArch::Bit64 {
-                return Ok(bundled.to_string_lossy().to_string());
+/// Папка, куда ставится автоматически скачанная Java нужного мажора.
+pub fn jre_root_for(major: u32) -> PathBuf {
+    config::java_root()
+        .map(|r| r.join(format!("java-{major}")))
+        .unwrap_or_else(|_| PathBuf::from(format!("java-{major}")))
+}
+
+/// Путь к java-бинарю автоматически скачанной Java нужного мажора.
+pub fn java_path_for(major: u32) -> PathBuf {
+    jre_root_for(major).join("bin").join(java_exe_name())
+}
+
+/// Все автоматически скачанные Java (каждый мажор в runtime/java-*) + устаревшая
+/// одиночная в runtime/bin (JRE 21 от старых версий лаунчера).
+pub fn bundled_javas() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Ok(root) = config::java_root() {
+        let legacy = root.join("bin").join(java_exe_name());
+        if legacy.exists() {
+            out.push(legacy);
+        }
+        if let Ok(entries) = std::fs::read_dir(&root) {
+            for e in entries.flatten() {
+                let name = e.file_name().to_string_lossy().into_owned();
+                if let Some(major) = name.strip_prefix("java-") {
+                    if let Ok(m) = major.parse::<u32>() {
+                        let p = java_path_for(m);
+                        if p.exists() {
+                            out.push(p);
+                        }
+                    }
+                }
             }
         }
     }
+    out
+}
+
+/// Скачивает и распаковывает Java (Adoptium JRE) нужного мажора в папку лаунчера.
+/// Возвращает путь к java-бинарию.
+pub async fn ensure_java(app: &AppHandle, client: &Client, major: u32) -> Result<String> {
+    let root = jre_root_for(major);
+    let target = root.join("bin").join(java_exe_name());
+    if target.exists() {
+        if let Some(arch) = probe_java(&target) {
+            if arch == JavaArch::Bit64 {
+                return Ok(target.to_string_lossy().to_string());
+            }
+        }
+    }
+    std::fs::create_dir_all(&root)?;
 
     let (os, arch) = (
         if cfg!(target_os = "windows") {
@@ -351,13 +435,13 @@ pub async fn ensure_bundled_java(app: &AppHandle, client: &Client) -> Result<Str
         },
     );
     let url = format!(
-        "https://api.adoptium.net/v3/binary/latest/21/ga/{os}/{arch}/jre/hotspot/normal/eclipse"
+        "https://api.adoptium.net/v3/binary/latest/{major}/ga/{os}/{arch}/jre/hotspot/normal/eclipse"
     );
     let _ = app.emit(
         "launch-log",
         crate::game::LogLine {
             stream: "sys".into(),
-            line: format!("Скачивание встроенной Java (JRE 21, ~70 МБ): {url}"),
+            line: format!("Скачивание Java {major} (~60-100 МБ): {url}"),
         },
     );
 
@@ -388,7 +472,7 @@ pub async fn ensure_bundled_java(app: &AppHandle, client: &Client) -> Result<Str
                 "launch-log",
                 crate::game::LogLine {
                     stream: "sys".into(),
-                    line: format!("Java: скачано {pct}"),
+                    line: format!("Java {major}: скачано {pct}"),
                 },
             );
             last_report = std::time::Instant::now();
@@ -400,10 +484,9 @@ pub async fn ensure_bundled_java(app: &AppHandle, client: &Client) -> Result<Str
     let tmp = root.join(format!("jre-tmp-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&tmp)?;
     let head = {
+        use std::io::Read;
         let f = std::fs::File::open(&archive_path)?;
         let mut buf = [0u8; 4];
-        use std::io::Read;
-        let f = f;
         std::io::Read::take(std::io::BufReader::new(f), 4)
             .read_exact(&mut buf)
             .ok();
@@ -416,7 +499,7 @@ pub async fn ensure_bundled_java(app: &AppHandle, client: &Client) -> Result<Str
     };
     result.context("Не удалось распаковать Java")?;
 
-    // Переносим содержимое единственной верхнеуровневой папки в runtime/.
+    // Переносим содержимое единственной верхнеуровневой папки в root.
     let mut inner_dirs: Vec<PathBuf> = Vec::new();
     for entry in std::fs::read_dir(&tmp)? {
         inner_dirs.push(entry?.path());
@@ -435,13 +518,12 @@ pub async fn ensure_bundled_java(app: &AppHandle, client: &Client) -> Result<Str
     std::fs::remove_dir_all(&tmp).ok();
     std::fs::remove_file(&archive_path).ok();
 
-    let new_bundled = root.join("bin").join(java_exe_name());
-    if new_bundled.exists() {
-        Ok(new_bundled.to_string_lossy().to_string())
+    if target.exists() {
+        Ok(target.to_string_lossy().to_string())
     } else {
         Err(anyhow!(
             "Java распакована, но бинарь не найден в {}",
-            new_bundled.display()
+            target.display()
         ))
     }
 }
@@ -483,8 +565,24 @@ fn extract_targz(path: &Path, tmp: &Path) -> Result<()> {
             continue;
         }
         let name = entry.path()?.to_path_buf();
-        let rel: PathBuf = name.components().skip(1).collect();
-        let out = tmp.join(rel);
+        // Пропускаем корневую папку архива, остальные сегменты проверяем на
+        // обход каталогов (.., absolute), иначе тар может писать вне tmp.
+        let mut comps = name.components();
+        if comps.next().is_none() {
+            continue;
+        }
+        let mut rel = PathBuf::new();
+        for c in comps {
+            match c {
+                std::path::Component::Normal(seg) => rel.push(seg),
+                std::path::Component::CurDir => {}
+                _ => return Err(anyhow!("Недопустимый путь в архиве Java: {name:?}")),
+            }
+        }
+        if rel.as_os_str().is_empty() {
+            continue;
+        }
+        let out = tmp.join(&rel);
         if let Some(parent) = out.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -493,12 +591,6 @@ fn extract_targz(path: &Path, tmp: &Path) -> Result<()> {
         std::fs::write(&out, &buf)?;
     }
     Ok(())
-}
-
-pub fn bundled_java_path() -> PathBuf {
-    config::java_root()
-        .map(|r| r.join("bin").join(java_exe_name()))
-        .unwrap_or_else(|_| PathBuf::from("java"))
 }
 
 #[cfg(test)]

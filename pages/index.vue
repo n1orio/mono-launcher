@@ -53,7 +53,7 @@
         </div>
       </TransitionGroup>
     </div>
-  <div v-if="!isSearchWin" class="flex h-full w-full select-none overflow-hidden bg-[var(--bg)] text-[color:var(--tx)] font-sans">
+  <div v-if="!isSearchWin && !isFileDetailWin" class="flex h-full w-full select-none overflow-hidden bg-[var(--bg)] text-[color:var(--tx)] font-sans">
     <!-- Карточка обновления лаунчера -->
     <div
       v-if="appUpdate && !appUpdating"
@@ -335,7 +335,7 @@
           </span>
         </div>
         <div class="flex items-center justify-between">
-          <span>{{ t("side.version") }}</span>
+          <span>{{ t("side.packVersion") }}</span>
           <span class="font-mono font-medium text-[color:var(--tx)] truncate max-w-[110px]" :title="status?.active_version ? `versionId: ${status.active_version}` : undefined">
             {{ status?.active_source_tag ?? status?.active_version ?? "—" }}
           </span>
@@ -344,13 +344,18 @@
           <span>{{ t("side.memory") }}</span>
           <span class="font-mono font-medium text-[color:var(--tx)]">{{ ram }} {{ t("units.gb") }}</span>
         </div>
+        <div class="flex items-center justify-between">
+          <span>{{ t("side.launcherVersion") }}</span>
+          <span class="font-mono font-medium text-[color:var(--tx)]">v{{ launcherVer || "?" }}</span>
+        </div>
       </div>
 
       <!-- Глобальный прогресс установки/скачивания -->
       <div v-if="progress && busy" class="border-t border-[var(--border)] p-3 bg-[var(--panel-soft)]">
         <div class="mb-1 flex items-center justify-between text-[11px] text-[color:var(--tx-muted)]">
           <span class="truncate pr-2 font-medium text-[color:var(--tx)]">{{ phaseLabel(progress.phase) }}</span>
-          <span class="tabular-nums font-mono text-[10px]">{{ percent }}%</span>
+          <span v-if="progress.fileTotal > 1" class="tabular-nums font-mono text-[10px]">{{ t("progress.files", { n: filesDone, m: progress.fileTotal }) }}</span>
+          <span v-else class="tabular-nums font-mono text-[10px]">{{ percent }}%</span>
         </div>
         <div class="h-1.5 w-full overflow-hidden rounded-full bg-[var(--input)]">
           <div
@@ -361,6 +366,14 @@
         <div class="mt-1 flex items-center justify-between text-[10px] text-[color:var(--tx-muted)]">
           <span class="truncate max-w-[120px]">{{ progress.currentFile || t("side.preparing") }}</span>
           <span class="tabular-nums font-mono">{{ progress.speed > 0 ? `${formatBytes(progress.speed)}${t("units.perSec")}` : "" }}</span>
+        </div>
+        <div v-if="progress.fileTotal > 1 && filePercent > 0" class="mt-1">
+          <div class="h-1 w-full overflow-hidden rounded-full bg-[var(--input)]">
+            <div
+              class="h-full bg-[color-mix(in_srgb,var(--accent)_60%,transparent)]"
+              :style="{ width: `${filePercent}%` }"
+            />
+          </div>
         </div>
       </div>
 
@@ -548,6 +561,34 @@
                   </svg>
                   {{ t("pack.folder") }}
                 </button>
+                <template v-if="activePack?.kind === 'local' && status?.installed">
+                  <button
+                    type="button"
+                    class="ml-1 flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+                    :title="t('pack.exportMrpack')"
+                    :disabled="exportBusy"
+                    @click="openExport('mrpack')"
+                  >
+                    <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+                      <path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/>
+                      <path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/>
+                    </svg>
+                    .mrpack
+                  </button>
+                  <button
+                    type="button"
+                    class="ml-1 flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+                    :title="t('pack.exportCurseforge')"
+                    :disabled="exportBusy"
+                    @click="openExport('curseforge')"
+                  >
+                    <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+                      <path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/>
+                      <path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/>
+                    </svg>
+                    CurseForge
+                  </button>
+                </template>
               </div>
             </div>
 
@@ -555,6 +596,16 @@
               <span>{{ t("pack.mono") }}</span>
               <span>•</span>
               <span v-if="loaderLabel">{{ t("pack.loader", { name: loaderLabel }) }}</span>
+              <button
+                v-if="activePack?.kind === 'local'"
+                type="button"
+                class="inline-flex items-center gap-1 rounded border border-[var(--border)] bg-[var(--input)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[var(--hover)]"
+                :title="t('pack.versionChange')"
+                @click="openEditVersion"
+              >
+                <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M11.28 9.72a.75.75 0 0 1 1.06 0l1.5 1.5a.75.75 0 0 1 0 1.06l-1.5 1.5a.749.749 0 0 1-1.06-1.06l.97-.97-.97-.97a.75.75 0 0 1 0-1.06Z"/><path d="M5.75 2.25h4.5a.75.75 0 0 1 0 1.5H8.31l4.97 4.97a.75.75 0 0 1-1.06 1.06L7.25 4.81v1.94a.75.75 0 0 1-1.5 0V2.25Z"/></svg>
+                {{ t("pack.versionChange") }}
+              </button>
               <span v-if="activePack?.author">•</span>
               <span v-if="activePack?.author" class="font-mono text-[var(--accent)]">@{{ activePack.author }}</span>
               <span
@@ -855,6 +906,21 @@
             v-else-if="playSubTab === 'mods' || playSubTab === 'resourcepacks' || playSubTab === 'shaderpacks' || playSubTab === 'saves'"
             class="flex min-h-0 flex-1 flex-col"
           >
+            <div
+              v-if="packLocked"
+              class="mb-3 flex shrink-0 items-center justify-between gap-3 rounded-md border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-3 py-2 text-[11px] text-[color:var(--tx)]"
+            >
+              <span class="flex items-center gap-2">
+                <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-[var(--accent)]"><path d="M8 1a4.25 4.25 0 0 0-4.25 4.25V7H3.5A1.5 1.5 0 0 0 2 8.5v5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5v-5A1.5 1.5 0 0 0 12.5 7h-.25V5.25A4.25 4.25 0 0 0 8 1Zm2.5 6h-5V5.25a2.5 2.5 0 0 1 5 0Z"/></svg>
+                {{ t("files.locked") }}
+              </span>
+              <button
+                type="button"
+                class="shrink-0 rounded px-2 py-1 font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]"
+                :title="t('files.unbindHint')"
+                @click="confirmUnbindPack"
+              >{{ unbindArmed ? t("files.unbindConfirm") : t("files.unbind") }}</button>
+            </div>
             <div class="mb-3 flex shrink-0 items-center justify-between gap-3">
               <span class="flex shrink-0 items-center gap-2 text-xs text-[color:var(--tx-muted)]">
                 {{ playSubTab === "saves" ? t("files.worldsCount", { n: fileVisibleCount }) : t("files.count", { n: fileVisibleCount }) }}
@@ -871,7 +937,7 @@
                     v-if="modUpdates.length > 0"
                     type="button"
                     class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-                    :disabled="updateAllBusy || updatingMod !== null"
+                    :disabled="updateAllBusy || updatingMod !== null || packLocked"
                     @click="updateAllMods"
                   >
                     <svg v-if="updateAllBusy" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
@@ -885,8 +951,9 @@
                   </button>
                   <button
                     type="button"
-                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
+                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
                     :title="t('mods.addHint')"
+                    :disabled="packLocked"
                     @click="openSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind, 'modrinth')"
                   >
                     <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
@@ -955,7 +1022,7 @@
                     <button
                       type="button"
                       class="flex items-center gap-1 rounded-md border border-[#f85149]/40 bg-[#f85149]/10 px-2 py-1 text-[11px] font-semibold text-[#f85149] transition-colors hover:bg-[#f85149]/20 disabled:opacity-50"
-                      :disabled="fileDeleteBusy"
+                      :disabled="fileDeleteBusy || packLocked"
                       :title="t('files.deleteSelHint')"
                       @click="fileDeleteArmed = true"
                     >
@@ -1205,7 +1272,7 @@
                   v-if="playSubTab !== 'saves' && modUpdateFor(f)"
                   type="button"
                   class="flex shrink-0 items-center gap-1 rounded-md border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-2 py-1 text-[10px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
-                  :disabled="updatingMod !== null"
+                  :disabled="updatingMod !== null || packLocked"
                   :title="`${modUpdateFor(f)!.newVersion.name} (${modUpdateFor(f)!.newVersion.versionNumber})`"
                   @click.stop="updateOneMod(modUpdateFor(f)!)"
                 >
@@ -1227,8 +1294,8 @@
                   ]"
                   role="switch"
                   :aria-checked="f.enabled"
-                  :disabled="isFileToggling(playSubTab, f)"
-                  :title="isFileToggling(playSubTab, f) ? undefined : (f.enabled ? t('files.disable') : t('files.enable'))"
+                  :disabled="isFileToggling(playSubTab, f) || packLocked"
+                  :title="isFileToggling(playSubTab, f) ? undefined : (packLocked ? t('files.locked') : (f.enabled ? t('files.disable') : t('files.enable')))"
                   @click.stop="handleToggleFile(playSubTab as GameFolderKind, f)"
                 >
                   <span
@@ -1561,33 +1628,78 @@
                     <p class="line-clamp-3">{{ fileDetailMr.description }}</p>
                     <p class="mt-1 flex flex-wrap items-center gap-3">
                       <span>{{ t("mods.byAuthor", { author: fileDetailMr.author }) }}</span>
+                      <span v-if="fileDetailMr.downloads">{{ fileDetailMr.downloads.toLocaleString() }} {{ t("mods.downloads") }}</span>
                       <span v-if="fileDetailMr.categories.length">{{ fileDetailMr.categories.slice(0, 4).join(", ") }}</span>
                     </p>
                   </div>
-                  <p class="text-[10px] text-[color:var(--tx-muted)]">{{ t("files.versionsTitle") }}</p>
-                  <div v-if="fileDetailMrVersions === null" class="flex items-center justify-center py-4 text-[11px] text-[color:var(--tx-muted)]">
-                    <svg viewBox="0 0 16 16" class="mr-2 h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
-                    {{ t("mods.searching") }}
-                  </div>
-                  <div v-else-if="fileDetailMrVersions.length === 0" class="rounded-md border border-[var(--border)] bg-[var(--input-50)] p-4 text-center text-[11px] text-[color:var(--tx-muted)]">
-                    {{ t("mods.noVersions") }}
-                  </div>
-                  <div v-else class="space-y-1">
+                  <div class="mb-3 flex items-center gap-1 border-b border-[var(--border)] pb-2">
                     <button
-                      v-for="v in fileDetailMrVersions"
-                      :key="v.id"
+                      v-for="tb in fileDetailTabs"
+                      :key="tb.kind"
                       type="button"
-                      class="flex w-full items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-left transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] disabled:opacity-50"
-                      :disabled="fileDetailMrVersionBusy !== null"
-                      @click="installFileDetailVersion(v)"
+                      class="rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors"
+                      :class="fileDetailTab === tb.kind
+                        ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
+                        : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+                      @click="fileDetailTab = tb.kind"
                     >
-                      <svg v-if="fileDetailMrVersionBusy === v.id" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-[var(--accent)]"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
-                      <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-[var(--accent)]"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/></svg>
-                      <span class="min-w-0 flex-1 truncate text-[11px] text-[color:var(--tx)]">
-                        {{ v.versionNumber }} · {{ v.gameVersions.slice(0, 2).join(", ") }} {{ v.loaders.slice(0, 2).join(", ") }}
-                      </span>
-                      <span class="shrink-0 text-[10px] text-[color:var(--tx-muted)]">{{ formatDate(v.datePublished) }}</span>
+                      {{ t("mods.tab" + tb.kind) }}
                     </button>
+                  </div>
+                  <div v-if="fileDetailTab === 'about'" class="max-h-[40vh] overflow-y-auto rounded-md border border-[var(--border)] bg-[var(--bg)] px-4 py-3">
+                    <Markdown v-if="fileDetailMr.body" :source="fileDetailMr.body" />
+                    <p v-else class="py-6 text-center text-xs italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
+                  </div>
+                  <div v-else-if="fileDetailTab === 'versions'">
+                    <div v-if="fileDetailAllMcs.length > 1" class="mb-2 flex flex-wrap gap-1">
+                      <button
+                        v-for="mc in fileDetailAllMcs"
+                        :key="mc"
+                        type="button"
+                        class="rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors"
+                        :class="fileDetailMcFilter === mc ? 'bg-[var(--accent)] text-[var(--bg)]' : 'bg-[var(--input-50)] text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+                        @click="setFileDetailMcFilter(mc)"
+                      >{{ mc }}</button>
+                    </div>
+                    <div v-if="fileDetailMrVersions === null" class="flex items-center justify-center py-4 text-[11px] text-[color:var(--tx-muted)]">
+                      <svg viewBox="0 0 16 16" class="mr-2 h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+                      {{ t("mods.searching") }}
+                    </div>
+                    <div v-else-if="fileDetailFilteredVersions.length === 0" class="rounded-md border border-[var(--border)] bg-[var(--input-50)] p-4 text-center text-[11px] text-[color:var(--tx-muted)]">
+                      {{ t("mods.noVersions") }}
+                    </div>
+                    <div v-else class="space-y-1">
+                      <button
+                        v-for="v in fileDetailFilteredVersions"
+                        :key="v.id"
+                        type="button"
+                        class="flex w-full items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-left transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] disabled:opacity-50"
+                        :disabled="fileDetailMrVersionBusy !== null"
+                        @click="installFileDetailVersion(v)"
+                      >
+                        <svg v-if="fileDetailMrVersionBusy === v.id" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-[var(--accent)]"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+                        <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-[var(--accent)]"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/></svg>
+                        <span class="min-w-0 flex-1 truncate text-[11px] text-[color:var(--tx)]">
+                          {{ v.versionNumber }} · {{ v.gameVersions.slice(0, 2).join(", ") }} {{ v.loaders.slice(0, 2).join(", ") }}
+                        </span>
+                        <span class="shrink-0 text-[10px] text-[color:var(--tx-muted)]">{{ formatDate(v.datePublished) }}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else>
+                    <div v-if="fileDetailMr.gallery.length" class="grid grid-cols-2 gap-2">
+                      <img
+                        v-for="g in fileDetailMr.gallery"
+                        :key="g.url"
+                        :src="g.url"
+                        :alt="g.title ?? ''"
+                        loading="lazy"
+                        class="h-32 w-full cursor-zoom-in rounded-md border border-[var(--border)] object-cover transition-transform hover:scale-[1.02]"
+                        :title="g.title ?? undefined"
+                        @click="openExternal(g.url)"
+                      />
+                    </div>
+                    <p v-else class="py-10 text-center text-xs italic text-[color:var(--tx-muted)]">{{ t("mods.noGallery") }}</p>
                   </div>
                 </template>
 
@@ -2168,7 +2280,7 @@
                       class="h-28 w-28 shrink-0 overflow-hidden rounded-md border border-[var(--border)] bg-white"
                       :title="t('settings.msScan')"
                     >
-                      <div class="h-full w-full" v-html="deviceFlow.qr_svg"></div>
+                      <div class="h-full w-full" v-html="sanitizeSvg(deviceFlow.qr_svg ?? '')"></div>
                     </div>
                     <div class="min-w-0 flex-1">
                     <p class="font-mono text-2xl font-bold tracking-[0.3em] text-[var(--accent-strong)] select-text">
@@ -3256,6 +3368,262 @@
       @change="onCreatePackFileChange('banner')"
     />
   </div>
+
+    <!-- Модалка: смена версии Minecraft / загрузчика у своей сборки -->
+    <div v-if="editVerOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" @click.self="editVerOpen = false">
+      <div class="w-full max-w-md overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
+        <div class="flex items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
+          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("pack.versionTitle") }}</h3>
+          <button
+            type="button"
+            class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
+            @click="editVerOpen = false"
+          >
+            <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+          </button>
+        </div>
+        <div class="space-y-3 px-4 py-3">
+          <div>
+            <label class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.versionMc") }}</label>
+            <div ref="editVerMcBox" class="relative">
+              <button
+                type="button"
+                class="flex w-full items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                @click="editVerMcOpen = !editVerMcOpen"
+              >
+                <span class="truncate">{{ editVerMc || t("pack.versionPick") }}</span>
+                <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-[var(--tx-muted)] transition-transform" :class="editVerMcOpen ? 'rotate-180' : ''"><path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"/></svg>
+              </button>
+              <div v-if="editVerMcOpen" class="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
+                <input v-model="editVerMcQuery" class="w-full border-b border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs outline-none placeholder:text-[var(--tx-muted)]" :placeholder="t('pack.versionSearch')" />
+                <div class="max-h-52 overflow-y-auto py-1">
+                  <button
+                    v-for="v in editVerMcList"
+                    :key="v.id"
+                    type="button"
+                    class="flex w-full items-center gap-2 px-3 py-1 text-left text-xs transition-colors hover:bg-[var(--hover)]"
+                    :class="editVerMc === v.id ? 'text-[var(--accent)]' : 'text-[color:var(--tx)]'"
+                    @click="chooseEditVerMc(v.id)"
+                  >
+                    <span class="min-w-0 flex-1 truncate">{{ v.id }}</span>
+                    <span v-if="v.kind === 'snapshot'" class="rounded border border-[#9e6a03]/40 bg-[#9e6a03]/10 px-1.5 text-[10px] text-[#d29922]">{{ t("pack.snapshot") }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.versionLoader") }}</label>
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="l in CREATE_LOADERS"
+                :key="l"
+                type="button"
+                class="rounded-md border px-2.5 py-1 text-[11px] font-medium capitalize transition-colors"
+                :class="editVerLoader === l
+                  ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]'
+                  : 'border-[var(--border)] bg-[var(--input)] text-[color:var(--tx)] hover:bg-[var(--hover)]'"
+                @click="editVerLoader = l"
+              >
+                {{ l === "vanilla" ? t("pack.vanilla") : l }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="editVerLoader !== 'vanilla'">
+            <label class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.versionLoaderVer") }}</label>
+            <div ref="editVerLvBox" class="relative">
+              <button
+                type="button"
+                class="flex w-full items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                @click="editVerLvOpen = !editVerLvOpen"
+              >
+                <span class="truncate">{{ editVerLv || t("mods.createLatest") }}</span>
+                <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-[var(--tx-muted)] transition-transform" :class="editVerLvOpen ? 'rotate-180' : ''"><path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"/></svg>
+              </button>
+              <div v-if="editVerLvOpen" class="absolute left-0 right-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--panel)] py-1 shadow-2xl">
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-between px-3 py-1 text-left text-xs transition-colors hover:bg-[var(--hover)]"
+                  :class="editVerLv === '' ? 'text-[var(--accent)]' : 'text-[color:var(--tx)]'"
+                  @click="chooseEditVerLoaderVersion('')"
+                >
+                  <span>{{ t("mods.createLatest") }}</span>
+                  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M12.78 4.22a.75.75 0 0 1 0 1.06l-5.78 5.78a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L6.5 9.44l5.22-5.22a.75.75 0 0 1 1.06 0Z"/></svg>
+                </button>
+                <div v-if="!editVerLoaderVersions.length" class="px-3 py-1.5 text-[10px] text-[color:var(--tx-muted)]">{{ t("mods.createLvNone") }}</div>
+                <button
+                  v-for="v in editVerLoaderVersions"
+                  :key="v"
+                  type="button"
+                  class="flex w-full items-center justify-between gap-2 px-3 py-1 text-left text-xs transition-colors hover:bg-[var(--hover)]"
+                  :class="editVerLv === v ? 'text-[var(--accent)]' : 'text-[color:var(--tx)]'"
+                  @click="chooseEditVerLoaderVersion(v)"
+                >
+                  <span class="min-w-0 truncate">{{ v }}</span>
+                  <svg v-if="editVerLv === v" viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-current"><path d="M12.78 4.22a.75.75 0 0 1 0 1.06l-5.78 5.78a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L6.5 9.44l5.22-5.22a.75.75 0 0 1 1.06 0Z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.versionJava") }}</label>
+            <div class="flex items-center justify-between gap-2">
+              <p class="min-w-0 flex-1 text-[10px] text-[color:var(--tx-muted)]">{{ t("pack.versionJavaHint", { req: editVerJavaReq }) }}</p>
+              <button
+                type="button"
+                class="flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+                :title="t('pack.versionJavaAuto')"
+                :class="editVerJava === '' ? 'text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : ''"
+                @click="editVerJava = ''"
+              >
+                <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM5 4.25a.75.75 0 0 1 .75.75v1h.75a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1-.75-.75v-1.75a.75.75 0 0 1 .75-.75Zm6.75 2.5v1.75a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h.75v-1a.75.75 0 1 1 1.5 0ZM8 9.75a.75.75 0 0 1 .63.34l2 3a.75.75 0 0 1-1.26.84L8 11.6l-1.37 2.33a.75.75 0 0 1-1.26-.84l2-3A.75.75 0 0 1 8 9.75Z"/></svg>
+              </button>
+            </div>
+            <div class="mt-1 flex flex-wrap gap-1.5">
+              <button
+                v-for="j in [8, 17, 21]"
+                :key="j"
+                type="button"
+                class="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors"
+                :class="editVerJava === String(j)
+                  ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]'
+                  : 'border-[var(--border)] bg-[var(--input)] text-[color:var(--tx)] hover:bg-[var(--hover)]'"
+                @click="editVerJava = String(j)"
+              >
+                Java {{ j }}
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-1">
+            <button
+              type="button"
+              class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+              @click="editVerOpen = false"
+            >
+              {{ t("files.cancel") }}
+            </button>
+            <button
+              type="button"
+              class="flex items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-3 py-1.5 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
+              :disabled="editVerBusy"
+              @click="saveEditVersion"
+            >
+              <svg v-if="editVerBusy" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+              {{ t("pack.versionSave") }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модалка: выбор папок и файлов для экспорта сборки -->
+    <div v-if="exportOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" @click.self="exportOpen = false">
+      <div class="flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
+        <div class="flex items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
+          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("pack.exportTitle") }}</h3>
+          <button
+            type="button"
+            class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
+            @click="exportOpen = false"
+          >
+            <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+          </button>
+        </div>
+        <div class="flex items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2">
+          <p class="text-[11px] text-[color:var(--tx-muted)]">
+            {{ exportFormat === "curseforge" ? t("pack.exportFormatCurseforge") : t("pack.exportFormatMrpack") }}
+          </p>
+          <button
+            type="button"
+            class="text-[11px] font-medium text-[var(--accent)] transition-colors hover:underline disabled:opacity-50"
+            :disabled="exportLoading"
+            @click="toggleExportAll"
+          >
+            {{ exportAllChecked ? t("pack.exportNone") : t("pack.exportAll") }}
+          </button>
+        </div>
+        <div class="grid grid-cols-2 gap-2 border-b border-[var(--border)] px-4 py-2">
+          <label class="block">
+            <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportNameLabel") }}</span>
+            <input
+              v-model="exportName"
+              class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]"
+              :placeholder="t('pack.exportNamePlaceholder')"
+            />
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportVersionNumLabel") }}</span>
+            <input
+              v-model="exportVersionNum"
+              class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]"
+              :placeholder="t('pack.exportVersionNumPlaceholder')"
+            />
+          </label>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto px-2 py-1">
+          <div v-if="exportLoading" class="flex items-center justify-center gap-2 py-8 text-xs text-[color:var(--tx-muted)]">
+            <svg viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+            {{ t("pack.exportLoading") }}
+          </div>
+          <div v-else-if="exportItems.length === 0" class="px-2 py-8 text-center text-xs text-[color:var(--tx-muted)]">{{ t("pack.exportEmpty") }}</div>
+          <div v-else>
+            <div
+              v-for="row in exportVisibleRows"
+              :key="row.it.path"
+              class="flex cursor-pointer items-center gap-1 rounded-md py-1 pr-2 transition-colors hover:bg-[var(--hover)]"
+              :style="{ paddingLeft: `${row.depth * 16 + 4}px` }"
+            >
+              <button
+                v-if="row.it.isDir"
+                type="button"
+                class="flex h-4 w-4 shrink-0 items-center justify-center rounded text-[color:var(--tx-muted)] transition-colors hover:text-[color:var(--tx)]"
+                @click.stop="toggleExportExpand(row.it.path)"
+              >
+                <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current transition-transform" :class="exportExpanded.has(row.it.path) ? 'rotate-90' : ''"><path d="M6 4l4 4-4 4V4Z"/></svg>
+              </button>
+              <span v-else class="w-4 shrink-0"></span>
+              <input
+                type="checkbox"
+                class="h-3.5 w-3.5 shrink-0 accent-[var(--accent)]"
+                :checked="exportSelected.has(row.it.path)"
+                :indeterminate="exportSelectedCount(row.it.path).selected > 0 && exportSelectedCount(row.it.path).selected < exportSelectedCount(row.it.path).total"
+                @change="toggleExport(row.it.path)"
+              />
+              <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)]">
+                <path v-if="row.it.isDir" d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2A1.75 1.75 0 0 0 5 1H1.75Z"/>
+                <path v-else d="M9 1H4.5A1.5 1.5 0 0 0 3 2.5v11A1.5 1.5 0 0 0 4.5 15h7A1.5 1.5 0 0 0 13 13.5V5l-4-4Z"/>
+              </svg>
+              <span class="min-w-0 flex-1 truncate text-xs text-[color:var(--tx)]" :class="!row.it.defaultIncluded ? 'opacity-60' : ''">{{ row.it.path.split("/").pop() }}</span>
+              <span v-if="row.it.defaultIncluded" class="shrink-0 text-[10px] tabular-nums text-[color:var(--tx-muted)]">{{ formatBytes(row.it.size) }}</span>
+              <span v-else class="shrink-0 rounded border border-[var(--border)] px-1.5 py-0.5 text-[9px] uppercase text-[color:var(--tx-muted)]">{{ t("pack.exportExcluded") }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 border-t border-[var(--border)] px-4 py-3">
+          <button
+            type="button"
+            class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+            @click="exportOpen = false"
+          >
+            {{ t("files.cancel") }}
+          </button>
+          <button
+            type="button"
+            class="flex items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-3 py-1.5 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
+            :disabled="exportBusy || exportLoading || exportSelected.size === 0"
+            @click="doExport"
+          >
+            <svg v-if="exportBusy" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+            {{ t("pack.exportBtn") }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Окно поиска файлов: Modrinth / CurseForge
          (в обычном режиме — плавающая панель, в отдельном окне — на весь экран) -->
     <div
@@ -3755,17 +4123,139 @@
         </div>
       </div>
     </div>
+    <!-- Отдельное окно просмотра ресурса (win=filedetail): на весь экран -->
+    <div v-if="isFileDetailWin" class="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[var(--bg)] text-[color:var(--tx)] font-sans">
+      <div class="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-4 py-2.5">
+        <div class="flex min-w-0 flex-1 items-center gap-3">
+          <img v-if="fileDetailMr?.iconUrl" :src="searchIconUrl(fileDetailMr.iconUrl)" :alt="fileDetailMr.title" loading="lazy" class="h-10 w-10 shrink-0 rounded-md object-cover" />
+          <div v-else-if="fileDetailMr" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-[11px] text-[color:var(--tx-muted)]">
+            {{ fileDetailMr.title.slice(0, 2).toUpperCase() }}
+          </div>
+          <div class="min-w-0">
+            <h2 class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">{{ fileDetailMr?.title ?? fileDetailTitle }}</h2>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-[color:var(--tx-muted)]">
+              <template v-if="fileDetailMr">
+                <span>{{ t("mods.byAuthor", { author: fileDetailMr.author }) }}</span>
+                <span class="flex items-center gap-1">
+                  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                  {{ fileDetailMr.downloads.toLocaleString() }}
+                </span>
+                <span v-if="fileDetailMr.categories.length">{{ fileDetailMr.categories.slice(0, 4).join(", ") }}</span>
+              </template>
+            </div>
+          </div>
+        </div>
+        <div class="flex shrink-0 items-center gap-2">
+          <button
+            v-if="fileDetailExternalUrl()"
+            type="button"
+            class="rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)]"
+            @click="openExternal(fileDetailExternalUrl()!)"
+          >
+            {{ t("mods.openPage") }}
+          </button>
+          <button
+            type="button"
+            class="rounded-md p-1.5 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
+            @click="closeFileDetailWin"
+          >
+            <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="flex shrink-0 items-center gap-1 border-b border-[var(--border)] px-4 pb-2 pt-3">
+        <button
+          v-for="tb in fileDetailTabs"
+          :key="tb.kind"
+          type="button"
+          class="rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors"
+          :class="fileDetailTab === tb.kind
+            ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
+            : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+          @click="fileDetailTab = tb.kind"
+        >
+          {{ t("mods.tab" + tb.kind) }}
+        </button>
+      </div>
+      <div v-if="fileDetailMrLoading" class="flex min-h-0 flex-1 items-center justify-center text-xs text-[color:var(--tx-muted)]">
+        <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+        {{ t("mods.searching") }}
+      </div>
+      <div v-else-if="fileDetailMr" class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+        <div v-if="fileDetailTab === 'about'" class="rounded-md border border-[var(--border)] bg-[var(--bg)] px-4 py-3">
+          <Markdown v-if="fileDetailMr.body" :source="fileDetailMr.body" />
+          <p v-else class="py-6 text-center text-xs italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
+        </div>
+        <div v-else-if="fileDetailTab === 'versions'">
+          <div v-if="fileDetailAllMcs.length > 1" class="mb-2 flex flex-wrap gap-1">
+            <button
+              v-for="mc in fileDetailAllMcs"
+              :key="mc"
+              type="button"
+              class="rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors"
+              :class="fileDetailMcFilter === mc ? 'bg-[var(--accent)] text-[var(--bg)]' : 'bg-[var(--input-50)] text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+              @click="setFileDetailMcFilter(mc)"
+            >{{ mc }}</button>
+          </div>
+          <div v-if="fileDetailMrVersions === null" class="flex items-center justify-center py-10 text-xs text-[color:var(--tx-muted)]">
+            <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+            {{ t("mods.searching") }}
+          </div>
+          <div v-else-if="fileDetailFilteredVersions.length === 0" class="rounded-md border border-[var(--border)] bg-[var(--input-50)] p-6 text-center text-xs text-[color:var(--tx-muted)]">
+            {{ t("mods.noVersions") }}
+          </div>
+          <div v-else class="space-y-1.5">
+            <button
+              v-for="v in fileDetailFilteredVersions"
+              :key="v.id"
+              type="button"
+              class="flex w-full items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-left transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] disabled:opacity-50"
+              :disabled="fileDetailMrVersionBusy !== null"
+              @click="installFileDetailVersion(v)"
+            >
+              <svg v-if="fileDetailMrVersionBusy === v.id" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-[var(--accent)]"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+              <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-[var(--accent)]"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/></svg>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-xs font-medium text-[color:var(--tx-strong)]">{{ v.name }}</span>
+                <span class="block truncate text-[10px] text-[color:var(--tx-muted)]">
+                  {{ v.versionNumber }} · {{ v.gameVersions.slice(0, 2).join(", ") }} {{ v.loaders.slice(0, 2).join(", ") }} · {{ formatDate(v.datePublished) }}
+                </span>
+              </span>
+            </button>
+          </div>
+        </div>
+        <div v-else>
+          <div v-if="fileDetailMr.gallery.length" class="grid grid-cols-2 gap-2">
+            <img
+              v-for="g in fileDetailMr.gallery"
+              :key="g.url"
+              :src="g.url"
+              :alt="g.title ?? ''"
+              loading="lazy"
+              class="h-40 w-full cursor-zoom-in rounded-md border border-[var(--border)] object-cover transition-transform hover:scale-[1.02]"
+              :title="g.title ?? undefined"
+              @click="openExternal(g.url)"
+            />
+          </div>
+          <p v-else class="py-10 text-center text-xs italic text-[color:var(--tx-muted)]">{{ t("mods.noGallery") }}</p>
+        </div>
+      </div>
+      <div v-else class="flex min-h-0 flex-1 items-center justify-center px-4 py-10">
+        <p class="text-xs text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
+      </div>
+    </div>
 </template>
 
 <script setup lang="ts">
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { save } from "@tauri-apps/plugin-dialog";
 import { computed, nextTick, onBeforeUnmount, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
-import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles } from "~/lib/bridge";
+import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, editPackVersion, getPackJava, setPackJava, exportPack as exportPackFn, exportSourceList, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles } from "~/lib/bridge";
 import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit, CursePackFile, CurseProjectDetail } from "~/lib/bridge";
-import type { CatalogEntry, CurseInstallResult, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
+import type { CatalogEntry, CurseInstallResult, ExportSourceItem, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n, getLocaleMeta } from "~/composables/useI18n";
 import { getCachedIcon, setCachedIcon } from "~/lib/iconCache";
@@ -3778,7 +4268,7 @@ import {
 } from "~/lib/changelog";
 import { formatPlaytimeShort as _formatPlaytimeShort } from "~/lib/format";
 import { phaseLabel as _phaseLabel, javaArchLabel as _javaArchLabel, localeLabel as _localeLabel } from "~/lib/labels";
-import { verCmp, cap } from "~/lib/misc";
+import { verCmp, cap, sanitizeSvg } from "~/lib/misc";
 
 /** Этот экземпляр страницы открыт как отдельное окно поиска файлов. */
 function isSearchWindowQuery() {
@@ -3787,8 +4277,16 @@ function isSearchWindowQuery() {
     new URLSearchParams(window.location.search).get("win") === "search"
   );
 }
+/** Этот экземпляр страницы открыт как отдельное окно просмотра ресурса. */
+function isFileDetailWindowQuery() {
+  return (
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("win") === "filedetail"
+  );
+}
 const route = useRoute();
 const isSearchWin = computed(() => route.query.win === "search");
+const isFileDetailWin = computed(() => route.query.win === "filedetail");
 
 const {
   status,
@@ -3812,6 +4310,8 @@ const {
   packId,
   activePack,
   percent,
+  filePercent,
+  filesDone,
   loaderLabel,
   formatBytes,
   formatDate,
@@ -3907,6 +4407,8 @@ const {
   setThemeLevel,
   setPackThemeVars,
   packThemeActive,
+  packLocked,
+  setActivePackLocked,
   toggleTheme,
   handleAddPack,
   handleRemovePack,
@@ -3933,7 +4435,7 @@ const {
   loadPacks,
   loadGameFiles,
   load,
-} = useLauncher({ keepPackId: isSearchWindowQuery() });
+} = useLauncher({ keepPackId: isSearchWindowQuery() || isFileDetailWindowQuery() });
 
 const { t, locale, locales, setLocale } = useI18n();
 
@@ -4648,23 +5150,71 @@ const fileDetail = ref<{ folder: GameFolderKind; entry: GameFileEntry } | null>(
 const fileDetailMrLoading = ref(false);
 const fileDetailMr = ref<ModrinthProject | null>(null);
 const fileDetailMrVersions = ref<ModrinthVersion[] | null>(null);
+const fileDetailMcFilter = ref<string | null>(null);
+const fileDetailTab = ref<"about" | "versions" | "gallery">("about");
+const fileDetailTabs: { kind: "about" | "versions" | "gallery" }[] = [
+  { kind: "about" },
+  { kind: "versions" },
+  { kind: "gallery" },
+];
 const fileDetailMrVersionBusy = ref<string | null>(null);
 const fileDetailCfLoading = ref(false);
 const updatingFileDetail = ref(false);
 const fileDetailCf = ref<CurseProjectDetail | null>(null);
 /** Строка — с какого проекта CurseForge открыт просмотр (для кнопки «обновить»). */
 const fileDetailFolder = ref<GameFolderKind>("mods");
+/** Заголовок окна просмотра ресурса (из имени файла), пока проект не подгружен. */
+const fileDetailTitle = ref("");
+
+/** Закрывает отдельное окно просмотра ресурса. */
+async function closeFileDetailWin() {
+  if (isTauri()) {
+    try {
+      await getCurrentWindow().close();
+    } catch {
+      /* окно уже закрывается */
+    }
+  }
+}
 
 async function openFileDetail(folder: GameFolderKind, entry: GameFileEntry) {
+  let slug = entry.modrinthProjectId || "";
+  const m = /\/mod\/([^/]+)\/?$/.exec(entry.modrinthUrl ?? "");
+  if (!slug && m) slug = m[1];
+  // В Tauri — настоящее отдельное окно просмотра ресурса (как окно скачки мода).
+  if (isTauri() && (slug || entry.curseforgeProjectId)) {
+    if (!packId.value) return;
+    const existing = await WebviewWindow.getByLabel("filedetail");
+    if (existing) {
+      try {
+        await existing.close();
+      } catch {
+        /* окно уже закрывается */
+      }
+    }
+    const devBase = import.meta.env.DEV ? "http://localhost:1420/" : "";
+    try {
+      new WebviewWindow("filedetail", {
+        url: `${devBase}?win=filedetail&slug=${encodeURIComponent(slug)}&cfid=${entry.curseforgeProjectId || ""}&folder=${folder}&packId=${encodeURIComponent(packId.value)}&name=${encodeURIComponent(entry.displayName || entry.name || "")}`,
+        title: entry.displayName || entry.name || t("files.view"),
+        width: 820,
+        height: 660,
+        minWidth: 560,
+        minHeight: 420,
+        resizable: true,
+      });
+    } catch (e) {
+      notify(t("mods.windowErr", { e }), "error");
+    }
+    return;
+  }
   fileDetail.value = { folder, entry };
   fileDetailFolder.value = folder;
   fileDetailMr.value = null;
   fileDetailMrVersions.value = null;
   fileDetailCf.value = null;
-  // Modrinth: slug из трекера или из точной ссылки индекса.
-  let slug = entry.modrinthProjectId || "";
-  const m = /\/mod\/([^/]+)\/?$/.exec(entry.modrinthUrl ?? "");
-  if (!slug && m) slug = m[1];
+  fileDetailMcFilter.value = status.value?.minecraft_version || null;
+  fileDetailTab.value = "about";
   if (slug) {
     fileDetailMrLoading.value = true;
     try {
@@ -4694,6 +5244,45 @@ async function loadFileDetailVersions(slug: string, folder: GameFolderKind) {
   } catch {
     fileDetailMrVersions.value = [];
   }
+}
+
+/** Все версии игры, встречающиеся у файла (для фильтра-чипов). */
+const fileDetailAllMcs = computed(() => {
+  const set = new Set<string>();
+  for (const v of fileDetailMrVersions.value ?? []) {
+    for (const gv of v.gameVersions) set.add(gv);
+  }
+  return [...set].sort(verCmpDesc).slice(0, 20);
+});
+
+/** Версии с применённым фильтром по версии игры (и загрузчику для модов):
+ *  сначала подходящие под выбранную версию сборки, затем остальные. */
+const fileDetailFilteredVersions = computed<ModrinthVersion[]>(() => {
+  const all = fileDetailMrVersions.value ?? [];
+  const mc = fileDetailMcFilter.value;
+  const loader = status.value?.loader?.replace("-loader", "");
+  const isMod = fileDetailFolder.value !== "saves";
+  const matchLoader = isMod && loader ? (v: ModrinthVersion) => v.loaders.includes(loader) : () => true;
+  const match = mc ? all.filter((v) => v.gameVersions.includes(mc) && matchLoader(v)) : all;
+  const rest = mc ? all.filter((v) => !match.includes(v)) : [];
+  return [...match, ...rest];
+});
+
+function setFileDetailMcFilter(mc: string | null) {
+  fileDetailMcFilter.value = mc;
+}
+
+/** Сортировка версий «1.21.1» по убыванию (новые сверху). */
+function verCmpDesc(a: string, b: string): number {
+  const pa = a.split(".").map((x) => parseInt(x, 10) || 0);
+  const pb = b.split(".").map((x) => parseInt(x, 10) || 0);
+  const n = Math.max(pa.length, pb.length);
+  for (let i = 0; i < n; i++) {
+    const da = pa[i] ?? 0;
+    const db = pb[i] ?? 0;
+    if (da !== db) return db - da;
+  }
+  return 0;
 }
 
 /** Кнопка «открыть страницу» внешнего сервиса. */
@@ -5757,6 +6346,269 @@ async function createPack() {
   }
 }
 
+// ---- Смена версии Minecraft / загрузчика / версии загрузчика у своей сборки ----
+const editVerOpen = ref(false);
+const editVerBusy = ref(false);
+const exportBusy = ref(false);
+const exportOpen = ref(false);
+const exportFormat = ref<"mrpack" | "curseforge">("mrpack");
+const exportLoading = ref(false);
+const exportItems = ref<ExportSourceItem[]>([]);
+const exportSelected = ref(new Set<string>());
+const exportExpanded = ref(new Set<string>());
+const exportVersionNum = ref("1.0.0");
+const exportName = ref("");
+const exportAllChecked = computed(() => exportItems.value.length > 0 && exportItems.value.every((it) => exportSelected.value.has(it.path)));
+
+/** Дети узла дерева экспорта (по префиксу пути). */
+function exportChildrenOf(parent: string): ExportSourceItem[] {
+  const pref = parent ? `${parent}/` : "";
+  return exportItems.value
+    .filter((it) => it.path.startsWith(pref) && it.path.slice(pref.length).indexOf("/") === -1)
+    .sort((a, b) => Number(b.isDir) - Number(a.isDir) || a.path.localeCompare(b.path));
+}
+
+/** Все потомки узла (включая сам узел). */
+function exportDescendantsOf(path: string): string[] {
+  const pref = path ? `${path}/` : "";
+  return exportItems.value
+    .filter((it) => it.path === path || it.path.startsWith(pref))
+    .map((it) => it.path);
+}
+
+/** Видимые строки дерева (preorder, с учётом развёрнутых папок). */
+const exportVisibleRows = computed(() => {
+  const rows: { it: ExportSourceItem; depth: number }[] = [];
+  const walk = (parent: string, depth: number) => {
+    for (const it of exportChildrenOf(parent)) {
+      rows.push({ it, depth });
+      if (it.isDir && exportExpanded.value.has(it.path)) walk(it.path, depth + 1);
+    }
+  };
+  walk("", 0);
+  return rows;
+});
+
+/** Множество выбранных потомков узла (для неопределённого состояния чекбокса папки). */
+function exportSelectedCount(path: string): { selected: number; total: number } {
+  const kids = exportChildrenOf(path);
+  if (!kids.length) {
+    return exportSelected.value.has(path) ? { selected: 1, total: 1 } : { selected: 0, total: 1 };
+  }
+  let selected = 0;
+  let total = 0;
+  for (const k of kids) {
+    const [s, t] = k.isDir ? [exportSelectedCount(k.path).selected, exportSelectedCount(k.path).total] : [Number(exportSelected.value.has(k.path)), 1];
+    selected += s;
+    total += t;
+  }
+  return { selected, total };
+}
+const editVerMc = ref("");
+const editVerLoader = ref<LoaderKey>("vanilla");
+const editVerLv = ref("");
+const editVerMcVersions = ref<McVersionInfo[]>([]);
+const editVerLoaderVersions = ref<string[]>([]);
+const editVerMcOpen = ref(false);
+const editVerMcQuery = ref("");
+const editVerMcBox = ref<HTMLElement | null>(null);
+let editVerMcClose: ((e: MouseEvent) => void) | null = null;
+const editVerLvOpen = ref(false);
+const editVerLvBox = ref<HTMLElement | null>(null);
+let editVerLvClose: ((e: MouseEvent) => void) | null = null;
+const editVerJava = ref("");
+const editVerJavaReq = computed(() => {
+  const mc = editVerMc.value;
+  const major = parseInt(mc.split(".")[0] ?? "", 10);
+  const minor = parseInt(mc.split(".")[1] ?? "", 10);
+  const patch = parseInt(mc.split(".")[2] ?? "", 10);
+  if (isNaN(major)) return 21;
+  if (major > 1 || minor >= 21) return 21;
+  if (minor === 20 && patch >= 5) return 21;
+  if (minor >= 17) return 17;
+  return 8;
+});
+
+const editVerMcList = computed(() => {
+  const q = editVerMcQuery.value.trim().toLowerCase();
+  const list = editVerMcVersions.value.filter((v) => !q || v.id.toLowerCase().includes(q));
+  return list;
+});
+
+function openEditVersion() {
+  editVerMc.value = status.value?.minecraft_version || "";
+  editVerLoader.value = (status.value?.loader as LoaderKey) || "vanilla";
+  editVerLv.value = status.value?.loader_version || "";
+  editVerJava.value = "";
+  if (packId.value && isTauri()) {
+    getPackJava(packId.value)
+      .then((j) => (editVerJava.value = j == null ? "" : String(j)))
+      .catch(() => {});
+  }
+  editVerOpen.value = true;
+  if (editVerMcVersions.value.length) return;
+  void minecraftVersions()
+    .then((v) => (editVerMcVersions.value = v))
+    .catch(() => {});
+}
+
+function chooseEditVerMc(id: string) {
+  editVerMc.value = id;
+  editVerMcOpen.value = false;
+  editVerMcQuery.value = "";
+}
+
+function chooseEditVerLoaderVersion(v: string) {
+  editVerLv.value = v;
+  editVerLvOpen.value = false;
+}
+
+/** При смене версии/загрузчика — грузим доступные версии загрузчика. */
+watch([editVerLoader, editVerMc], async ([loader, mc]) => {
+  editVerLv.value = "";
+  editVerLoaderVersions.value = [];
+  if (editVerOpen.value && loader !== "vanilla" && mc.trim()) {
+    try {
+      editVerLoaderVersions.value = await localLoaderVersions(loader, mc.trim());
+    } catch {
+      editVerLoaderVersions.value = [];
+    }
+  }
+});
+
+/** Закрываем выпадашки при клике вне их. */
+watch(editVerMcOpen, (open) => {
+  if (editVerMcClose) {
+    document.removeEventListener("mousedown", editVerMcClose);
+    editVerMcClose = null;
+  }
+  if (open) {
+    editVerMcClose = (e: MouseEvent) => {
+      if (editVerMcBox.value && !editVerMcBox.value.contains(e.target as Node)) {
+        editVerMcOpen.value = false;
+        editVerMcQuery.value = "";
+      }
+    };
+    document.addEventListener("mousedown", editVerMcClose);
+  }
+});
+watch(editVerLvOpen, (open) => {
+  if (editVerLvClose) {
+    document.removeEventListener("mousedown", editVerLvClose);
+    editVerLvClose = null;
+  }
+  if (open) {
+    editVerLvClose = (e: MouseEvent) => {
+      if (editVerLvBox.value && !editVerLvBox.value.contains(e.target as Node)) {
+        editVerLvOpen.value = false;
+      }
+    };
+    document.addEventListener("mousedown", editVerLvClose);
+  }
+});
+
+/** Открывает диалог выбора папок/файлов, версии и имени перед экспортом сборки. */
+async function openExport(format: "mrpack" | "curseforge") {
+  if (exportBusy.value || !packId.value || !isTauri()) return;
+  exportFormat.value = format;
+  exportOpen.value = true;
+  exportName.value = activePack?.value?.name || "pack";
+  exportExpanded.value = new Set();
+  await loadExportList();
+}
+
+async function loadExportList() {
+  if (!packId.value) return;
+  exportLoading.value = true;
+  try {
+    const items = await exportSourceList(packId.value, "");
+    exportItems.value = items;
+    const sel = new Set<string>();
+    for (const it of items) if (it.defaultIncluded) sel.add(it.path);
+    exportSelected.value = sel;
+  } catch (e) {
+    notify(t("pack.exportListErr", { e }));
+  } finally {
+    exportLoading.value = false;
+  }
+}
+
+/** Развернуть/свернуть папку в дереве. */
+function toggleExportExpand(path: string) {
+  const ex = new Set(exportExpanded.value);
+  if (ex.has(path)) ex.delete(path);
+  else ex.add(path);
+  exportExpanded.value = ex;
+}
+
+function toggleExport(path: string) {
+  const it = exportItems.value.find((x) => x.path === path);
+  if (!it) return;
+  const sel = new Set(exportSelected.value);
+  if (it.isDir) {
+    const all = exportDescendantsOf(path);
+    if (all.every((p) => sel.has(p))) for (const p of all) sel.delete(p);
+    else for (const p of all) sel.add(p);
+  } else {
+    if (sel.has(path)) sel.delete(path);
+    else sel.add(path);
+  }
+  exportSelected.value = sel;
+}
+
+function toggleExportAll() {
+  if (exportAllChecked.value) exportSelected.value = new Set();
+  else exportSelected.value = new Set(exportItems.value.map((it) => it.path));
+}
+
+/** Подтверждает выбор, показывает диалог сохранения и запускает экспорт. */
+async function doExport() {
+  if (exportBusy.value || !packId.value || !isTauri()) return;
+  const format = exportFormat.value;
+  const include = [...exportSelected.value];
+  const name = exportName.value.trim() || activePack?.value?.name || "pack";
+  const ext = format === "mrpack" ? "mrpack" : "zip";
+  const dest = await save({
+    defaultPath: `${name}.${ext}`,
+    filters: format === "mrpack"
+      ? [{ name: "MRPack", extensions: ["mrpack"] }]
+      : [{ name: "ZIP", extensions: ["zip"] }],
+  });
+  if (!dest) return;
+  exportBusy.value = true;
+  try {
+    await exportPackFn(packId.value, "", format, dest, include, name, exportVersionNum.value.trim() || "1.0.0");
+    notify(t("pack.exportDone"), "success");
+    exportOpen.value = false;
+  } catch (e) {
+    notify(t("pack.exportErr", { e }));
+  } finally {
+    exportBusy.value = false;
+  }
+}
+
+async function saveEditVersion() {
+  if (editVerBusy.value || !packId.value) return;
+  const mc = editVerMc.value.trim();
+  if (!mc) {
+    notify(t("mods.createVersionReq"), "info");
+    return;
+  }
+  editVerBusy.value = true;
+  try {
+    await editPackVersion(packId.value, mc, editVerLoader.value, editVerLv.value);
+    await setPackJava(packId.value, editVerJava.value ? parseInt(editVerJava.value, 10) : null);
+    await load();
+    refreshModUpdates(true);
+    notify(t("pack.versionSaved"), "success");
+    editVerOpen.value = false;
+  } catch (e) {
+    notify(t("pack.versionSaveErr", { e }));
+  } finally {
+    editVerBusy.value = false;
+  }
+}
+
 /** При открытии модалки создания — грузим список версий Minecraft и сбрасываем выбор файлов. */
 watch(createPackOpen, async (open) => {
   if (!open) return;
@@ -5869,6 +6721,15 @@ watch(playSubTab, (tab) => {
   if (tab === "mods" || tab === "resourcepacks" || tab === "shaderpacks") refreshModUpdates();
 });
 
+// При загрузке сборки / после установки — сразу проверяем обновления,
+// иначе кнопка «обновить» и фильтр «есть обновления» не появляются до смены сабтаба.
+watch(
+  () => [packId.value, status.value?.installed] as const,
+  ([id, inst]) => {
+    if (id && inst) refreshModUpdates();
+  }
+);
+
 // Если вкладка релизов скрыта (не авторская сборка), уводим с неё.
 watch(
   () => activePack.value?.kind,
@@ -5897,18 +6758,39 @@ watch(playSubTab, () => {
   if (playSubTab.value === "screenshots" && activePack.value) {
     loadPackScreenshots(activePack.value.id);
   }
-  if (playSubTab.value === "servers" && activePack.value) {
-    loadMyServers(activePack.value.id);
-    pingActiveServers();
-    stopServerPingTimer();
-    serverPingTimer = setInterval(pingActiveServers, 45000);
-  } else {
-    stopServerPingTimer();
-  }
 });
+
+// Таймер пинга серверов живёт только пока экран «Серверы» реально активен
+// (вкладка play + серверный сабтаб + выбранная сборка). Иначе — гасим, чтобы
+// не пинговать в фоне при переключении сборок/вкладок.
+let serverPingTimer: ReturnType<typeof setInterval> | null = null;
+watch(
+  () => [tab.value, playSubTab.value, packId.value],
+  () => {
+    if (tab.value === "play" && playSubTab.value === "servers" && activePack.value) {
+      loadMyServers(activePack.value.id);
+      pingActiveServers();
+      stopServerPingTimer();
+      serverPingTimer = setInterval(pingActiveServers, 45000);
+    } else {
+      stopServerPingTimer();
+    }
+  },
+  { immediate: true }
+);
 
 function gameFileIcon(folder: string, name: string): string {
   return fileIcons.value[`${folder}/${name}`] ?? "";
+}
+
+const unbindArmed = ref(false);
+async function confirmUnbindPack() {
+  if (!unbindArmed.value) {
+    unbindArmed.value = true;
+    return;
+  }
+  unbindArmed.value = false;
+  await setActivePackLocked(false);
 }
 
 function onJavaChange(e: Event) {
@@ -6220,7 +7102,6 @@ async function copySkinApi() {
 /** Статусы серверов активной сборки: key "host:port" → результат пинга. */
 const serverStatuses = ref<Record<string, ServerStatus>>({});
 const serverPinging = ref<Record<string, boolean>>({});
-let serverPingTimer: ReturnType<typeof setInterval> | null = null;
 
 function serverKey(srv: PackServer): string {
   return `${srv.ip}:${srv.port ?? 25565}`;
@@ -6389,5 +7270,56 @@ if (isSearchWin.value) {
       );
     await runInitialSearch();
   })();
+}
+
+// ---- Отдельное окно просмотра ресурса (win=filedetail) ----
+if (isFileDetailWin.value) {
+  const q = route.query;
+  const folder = (q.folder === "saves" ? "saves" : (q.folder as GameFolderKind) || "mods") as GameFolderKind;
+  fileDetailTitle.value = typeof q.name === "string" ? q.name : "";
+  const slug = typeof q.slug === "string" ? q.slug : "";
+  const cfid = typeof q.cfid === "string" && q.cfid ? q.cfid : "";
+  fileDetailFolder.value = folder;
+  fileDetailMcFilter.value = status.value?.minecraft_version || null;
+  fileDetailTab.value = "about";
+  if (slug) {
+    fileDetail.value = {
+      folder,
+      entry: { name: "", displayName: fileDetailTitle.value, kind: "file", enabled: true, sizeBytes: 0, modified: 0, modrinthProjectId: slug },
+    };
+    void (async () => {
+      await load();
+      if (typeof q.packId === "string" && q.packId) packId.value = q.packId;
+      fileDetailMcFilter.value = status.value?.minecraft_version || null;
+      fileDetailMrLoading.value = true;
+      try {
+        fileDetailMr.value = await modrinthProject(slug);
+        const fl = folder === "saves" ? "mods" : folder;
+        await loadFileDetailVersions(slug, fl);
+      } catch {
+        fileDetailMr.value = null;
+      } finally {
+        fileDetailMrLoading.value = false;
+      }
+    })();
+  } else if (cfid) {
+    const cfIdNum = Number(cfid) || 0;
+    fileDetail.value = {
+      folder,
+      entry: { name: "", displayName: fileDetailTitle.value, kind: "file", enabled: true, sizeBytes: 0, modified: 0, curseforgeProjectId: cfIdNum },
+    };
+    void (async () => {
+      await load();
+      if (typeof q.packId === "string" && q.packId) packId.value = q.packId;
+      fileDetailCfLoading.value = true;
+      try {
+        fileDetailCf.value = await curseforgeProjectDetail(cfIdNum);
+      } catch {
+        fileDetailCf.value = null;
+      } finally {
+        fileDetailCfLoading.value = false;
+      }
+    })();
+  }
 }
 </script>

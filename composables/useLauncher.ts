@@ -59,6 +59,8 @@ import {
   removeAccount,
   elyDeviceCode,
   elyPoll,
+  packLocked as packLockedCmd,
+  setPackLocked as setPackLockedCmd,
 } from "~/lib/bridge";
 import type {
   AppStatus,
@@ -148,6 +150,8 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const busy = ref(false);
   const gameRunning = ref(false);
   const progress = ref<ProgressState | null>(null);
+  /** Сколько файлов сборки уже обработано (монотонно — только растёт). */
+  const filesDone = ref(0);
   const updateInfo = ref<UpdateInfo | null>(null);
   const versions = ref<VersionsInfo | null>(null);
   const logEntries = ref<LaunchLogEntry[]>([]);
@@ -355,13 +359,39 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     }
   }
 
+  /** Снимает кроссфейд темы (`pack-theme-fade`), чтобы смена ползунком была
+      мгновенной и равномерной: иначе цвета анимируются 0.6s, а градиенты/тени
+      (не участвуют в transition) переключаются сразу — элементы «догоняют» раздельно. */
+  function killThemeFade() {
+    if (typeof document !== "undefined") {
+      document.documentElement.classList.remove("pack-theme-fade");
+    }
+  }
+
+  let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Пока ползунок тянут — глушим ВСЕ transition (`no-theme-transition` на html):
+      иначе элементы с собственными `transition-colors/all` анимируют цвет за свою
+      длительность и «запаздывают» относительно остальных. Через ~150мс после
+      остановки транзишены возвращаются. */
+  function suppressTransitions() {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    root.classList.add("no-theme-transition");
+    if (themeDragTimer) clearTimeout(themeDragTimer);
+    themeDragTimer = setTimeout(() => root.classList.remove("no-theme-transition"), 150);
+  }
+
   function toggleTheme() {
     if (packThemeActive.value) return;
+    killThemeFade();
+    suppressTransitions();
     applyThemeLevel(themeLevel.value < 0.5 ? 1 : 0);
   }
 
   function setThemeLevel(level: number) {
     if (packThemeActive.value) return;
+    killThemeFade();
+    suppressTransitions();
     applyThemeLevel(level);
   }
 
@@ -406,6 +436,23 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const skinModel = ref<"classic" | "slim">("classic");
   const skinBusy = ref(false);
   const skinApi = ref("");
+  /** Заблокирована ли правка файлов активной сборки (managed-сборка). */
+  const packLocked = ref(false);
+
+  async function loadPackLocked(id: string) {
+    packLocked.value = !!id && (await packLockedCmd(id).catch(() => false));
+  }
+
+  /** Отвязывает/возвращает блокировку сборки; возвращает новое состояние. */
+  async function setActivePackLocked(locked: boolean): Promise<boolean> {
+    if (!packId.value) return packLocked.value;
+    try {
+      packLocked.value = await setPackLockedCmd(packId.value, locked);
+    } catch (e) {
+      notify(t("err.packLock", { e }));
+    }
+    return packLocked.value;
+  }
   const licenseInfo = ref<LicenseInfo | null>(null);
   const licenseKeyInput = ref("");
   const licenseBusy = ref(false);
@@ -1386,9 +1433,13 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
       const deltaBytes = p.current - lastBytes.value;
       const deltaMs = now - lastBytes.at;
       if (deltaMs > 0 && deltaBytes > 0) {
-        speed = (deltaBytes / deltaMs) * 1000;
+        const inst = (deltaBytes / deltaMs) * 1000;
+        speed = speed > 0 ? speed * 0.7 + inst * 0.3 : inst;
       }
       lastBytes = { value: p.current, at: now };
+      if (p.file_total > 1 && p.file_index >= 0) {
+        filesDone.value = Math.max(filesDone.value, p.file_index);
+      }
       progress.value = {
         phase: p.phase,
         current: p.current,
@@ -1484,11 +1535,22 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
 
   watch(
     packId,
-    () => {
+    (id) => {
       gameFiles.value = {};
       fileIcons.value = {};
       selectedFiles.value = {};
       fileSearch.value = "";
+      loadPackLocked(id);
+      // Кэш сброшен — сразу перечитаем файлы активной папки новой сборки,
+      // иначе экран «Моды/Миры/...» останется пустым до переключения сабтаба.
+      if (
+        playSubTab.value === "mods" ||
+        playSubTab.value === "resourcepacks" ||
+        playSubTab.value === "shaderpacks" ||
+        playSubTab.value === "saves"
+      ) {
+        loadGameFiles(playSubTab.value);
+      }
     },
     { flush: "post" }
   );
@@ -1536,6 +1598,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   async function handleInstall(tag?: string) {
     if (!isTauri() || !packId.value) return;
     busy.value = true;
+    filesDone.value = 0;
     progress.value = { phase: "Подготовка...", current: 0, total: 0, speed: 0, fileIndex: 0, fileTotal: 0, currentFile: "" };
     try {
       await installMrpack(packId.value, tag);
@@ -1684,6 +1747,7 @@ notify(t("err.switch", { e }));
   /** Запуск игры, опционально с авто-коннектом на сервер ("host" или "host:port"). */
   async function runGame(server: string | null) {
     if (!isTauri() || !packId.value) return;
+    if (busy.value) return;
     if (!session.value) {
       notify(t("err.loginFirst"), "info");
       return;
@@ -1758,10 +1822,22 @@ notify(t("err.switch", { e }));
 
   const percent = computed(() => {
     if (!progress.value) return 0;
+    // Фаза «Установка модов»: прогресс по числу обработанных файлов (монотонно).
+    if (progress.value.fileTotal > 1) {
+      const fs = progress.value.fileTotal;
+      return Math.min(100, Math.round((filesDone.value / fs) * 100));
+    }
     if (progress.value.total > 0) {
       return Math.min(100, Math.round((progress.value.current / progress.value.total) * 100));
     }
-    return 100;
+    return 0;
+  });
+
+  /** Прогресс текущего файла в байтах (для тонкой полоски). */
+  const filePercent = computed(() => {
+    const pr = progress.value;
+    if (!pr || pr.total <= 0 || pr.current <= 0) return 0;
+    return Math.min(100, Math.round((pr.current / pr.total) * 100));
   });
 
   const loaderLabel = computed(() => {
@@ -1791,6 +1867,8 @@ notify(t("err.switch", { e }));
     tab,
     themeLevel,
     setThemeLevel,
+    packLocked,
+    setActivePackLocked,
     setPackThemeVars,
     packThemeActive,
     toggleTheme,
@@ -1798,6 +1876,8 @@ notify(t("err.switch", { e }));
     packId,
     activePack,
     percent,
+    filePercent,
+    filesDone,
     loaderLabel,
     formatBytes,
     formatDate,

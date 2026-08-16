@@ -222,9 +222,19 @@ pub async fn check_subscription(
     if !found {
         return Ok(None);
     }
-    // Свежая дата окончания из API или через GRACE после "now", чтобы не
-    // блокировать при некорректных данных токенов.
-    Ok(Some(expires.unwrap_or(now + GRACE.as_secs())))
+    // Не фабрикуем срок: если у подписки нет реальной даты окончания,
+    // считаем её неподтверждённой (вернём None), а не выдаём свежую льготу.
+    Ok(expires)
+}
+
+/// Время, до которого можно доверять кэшированному статусу: не дальше реального
+/// окончания подписки и не более GRACE сверх "сейчас". Если реального срока нет —
+/// не кэшируем (возвращаем "сейчас", чтобы гейт каждый раз перепроверял).
+fn cached_after(expires_at: Option<u64>, now: u64) -> u64 {
+    match expires_at {
+        Some(e) => e.min(now.saturating_add(GRACE.as_secs())),
+        None => now,
+    }
 }
 
 fn boosty_err(e: &reqwest::Error, hint: &str) -> anyhow::Error {
@@ -245,7 +255,7 @@ pub async fn set_license(
     let blog = pack_blog(pack_id)?
         .ok_or_else(|| anyhow!("Сборка {pack_id} не требует лицензию (нет boostyBlog)"))?;
     let expires_at = check_subscription(client, &blog, token).await?;
-    let cached_until = now_unix().saturating_add(GRACE.as_secs());
+    let cached_until = cached_after(expires_at, now_unix());
     let mut store = load_store();
     store.packs.insert(
         pack_id.to_string(),
@@ -272,7 +282,9 @@ pub async fn license_status(client: &reqwest::Client, pack_id: &str) -> Result<L
     let now = now_unix();
     let store = load_store();
     if let Some(s) = store.packs.get(pack_id) {
-        if s.cached_until > now {
+        // Доверяем кэшу, только если льгота ещё действует И субправда
+        // (реальный срок окончания ещё впереди).
+        if s.cached_until > now && s.expires_at.is_some_and(|e| now < e) {
             return Ok(LicenseInfo {
                 blog: s.blog.clone(),
                 subscribed: s.expires_at.is_some(),
@@ -282,7 +294,7 @@ pub async fn license_status(client: &reqwest::Client, pack_id: &str) -> Result<L
         }
         // Льгота вышла — обновляем по сети.
         let expires_at = check_subscription(client, &blog, &s.token).await?;
-        let cached_until = now.saturating_add(GRACE.as_secs());
+        let cached_until = cached_after(expires_at, now);
         let mut store = load_store();
         if let Some(st) = store.packs.get_mut(pack_id) {
             st.expires_at = expires_at;
@@ -315,17 +327,10 @@ pub async fn ensure_license(client: &reqwest::Client, pack_id: &str) -> Result<(
     let store = load_store();
     let stored = store.packs.get(pack_id).cloned();
     match stored {
-        Some(s) if s.cached_until > now => {
-            if s.expires_at.is_none() {
-                return Err(anyhow!(
-                    "Подписка на «{blog}» не активна — оформите её на Boosty"
-                ));
-            }
-            Ok(())
-        }
+        Some(s) if s.cached_until > now && s.expires_at.is_some_and(|e| now < e) => Ok(()),
         Some(s) => {
             let expires_at = check_subscription(client, &blog, &s.token).await?;
-            if expires_at.is_none() {
+            if expires_at.is_none() || expires_at.is_some_and(|e| now >= e) {
                 // Подписки больше нет (или закончилась) — снимаем льготу.
                 let mut st = load_store();
                 if let Some(x) = st.packs.get_mut(pack_id) {
@@ -340,7 +345,7 @@ pub async fn ensure_license(client: &reqwest::Client, pack_id: &str) -> Result<(
             let mut st = load_store();
             if let Some(x) = st.packs.get_mut(pack_id) {
                 x.expires_at = expires_at;
-                x.cached_until = now.saturating_add(GRACE.as_secs());
+                x.cached_until = cached_after(expires_at, now);
             }
             save_store(&st)?;
             Ok(())

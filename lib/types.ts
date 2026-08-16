@@ -94,6 +94,14 @@ export interface TrackedMod {
   loader: string;
 }
 
+/** Элемент верхнего уровня папки игры, который можно выбрать при экспорте. */
+export interface ExportSourceItem {
+  path: string;
+  isDir: boolean;
+  size: number;
+  defaultIncluded: boolean;
+}
+
 /** Доступное обновление установленного из Modrinth файла. */
 export interface ModUpdate {
   fileName: string;
@@ -143,6 +151,7 @@ export interface AppStatus {
   installed: boolean;
   minecraft_version: string | null;
   loader: string | null;
+  loader_version: string | null;
   pack_name: string | null;
   session: UserSession | null;
   mrpack_url: string;

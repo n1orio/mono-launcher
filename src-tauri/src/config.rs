@@ -109,8 +109,21 @@ pub fn user_packs() -> Result<Vec<UserPack>> {
         return Ok(Vec::new());
     }
     let raw = std::fs::read_to_string(&file)?;
-    let list = serde_json::from_str(&raw).unwrap_or_default();
-    Ok(list)
+    match serde_json::from_str(&raw) {
+        Ok(list) => Ok(list),
+        Err(_) => {
+            // Битый файл не выбрасываем молча: бэкапим, чтобы данные можно было
+            // восстановить, а пользователю возвращаем пустой список.
+            if let Some(parent) = file.parent() {
+                let ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                let _ = std::fs::rename(&file, parent.join(format!("packs.corrupt-{ts}.json")));
+            }
+            Ok(Vec::new())
+        }
+    }
 }
 
 fn save_user_packs(list: &[UserPack]) -> Result<()> {
@@ -118,7 +131,11 @@ fn save_user_packs(list: &[UserPack]) -> Result<()> {
     if let Some(parent) = file.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(&file, serde_json::to_string_pretty(list)?)?;
+    // Атомарно: пишем во временный файл и переименовываем, чтобы сбой на середине
+    // не оставил битый packs.json (и не потерял список сборок).
+    let tmp = file.with_extension("json.tmp");
+    std::fs::write(&tmp, serde_json::to_string_pretty(list)?)?;
+    std::fs::rename(&tmp, &file)?;
     Ok(())
 }
 
@@ -235,6 +252,32 @@ pub fn pack_dir(pack_id: &str) -> Result<PathBuf> {
     Ok(launcher_root()?.join("packs").join(pack_id))
 }
 
+/// Файл-флаг «сборка заблокирована» (наличие = правки отключены).
+/// Пока сборка заблокирована, лаунчер запрещает менять её файлы; разблокировка
+/// (отвязка) отдаёт владение пользователю.
+fn pack_lock_file(pack_id: &str) -> Result<PathBuf> {
+    Ok(pack_dir(pack_id)?.join(".mono-lock"))
+}
+
+/// Заблокирована ли сборка (правки файлов отключены).
+pub fn pack_locked(pack_id: &str) -> bool {
+    pack_lock_file(pack_id).map(|p| p.exists()).unwrap_or(false)
+}
+
+/// Включает/снимает блокировку правок сборки.
+pub fn set_pack_locked(pack_id: &str, locked: bool) -> Result<()> {
+    let path = pack_lock_file(pack_id)?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    if locked {
+        std::fs::write(&path, b"locked")?;
+    } else {
+        let _ = std::fs::remove_file(&path);
+    }
+    Ok(())
+}
+
 /// Путь к иконке сборки (`packs/<id>/icon.png`) — локальный файл,
 /// подставляется в `PackInfo::icon`, если существует.
 pub fn pack_icon_path(pack_id: &str) -> Option<String> {
@@ -343,6 +386,36 @@ pub fn set_java_selection(path: Option<&str>) -> Result<()> {
     match path {
         Some(p) if !p.trim().is_empty() => std::fs::write(&file, p.trim())?,
         _ => {
+            if file.exists() {
+                std::fs::remove_file(&file)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Файл с версией Java для конкретной сборки (мажорный номер, или пусто = авто).
+fn pack_java_file(pack_id: &str) -> Result<PathBuf> {
+    Ok(pack_dir(pack_id)?.join("java.txt"))
+}
+
+/// Заданная для сборки версия Java (мажорный номер), если пользователь её указал.
+pub fn pack_java(pack_id: &str) -> Option<u32> {
+    pack_java_file(pack_id)
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| s.trim().parse().ok())
+}
+
+/// Сохраняет версию Java для сборки (None — авто по версии Minecraft).
+pub fn set_pack_java(pack_id: &str, major: Option<u32>) -> Result<()> {
+    let file = pack_java_file(pack_id)?;
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    match major {
+        Some(m) => std::fs::write(&file, m.to_string())?,
+        None => {
             if file.exists() {
                 std::fs::remove_file(&file)?;
             }
