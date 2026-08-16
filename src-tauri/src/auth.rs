@@ -44,10 +44,10 @@ struct MsCodeResp {
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 struct MsTokenResp {
-    access_token: String,
+    access_token: Option<String>,
     refresh_token: Option<String>,
-    token_type: String,
-    expires_in: u64,
+    token_type: Option<String>,
+    expires_in: Option<u64>,
     error: Option<String>,
     error_description: Option<String>,
 }
@@ -112,7 +112,7 @@ struct MsUserResp {
     uuid: String,
 }
 
-const AZURE_CLIENT_ID: &str = "CHANGE_ME";
+const AZURE_CLIENT_ID: &str = "39e3cb28-4aa8-4f9a-a2ac-a5bed7724be5";
 
 /// Client id можно задать без пересборки:
 /// 1) файл `<данные лаунчера>/azure-client-id` (одной строкой),
@@ -157,7 +157,7 @@ fn require_client_id() -> Result<String> {
 pub async fn ms_device_code(client: &reqwest::Client) -> Result<DeviceCodeInfo> {
     let client_id = require_client_id()?;
 
-    let code_resp: MsCodeResp = client
+    let code_resp = client
         .post("https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode")
         .form(&[
             ("client_id", client_id.as_str()),
@@ -165,11 +165,13 @@ pub async fn ms_device_code(client: &reqwest::Client) -> Result<DeviceCodeInfo> 
         ])
         .send()
         .await
-        .context("Не удалось связаться с Microsoft")?
-        .error_for_status()
-        .context("Microsoft не выдал device code")?
-        .json()
-        .await?;
+        .context("Не удалось связаться с Microsoft")?;
+    if !code_resp.status().is_success() {
+        let status = code_resp.status();
+        let body = code_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("Microsoft не выдал device code ({status}): {body}"));
+    }
+    let code_resp: MsCodeResp = code_resp.json().await.context("Некорректный ответ Microsoft")?;
 
     Ok(DeviceCodeInfo {
         qr_svg: qr_svg(&code_resp.verification_uri),
@@ -195,7 +197,7 @@ pub async fn ms_poll(
     let mut poll_interval = interval.max(5);
     let mut elapsed: u64 = 0;
     while elapsed < expires_in {
-        let resp: MsTokenResp = client
+        let resp_body = client
             .post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token")
             .form(&[
                 ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
@@ -203,9 +205,11 @@ pub async fn ms_poll(
                 ("device_code", device_code),
             ])
             .send()
-            .await?
-            .json()
             .await?;
+        let status = resp_body.status();
+        let text = resp_body.text().await.unwrap_or_default();
+        let resp: MsTokenResp = serde_json::from_str(&text)
+            .with_context(|| format!("Microsoft вернул не-JSON токен ({status}): {text}"))?;
 
         if let Some(err) = resp.error {
             match err.as_str() {
@@ -222,7 +226,7 @@ pub async fn ms_poll(
             continue;
         }
 
-        ms_token = Some(resp.access_token);
+        ms_token = resp.access_token;
         break;
     }
     let ms_token = ms_token.ok_or_else(|| anyhow!("Таймаут авторизации Microsoft"))?;
@@ -411,7 +415,7 @@ pub async fn ely_poll(
     let mut poll_interval = interval.max(5);
     let mut elapsed: u64 = 0;
     while elapsed < expires_in {
-        let resp: MsTokenResp = client
+        let resp_body = client
             .post(ELY_TOKEN_URL)
             .form(&[
                 ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
@@ -419,9 +423,11 @@ pub async fn ely_poll(
                 ("device_code", device_code),
             ])
             .send()
-            .await?
-            .json()
             .await?;
+        let status = resp_body.status();
+        let text = resp_body.text().await.unwrap_or_default();
+        let resp: MsTokenResp = serde_json::from_str(&text)
+            .with_context(|| format!("Ely.by вернул не-JSON токен ({status}): {text}"))?;
         if let Some(err) = resp.error {
             match err.as_str() {
                 "authorization_pending" => (),
@@ -436,7 +442,7 @@ pub async fn ely_poll(
             elapsed += poll_interval;
             continue;
         }
-        access_token = Some(resp.access_token);
+        access_token = resp.access_token;
         break;
     }
     let access_token = access_token.ok_or_else(|| anyhow!("Таймаут авторизации Ely.by"))?;
