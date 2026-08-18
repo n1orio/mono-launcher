@@ -1,4 +1,4 @@
-# Maintainer: NIO <you@example.com>
+# Maintainer: NIO <nior1o@icloud.com>
 # Замечание: пакет переупаковывает официальный сборщик-артефакт (.deb) из
 # GitHub Releases. CachyOS обычно предпочитает сборку из исходников — при
 # ревью, вероятно, попросят вариант с build() из source (node+npm+rust+webkit).
@@ -11,9 +11,7 @@ url="https://github.com/n1orio/mono-launcher"
 license=('MIT')
 depends=('webkit2gtk-4.1' 'gtk3' 'librsvg')
 source=("https://github.com/n1orio/mono-launcher/releases/download/launcher-v${pkgver}/Mono.Launcher_${pkgver}_amd64.deb")
-# Обновите на реальный sha256 после публикации релиза:
-#   curl -LsO <url>; sha256sum Mono.Launcher_${pkgver}_amd64.deb
-sha256sums=('SKIP')
+sha256sums=('0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5')
 
 package() {
   # .deb содержит control.tar.gz и data.tar.gz (usr/bin, иконки, .desktop)
