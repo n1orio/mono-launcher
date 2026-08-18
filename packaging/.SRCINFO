@@ -1,0 +1,13 @@
+pkgbase = mono-launcher
+	pkgdesc = Desktop Minecraft modpack launcher (mrpack)
+	pkgrel = 1
+	url = https://github.com/n1orio/mono-launcher
+	arch = x86_64
+	license = MIT
+	depends = webkit2gtk-4.1
+	depends = gtk3
+	depends = librsvg
+	source = https://github.com/n1orio/mono-launcher/releases/download/launcher-v1.3.1/Mono.Launcher_1.3.1_amd64.deb
+	sha256sums = SKIP
+
+pkgname = mono-launcher

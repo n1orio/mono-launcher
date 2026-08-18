@@ -1,14 +1,7 @@
-# Mono Launcher — Desktop Minecraft modpack launcher
-# Пакет для Arch/CachyOS: переупаковывает официальный .deb из GitHub Releases.
-#
-# Для сабмита в официальный репозиторий CachyOS:
-#   1) скопируйте этот файл в форк https://git.cachyos.org/CachyOS/cachyos-pkgbuilds
-#      (или GitHub CachyOS/cachyos-pkgbuilds) в папку вида `packages/desktop/mono-launcher/`
-#   2) обновите pkgver и sha256sums под новый релиз
-#   3) откройте Merge Request в ветку packages
-#   4) при желании позже замените на сборку из исходников (node+rust+webkit).
-
-# Maintainer: NIO <you@example.com>   # замените на свои контакты
+# Maintainer: NIO <you@example.com>
+# Замечание: пакет переупаковывает официальный сборщик-артефакт (.deb) из
+# GitHub Releases. CachyOS обычно предпочитает сборку из исходников — при
+# ревью, вероятно, попросят вариант с build() из source (node+npm+rust+webkit).
 pkgname=mono-launcher
 pkgver=1.3.1
 pkgrel=1
@@ -18,12 +11,12 @@ url="https://github.com/n1orio/mono-launcher"
 license=('MIT')
 depends=('webkit2gtk-4.1' 'gtk3' 'librsvg')
 source=("https://github.com/n1orio/mono-launcher/releases/download/launcher-v${pkgver}/Mono.Launcher_${pkgver}_amd64.deb")
-# После первого успешного релиза замените SKIP на реальный hash: sha256sum <file.deb>
+# Обновите на реальный sha256 после публикации релиза:
+#   curl -LsO <url>; sha256sum Mono.Launcher_${pkgver}_amd64.deb
 sha256sums=('SKIP')
 
 package() {
-  # Распаковываем .deb: внутри лежат control.tar.gz и data.tar.gz
+  # .deb содержит control.tar.gz и data.tar.gz (usr/bin, иконки, .desktop)
   bsdtar -xf "${srcdir}/Mono.Launcher_${pkgver}_amd64.deb" -C "${srcdir}"
-  # data.tar.gz содержит ./usr/... (бинарник, иконки, .desktop) — раскладываем в pkgdir
   bsdtar -xf "${srcdir}/data.tar.gz" -C "${pkgdir}"
 }
