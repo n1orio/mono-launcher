@@ -394,8 +394,8 @@ export function setLocale(locale: string): Promise<void> {
   return invoke("set_locale_command", { locale });
 }
 
-export function getNews(): Promise<NewsItem[]> {
-  return invoke("get_news_command");
+export function getNews(locale: string): Promise<NewsItem[]> {
+  return invoke("get_news_command", { locale });
 }
 
 /** Стриминг новостей: батч по мере подгрузки источников (свежие сверху). */

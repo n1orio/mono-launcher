@@ -668,7 +668,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
       }).then((fn) => (unlistenNewsChunk = fn));
     }
     try {
-      news.value = await getNews();
+      news.value = await getNews(locale.value);
     } catch (e) {
       if (news.value === null) notify(t("err.newsLoad", { e }));
       news.value ??= [];

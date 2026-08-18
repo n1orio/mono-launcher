@@ -4,6 +4,7 @@
 // В папке должны лежать бандлы релиза и их .sig-файлы (gh release download).
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const dir = process.argv[2];
 const out = process.argv[3] ?? "latest.json";
@@ -15,6 +16,38 @@ if (!dir || !tag) {
 }
 
 const version = tag.replace(/^launcher-v/, "");
+
+/** Секция `## [<ver>]` из markdown-файла ченджлога (как в release-notes.mjs). */
+function sectionFromMarkdown(md, ver) {
+  const header = `## [${ver}]`;
+  const i = md.indexOf(header);
+  if (i === -1) return null;
+  const headerEnd = md.indexOf("\n", i);
+  const rest = headerEnd === -1 ? "" : md.slice(headerEnd + 1);
+  const nextIdx = rest.indexOf("\n## [");
+  const body = (nextIdx === -1 ? rest : rest.slice(0, nextIdx)).trim();
+  return body || null;
+}
+
+// Локализованные ноты новостей: `notes_localized[locale]`. Источник — файлы
+// CHANGELOG.<locale>.md в репозитории (en = основной CHANGELOG.md). Если файла
+// или секции для версии нет — язык просто не попадёт в манифест, и лаунчер
+// использует английский фолбэк.
+const LOCALES = ["en", "ru", "uk", "de", "be"];
+const rootDir = fileURLToPath(new URL("../", import.meta.url));
+const notesLocalized = {};
+for (const loc of LOCALES) {
+  const file = loc === "en" ? "CHANGELOG.md" : `CHANGELOG.${loc}.md`;
+  let md = "";
+  try {
+    md = readFileSync(join(rootDir, file), "utf8");
+  } catch {
+    continue; // файла нет — пропускаем локализацию
+  }
+  const sec = sectionFromMarkdown(md, version);
+  if (sec) notesLocalized[loc] = sec;
+}
+
 const files = readdirSync(dir);
 
 // target key -> regex имени бандла
@@ -56,6 +89,7 @@ if (Object.keys(platforms).length === 0) {
 const latest = {
   version,
   notes: process.env.BODY ?? "",
+  notes_localized: notesLocalized,
   pub_date: new Date().toISOString(),
   platforms,
 };

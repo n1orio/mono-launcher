@@ -459,6 +459,11 @@ async fn fetch_launcher_releases_cached(client: &reqwest::Client) -> Vec<GhVersi
 /// Посты также считываются из репозиториев каждой сборки.
 const NEWS_REPO: (&str, &str) = ("n1orio", "mono-launcher");
 
+/// Манифест обновления лаунчера (latest.json). Используется, помимо апдейтера,
+/// как источник локализованных нот новостей (`notes_localized[locale]`).
+const LAUNCHER_MANIFEST_URL: &str =
+    "https://github.com/n1orio/mono-launcher/releases/latest/download/latest.json";
+
 /// Посты (обсуждения) из репозитория. Discussions должны быть включены,
 /// иначе репозиторий просто не даёт постов — не ошибка.
 async fn fetch_discussions(
@@ -2478,17 +2483,52 @@ fn get_game_file_icons_command(
 async fn get_news_command(
     app: AppHandle,
     state: State<'_, AppState>,
+    locale: String,
 ) -> Result<Vec<NewsItem>, String> {
+    // Локализованные ноты берём из latest.json (манифест обновления): ключ
+    // `notes_localized[locale]`, фолбэк — английский, затем тело релиза.
+    let mut notes_localized: HashMap<String, String> = HashMap::new();
+    let mut latest_launcher_ver: Option<String> = None;
+    if let Some(m) = http_cache::cached_json(&state.client, LAUNCHER_MANIFEST_URL).await {
+        latest_launcher_ver = m
+            .get("version")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        if let Some(map) = m.get("notes_localized").and_then(|x| x.as_object()) {
+            for (k, v) in map {
+                if let Some(s) = v.as_str() {
+                    if !s.is_empty() {
+                        notes_localized.insert(k.clone(), s.to_string());
+                    }
+                }
+            }
+        }
+    }
+
     let mut items: Vec<NewsItem> = Vec::new();
     // Обновления лаунчера (релизы из GitHub Releases) — грузим первыми,
     // обычно это самые свежие новости.
     for rel in fetch_launcher_releases_cached(&state.client).await {
+        // Локализуем только самый свежий релиз (у остальных нот в манифесте нет).
+        let is_latest = latest_launcher_ver
+            .as_deref()
+            .map(|v| rel.tag == format!("launcher-v{v}"))
+            .unwrap_or(false);
+        let body = if is_latest {
+            notes_localized
+                .get(&locale)
+                .or_else(|| notes_localized.get("en"))
+                .cloned()
+                .unwrap_or_else(|| rel.body.clone())
+        } else {
+            rel.body.clone()
+        };
         items.push(NewsItem {
             kind: "update".into(),
             pack_id: "launcher".into(),
             pack_name: "Mono Launcher".into(),
             title: rel.name,
-            body: rel.body,
+            body,
             url: rel.url,
             tag: Some(rel.tag),
             category: None,
