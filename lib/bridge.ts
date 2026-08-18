@@ -29,6 +29,7 @@ import type {
   SavedServer,
   SavedServersList,
   ScreenshotList,
+  DuplicatesResult,
   ServerStatus,
   SkinInfo,
   SystemInfo,
@@ -202,6 +203,10 @@ export function pingServer(address: string, port: number | null = null): Promise
 
 export function listScreenshots(packId: string | null = null): Promise<ScreenshotList> {
   return invoke("list_screenshots_command", { packId });
+}
+
+export function analyzeDuplicates(packId: string | null = null): Promise<DuplicatesResult> {
+  return invoke("analyze_duplicates_command", { packId });
 }
 
 export function listSavedServers(packId: string | null = null): Promise<SavedServersList> {

@@ -417,7 +417,32 @@ export interface SavedServer {
 /** Ответ list_screenshots_command. */
 export interface ScreenshotList {
   installed: boolean;
-  screenshots: string[];
+  screenshots: ScreenshotInfo[];
+}
+
+/** Один скриншот: путь + время создания/изменения (epoch, сек). */
+export interface ScreenshotInfo {
+  path: string;
+  modified: number;
+}
+
+/** Один файл-дубликат. */
+export interface DuplicateFile {
+  path: string;
+  folder: string;
+  name: string;
+}
+
+/** Группа одинаковых по содержимому файлов; size_bytes — размер одного. */
+export interface DuplicateGroup {
+  files: DuplicateFile[];
+  size_bytes: number;
+}
+
+/** Ответ analyze_duplicates_command. */
+export interface DuplicatesResult {
+  groups: DuplicateGroup[];
+  wasted_bytes: number;
 }
 
 /** Ответ list_servers_command. */

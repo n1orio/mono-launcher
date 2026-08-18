@@ -117,6 +117,7 @@
   "sub.screenshots": "Скриншоты",
   "sub.servers": "Сервера",
   "sub.console": "Консоль",
+  "sub.duplicates": "Дубликаты",
   "sub.settings": "Настройки",
   "screenshots.loading": "Загрузка скриншотов…",
   "screenshots.empty": "Скриншотов пока нет — они появятся после F2 в игре",
@@ -344,6 +345,7 @@
   "err.loginFirst": "Войдите в аккаунт перед запуском",
   "err.launch": "Ошибка запуска: {e}",
   "err.stop": "Не удалось остановить игру: {e}",
+  "err.dupRemove": "Не удалось удалить файл: {e}",
   "err.gameRunning": "Игра уже запущена — сначала закройте Minecraft",
   "err.openPackDir": "Не удалось открыть папку сборки: {e}",
   "game.exitError": "Игра завершилась с ошибкой{code}. Подробности — в консоли внизу.",
@@ -646,5 +648,12 @@
   "crash.kind.mod.msg": "Стектрейс указывает на мод. Проверьте подозреваемых ниже: возможно, не хватает требуемой зависимости, мод несовместим с загрузчиком/версией или устарел.",
   "crash.kind.other.title": "Краш",
   "crash.kind.other.msg": "Игра завершилась с ошибкой. Посмотрите исключение ниже; если повторяется — сообщите в форме баг-репорта.",
-  "catalog.sourceAuthor": "Авторские"
+  "catalog.sourceAuthor": "Авторские",
+  "duplicates.loading": "Поиск дубликатов…",
+  "duplicates.empty": "Дубликаты не найдены",
+  "duplicates.found": "Найдено групп: {n}, можно освободить {size}",
+  "duplicates.group": "Группа · {n} файлов по {size}",
+  "duplicates.keepOne": "Оставить один",
+  "duplicates.delete": "Удалить",
+  "duplicates.removed": "Удалено: {name}"
 }

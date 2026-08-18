@@ -117,6 +117,7 @@
   "sub.screenshots": "Screenshots",
   "sub.servers": "Servers",
   "sub.console": "Console",
+  "sub.duplicates": "Duplicates",
   "sub.settings": "Settings",
   "screenshots.loading": "Loading screenshots…",
   "screenshots.empty": "No screenshots yet — they appear after pressing F2 in game",
@@ -344,6 +345,7 @@
   "err.loginFirst": "Sign in before launching",
   "err.launch": "Launch failed: {e}",
   "err.stop": "Failed to stop the game: {e}",
+  "err.dupRemove": "Could not delete the file: {e}",
   "err.gameRunning": "The game is already running — close Minecraft first",
   "err.openPackDir": "Could not open the pack folder: {e}",
   "game.exitError": "Game exited with an error{code}. See the console below for details.",
@@ -646,5 +648,12 @@
   "crash.kind.mod.msg": "The stacktrace points to a mod. Check the suspected mods below: it may be missing a required dependency, incompatible with the loader/version, or outdated.",
   "crash.kind.other.title": "Crash",
   "crash.kind.other.msg": "The game exited with an error. See the exception below; if it persists, report it with the issue form.",
-  "catalog.sourceAuthor": "Author"
+  "catalog.sourceAuthor": "Author",
+  "duplicates.loading": "Scanning for duplicates…",
+  "duplicates.empty": "No duplicates found",
+  "duplicates.found": "{n} groups found, can free up {size}",
+  "duplicates.group": "Group · {n} files of {size}",
+  "duplicates.keepOne": "Keep one",
+  "duplicates.delete": "Delete",
+  "duplicates.removed": "Deleted: {name}"
 }

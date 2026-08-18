@@ -117,6 +117,7 @@
   "sub.screenshots": "Screenshots",
   "sub.servers": "Server",
   "sub.console": "Konsole",
+  "sub.duplicates": "Duplikate",
   "sub.settings": "Einstellungen",
   "screenshots.loading": "Screenshots werden geladen…",
   "screenshots.empty": "Noch keine Screenshots — sie erscheinen nach F2 im Spiel",
@@ -344,6 +345,7 @@
   "err.loginFirst": "Melden Sie sich vor dem Start im Konto an",
   "err.launch": "Startfehler: {e}",
   "err.stop": "Fehler beim Stoppen des Spiels: {e}",
+  "err.dupRemove": "Datei konnte nicht gelöscht werden: {e}",
   "err.gameRunning": "Das Spiel läuft bereits — schließen Sie zuerst Minecraft",
   "err.openPackDir": "Pack-Ordner konnte nicht geöffnet werden: {e}",
   "game.exitError": "Das Spiel wurde mit einem Fehler beendet{code}. Details finden Sie unten in der Konsole.",
@@ -646,5 +648,12 @@
   "crash.kind.mod.msg": "Der Stacktrace weist auf einen Mod hin. Prüfen Sie die Verdächtigen unten: Möglicherweise fehlt eine erforderliche Abhängigkeit, der Mod ist nicht kompatibel mit dem Loader/der Version oder veraltet.",
   "crash.kind.other.title": "Absturz",
   "crash.kind.other.msg": "Das Spiel wurde mit einem Fehler beendet. Sehen Sie sich die Ausnahme unten an; wiederholt es sich — melden Sie es im Bug-Report-Formular.",
-  "catalog.sourceAuthor": "Eigene"
+  "catalog.sourceAuthor": "Eigene",
+  "duplicates.loading": "Suche nach Duplikaten…",
+  "duplicates.empty": "Keine Duplikate gefunden",
+  "duplicates.found": "{n} Gruppen gefunden, {size} können freigegeben werden",
+  "duplicates.group": "Gruppe · {n} Dateien à {size}",
+  "duplicates.keepOne": "Einen behalten",
+  "duplicates.delete": "Löschen",
+  "duplicates.removed": "Gelöscht: {name}"
 }

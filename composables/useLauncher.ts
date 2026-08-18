@@ -26,6 +26,8 @@ import {
   listSavedServers,
   recentPacks,
   listScreenshots,
+  analyzeDuplicates,
+  deleteGameFiles,
   listVersions,
   loginOffline,
   msDeviceCode,
@@ -81,6 +83,9 @@ import type {
   PackRepoContent,
   PackServer,
   SavedServer,
+  ScreenshotInfo,
+  DuplicatesResult,
+  DuplicateFile,
   SkinInfo,
   SystemInfo,
   UpdateInfo,
@@ -473,7 +478,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const removeArmed = ref<string | null>(null);
 
   // ==== Вкладки файлов игры (моды/ресурспаки/шейдеры/миры/консоль) ====
-  const playSubTab = ref<"releases" | "mods" | "resourcepacks" | "shaderpacks" | "saves" | "screenshots" | "servers" | "console" | "settings">("releases");
+  const playSubTab = ref<"releases" | "mods" | "resourcepacks" | "shaderpacks" | "duplicates" | "saves" | "screenshots" | "servers" | "console" | "settings">("releases");
   const gameFiles = ref<Partial<Record<GameFolderKind, GameFileEntry[]>>>({});
   const fileIcons = ref<Record<string, string>>({});
   const fileSearch = ref("");
@@ -1415,7 +1420,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   }
 
   /** Скриншоты установленной версии (папка screenshots) и сервера игрока (servers.dat). */
-  const packScreenshots = ref<string[]>([]);
+  const packScreenshots = ref<ScreenshotInfo[]>([]);
   const packScreenshotsInstalled = ref(false);
   const screenshotsLoading = ref(false);
   const myServers = ref<SavedServer[]>([]);
@@ -1435,6 +1440,33 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     } finally {
       screenshotsLoading.value = false;
     }
+  }
+
+  /** Анализ дубликатов (mods / resourcepacks / shaderpacks). */
+  const duplicates = ref<DuplicatesResult>({ groups: [], wasted_bytes: 0 });
+  const duplicatesLoading = ref(false);
+
+  async function loadDuplicates(id: string) {
+    if (!isTauri() || !id) return;
+    duplicatesLoading.value = true;
+    try {
+      duplicates.value = await analyzeDuplicates(id);
+    } catch {
+      duplicates.value = { groups: [], wasted_bytes: 0 };
+    } finally {
+      duplicatesLoading.value = false;
+    }
+  }
+
+  /** Удаляет один файл-дубликат и повторяет анализ. */
+  async function removeDuplicate(id: string, f: DuplicateFile) {
+    try {
+      await deleteGameFiles(id, f.folder as GameFolderKind, [f.name]);
+      notify(t("duplicates.removed", { name: f.name }), "success");
+    } catch (e) {
+      notify(t("err.dupRemove", { e }), "error");
+    }
+    await loadDuplicates(id);
   }
 
   /** Загружает сервера игрока из servers.dat активной версии. */
@@ -2059,6 +2091,10 @@ notify(t("err.switch", { e }));
   packScreenshotsInstalled,
   screenshotsLoading,
   loadPackScreenshots,
+  duplicates,
+  duplicatesLoading,
+  loadDuplicates,
+  removeDuplicate,
   myServers,
   myServersInstalled,
   loadMyServers,

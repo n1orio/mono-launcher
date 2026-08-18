@@ -1299,6 +1299,55 @@
           </div>
           </div>
 
+          <!-- ======= Дубликаты (mods / resourcepacks / shaderpacks) ======= -->
+          <template v-else-if="playSubTab === 'duplicates'">
+            <div class="flex min-h-0 flex-1 flex-col">
+              <div v-if="duplicatesLoading" class="flex flex-1 items-center justify-center text-xs text-[color:var(--tx-muted)]">
+                <svg class="mr-2 h-4 w-4 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
+                  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                </svg>
+                {{ t("duplicates.loading") }}
+              </div>
+              <div v-else-if="duplicates.groups.length === 0" class="flex flex-1 items-center justify-center">
+                <div class="rounded-md border border-[var(--border)] bg-[var(--panel)] p-8 text-center text-xs text-[color:var(--tx-muted)]">
+                  <p class="font-medium text-[color:var(--tx)]">{{ t("duplicates.empty") }}</p>
+                </div>
+              </div>
+              <div v-else class="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 pb-8">
+                <p class="text-[11px] text-[color:var(--tx-muted)]">
+                  {{ t("duplicates.found", { n: duplicates.groups.length, size: formatBytes(duplicates.wasted_bytes) }) }}
+                </p>
+                <div v-for="(g, gi) in duplicates.groups" :key="gi" class="rounded-md border border-[var(--border)] bg-[var(--panel)]">
+                  <div class="flex items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2">
+                    <p class="text-[11px] font-medium text-[color:var(--tx-strong)]">
+                      {{ t("duplicates.group", { n: g.files.length, size: formatBytes(g.size_bytes) }) }}
+                    </p>
+                    <button
+                      type="button"
+                      class="rounded border border-[#f85149]/40 bg-[#f85149]/10 px-2 py-0.5 text-[10px] font-semibold text-[#f85149] transition-colors hover:bg-[#f85149]/20"
+                      @click="keepOne(g)"
+                    >{{ t("duplicates.keepOne") }}</button>
+                  </div>
+                  <ul class="space-y-1 p-2">
+                    <li
+                      v-for="f in g.files"
+                      :key="f.path"
+                      class="flex items-center gap-2 rounded px-2 py-1 text-[11px] hover:bg-[var(--input-50)]"
+                    >
+                      <span class="min-w-0 flex-1 truncate font-mono text-[color:var(--tx-muted)]" :title="f.path">{{ f.folder }} / {{ f.name }}</span>
+                      <button
+                        type="button"
+                        class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold text-[color:var(--tx-muted)] transition-colors hover:bg-[#f85149]/15 hover:text-[#f85149]"
+                        :title="t('duplicates.delete')"
+                        @click="removeDuplicate(packId, f)"
+                      >{{ t("duplicates.delete") }}</button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </template>
+
           <!-- ======= Скриншоты сборки (папка screenshots установленной версии) ======= -->
           <template v-else-if="playSubTab === 'screenshots'">
             <div class="flex min-h-0 flex-1 flex-col">
@@ -1325,17 +1374,21 @@
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <button
                     v-for="(shot, i) in packScreenshots"
-                    :key="shot"
+                    :key="shot.path"
                     type="button"
-                    class="group overflow-hidden rounded-md border border-[var(--border)] bg-[var(--panel)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]"
+                    class="group relative overflow-hidden rounded-md border border-[var(--border)] bg-[var(--panel)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]"
                     @click="shotIdx = i"
                   >
                     <img
-                      :src="convertFileSrc(shot)"
+                      :src="convertFileSrc(shot.path)"
                       :alt="`${t('sub.screenshots')} ${i + 1}`"
                       loading="lazy"
                       class="aspect-video w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                     />
+                    <span
+                      v-if="shot.modified"
+                      class="pointer-events-none absolute bottom-1 right-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white"
+                    >{{ formatUnixDate(shot.modified) }}</span>
                   </button>
                 </div>
                 <p class="text-[10px] text-[color:var(--tx-muted)]">{{ t("screenshots.note") }}</p>
@@ -1372,12 +1425,15 @@
                 →
               </button>
               <img
-                :src="convertFileSrc(packScreenshots[shotIdx ?? 0])"
+                :src="convertFileSrc(packScreenshots[shotIdx ?? 0]?.path)"
                 class="max-h-[82vh] max-w-full rounded-lg object-contain shadow-2xl"
                 alt=""
               />
-              <span class="absolute bottom-4 font-mono text-xs text-[color:var(--tx-muted)]">
+              <span class="absolute bottom-4 rounded bg-black/60 px-2 py-1 font-mono text-xs text-[color:var(--tx-muted)]">
                 {{ (shotIdx ?? 0) + 1 }} / {{ packScreenshots.length }}
+                <template v-if="packScreenshots[shotIdx ?? 0]?.modified">
+                  · {{ formatUnixDate(packScreenshots[shotIdx ?? 0]!.modified) }}
+                </template>
               </span>
             </div>
           </template>
@@ -4893,7 +4949,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { useRoute } from "vue-router";
 import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, editPackVersion, exportPack as exportPackFn, exportSourceList, exportAuthorPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, installedModSha1, setPackIcon, setPackBanner, setPackName, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles, getStatus } from "~/lib/bridge";
 import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit, CursePackFile, CurseProjectDetail } from "~/lib/bridge";
-import type { AuthorPackConfig, AuthorServer, AuthorSocial, AuthorTheme, CatalogEntry, CrashAnalysis, CurseInstallResult, ExportSourceItem, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod, AppStatus } from "~/lib/types";
+import type { AuthorPackConfig, AuthorServer, AuthorSocial, AuthorTheme, CatalogEntry, CrashAnalysis, CurseInstallResult, ExportSourceItem, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod, AppStatus, DuplicateGroup } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n, getLocaleMeta } from "~/composables/useI18n";
 import { getCachedIcon, setCachedIcon } from "~/lib/iconCache";
@@ -5057,6 +5113,10 @@ const {
   packScreenshotsInstalled,
   screenshotsLoading,
   loadPackScreenshots,
+  duplicates,
+  duplicatesLoading,
+  loadDuplicates,
+  removeDuplicate,
   myServers,
   myServersInstalled,
   loadMyServers,
@@ -5388,6 +5448,8 @@ const ICON_TERMINAL =
   "M0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 14.25 15H1.75A1.75 1.75 0 0 1 0 13.25Zm1.75-.25a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25ZM7.25 8a.75.75 0 0 1-.22.53l-2.25 2.25a.75.75 0 0 1-1.06-1.06L5.44 8 3.72 6.28a.75.75 0 1 1 1.06-1.06l2.25 2.25c.141.14.22.331.22.53Zm1.5 1.5a.75.75 0 0 1 0-1.5h3a.75.75 0 0 1 0 1.5Z";
 const ICON_IMAGE =
   "M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-1 1v.878A2.25 2.25 0 1 1 2 13.378V2.5ZM5.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm5.912.5a.75.75 0 0 1 .232 1.136l-3.75 4.5a.75.75 0 0 1-1.136.029L4.22 4.441a.75.75 0 0 0-1.014.023L.22 7.341A.75.75 0 0 1-.252 6.22l3.47-3.47a2.25 2.25 0 0 1 3.043-.07l1.714 1.53 3.15-3.781a.75.75 0 0 1 1.087-.071Z";
+const ICON_DUP =
+  "M5 1h7.75A2.25 2.25 0 0 1 15 3.25v7.75a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6.75a.75.75 0 0 1 .75-.75H9a2 2 0 0 1-2-2V3.25A2.25 2.25 0 0 1 5 1Zm3.25 5H7V3.25a.25.25 0 0 1 .5 0V4.5h1.5a.5.5 0 0 1 0 1h-.25a.75.75 0 0 0 0 1.5ZM2.5 4.5h.25v3h4V9H2.5A.5.5 0 0 1 2 8.5v-3.5a.5.5 0 0 1 .5-.5Z";
 const ICON_SERVER =
   "M3 1.5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2ZM1.5 4.5H14.5v1.5H1.5ZM1.5 8H14.5v1.25H1.5Zm0 3.25H7v1.5H1.5A.5.5 0 0 1 1 12.25v-1ZM8.5 12.75v-1.5h6v1.5A.5.5 0 0 1 14.5 13h-5a1 1 0 0 1-1-.25ZM2 5.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm3 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM2 9.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm3 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z";
 const ICON_GEAR =
@@ -5398,6 +5460,7 @@ const playSubTabs = [
   { kind: "mods" as const, icon: ICON_PACKAGE },
   { kind: "resourcepacks" as const, icon: ICON_PAINT },
   { kind: "shaderpacks" as const, icon: ICON_SUN },
+  { kind: "duplicates" as const, icon: ICON_DUP },
   { kind: "saves" as const, icon: ICON_FOLDER },
   { kind: "screenshots" as const, icon: ICON_IMAGE },
   { kind: "servers" as const, icon: ICON_SERVER },
@@ -7841,6 +7904,7 @@ async function pickCreateFile(target: "icon" | "banner") {
 // При открытии сабтаба файлов — проверяем обновления установленных из Modrinth файлов.
 watch(playSubTab, (tab) => {
   if (tab === "mods" || tab === "resourcepacks" || tab === "shaderpacks") refreshModUpdates();
+  if (tab === "duplicates" && activePack.value) loadDuplicates(packId.value);
 });
 
 // При загрузке сборки / после установки — сразу проверяем обновления,
@@ -7974,6 +8038,14 @@ watch(
 
 /** Время в игре: короткий формат для бейджа («3 ч» / «12 мин»). */
 const shotIdx = ref<number | null>(null);
+
+/** Удалить все файлы группы, кроме первого (оставить «оригинал»). */
+async function keepOne(g: DuplicateGroup) {
+  for (const f of g.files.slice(1)) {
+    await removeDuplicate(packId.value, f);
+  }
+  await loadDuplicates(packId.value);
+}
 
 // ==== Тема сборки (theme.json автора): плавный перекрас CSS-переменных ====
 const PACK_THEME_VARS: Array<[keyof PackTheme, string]> = [

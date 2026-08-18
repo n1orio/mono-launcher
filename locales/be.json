@@ -117,6 +117,7 @@
   "sub.screenshots": "Скрыншоты",
   "sub.servers": "Серверы",
   "sub.console": "Кансоль",
+  "sub.duplicates": "Дублікаты",
   "sub.settings": "Налады",
   "screenshots.loading": "Загрузка скрыншотаў…",
   "screenshots.empty": "Скрыншотаў пакуль няма — яны з'явяцца пасля F2 у гульні",
@@ -344,6 +345,7 @@
   "err.loginFirst": "Увайдзіце ў акаўнт перад запускам",
   "err.launch": "Памылка запуску: {e}",
   "err.stop": "Не атрымалася спыніць гульню: {e}",
+  "err.dupRemove": "Не атрымалася выдаліць файл: {e}",
   "err.gameRunning": "Гульня ўжо запушчана — спачатку зачыніце Minecraft",
   "err.openPackDir": "Не атрымалася адкрыць папку зборкі: {e}",
   "game.exitError": "Гульня завяршылася з памылкай{code}. Падрабязнасці — у кансолі ўнізе.",
@@ -646,5 +648,12 @@
   "crash.kind.mod.msg": "Стактрэйс паказвае на мод. Праверце падазроных ніжэй: магчыма, не хапае патрэбнай залежнасці, мод несумяшчальны з загрузчыкам/версіяй або састарэў.",
   "crash.kind.other.title": "Краш",
   "crash.kind.other.msg": "Гульня завяршылася з памылкай. Паглядзіце выключэнне ніжэй; калі паўтараецца — паведаміце ў форме баг-рэпорта.",
-  "catalog.sourceAuthor": "Аўтарскія"
+  "catalog.sourceAuthor": "Аўтарскія",
+  "duplicates.loading": "Пошук дублікатаў…",
+  "duplicates.empty": "Дублікаты не знойдзены",
+  "duplicates.found": "Знойдзена груп: {n}, можна вызваліць {size}",
+  "duplicates.group": "Група · {n} файлаў па {size}",
+  "duplicates.keepOne": "Пакінуць адзін",
+  "duplicates.delete": "Выдаліць",
+  "duplicates.removed": "Выдалена: {name}"
 }

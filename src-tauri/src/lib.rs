@@ -3241,13 +3241,21 @@ fn clear_license_command(pack_id: String) -> Result<(), String> {
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+struct ScreenshotInfo {
+    path: String,
+    modified: i64,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ScreenshotList {
     installed: bool,
-    screenshots: Vec<String>,
+    screenshots: Vec<ScreenshotInfo>,
 }
 
 /// Скриншоты активной установленной версии: папка `screenshots` игрового
 /// каталога (полные пути — фронт отдаёт их через asset-протокол).
+/// `modified` — время создания/изменения файла (epoch, секунды) для даты скрина.
 #[tauri::command]
 fn list_screenshots_command(pack_id: Option<String>) -> Result<ScreenshotList, String> {
     let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
@@ -3260,7 +3268,7 @@ fn list_screenshots_command(pack_id: Option<String>) -> Result<ScreenshotList, S
             let shots_dir = dir.join("screenshots");
             if shots_dir.is_dir() {
                 if let Ok(rd) = std::fs::read_dir(&shots_dir) {
-                    let mut files: Vec<String> = rd
+                    let mut files: Vec<ScreenshotInfo> = rd
                         .flatten()
                         .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
                         .filter(|e| {
@@ -3273,9 +3281,21 @@ fn list_screenshots_command(pack_id: Option<String>) -> Result<ScreenshotList, S
                                 })
                                 .unwrap_or(false)
                         })
-                        .map(|e| e.path().to_string_lossy().to_string())
+                        .filter_map(|e| {
+                            let modified = e
+                                .metadata()
+                                .ok()
+                                .and_then(|m| m.modified().ok())
+                                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                .map(|d| d.as_secs() as i64)
+                                .unwrap_or(0);
+                            Some(ScreenshotInfo {
+                                path: e.path().to_string_lossy().to_string(),
+                                modified,
+                            })
+                        })
                         .collect();
-                    files.sort();
+                    files.sort_by(|a, b| a.modified.cmp(&b.modified));
                     screenshots = files;
                 }
             }
@@ -3284,6 +3304,121 @@ fn list_screenshots_command(pack_id: Option<String>) -> Result<ScreenshotList, S
     Ok(ScreenshotList {
         installed,
         screenshots,
+    })
+}
+
+/// Один файл-дубликат: путь, папка (mods/resourcepacks/shaderpacks) и имя —
+/// удобно для показа и удаления.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DuplicateFile {
+    path: String,
+    folder: String,
+    name: String,
+}
+
+/// Группа одинаковых по содержимому файлов (sha1). `size_bytes` — размер одного.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DuplicateGroup {
+    files: Vec<DuplicateFile>,
+    size_bytes: u64,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DuplicatesResult {
+    groups: Vec<DuplicateGroup>,
+    wasted_bytes: u64,
+}
+
+/// Анализ дубликатов в папках mods / resourcepacks / shaderpacks активной
+/// версии: группируем по размеру, затем по sha1 содержимого (полное чтение
+/// только среди файлов одинакового размера). `wasted_bytes` — объём, который
+/// освободится, если в каждой группе оставить по одному файлу.
+#[tauri::command]
+fn analyze_duplicates_command(pack_id: Option<String>) -> Result<DuplicatesResult, String> {
+    let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
+    let dir = config::active_game_dir(&pack_id).map_err(|e| e.to_string())?;
+
+    // Сначала по размеру файла — дешёвый фильтр, чтобы не хэшировать всё подряд.
+    let mut by_size: HashMap<u64, Vec<std::path::PathBuf>> = HashMap::new();
+    for sub in ["mods", "resourcepacks", "shaderpacks"] {
+        let p = dir.join(sub);
+        if !p.is_dir() {
+            continue;
+        }
+        if let Ok(rd) = std::fs::read_dir(&p) {
+            for entry in rd.flatten() {
+                let Ok(ft) = entry.file_type() else { continue };
+                if !ft.is_file() {
+                    continue;
+                }
+                let Ok(meta) = entry.metadata() else { continue };
+                if meta.len() == 0 {
+                    continue;
+                }
+                by_size
+                    .entry(meta.len())
+                    .or_default()
+                    .push(entry.path());
+            }
+        }
+    }
+
+    let mut groups: Vec<DuplicateGroup> = Vec::new();
+    for (size, files) in by_size {
+        if files.len() < 2 {
+            continue;
+        }
+        let mut by_hash: HashMap<String, Vec<std::path::PathBuf>> = HashMap::new();
+        for f in files {
+            if let Ok(h) = crate::mrpack::compute_sha1(&f) {
+                by_hash.entry(h).or_default().push(f);
+            }
+        }
+        for (_, dup) in by_hash {
+            if dup.len() < 2 {
+                continue;
+            }
+            let folder = dup[0]
+                .parent()
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
+            let files: Vec<DuplicateFile> = dup
+                .iter()
+                .map(|p| DuplicateFile {
+                    path: p.to_string_lossy().to_string(),
+                    folder: folder.clone(),
+                    name: p
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_default(),
+                })
+                .collect();
+            groups.push(DuplicateGroup {
+                files,
+                size_bytes: size,
+            });
+        }
+    }
+
+    // Сначала группы с наибольшим «мусором» (n-1)×size.
+    groups.sort_by(|a, b| {
+        let wa = (a.files.len() as u64 - 1) * a.size_bytes;
+        let wb = (b.files.len() as u64 - 1) * b.size_bytes;
+        wb.cmp(&wa)
+    });
+    let wasted_bytes = groups
+        .iter()
+        .map(|g| (g.files.len() as u64 - 1) * g.size_bytes)
+        .sum();
+
+    Ok(DuplicatesResult {
+        groups,
+        wasted_bytes,
     })
 }
 
@@ -3572,6 +3707,7 @@ pub fn run() {
             clear_local_skin_command,
             skin_api_url_command,
             list_screenshots_command,
+            analyze_duplicates_command,
             list_servers_command,
             get_launch_log,
             clear_launch_log,
