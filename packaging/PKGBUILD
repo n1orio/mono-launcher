@@ -15,9 +15,7 @@ pkgrel=1
 pkgdesc="Desktop Minecraft modpack launcher (mrpack)"
 arch=('x86_64')
 url="https://github.com/n1orio/mono-launcher"
-# LICENSE-файла в репозитории пока нет — укажите актуальный SPDX-идентификатор,
-# иначе ревью CachyOS не пройдёт (например GPL-3.0-or-later / MIT / custom).
-license=('custom')
+license=('MIT')
 depends=('webkit2gtk-4.1' 'gtk3' 'librsvg')
 source=("https://github.com/n1orio/mono-launcher/releases/download/launcher-v${pkgver}/Mono.Launcher_${pkgver}_amd64.deb")
 # После первого успешного релиза замените SKIP на реальный hash: sha256sum <file.deb>
