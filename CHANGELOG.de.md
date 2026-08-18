@@ -1,5 +1,13 @@
 # Änderungen
 
+## [1.3.1] — 2026-08-18
+
+### Mods & Speicher
+- Neuer Tab **„Duplikate"** durchsucht `mods/`, `resourcepacks/` und `shaderpacks/` und gruppiert Dateien mit identischem Inhalt (nach Größe + SHA-1). Zeigt, wie viel Speicher freigegeben werden kann, und erlaubt, eine Datei zu löschen oder nur eine pro Gruppe zu behalten.
+
+### Screenshots
+- Screenshots zeigen jetzt **Datum und Uhrzeit** der Aufnahme — als Badge auf jeder Kachel und im Vollbild-Viewer.
+
 ## [1.3.0] — 2026-08-18
 
 ### Bibliothek

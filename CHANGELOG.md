@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.1] — 2026-08-18
+
+### Mods & storage
+- New **Duplicates** tab scans `mods/`, `resourcepacks/` and `shaderpacks/` and groups files with identical content (by size + SHA-1). Shows how much space could be freed, lets you delete a single file or keep just one per group.
+
+### Screenshots
+- Screenshots now show the **date and time** of the shot — as a badge on each tile and in the full-screen viewer.
+
 ## [1.3.0] — 2026-08-18
 
 ### Library
