@@ -24,6 +24,7 @@ import {
   listJava,
   listPacks,
   listSavedServers,
+  recentPacks,
   listScreenshots,
   listVersions,
   loginOffline,
@@ -47,6 +48,7 @@ import {
   setWarnCustomMods,
   setLocale,
   setLocalSkin,
+  stopGame,
   skinApiUrl,
   setBoosty,
   licenseStatus,
@@ -159,7 +161,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const versions = ref<VersionsInfo | null>(null);
   const logEntries = ref<LaunchLogEntry[]>([]);
   const logRef = ref<HTMLElement | null>(null);
-  const tab = ref<"play" | "settings" | "news" | "catalog" | "dev">("play");
+  const tab = ref<"play" | "settings" | "news" | "catalog" | "dev" | "library">("play");
   /** Уровень темы: 0 = самая светлая, 1 = самая тёмная. */
   const themeLevel = ref<number>(1);
 
@@ -945,6 +947,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
 
   const packs = ref<PackDescriptor[]>([]);
   const packId = ref("");
+  const recentPackIds = ref<string[]>([]);
 
   let lastBytes = { value: 0, at: 0 };
   let speed = 0;
@@ -996,10 +999,28 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
 
   const activePack = computed(() => packs.value.find((p) => p.id === packId.value) ?? null);
 
+  const sidebarRecentPacks = computed<
+    Array<{ pack: PackDescriptor; launched: boolean }>
+  >(() => {
+    const byId = new Map(packs.value.map((p) => [p.id, p]));
+    return recentPackIds.value
+      .slice(0, 10)
+      .map((id) => byId.get(id))
+      .filter((p): p is PackDescriptor => !!p)
+      .map((p) => ({ pack: p, launched: true }));
+  })
+
   /** Обновляет список сборок, сохраняя выбранную (если она ещё существует). */
   async function loadPacks() {
     const list = await listPacks();
     packs.value = list;
+    if (isTauri()) {
+      try {
+        recentPackIds.value = await recentPacks();
+      } catch {
+        recentPackIds.value = [];
+      }
+    }
     const saved =
       options.keepPackId || typeof localStorage === "undefined"
         ? null
@@ -1526,6 +1547,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
               : t("game.crash");
         notify(t("game.exitError", { code }), "error");
       }
+      loadPacks();
     }).then((fn) => (unlistenGameExitedSync = fn));
     onCrashAnalyzed((a) => {
       crashAnalysis.value = a.hasCause ? a : null;
@@ -1572,7 +1594,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
       fileSearch.value = "";
       selectedFiles.value = {};
       if (t === "mods" || t === "resourcepacks" || t === "shaderpacks" || t === "saves") {
-        loadGameFiles(t);
+        loadGameFiles(t, true);
       }
     },
     { flush: "post" }
@@ -1833,6 +1855,19 @@ notify(t("err.switch", { e }));
     return runGame(srv.port ? `${srv.ip}:${srv.port}` : srv.ip);
   }
 
+  /** «Остановить»: завершает запущенную игру. */
+  async function handleStop() {
+    if (!gameRunning.value) return;
+    busy.value = true;
+    try {
+      await stopGame();
+    } catch (e) {
+      notify(t("err.stop", { e }), "error");
+    } finally {
+      busy.value = false;
+    }
+  }
+
   async function handleClearLog() {
     logEntries.value = [];
     pendingLog.length = 0;
@@ -1922,6 +1957,7 @@ notify(t("err.switch", { e }));
     packs,
     packId,
     activePack,
+    sidebarRecentPacks,
     percent,
     filePercent,
     filesDone,
@@ -1950,6 +1986,7 @@ notify(t("err.switch", { e }));
     handleRemoveAccount,
     handlePlay,
     playOnServer,
+    handleStop,
     handleClearLog,
     handleCopyLog,
     handleOpenPackDir,

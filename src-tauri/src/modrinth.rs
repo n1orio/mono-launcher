@@ -9,6 +9,11 @@ use crate::config;
 /// Базовый URL публичного API Modrinth (без ключа, rate limit ~300 req/мин).
 const API: &str = "https://api.modrinth.com/v2";
 
+/// Таймаут на один HTTP-запрос: защита от «вечного зависания» на CDN/API
+/// (например, когда Cloudflare молча съедает соединение). По истечении —
+/// понятная ошибка вместо вечного спиннера.
+const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+
 /// Проект Modrinth (мод или модпак) — карточка из поиска.
 /// API отдаёт snake_case; на фронтенд сериализуем camelCase.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,6 +107,7 @@ pub struct ModrinthVersion {
     pub project_id: String,
     pub name: String,
     pub version_number: String,
+    pub version_type: String,
     pub game_versions: Vec<String>,
     pub loaders: Vec<String>,
     pub date_published: String,
@@ -135,6 +141,10 @@ pub struct SearchFilters {
     #[serde(default)]
     pub versions: Vec<String>,
     #[serde(default)]
+    pub loaders: Vec<String>,
+    #[serde(default)]
+    pub version_type: Option<String>,
+    #[serde(default)]
     pub environment: Option<String>,
     #[serde(default)]
     pub index: Option<String>,
@@ -147,6 +157,7 @@ pub async fn search_projects(
     query: &str,
     kind: &str,
     limit: u32,
+    offset: u32,
     filters: &SearchFilters,
 ) -> Result<Vec<ModrinthProject>> {
     let mut facets: Vec<Vec<String>> = vec![vec![format!("project_type:{kind}")]];
@@ -168,6 +179,20 @@ pub async fn search_projects(
                 .collect(),
         );
     }
+    if !filters.loaders.is_empty() {
+        facets.push(
+            filters
+                .loaders
+                .iter()
+                .map(|l| format!("loaders:{l}"))
+                .collect(),
+        );
+    }
+    if let Some(t) = &filters.version_type {
+        if !t.is_empty() {
+            facets.push(vec![format!("version_type:{t}")]);
+        }
+    }
     if let Some(env) = &filters.environment {
         match env.as_str() {
             "client" => facets.push(vec![
@@ -182,9 +207,10 @@ pub async fn search_projects(
         }
     }
     let mut url = format!(
-        "{API}/search?query={}&limit={}&facets={}",
+        "{API}/search?query={}&limit={}&offset={}&facets={}",
         urlencode(query),
         limit,
+        offset,
         urlencode(&serde_json::to_string(&facets).unwrap_or_default()),
     );
     if let Some(index) = &filters.index {
@@ -194,7 +220,7 @@ pub async fn search_projects(
     }
     let resp: SearchResponse = client
         .get(&url)
-        .header("User-Agent", ua())
+        .header("User-Agent", ua()).timeout(TIMEOUT)
         .send()
         .await
         .context("Не удалось связаться с Modrinth API")?
@@ -223,11 +249,10 @@ pub async fn tags(client: &reqwest::Client, kinds: &[&str]) -> Result<ModrinthTa
     #[derive(Deserialize)]
     struct VersionRaw {
         version: String,
-        version_type: String,
     }
     let loaders: Vec<LoaderRaw> = client
         .get(format!("{API}/tag/loader"))
-        .header("User-Agent", ua())
+        .header("User-Agent", ua()).timeout(TIMEOUT)
         .send()
         .await
         .context("Не удалось связаться с Modrinth API")?
@@ -238,7 +263,7 @@ pub async fn tags(client: &reqwest::Client, kinds: &[&str]) -> Result<ModrinthTa
         .context("Не удалось прочитать теги Modrinth")?;
     let categories: Vec<CategoryRaw> = client
         .get(format!("{API}/tag/category"))
-        .header("User-Agent", ua())
+        .header("User-Agent", ua()).timeout(TIMEOUT)
         .send()
         .await
         .context("Не удалось связаться с Modrinth API")?
@@ -249,7 +274,7 @@ pub async fn tags(client: &reqwest::Client, kinds: &[&str]) -> Result<ModrinthTa
         .context("Не удалось прочитать категории Modrinth")?;
     let versions: Vec<VersionRaw> = client
         .get(format!("{API}/tag/game_version"))
-        .header("User-Agent", ua())
+        .header("User-Agent", ua()).timeout(TIMEOUT)
         .send()
         .await
         .context("Не удалось связаться с Modrinth API")?
@@ -270,12 +295,8 @@ pub async fn tags(client: &reqwest::Client, kinds: &[&str]) -> Result<ModrinthTa
             .filter(|t| relevant(&t.project_type))
             .map(|t| t.name)
             .collect(),
-        // Только релизы; API уже отдаёт по убыванию даты.
-        versions: versions
-            .into_iter()
-            .filter(|t| t.version_type == "release")
-            .map(|t| t.version)
-            .collect(),
+        // Все версии (release + snapshot + beta + alpha); API уже отдаёт по убыванию даты.
+        versions: versions.into_iter().map(|t| t.version).collect(),
     })
 }
 
@@ -294,19 +315,25 @@ pub async fn project_versions(
     game_version: Option<&str>,
     loader: Option<&str>,
 ) -> Result<Vec<ModrinthVersion>> {
-    let mut url = format!("{API}/project/{project_id}/version?featured=true");
+    let base = format!("{API}/project/{project_id}/version");
+    let mut params = Vec::new();
     if let Some(gv) = game_version {
-        url.push_str(&format!(
-            "&game_versions={}",
+        params.push(format!(
+            "game_versions={}",
             urlencode(&format!("[\"{gv}\"]"))
         ));
     }
     if let Some(l) = loader {
-        url.push_str(&format!("&loaders={}", urlencode(&format!("[\"{l}\"]"))));
+        params.push(format!("loaders={}", urlencode(&format!("[\"{l}\"]"))));
+    }
+    let mut url = base;
+    if !params.is_empty() {
+        url.push('?');
+        url.push_str(&params.join("&"));
     }
     let versions: Vec<ModrinthVersion> = client
         .get(&url)
-        .header("User-Agent", ua())
+        .header("User-Agent", ua()).timeout(TIMEOUT)
         .send()
         .await
         .context("Не удалось связаться с Modrinth API")?
@@ -315,6 +342,10 @@ pub async fn project_versions(
         .json()
         .await
         .context("Не удалось прочитать версии Modrinth")?;
+    let mut versions = versions;
+    // Гарантируем порядок от новых к старым (зависимость от порядка API небезопасна:
+    // `.find()` во фронте берёт первую подходящую как самую свежую).
+    versions.sort_by(|a, b| b.date_published.cmp(&a.date_published));
     Ok(versions)
 }
 
@@ -337,7 +368,7 @@ pub async fn check_updates(
     });
     let resp: HashMap<String, ModrinthVersion> = client
         .post(format!("{API}/version_files/update"))
-        .header("User-Agent", ua())
+        .header("User-Agent", ua()).timeout(TIMEOUT)
         .json(&body)
         .send()
         .await
@@ -354,7 +385,7 @@ pub async fn check_updates(
 pub async fn project_by_id(client: &reqwest::Client, project_id: &str) -> Result<ModrinthProject> {
     let project: ModrinthProject = client
         .get(format!("{API}/project/{project_id}"))
-        .header("User-Agent", ua())
+        .header("User-Agent", ua()).timeout(TIMEOUT)
         .send()
         .await
         .context("Не удалось связаться с Modrinth API")?
@@ -370,7 +401,7 @@ pub async fn project_by_id(client: &reqwest::Client, project_id: &str) -> Result
 pub async fn version_by_id(client: &reqwest::Client, version_id: &str) -> Result<ModrinthVersion> {
     let version: ModrinthVersion = client
         .get(format!("{API}/version/{version_id}"))
-        .header("User-Agent", ua())
+        .header("User-Agent", ua()).timeout(TIMEOUT)
         .send()
         .await
         .context("Не удалось связаться с Modrinth API")?
@@ -393,7 +424,8 @@ pub async fn download_file(
     let dest = dest_dir.join(&file_name);
     let resp = client
         .get(&file.url)
-        .header("User-Agent", ua())
+        .header("User-Agent", ua()).timeout(TIMEOUT)
+        .timeout(TIMEOUT)
         .send()
         .await
         .context("Не удалось скачать файл с Modrinth")?
@@ -425,7 +457,8 @@ pub async fn update_file_to(
     let tmp = existing_path.with_extension("mono-update");
     let resp = client
         .get(&file.url)
-        .header("User-Agent", ua())
+        .header("User-Agent", ua()).timeout(TIMEOUT)
+        .timeout(TIMEOUT)
         .send()
         .await
         .context("Не удалось скачать обновление с Modrinth")?
@@ -441,7 +474,15 @@ pub async fn update_file_to(
             ));
         }
     }
+    if tmp.exists() {
+        let _ = std::fs::remove_file(&tmp);
+    }
     std::fs::write(&tmp, bytes)?;
+    // Windows: `rename` не перезаписывает существующий файл — удаляем цель заранее.
+    if existing_path.exists() {
+        std::fs::remove_file(existing_path)
+            .with_context(|| format!("Не удалось заменить {}", existing_path.display()))?;
+    }
     std::fs::rename(&tmp, existing_path)?;
     Ok(())
 }
@@ -477,7 +518,7 @@ fn urlencode(s: &str) -> String {
 pub async fn download_icon(client: &reqwest::Client, icon_url: &str, dest: &Path) -> Result<()> {
     let bytes = client
         .get(icon_url)
-        .header("User-Agent", ua())
+        .header("User-Agent", ua()).timeout(TIMEOUT)
         .send()
         .await
         .context("Не удалось скачать иконку")?
@@ -556,23 +597,67 @@ pub fn save_tracked_mods(pack_id: &str, mods: &[TrackedMod]) -> Result<()> {
     Ok(())
 }
 
-/// Добавляет/заменяет запись о моде (по имени файла) и сохраняет.
+/// Добавляет/заменяет запись о моде и сохраняет. Один и тот же файл (датапак)
+/// может стоять в разных мирах — ключуем по файлу+папке+миру, а не только имени.
 pub fn upsert_tracked_mod(pack_id: &str, m: &TrackedMod) -> Result<()> {
     let mut mods = tracked_mods(pack_id);
-    mods.retain(|t| t.file_name != m.file_name);
+    mods.retain(|t| !(t.file_name == m.file_name && t.folder == m.folder && t.world == m.world));
     mods.push(m.clone());
     save_tracked_mods(pack_id, &mods)
 }
 
-/// Убирает запись о моде по имени файла (при удалении файла).
-pub fn remove_tracked_mod(pack_id: &str, file_name: &str) -> Result<()> {
+/// Убирает запись о моде по файлу+папке+миру (при удалении файла).
+pub fn remove_tracked_mod(
+    pack_id: &str,
+    file_name: &str,
+    folder: &str,
+    world: Option<&str>,
+) -> Result<()> {
     let mut mods = tracked_mods(pack_id);
     let len_before = mods.len();
-    mods.retain(|t| t.file_name != file_name);
+    mods.retain(|t| {
+        !(t.file_name == file_name && t.folder == folder && t.world.as_deref() == world)
+    });
     if mods.len() != len_before {
         save_tracked_mods(pack_id, &mods)?;
     }
     Ok(())
+}
+
+/// Файл отслеживаемого мода в папке игры (учитывает мир для датапаков).
+fn tracked_path(game_dir: &Path, t: &TrackedMod) -> PathBuf {
+    let dir = if t.folder == "datapacks" {
+        game_dir
+            .join("saves")
+            .join(t.world.as_deref().unwrap_or(""))
+            .join("datapacks")
+    } else {
+        game_dir.join(&t.folder)
+    };
+    dir.join(&t.file_name)
+}
+
+/// Убирает из трекинга записи, чьи файлы больше нет на диске (осиротевшие после
+/// переустановки/обновления под другим именем). Учитывает вариант `.disabled`.
+/// Возвращает число удалённых записей.
+pub fn prune_missing_tracked(pack_id: &str, game_dir: &Path) -> Result<usize> {
+    let mods = tracked_mods(pack_id);
+    let kept: Vec<TrackedMod> = mods
+        .iter()
+        .filter(|t| {
+            let p = tracked_path(game_dir, t);
+            let mut dis = p.as_os_str().to_os_string();
+            dis.push(".disabled");
+            p.exists() || Path::new(&dis).exists()
+        })
+        .cloned()
+        .collect();
+    if kept.len() != mods.len() {
+        save_tracked_mods(pack_id, &kept)?;
+        Ok(mods.len() - kept.len())
+    } else {
+        Ok(0)
+    }
 }
 
 #[cfg(test)]
@@ -644,10 +729,10 @@ mod tests {
     async fn live_search_works() {
         let client = reqwest::Client::new();
         let empty = SearchFilters::default();
-        let mods = search_projects(&client, "sodium", "mod", 3, &empty).await.unwrap();
+        let mods = search_projects(&client, "sodium", "mod", 3, 0, &empty).await.unwrap();
         assert!(!mods.is_empty());
         assert!(mods.iter().any(|p| p.slug == "sodium"));
-        let packs = search_projects(&client, "better", "modpack", 3, &empty)
+        let packs = search_projects(&client, "better", "modpack", 3, 0, &empty)
             .await
             .unwrap();
         assert!(!packs.is_empty());
@@ -657,9 +742,12 @@ mod tests {
             "",
             "mod",
             3,
+            0,
             &SearchFilters {
                 categories: vec!["fabric".into()],
                 versions: vec!["1.21.4".into()],
+                loaders: vec!["fabric".into()],
+                version_type: Some("release".into()),
                 environment: Some("client".into()),
                 index: Some("downloads".into()),
             },

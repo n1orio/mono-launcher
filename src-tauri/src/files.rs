@@ -28,6 +28,8 @@ pub struct GameFileEntry {
     pub modrinth_url: Option<String>,
     /// slug проекта Modrinth (из .mono-modrinth.json), если файл установлен вручную с Modrinth.
     pub modrinth_project_id: Option<String>,
+    /// id версии Modrinth (из .mono-modrinth.json) — для показа версии в списке.
+    pub modrinth_version_id: Option<String>,
     /// ID проекта CurseForge (если файл установлен вручную с CurseForge) — для меты/иконки.
     pub curseforge_project_id: Option<u32>,
     /// Название проекта CurseForge (из трекера) — для показа без API-запроса.
@@ -97,6 +99,10 @@ pub fn list_files(pack_id: &str, folder: &str) -> Result<Vec<GameFileEntry>> {
         .into_iter()
         .map(|m| ((m.folder.clone(), m.file_name.clone()), m.project_id))
         .collect();
+    let modrinth_ver_map: HashMap<(String, String), String> = modrinth::tracked_mods(pack_id)
+        .into_iter()
+        .map(|m| ((m.folder.clone(), m.file_name.clone()), m.version_id))
+        .collect();
     let mut out: Vec<GameFileEntry> = Vec::new();
     for e in std::fs::read_dir(&dir)? {
         let Ok(e) = e else { continue };
@@ -164,6 +170,14 @@ pub fn list_files(pack_id: &str, folder: &str) -> Result<Vec<GameFileEntry>> {
         } else {
             None
         };
+        let modrinth_version_id = if is_file {
+            modrinth_ver_map
+                .get(&(folder.to_string(), raw.clone()))
+                .or_else(|| modrinth_ver_map.get(&(folder.to_string(), name.clone())))
+                .cloned()
+        } else {
+            None
+        };
         out.push(GameFileEntry {
             name: raw,
             display_name,
@@ -175,6 +189,7 @@ pub fn list_files(pack_id: &str, folder: &str) -> Result<Vec<GameFileEntry>> {
             // у добавленных вручную её нет, фронтенд делает поиск.
             modrinth_url,
             modrinth_project_id,
+            modrinth_version_id,
             // CurseForge-проект (для меты/иконки), если файл установлен вручную с CurseForge.
             curseforge_project_id,
             curseforge_title,
@@ -297,13 +312,27 @@ pub fn file_icons(pack_id: &str, folder: &str, names: &[String]) -> Vec<GameFile
 }
 
 /// Иконка файла/папки как base64 PNG (или None).
-/// В zip-архивах ищем icon.png/pack.png; в папках миров — icon.png.
+/// Имя файла, которое считаем иконкой. Помимо стандартных (icon/pack/mod_icon)
+/// ловим распространённые в модах `config-icon*` и `logo*` (Sodium, Iris и пр.),
+/// но не захватываем спрайт-атласы (напр. `icons.png`).
+fn is_icon_name(lower: &str) -> bool {
+    lower == "icon.png"
+        || lower == "icon.jpg"
+        || lower == "pack.png"
+        || lower == "pack.jpg"
+        || lower == "mod_icon.png"
+        || lower == "mod_icon.jpg"
+        || lower.starts_with("config-icon")
+        || lower.starts_with("logo")
+}
+
+/// В zip-архивах ищем иконку; в папках миров — icon.png.
 pub fn file_icon(pack_id: &str, folder: &str, name: &str) -> Result<Option<String>> {
     let dir = folder_dir(pack_id, folder)?;
     let path = dir.join(name);
     if path.is_dir() {
         // Прямые иконки в корне папки.
-        for cand in ["icon.png", "icon.jpg", "pack.png", "assets/icon.png"] {
+        for cand in ["icon.png", "icon.jpg", "pack.png", "config-icon.png", "logo.png", "assets/icon.png"] {
             let f = path.join(cand);
             if f.exists() {
                 return encode_image(&f);
@@ -337,7 +366,7 @@ fn find_nested_icon(root: &Path) -> Option<PathBuf> {
                 }
             } else if let Some(n) = p.file_name().and_then(|n| n.to_str()) {
                 let lower = n.to_ascii_lowercase();
-                if matches!(lower.as_str(), "icon.png" | "icon.jpg" | "pack.png") {
+                if is_icon_name(lower.as_str()) {
                     let score = p.components().count();
                     if best.as_ref().map(|(s, _)| score < *s).unwrap_or(true) {
                         best = Some((score, p));
@@ -379,7 +408,7 @@ fn zip_icon(path: &Path) -> Result<Option<String>> {
         let n = f.name().to_string();
         let lower = n.to_ascii_lowercase();
         let base = lower.rsplit('/').next().unwrap_or("");
-        if matches!(base, "icon.png" | "pack.png" | "mod_icon.png") {
+        if is_icon_name(base) {
             names.push((if n.contains('/') { 1 } else { 0 }, n.len(), n));
         }
     }

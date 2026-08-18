@@ -25,5 +25,5 @@ const nextIdx = rest.indexOf("\n## [");
 const body = (nextIdx === -1 ? rest : rest.slice(0, nextIdx)).trim();
 
 process.stdout.write(
-  [intro, "", `## Изменения в ${ver}`, "", body].filter(Boolean).join("\n")
+  [intro, "", `## Changes in ${ver}`, "", body].filter(Boolean).join("\n")
 );

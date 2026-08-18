@@ -49,6 +49,10 @@ export function listPacks(): Promise<PackDescriptor[]> {
   return invoke("list_packs");
 }
 
+export function recentPacks(): Promise<string[]> {
+  return invoke("recent_packs_command");
+}
+
 export function addPack(url: string, name?: string, blog?: string): Promise<PackDescriptor> {
   return invoke("add_pack_command", { url, name: name ?? null, blog: blog ?? null });
 }
@@ -186,6 +190,10 @@ export function launchGame(
   serverAddress: string | null = null
 ): Promise<void> {
   return invoke("launch_game_command", { packId, ramGb, session, width, height, serverAddress });
+}
+
+export function stopGame(): Promise<void> {
+  return invoke("stop_game_command");
 }
 
 export function pingServer(address: string, port: number | null = null): Promise<ServerStatus> {
@@ -440,8 +448,12 @@ export function getGameFileIcons(
 // ==== Modrinth: свои сборки, моды, обновления ====
 
 export interface ModrinthSearchOpts {
-  /** Категории и загрузчики (facets categories). */
+  /** Категории (facets categories). */
   categories?: string[];
+  /** Загрузчики/платформы (facets loaders). */
+  loaders?: string[];
+  /** Канал версии (facets version_type): release | beta | alpha. */
+  versionType?: string;
   /** Версии игры (facets versions). */
   versions?: string[];
   /** Окружение: "client" | "server". */
@@ -462,14 +474,18 @@ export function modrinthSearch(
   query: string,
   kind: ModrinthSearchKind,
   limit?: number,
-  opts?: ModrinthSearchOpts
+  opts?: ModrinthSearchOpts,
+  offset?: number
 ): Promise<ModrinthProject[]> {
   return invoke("modrinth_search_command", {
     query,
     kind,
     limit,
+    offset,
     filters: {
       categories: opts?.categories,
+      loaders: opts?.loaders,
+      version_type: opts?.versionType,
       versions: opts?.versions,
       environment: opts?.environment,
       index: opts?.index,
@@ -509,6 +525,14 @@ export function fetchPackIcon(packId: string): Promise<boolean> {
   return invoke("fetch_pack_icon_command", { packId });
 }
 
+export function setPackBanner(packId: string, path: string): Promise<void> {
+  return invoke("set_pack_banner_command", { packId, path });
+}
+
+export function setPackName(packId: string, name: string): Promise<void> {
+  return invoke("set_pack_name_command", { packId, name });
+}
+
 export function modrinthInstallMod(
   packId: string,
   versionId: string,
@@ -527,6 +551,10 @@ export function modrinthUpdateMod(
   fileName: string
 ): Promise<TrackedMod> {
   return invoke("modrinth_update_mod_command", { packId, fileName });
+}
+
+export function installedModSha1(packId: string, projectId: string): Promise<string | null> {
+  return invoke("installed_mod_sha1_command", { packId, projectId });
 }
 
 export function modrinthRemoveMod(packId: string, fileName: string): Promise<void> {

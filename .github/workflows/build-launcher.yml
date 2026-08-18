@@ -86,7 +86,7 @@ jobs:
           tagName: launcher-v__VERSION__
           releaseName: "Launcher v__VERSION__"
           releaseDraft: true
-          releaseBody: "Лаунчер Mono для сборок."
+          releaseBody: "Mono Launcher."
           args: ${{ matrix.args }}
           prerelease: false
 
@@ -124,5 +124,5 @@ jobs:
         run: |
           TAG="$GITHUB_REF_NAME"
           VER="${TAG#launcher-v}"
-          BODY="$(node scripts/release-notes.mjs "$VER" "Лаунчер Mono для сборок.")" || exit 0
+          BODY="$(node scripts/release-notes.mjs "$VER" "Mono Launcher.")" || exit 0
           gh release edit "$TAG" --notes "$BODY"

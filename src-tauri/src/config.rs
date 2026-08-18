@@ -85,7 +85,7 @@ pub fn builtin_packs() -> Vec<PackInfo> {
         .iter()
         .map(|p| PackInfo {
             id: p.id.to_string(),
-            name: p.name.to_string(),
+            name: pack_name(p.id, p.name),
             url: p.url.to_string(),
             builtin: true,
             kind: "remote".into(),
@@ -165,7 +165,7 @@ pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
     if let Some(p) = pack_by_id(id) {
         return Ok(Some(PackInfo {
             id: p.id.to_string(),
-            name: p.name.to_string(),
+            name: pack_name(p.id, p.name),
             url: p.url.to_string(),
             builtin: true,
             kind: "remote".into(),
@@ -193,6 +193,93 @@ pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
                 banner,
             }
         }))
+}
+
+/// Пользовательское имя встроенной сборки (`packs/<id>/name.txt`), если задано.
+pub fn pack_name_override(pack_id: &str) -> Option<String> {
+    let path = pack_dir(pack_id).ok()?.join("name.txt");
+    let raw = std::fs::read_to_string(path).ok()?;
+    let t = raw.trim();
+    if t.is_empty() {
+        None
+    } else {
+        Some(t.to_string())
+    }
+}
+
+/// Имя сборки с учётом пользовательского переопределения (только для встроенных).
+fn pack_name(pack_id: &str, default: &str) -> String {
+    pack_name_override(pack_id).unwrap_or_else(|| default.to_string())
+}
+
+/// Устанавливает новое название сборки:
+/// — встроенная: переопределение в `packs/<id>/name.txt`;
+/// — пользовательская: обновляет `name` в `packs.json`.
+pub fn set_pack_name(pack_id: &str, name: &str) -> Result<()> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err(anyhow::anyhow!("Название не может быть пустым"));
+    }
+    if pack_by_id(pack_id).is_some() {
+        let path = pack_dir(pack_id)?.join("name.txt");
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&path, name)?;
+        return Ok(());
+    }
+    let mut list = user_packs()?;
+    let mut found = false;
+    for p in list.iter_mut() {
+        if p.id == pack_id {
+            p.name = name.to_string();
+            found = true;
+            break;
+        }
+    }
+    if !found {
+        return Err(anyhow::anyhow!("Сборка не найдена: {pack_id}"));
+    }
+    save_user_packs(&list)
+}
+
+/// Файл с временем последнего запуска сборок (map `pack_id` → unix-секунды).
+fn recent_packs_file() -> Result<PathBuf> {
+    Ok(launcher_root()?.join("recent.json"))
+}
+
+/// Читает карту последних запусков (pack_id → unix-секунды).
+fn read_recent() -> std::collections::HashMap<String, u64> {
+    let Ok(path) = recent_packs_file() else { return Default::default() };
+    let Ok(raw) = std::fs::read_to_string(path) else { return Default::default() };
+    serde_json::from_str(&raw).unwrap_or_default()
+}
+
+/// Отмечает запуск сборки: фиксирует текущее время последнего запуска.
+pub fn mark_pack_launched(pack_id: &str) {
+    let Ok(path) = recent_packs_file() else { return };
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let mut map = read_recent();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    map.insert(pack_id.to_string(), now);
+    // Ограничиваем рост файла: держим только актуальные записи.
+    let mut sorted: Vec<(String, u64)> = map.into_iter().collect();
+    sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    sorted.truncate(14);
+    let trimmed: std::collections::HashMap<String, u64> = sorted.into_iter().collect();
+    let _ = std::fs::write(&path, serde_json::to_string(&trimmed).unwrap_or_default());
+}
+
+/// Id сборок по убыванию времени последнего запуска.
+pub fn recent_pack_ids() -> Vec<String> {
+    let mut v: Vec<(String, u64)> = read_recent().into_iter().collect();
+    v.sort_by(|a, b| b.1.cmp(&a.1));
+    v.into_iter().map(|(id, _)| id).collect()
 }
 
 /// Добавляет пользовательскую сборку в реестр. Ошибка, если id занят.

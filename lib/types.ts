@@ -66,6 +66,7 @@ export interface ModrinthVersion {
   projectId: string;
   name: string;
   versionNumber: string;
+  versionType: string;
   gameVersions: string[];
   loaders: string[];
   datePublished: string;
@@ -384,6 +385,8 @@ export interface GameFileEntry {
   modrinthUrl?: string | null;
   /** слаг проекта Modrinth (из .mono-modrinth.json), если файл установлен вручную с Modrinth. */
   modrinthProjectId?: string | null;
+  /** id версии Modrinth (из .mono-modrinth.json) — для показа версии в списке. */
+  modrinthVersionId?: string | null;
   /** ID проекта CurseForge (для меты/иконки), если файл установлен вручную с CurseForge. */
   curseforgeProjectId?: number | null;
   /** Название проекта CurseForge (из трекера) — показывается без API-запроса. */

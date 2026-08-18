@@ -107,24 +107,16 @@
     <!-- ==== Боковая панель ==== -->
     <aside
       class="relative flex shrink-0 flex-col border-r border-[var(--border)] bg-[var(--panel)]"
+      :class="[sidebarDragging ? '' : 'transition-[width] duration-150', sidebarCollapsed ? 'items-center' : '']"
       :style="{ width: `${sidebarWidth}px` }"
     >
 <!-- Выбор сборки (вкладка каждого репозитория) -->
-      <div class="relative p-3.5 border-b border-[var(--border)]">
+      <div v-if="!sidebarCollapsed" class="relative p-3.5 border-b border-[var(--border)]">
         <div class="flex items-center justify-between gap-2">
           <label class="text-[11px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">
             {{ t("side.packRepo") }}
           </label>
           <div class="flex items-center gap-1.5">
-          <button
-            type="button"
-            class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-sm font-semibold leading-none text-[var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)] disabled:opacity-50"
-            :title="t('dev.addTitle')"
-            :disabled="busy"
-            @click.stop="toggleAddPack"
-          >
-            +
-          </button>
             <button
               v-if="activePack && !activePack.builtin"
               type="button"
@@ -145,65 +137,6 @@
             </button>
           </div>
           </div>
-          <div v-if="showAddPack" class="fixed inset-0 z-20" @click="showAddPack = false"></div>
-          <div
-            v-if="showAddPack"
-            class="absolute left-0 right-0 top-full z-30 mt-1.5 space-y-2 rounded-md border border-[var(--border)] bg-[var(--panel)] p-3 shadow-xl shadow-black/40"
-          >
-            <button
-              type="button"
-              class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover)]"
-              @click="showAddPack = false; openModPackModal()"
-            >
-              <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--accent)]">
-                <path d="M3.25 1A1.75 1.75 0 0 0 1.5 2.75v10.5c0 .966.784 1.75 1.75 1.75h9.5a1.75 1.75 0 0 0 1.75-1.75V2.75A1.75 1.75 0 0 0 12.75 1h-9.5Zm-.25 2c0-.14.11-.25.25-.25h9.5c.14 0 .25.11.25.25v3h-10V3Zm10 4.5v4.75c0 .14-.11.25-.25.25h-9.5a.25.25 0 0 1-.25-.25V7.5h10Zm-7.5 1.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75Z"/>
-              </svg>
-              <span class="min-w-0">
-                <span class="block text-xs font-medium text-[color:var(--tx)]">{{ t("side.addModrinth") }}</span>
-                <span class="block text-[10px] text-[color:var(--tx-muted)]">{{ t("side.addModrinthHint") }}</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover)]"
-              @click="showAddPack = false; createPackOpen = true"
-            >
-              <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--accent)]">
-                <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v5.5h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5h-5.5a.75.75 0 0 1 0-1.5h5.5v-5.5Z"/>
-              </svg>
-              <span class="min-w-0">
-                <span class="block text-xs font-medium text-[color:var(--tx)]">{{ t("side.create") }}</span>
-                <span class="block text-[10px] text-[color:var(--tx-muted)]">{{ t("side.createHint") }}</span>
-              </span>
-            </button>
-            <div class="flex items-center gap-2 pt-1">
-              <span class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("side.addLink") }}</span>
-              <span class="h-px flex-1 bg-[var(--border)]"></span>
-            </div>
-            <input
-              ref="addUrlInput"
-              v-model="packUrl"
-              type="text"
-              class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors placeholder:text-[color:var(--tx-muted)] focus:border-[var(--accent)]"
-              :placeholder="t('dev.addUrlPh')"
-              @keydown.enter="submitAdd"
-            />
-            <input
-              v-model="packName"
-              type="text"
-              class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors placeholder:text-[color:var(--tx-muted)] focus:border-[var(--accent)]"
-              :placeholder="t('dev.addNamePh')"
-              @keydown.enter="submitAdd"
-            />
-            <button
-              type="button"
-              class="w-full rounded-md bg-[#238636] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#2ea043] disabled:opacity-50"
-              :disabled="addingPack"
-              @click="submitAdd"
-            >
-              {{ addingPack ? t("dev.adding") : t("dev.addBtn") }}
-            </button>
-          </div>
         <div class="mt-2 flex items-center gap-1.5 text-[11px] text-[color:var(--tx-muted)]">
           <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-[var(--tx-muted)] shrink-0">
             <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-1 1v.878A2.25 2.25 0 1 1 2 13.378V2.5Z"/>
@@ -222,112 +155,157 @@
       </div>
 
       <!-- Навигация -->
-      <nav class="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2 border-b border-[var(--border)]">
+      <nav class="flex min-h-0 flex-1 flex-col overflow-y-auto border-b border-[var(--border)] p-2" :class="sidebarCollapsed ? 'gap-1.5' : 'gap-0.5'">
         <!-- Вкладки категорий сборок: авторские / свои / Modrinth / CurseForge (перетаскиваются) -->
-        <template v-for="cat in packTabs" :key="cat">
-          <template v-if="packsBySource[cat].length > 0">
+        <template v-if="!sidebarCollapsed">
+          <button
+            type="button"
+            class="flex w-full items-center gap-1 px-3 pb-1 pt-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]"
+            disabled
+          >
+            {{ t("side.recent") }}
+          </button>
+          <template v-for="rp in sidebarRecentPacks" :key="rp.pack.id">
             <button
               type="button"
-              draggable="true"
-              class="flex w-full items-center gap-1 px-3 pb-1 pt-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)] transition-colors hover:text-[color:var(--tx)]"
-              :class="[
-                dragPackTab === cat ? 'opacity-40' : '',
-                dragPackTab && dragPackTab !== cat ? 'text-[var(--accent)]' : '',
-              ]"
-              :title="t('side.catDrag')"
-              @click="toggleSidebarCat(cat)"
-              @dragstart="packTabDragStart($event, cat)"
-              @dragover="packTabDragOver"
-              @drop="packTabDrop($event, cat)"
-              @dragend="packTabDragEnd"
+              class="flex items-center gap-2 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs font-medium transition-colors"
+              :class="tab === 'play' && packId === rp.pack.id ? 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+              @click="openPackTab(rp.pack.id)"
             >
-              <svg viewBox="0 0 16 16" class="h-2.5 w-2.5 shrink-0 fill-current transition-transform" :class="sidebarCat[cat] ? 'rotate-90' : ''">
-                <path d="M6 4l4 4-4 4V4Z"/>
+              <img
+                v-if="rp.pack.icon"
+                :src="convertFileSrc(rp.pack.icon)"
+                alt=""
+                class="h-4 w-4 shrink-0 rounded object-cover"
+              />
+              <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
+                <path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/>
               </svg>
-              {{ t(PACK_CAT_LABELS[cat]) }}
-              <span class="ml-auto shrink-0 rounded bg-[var(--input-50)] px-1.5 py-0.5 text-[9px] font-bold tabular-nums">
-                {{ packsBySource[cat].length }}
-              </span>
+              <span class="min-w-0 flex-1 truncate text-left">{{ rp.pack.name }}</span>
+              <span v-if="rp.pack.id === packId" class="h-2 w-2 shrink-0 rounded-full" :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"></span>
             </button>
-            <template v-if="sidebarCat[cat]">
-              <button
-                v-for="p in packsBySource[cat]"
-                :key="p.id"
-                type="button"
-                class="flex items-center gap-2 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs font-medium transition-colors"
-                :class="tab === 'play' && packId === p.id ? 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
-                @click="openPackTab(p.id)"
-              >
-                <img
-                  v-if="p.icon"
-                  :src="convertFileSrc(p.icon)"
-                  alt=""
-                  class="h-4 w-4 shrink-0 rounded object-cover"
-                />
-                <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
-                  <path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/>
-                </svg>
-                <span class="min-w-0 flex-1 truncate text-left">{{ p.name }}</span>
-                <span v-if="p.id === packId" class="h-2 w-2 shrink-0 rounded-full" :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"></span>
-              </button>
-            </template>
           </template>
+          <p v-if="sidebarRecentPacks.length === 0" class="px-3 py-1 text-[11px] text-[color:var(--tx-muted)]">
+            {{ t("side.recentEmpty") }}
+          </p>
+        </template>
+        <!-- Свернутый режим: только иконки недавних сборок -->
+        <template v-else>
+          <button
+            v-for="rp in sidebarRecentPacks"
+            :key="rp.pack.id"
+            type="button"
+            class="flex items-center justify-center rounded-md p-1.5 transition-colors"
+            :class="tab === 'play' && packId === rp.pack.id ? 'bg-[var(--input)] text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+            :title="rp.pack.name"
+            @click="openPackTab(rp.pack.id)"
+          >
+            <img
+              v-if="rp.pack.icon"
+              :src="convertFileSrc(rp.pack.icon)"
+              alt=""
+              class="h-6 w-6 shrink-0 rounded object-cover"
+            />
+            <svg v-else viewBox="0 0 16 16" class="h-5 w-5 shrink-0 fill-current">
+              <path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/>
+            </svg>
+          </button>
         </template>
       </nav>
 
       <nav class="flex flex-col gap-0.5 p-2 border-b border-[var(--border)]">
         <button
           type="button"
-          class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
-          :class="tab === 'news' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+          class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
+          :class="[
+            sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2 px-3',
+            tab === 'news' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
+          ]"
+          :title="t('nav.news')"
           @click="tab = 'news'"
         >
-          <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
-            <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-1 1v.878A2.25 2.25 0 1 1 2 13.378V2.5Z"/>
-            <path d="M5.25 3.75a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Zm0 3a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Z"/>
+          <svg viewBox="0 0 16 16" class="shrink-0 fill-current" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'">
+            <path d="M1.5 3.25A2.25 2.25 0 0 1 3.75 1h8.5A2.25 2.25 0 0 1 14.5 3.25v9.5A2.25 2.25 0 0 1 12.25 15H3.75a2.25 2.25 0 0 1-2.25-2.25v-9.5Zm1.5 0v9.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-9.5a.75.75 0 0 0-.75-.75h-8.5a.75.75 0 0 0-.75.75ZM4 5.5A.75.75 0 0 1 4.75 4.75h1.5a.75.75 0 0 1 0 1.5h-1.5A.75.75 0 0 1 4 5.5Zm3.75 0a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5H8.5a.75.75 0 0 1-.75-.75ZM4 8.5a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5A.75.75 0 0 1 4 8.5Zm3.75 0a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5H8.5a.75.75 0 0 1-.75-.75Zm-3.75 3a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1-.75-.75Z"/>
           </svg>
-          {{ t("nav.news") }}
+          <span v-if="!sidebarCollapsed">{{ t("nav.news") }}</span>
         </button>
         <button
           type="button"
-          class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
-          :class="tab === 'catalog' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+          class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
+          :class="[
+            sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2 px-3',
+            tab === 'catalog' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
+          ]"
+          :title="t('nav.catalog')"
           @click="tab = 'catalog'"
         >
-          <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
-            <path d="M2 4.5A1.75 1.75 0 0 1 3.75 2.75h1.5A1.75 1.75 0 0 1 7 4.5v1.25a1.75 1.75 0 0 1-.925 1.53c.163.268.402.5.692.67v.92a1.75 1.75 0 0 1-.938 1.53 1.77 1.77 0 0 1 .384 1.005V12a2.25 2.25 0 0 1-2.25 2.25h-.5A1.75 1.75 0 0 1 1.25 12.5v-2.75A1.75 1.75 0 0 1 3 8h.75v-2a1.75 1.75 0 0 1-1.75-1.5Zm7.5 0A1.75 1.75 0 0 1 11.25 2.75h1.5A1.75 1.75 0 0 1 14.5 4.5v2.75a1.75 1.75 0 0 1-1.75 1.75H12v2.5a1.75 1.75 0 0 1-1.5 1.5H9.5a.75.75 0 0 1 0-1.5h1v-2.5H8.5a1.75 1.75 0 0 1-1.75-1.75V4.5a1.75 1.75 0 0 1 1.75-1.75h1.5ZM11.25 4a.25.25 0 0 0-.25.25v2.75c0 .138.112.25.25.25h1.5a.25.25 0 0 0 .25-.25V4.25a.25.25 0 0 0-.25-.25Z"/>
+          <svg viewBox="0 0 16 16" class="shrink-0 fill-current" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'">
+            <path d="M1.75 2A1.75 1.75 0 0 0 0 3.75v3.5C0 8.216.784 9 1.75 9h3.5A1.75 1.75 0 0 0 7 7.25v-3.5A1.75 1.75 0 0 0 5.25 2h-3.5Zm0 1.5h3.5c.138 0 .25.112.25.25v3.5c0 .138-.112.25-.25.25h-3.5a.25.25 0 0 1-.25-.25v-3.5c0-.138.112-.25.25-.25ZM10.75 2A1.75 1.75 0 0 0 9 3.75v3.5c0 .966.784 1.75 1.75 1.75h3.5A1.75 1.75 0 0 0 16 7.25v-3.5A1.75 1.75 0 0 0 14.25 2h-3.5Zm0 1.5h3.5c.138 0 .25.112.25.25v3.5c0 .138-.112.25-.25.25h-3.5a.25.25 0 0 1-.25-.25v-3.5c0-.138.112-.25.25-.25ZM1.75 10A1.75 1.75 0 0 0 0 11.75v.5C0 13.216.784 14 1.75 14h3.5A1.75 1.75 0 0 0 7 12.25v-.5A1.75 1.75 0 0 0 5.25 10h-3.5Zm0 1.5h3.5c.138 0 .25.112.25.25v.5c0 .138-.112.25-.25.25h-3.5a.25.25 0 0 1-.25-.25v-.5c0-.138.112-.25.25-.25ZM10.75 10A1.75 1.75 0 0 0 9 11.75v.5c0 .966.784 1.75 1.75 1.75h3.5A1.75 1.75 0 0 0 16 12.25v-.5A1.75 1.75 0 0 0 14.25 10h-3.5Zm0 1.5h3.5c.138 0 .25.112.25.25v.5c0 .138-.112.25-.25.25h-3.5a.25.25 0 0 1-.25-.25v-.5c0-.138.112-.25.25-.25Z"/>
           </svg>
-          {{ t("nav.catalog") }}
+          <span v-if="!sidebarCollapsed">{{ t("nav.catalog") }}</span>
         </button>
         <button
           type="button"
-          class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
-          :class="tab === 'settings' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+          class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
+          :class="[
+            sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2 px-3',
+            tab === 'library' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
+          ]"
+          :title="t('nav.library')"
+          @click="tab = 'library'"
+        >
+          <svg viewBox="0 0 16 16" class="shrink-0 fill-current" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'">
+            <path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.744 3.744 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.846V7.06h7.745V2.5h-3.496a2.249 2.249 0 0 0-2.24 2.236l-.009.11Zm-.001 7.003a3.752 3.752 0 0 1 2.003-.575H14.5v-9h-3.495a2.249 2.249 0 0 0-2.24 2.236l-.009.111-.001 5.228Z"/>
+          </svg>
+          <span v-if="!sidebarCollapsed">{{ t("nav.library") }}</span>
+        </button>
+        <button
+          type="button"
+          class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
+          :class="sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2 px-3'"
+          :title="t('side.createInstance')"
+          @click="createPackOpen = true"
+        >
+          <svg viewBox="0 0 16 16" class="shrink-0 fill-[var(--accent)]" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'">
+            <path d="M8 0a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2H9v6a1 1 0 1 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1Z"/>
+          </svg>
+          <span v-if="!sidebarCollapsed">{{ t("side.createInstance") }}</span>
+        </button>
+        <button
+          type="button"
+          class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
+          :class="[
+            sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2 px-3',
+            tab === 'settings' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
+          ]"
+          :title="t('nav.settings')"
           @click="tab = 'settings'"
         >
-          <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
-            <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm7-3.25a.75.75 0 0 0-1.5 0v3.25H4.25a.75.75 0 0 0 0 1.5h3.5a.75.75 0 0 0 .75-.75V4.75Z"/>
+          <svg viewBox="0 0 24 24" class="shrink-0 fill-none stroke-current" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
           </svg>
-          {{ t("nav.settings") }}
+          <span v-if="!sidebarCollapsed">{{ t("nav.settings") }}</span>
         </button>
         <button
           type="button"
-          class="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
-          :class="tab === 'dev' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+          class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
+          :class="[
+            sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2 px-3',
+            tab === 'dev' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
+          ]"
+          :title="t('side.dev')"
           @click="tab = 'dev'"
         >
-          <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
-            <path d="M4.72 6.78a.75.75 0 0 1 0 1.06l-2.5 2.5a.75.75 0 0 1-1.06-1.06L3.44 6.5 1.16 4.22a.75.75 0 0 1 1.06-1.06l2.5 2.5Z"/>
-            <path d="m10.06 3.62 2.06 7.5a.75.75 0 1 1-1.46.4l-2.06-7.5a.75.75 0 1 1 1.46-.4Z"/>
-            <path d="M7.22 5.78a.75.75 0 0 1 0 1.06L4.72 9.34a.75.75 0 0 1-1.06-1.06L6.16 6.5 3.66 4.22a.75.75 0 0 1 1.06-1.06l2.5 2.5Z"/>
-            <path d="M11.28 9.72a.75.75 0 0 1 1.06 0l1.5 1.5a.75.75 0 0 1 0 1.06l-1.5 1.5a.749.749 0 0 1-1.06-1.06l.97-.97-.97-.97a.75.75 0 0 1 0-1.06Z"/>
+          <svg viewBox="0 0 16 16" class="shrink-0 fill-current" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'">
+            <path d="M2 1.75C2 .784 2.784 0 3.75 0h8.5C13.216 0 14 .784 14 1.75v12.5A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.69 1.884a.75.75 0 0 1 .79.075l4.244 3.253a.75.75 0 0 1 0 1.13L4.48 11.345a.75.75 0 0 1-.79.075.75.75 0 0 1-.388-.67v-6.5a.75.75 0 0 1 .388-.547ZM10.5 8.75h3a.75.75 0 0 0 0-1.5h-3a.75.75 0 0 0 0 1.5Z"/>
           </svg>
-          {{ t("side.dev") }}
+          <span v-if="!sidebarCollapsed">{{ t("side.dev") }}</span>
         </button>
       </nav>
 
       <!-- Сводка статуса -->
-      <div class="space-y-2 p-3.5 text-xs text-[color:var(--tx-muted)]">
+      <div v-if="!sidebarCollapsed" class="space-y-2 p-3.5 text-xs text-[color:var(--tx-muted)]">
         <div class="flex items-center justify-between">
           <span>{{ t("side.status") }}</span>
           <span class="inline-flex items-center gap-1.5 font-medium">
@@ -383,12 +361,12 @@
       <div class="flex-1" />
 
       <!-- Учётная запись -->
-      <div class="flex items-center gap-2.5 border-t border-[var(--border)] p-3 bg-[var(--bg-30)]">
+      <div class="flex items-center gap-2.5 border-t border-[var(--border)] p-3 bg-[var(--bg-30)]" :class="sidebarCollapsed ? 'justify-center p-2' : ''">
         <div class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--input)] font-mono text-xs font-bold text-[color:var(--tx-strong)]">
           <img v-if="skinUrl" :src="skinUrl" :alt="t('side.skin')" class="h-full w-full object-cover" />
           <template v-else>{{ session?.username?.[0]?.toUpperCase() ?? "?" }}</template>
         </div>
-        <div class="min-w-0 flex-1">
+        <div v-if="!sidebarCollapsed" class="min-w-0 flex-1">
           <div class="truncate text-xs font-medium text-[color:var(--tx)]">
             {{ session?.username ?? t("side.guest") }}
           </div>
@@ -402,86 +380,49 @@
       <div v-if="tab === 'play'" class="p-3 border-t border-[var(--border)] bg-[var(--panel)]">
         <button
           type="button"
-          class="w-full rounded-md py-2 px-3 text-xs font-semibold text-white shadow-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          :class="status?.installed
-            ? 'bg-[#238636] hover:bg-[#2ea043] focus-visible:outline-[#2ea043]'
-            : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)] focus-visible:outline-[var(--accent-hover)]'"
-          :disabled="busy || gameRunning"
-          @click="status?.installed ? handlePlay() : handleInstall()"
+          class="flex items-center justify-center rounded-md py-2 text-xs font-semibold text-white shadow-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          :class="[
+            sidebarCollapsed ? 'px-1.5' : 'w-full px-3',
+            status?.installed
+              ? gameRunning
+                ? 'bg-[#b91c1c] hover:bg-[#dc2626] focus-visible:outline-[#dc2626]'
+                : 'bg-[#238636] hover:bg-[#2ea043] focus-visible:outline-[#2ea043]'
+              : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)] focus-visible:outline-[var(--accent-hover)]',
+          ]"
+          :title="status?.installed ? (gameRunning ? t('side.stopGame') : t('side.play')) : t('side.downloadPlay')"
+          :disabled="busy"
+          @click="status?.installed ? (gameRunning ? handleStop() : handlePlay()) : handleInstall()"
         >
-          <template v-if="!status?.installed">
-            {{ busy ? t("side.installing") : t("side.downloadPlay") }}
+          <template v-if="!sidebarCollapsed">
+            <template v-if="!status?.installed">
+              {{ busy ? t("side.installing") : t("side.downloadPlay") }}
+            </template>
+            <template v-else>
+              {{ busy ? t("side.launching") : gameRunning ? t("side.stopGame") : t("side.play") }}
+            </template>
           </template>
-          <template v-else>
-            {{ busy ? t("side.launching") : gameRunning ? t("side.inGame") : t("side.play") }}
-          </template>
+          <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current">
+            <path
+              v-if="gameRunning"
+              d="M3.5 3.5h9v9h-9z"
+            />
+            <path
+              v-else
+              d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"
+            />
+          </svg>
         </button>
       </div>
 
-      <!-- Настройки лаунчера (тема + язык) -->
-      <div class="flex flex-col gap-2 border-t border-[var(--border)] bg-[var(--panel)] px-3 py-2">
-        <div class="flex items-center justify-between gap-2">
-          <span class="text-[10px] font-semibold uppercase tracking-wider text-[var(--tx-muted)]">
-            {{ t("side.launcherSettings") }}
-          </span>
-          <div class="flex items-center gap-1.5">
-            <button
-              type="button"
-              class="flex h-6 w-6 items-center justify-center rounded-md border border-[var(--border)] text-[var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)] disabled:cursor-not-allowed disabled:opacity-40"
-              :title="packThemeActive ? t('theme.disabled') : (themeLevel < 0.5 ? t('theme.dark') : t('theme.light'))"
-              :disabled="packThemeActive"
-              @click="toggleTheme"
-            >
-              <svg v-if="themeLevel >= 0.5" viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
-                <path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Zm3.36 2.14a.75.75 0 0 1 0 1.06 4 4 0 1 1-6.72 0 .75.75 0 0 1 1.06-1.06 2.5 2.5 0 1 0 4.6 0 .75.75 0 0 1 1.06-1.06ZM8 12.75A.75.75 0 0 1 8.75 13.5v.25a.75.75 0 0 1-1.5 0v-.25A.75.75 0 0 1 8 12.75Zm-4.42-1.58a.75.75 0 0 1 1.06-1.06 3 3 0 0 0 4.72 0 .75.75 0 0 1 1.06 1.06 4.5 4.5 0 0 1-6.84 0ZM2.5 8a.75.75 0 0 1 .75-.75h.25a.75.75 0 0 1 0 1.5h-.25A.75.75 0 0 1 2.5 8Zm9-6.25a.75.75 0 0 1 .75-.75h.25a.75.75 0 0 1 0 1.5h-.25a.75.75 0 0 1-.75-.75Zm0 9.25a.75.75 0 0 1 .75-.75h.25a.75.75 0 0 1 0 1.5h-.25a.75.75 0 0 1-.75-.75ZM3.25 2.5a.75.75 0 0 1 .75-.75h.25a.75.75 0 0 1 0 1.5H4a.75.75 0 0 1-.75-.75Zm0 9.25a.75.75 0 0 1 .75-.75h.25a.75.75 0 0 1 0 1.5H4a.75.75 0 0 1-.75-.75Z"/>
-              </svg>
-              <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
-                <path d="M2.75 7.25a5.5 5.5 0 0 1 7.33-5.36.75.75 0 0 1 .37 1.13 4 4 0 1 0 5.28 5.28.75.75 0 0 1 1.13.37 5.5 5.5 0 0 1-10.61 2.19A5.5 5.5 0 0 1 2.75 7.25Z"/>
-              </svg>
-            </button>
-            <button
-              v-for="code in locales"
-              :key="code"
-              type="button"
-              class="rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase transition-colors"
-              :class="locale === code
-                ? 'border-[color-mix(in_srgb,var(--accent-deep)_60%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] text-white'
-                : 'border-[var(--border)] text-[var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]'"
-              :title="localeLabel(code)"
-              @click="setLocale(code)"
-            >
-              {{ code }}
-            </button>
-          </div>
-        </div>
-        <div class="flex items-center justify-between gap-2 text-[9px] text-[var(--tx-muted)]">
-          <span class="min-w-0 truncate">
-            {{ t("lang.byAuthor") }}
-            <span class="font-semibold" :class="activeLocaleAuthor ? 'text-[color:var(--tx)]' : ''">{{ activeLocaleAuthor || "—" }}</span>
-            <template v-if="activeLocaleVersion"> · v{{ activeLocaleVersion }}</template>
-          </span>
-          <span class="shrink-0 tabular-nums">{{ t("lang.launcherVer") }} v{{ launcherVer || "?" }}</span>
-        </div>
-        <label class="flex items-center gap-2">
-          <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-current text-[var(--tx-muted)]">
-            <path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Zm3.36 2.14a.75.75 0 0 1 0 1.06 4 4 0 1 1-6.72 0 .75.75 0 0 1 1.06-1.06 2.5 2.5 0 1 0 4.6 0 .75.75 0 0 1 1.06-1.06ZM8 12.75A.75.75 0 0 1 8.75 13.5v.25a.75.75 0 0 1-1.5 0v-.25A.75.75 0 0 1 8 12.75Zm-4.42-1.58a.75.75 0 0 1 1.06-1.06 3 3 0 0 0 4.72 0 .75.75 0 0 1 1.06 1.06 4.5 4.5 0 0 1-6.84 0ZM2.5 8a.75.75 0 0 1 .75-.75h.25a.75.75 0 0 1 0 1.5h-.25A.75.75 0 0 1 2.5 8Zm9-6.25a.75.75 0 0 1 .75-.75h.25a.75.75 0 0 1 0 1.5h-.25a.75.75 0 0 1-.75-.75Zm0 9.25a.75.75 0 0 1 .75-.75h.25a.75.75 0 0 1 0 1.5h-.25a.75.75 0 0 1-.75-.75ZM3.25 2.5a.75.75 0 0 1 .75-.75h.25a.75.75 0 0 1 0 1.5H4a.75.75 0 0 1-.75-.75Zm0 9.25a.75.75 0 0 1 .75-.75h.25a.75.75 0 0 1 0 1.5H4a.75.75 0 0 1-.75-.75Z"/>
-          </svg>
-          <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-current text-[var(--tx-muted)]">
-            <path d="M2.75 7.25a5.5 5.5 0 0 1 7.33-5.36.75.75 0 0 1 .37 1.13 4 4 0 1 0 5.28 5.28.75.75 0 0 1 1.13.37 5.5 5.5 0 0 1-10.61 2.19A5.5 5.5 0 0 1 2.75 7.25Z"/>
-          </svg>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            :value="themeLevel"
-            :disabled="packThemeActive"
-            :title="packThemeActive ? t('theme.disabled') : ''"
-            class="min-w-0 flex-1 disabled:cursor-not-allowed disabled:opacity-40"
-            @input="setThemeLevel(Number(($event.target as HTMLInputElement).value))"
-          />
-</label>
-              </div>
+      <!-- Версия и перевод лаунчера -->
+      <div v-if="!sidebarCollapsed" class="flex items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-[9px] text-[var(--tx-muted)]">
+        <span class="min-w-0 truncate">
+          {{ t("lang.byAuthor") }}
+          <span class="font-semibold" :class="activeLocaleAuthor ? 'text-[color:var(--tx)]' : ''">{{ activeLocaleAuthor || "—" }}</span>
+          <template v-if="activeLocaleVersion"> · v{{ activeLocaleVersion }}</template>
+        </span>
+        <span class="shrink-0 tabular-nums">{{ t("lang.launcherVer") }} v{{ launcherVer || "?" }}</span>
+      </div>
               <!-- Ручка изменения ширины панели -->
       <div
         class="absolute inset-y-0 -right-[3px] z-40 w-[6px] cursor-col-resize transition-colors hover:bg-[var(--accent)] active:bg-[var(--accent-strong)]"
@@ -492,7 +433,7 @@
     </aside>
 
     <!-- ==== Основной контент ==== -->
-    <main class="relative flex-1 overflow-hidden bg-[var(--bg)]">
+    <main class="relative mx-auto h-full w-full flex-1 overflow-hidden bg-[var(--bg)]" style="max-width: 1500px">
       <!-- Scalable main column: width = user-draggable (наплыва inner-контента),
            по умолчанию растягивается на всю доступную ширину. -->
       <div class="relative flex h-full w-full">
@@ -580,8 +521,8 @@
                       @click="exportMenuOpen = !exportMenuOpen"
                     >
                       <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
-                        <path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/>
-                        <path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/>
+                        <path d="M7.97.72a.75.75 0 0 1 1.06 0l3 3a.75.75 0 1 1-1.06 1.06L9 2.81v6.94a.75.75 0 0 1-1.5 0V2.81L5.53 4.78a.75.75 0 0 1-1.06-1.06l3-3Z"/>
+                        <path d="M2.5 13.25a.75.75 0 0 1 .75.75c0 .138.112.25.25.25h9a.25.25 0 0 0 .25-.25.75.75 0 0 1 1.5 0 1.75 1.75 0 0 1-1.75 1.75h-9A1.75 1.75 0 0 1 1.75 14a.75.75 0 0 1 .75-.75Z"/>
                       </svg>
                       <span>{{ t("pack.exportBtn") }}</span>
                       <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current opacity-60"><path d="m4.22 6 3.72 3.72a.75.75 0 0 0 1.06 0L12.72 6l-1.06-1.06L8 8.09 5.28 4.94 4.22 6Z"/></svg>
@@ -616,10 +557,11 @@
                       >
                         <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current opacity-70"><path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/><path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/></svg>
                         CurseForge
-                      </button>
-                    </div>
-                  </div>
-                </template>
+</button>
+ </div>
+          </div>
+
+        </template>
               </div>
             </div>
 
@@ -634,7 +576,7 @@
                 :title="t('pack.versionChange')"
                 @click="openEditVersion"
               >
-                <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M11.28 9.72a.75.75 0 0 1 1.06 0l1.5 1.5a.75.75 0 0 1 0 1.06l-1.5 1.5a.749.749 0 0 1-1.06-1.06l.97-.97-.97-.97a.75.75 0 0 1 0-1.06Z"/><path d="M5.75 2.25h4.5a.75.75 0 0 1 0 1.5H8.31l4.97 4.97a.75.75 0 0 1-1.06 1.06L7.25 4.81v1.94a.75.75 0 0 1-1.5 0V2.25Z"/></svg>
+                <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251 1.302a.75.75 0 0 1-.993-.993l1.302-3.251a1.75 1.75 0 0 1 .445-.756l8.61-8.61Z"/></svg>
                 {{ t("pack.versionChange") }}
               </button>
               <span v-if="activePack?.author">•</span>
@@ -966,7 +908,7 @@
               <div class="flex min-w-0 flex-wrap items-center gap-2">
                 <template v-if="playSubTab !== 'saves'">
                   <button
-                    v-if="modUpdates.length > 0"
+                    v-if="modUpdatesTab.length > 0"
                     type="button"
                     class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
                     :disabled="updateAllBusy || updatingMod !== null || packLocked"
@@ -976,10 +918,11 @@
                       <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
                     </svg>
                     <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                      <path d="M4.5 3.75a.75.75 0 0 0-1.5 0v2.5A.75.75 0 0 0 3.75 7h2.5a.75.75 0 0 0 0-1.5H5.07a4.5 4.5 0 1 1 .57 6.44.75.75 0 0 0-.98-1.13 6 6 0 1 0-.16-8.5v.49Z"/>
+                      <path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"/>
+                      <path d="M7.97 2.72a.75.75 0 0 1 1.06 0l3 3a.75.75 0 1 1-1.06 1.06l-1.72-1.72v6.69a.75.75 0 0 1-1.5 0v-6.69L6.03 6.78a.75.75 0 0 1-1.06-1.06l3-3Z"/>
                     </svg>
                     {{ t("mods.updateAll") }}
-                    <span class="rounded-full bg-[var(--accent)] px-1.5 text-[10px] font-bold text-[var(--bg)]">{{ modUpdates.length }}</span>
+                    <span class="rounded-full bg-[var(--accent)] px-1.5 text-[10px] font-bold text-[var(--bg)]">{{ modUpdatesTab.length }}</span>
                   </button>
                   <button
                     type="button"
@@ -1155,14 +1098,14 @@
                     @click="setFileStatusFilter('updates')"
                   >{{ t("files.fUpdates") }}</button>
                   <button
-                    v-if="playSubTab !== 'saves' && modUpdates.length > 0 && !updateAllBusy"
+                    v-if="playSubTab !== 'saves' && modUpdatesTab.length > 0 && !updateAllBusy"
                     type="button"
                     class="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold text-white bg-[var(--accent)] transition-colors hover:opacity-90"
-                    :title="t('mods.updateAllHint', { n: modUpdates.length })"
+                    :title="t('mods.updateAllHint', { n: modUpdatesTab.length })"
                     @click="updateAllMods"
                   >
                     <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M4.5 3.75a.75.75 0 0 0-1.5 0v2.5A.75.75 0 0 0 3.75 7h2.5a.75.75 0 0 0 0-1.5H5.07a4.5 4.5 0 1 1 .57 6.44.75.75 0 0 0-.98-1.13 6 6 0 1 0-.16-8.5v.49Z"/></svg>
-                    {{ t("mods.updateAll") }} ({{ modUpdates.length }})
+                    {{ t("mods.updateAll") }} ({{ modUpdatesTab.length }})
                   </button>
                 </div>
                 <div class="relative min-w-0 flex-1">
@@ -1217,7 +1160,15 @@
               {{ t("files.loading") }}
             </div>
             <div v-else-if="(gameFiles[playSubTab] ?? []).length === 0" class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--panel)] p-8 text-center text-xs text-[color:var(--tx-muted)]">
-              {{ t("files.empty") }}
+              <p class="mb-3">{{ t("files.empty") }}</p>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                @click="openFolder(playSubTab as GameFolderKind)"
+              >
+                <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M.513 1.513A1.75 1.75 0 0 1 1.75 1h3.5c.55 0 1.07.26 1.4.7l.9 1.2a.25.25 0 0 0 .2.1H13a1 1 0 0 1 1 1v.5H2.75a.75.75 0 0 0 0 1.5h11.978a1 1 0 0 1 .994 1.117L15 13.25A1.75 1.75 0 0 1 13.25 15H1.75A1.75 1.75 0 0 1 0 13.25V2.75c0-.464.184-.91.513-1.237Z"/></svg>
+                {{ t("files.open") }}
+              </button>
             </div>
             <div
               v-else
@@ -1252,8 +1203,8 @@
                     </svg>
                     <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[var(--border)] bg-[var(--bg)]">
                       <img
-                        v-if="gameFileIcon(playSubTab, f.name) || modrinthMetaFor(f)?.icon || curseMetaFor(f)?.icon"
-                        :src="gameFileIcon(playSubTab, f.name) || modrinthMetaFor(f)?.icon || curseMetaFor(f)?.icon"
+                        v-if="modrinthMetaFor(f)?.icon || curseMetaFor(f)?.icon || gameFileIcon(playSubTab, f.name)"
+                        :src="modrinthMetaFor(f)?.icon || curseMetaFor(f)?.icon || gameFileIcon(playSubTab, f.name)"
                         alt=""
                         loading="lazy"
                         class="h-full w-full object-contain"
@@ -1270,7 +1221,10 @@
                     {{ fileMetaTitle(f) }}
                   </div>
                   <div class="truncate text-[10px] text-[color:var(--tx-muted)]">
-                    <template v-if="modrinthMetaFor(f)?.title || curseMetaFor(f)?.title">{{ f.displayName }} · </template>{{ f.kind === "dir" ? t("files.dir") : `${formatBytes(f.sizeBytes)} · ${formatUnixDate(f.modified)} · ${f.enabled ? t("files.enabled") : t("files.disabled")}` }}
+                    <template v-if="modrinthMetaFor(f)?.title || curseMetaFor(f)?.title">
+                      <template v-if="modrinthVersionFor(f)">{{ modrinthVersionFor(f) }} · </template>
+                      <template v-else-if="curseMetaFor(f)?.title">{{ f.displayName }} · </template>
+                    </template>{{ f.kind === "dir" ? t("files.dir") : `${formatBytes(f.sizeBytes)} · ${formatUnixDate(f.modified)} · ${f.enabled ? t("files.enabled") : t("files.disabled")}` }}
                   </div>
                 </div>
                 <button
@@ -1713,10 +1667,10 @@
                       </ul>
                     </div>
                   </div>
-                </section>
-              </div>
-            </div>
-          </template>
+</section>
+          </div>
+          </div>
+        </template>
 
           <!-- Консоль / логи -->
           <section v-else class="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-[var(--border)] bg-[var(--panel)]">
@@ -1867,15 +1821,10 @@
                     <p v-else class="py-6 text-center text-xs italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
                   </div>
                   <div v-else-if="fileDetailTab === 'versions'">
-                    <div v-if="fileDetailAllMcs.length > 1" class="mb-2 flex flex-wrap gap-1">
-                      <button
-                        v-for="mc in fileDetailAllMcs"
-                        :key="mc"
-                        type="button"
-                        class="rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors"
-                        :class="fileDetailMcFilter === mc ? 'bg-[var(--accent)] text-[var(--bg)]' : 'bg-[var(--input-50)] text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
-                        @click="setFileDetailMcFilter(mc)"
-                      >{{ mc }}</button>
+                    <div class="mb-2 flex flex-wrap items-center gap-2">
+                      <FilterSelect v-model="fileDetailMcSel" :options="fileDetailMcOptions" :placeholder="t('curse.fVersion')" :multiple="false" />
+                      <FilterSelect v-model="fileDetailLoaderSel" :options="fileDetailLoaderOptions" :placeholder="t('mods.fLoader')" :multiple="false" />
+                      <FilterSelect v-model="fileDetailTypeSel" :options="versionTypeOptions" :placeholder="t('mods.fType')" :multiple="false" />
                     </div>
                     <div v-if="fileDetailMrVersions === null" class="flex items-center justify-center py-4 text-[11px] text-[color:var(--tx-muted)]">
                       <svg viewBox="0 0 16 16" class="mr-2 h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
@@ -1889,16 +1838,30 @@
                         v-for="v in fileDetailFilteredVersions"
                         :key="v.id"
                         type="button"
-                        class="flex w-full items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-left transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] disabled:opacity-50"
+                        class="flex w-full items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg)] py-1.5 pl-2.5 pr-2 text-left transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] disabled:opacity-50"
                         :disabled="fileDetailMrVersionBusy !== null"
                         @click="installFileDetailVersion(v)"
                       >
-                        <svg v-if="fileDetailMrVersionBusy === v.id" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-[var(--accent)]"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
-                        <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-[var(--accent)]"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/></svg>
-                        <span class="min-w-0 flex-1 truncate text-[11px] text-[color:var(--tx)]">
-                          {{ v.versionNumber }} · {{ v.gameVersions.slice(0, 2).join(", ") }} {{ v.loaders.slice(0, 2).join(", ") }}
+                        <span
+                          class="h-2 w-2 shrink-0 rounded-full"
+                          :style="{ backgroundColor: verTypeColor(v.versionType) }"
+                          :title="t('mods.verType.' + v.versionType)"
+                        ></span>
+                        <span class="min-w-0 flex-1">
+<span class="flex items-center gap-1.5 text-[11px] font-medium text-[color:var(--tx-strong)]">
+                            <span class="truncate">{{ v.name }}</span>
+                            <span v-if="fileDetailInstalledVersion(v)" class="shrink-0 rounded-full border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-1.5 py-px text-[9px] font-semibold text-[var(--accent)]">{{ t("mods.installedBadge") }}</span>
+                          </span>
+                          <span class="block truncate text-[10px] text-[color:var(--tx-muted)]">
+                            {{ v.loaders.map(cap).join(" · ") || "vanilla" }} · {{ v.gameVersions.slice(0, 2).join(", ") }} · {{ formatDate(v.datePublished) }}
+                            <template v-if="verInstallSize(v)"> · {{ formatBytes(verInstallSize(v)) }}</template>
+                          </span>
                         </span>
-                        <span class="shrink-0 text-[10px] text-[color:var(--tx-muted)]">{{ formatDate(v.datePublished) }}</span>
+                        <span class="shrink-0 rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-px font-mono text-[9px] text-[color:var(--tx-muted)]">{{ v.versionNumber }}</span>
+                        <template v-if="fileDetailMrVersionBusy === v.id">
+                          <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 animate-spin fill-[var(--accent)]"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+                        </template>
+                        <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-[var(--accent)]"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/></svg>
                       </button>
                     </div>
                   </div>
@@ -2115,7 +2078,26 @@
               </div>
             </div>
 
+            <div class="mb-3 flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--panel)] p-1">
+              <button
+                v-for="src in (['author', 'modrinth', 'curse'] as const)"
+                :key="src"
+                type="button"
+                class="flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-[11px] font-semibold transition-colors"
+                :class="catalogSource === src
+                  ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
+                  : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+                @click="switchCatalogSource(src)"
+              >
+                <svg v-if="src === 'author'" viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M8 .75 6.14 4.02.75 4.02a1 1 0 0 0-.58 1.81l3.95 3-1.51 4.7a1 1 0 0 0 1.54 1.12L8 13.6l3.85 3.05a1 1 0 0 0 1.54-1.12l-1.51-4.7 3.95-3a1 1 0 0 0-.58-1.81l-5.4 0L8 .75Z"/></svg>
+                <svg v-else-if="src === 'modrinth'" viewBox="0 0 24 24" class="h-3 w-3 fill-current"><path fill="#00AF5C" d="M12.252.004a11.78 11.768 0 0 0-8.92 3.73 11 10.999 0 0 0-2.17 3.11 11.37 11.359 0 0 0-1.16 5.169c0 1.42.17 2.5.6 3.77.24.759.77 1.899 1.17 2.529a12.3 12.298 0 0 0 8.85 5.639c.44.05 2.54.07 2.76.02.2-.04.22.1-.26-1.7l-.36-1.37-1.01-.06a8.5 8.489 0 0 1-5.18-1.8 5.34 5.34 0 0 1-1.3-1.26c0-.05.34-.28.74-.5a37.572 37.545 0 0 1 2.88-1.629c.03 0 .5.45 1.06.98l1 .97 2.07-.43 2.06-.43 1.47-1.47c.8-.8 1.48-1.5 1.48-1.52 0-.09-.42-1.63-.46-1.7-.04-.06-.2-.03-1.02.18-.53.13-1.2.3-1.45.4l-.48.15-.53.53-.53.53-.93.1-.93.07-.52-.5a2.7 2.7 0 0 1-.96-1.7l-.13-.6.43-.57c.68-.9.68-.9 1.46-1.1.4-.1.65-.2.83-.33.13-.099.65-.579 1.14-1.069l.9-.9-.7-.7-.7-.7-1.95.54c-1.07.3-1.96.53-1.97.53-.03 0-2.23 2.48-2.63 2.97l-.29.35.28 1.03c.16.56.3 1.16.31 1.34l.03.3-.34.23c-.37.23-2.22 1.3-2.84 1.63-.36.2-.37.2-.44.1-.08-.1-.23-.6-.32-1.03-.18-.86-.17-2.75.02-3.73a8.84 8.839 0 0 1 7.9-6.93c.43-.03.77-.08.78-.1.06-.17.5-2.999.47-3.039-.01-.02-.1-.02-.2-.03Zm3.68.67c-.2 0-.3.1-.37.38-.06.23-.46 2.42-.46 2.52 0 .04.1.11.22.16a8.51 8.499 0 0 1 2.99 2 8.38 8.379 0 0 1 2.16 3.449 6.9 6.9 0 0 1 .4 2.8c0 1.07 0 1.27-.1 1.73a9.37 9.369 0 0 1-1.76 3.769c-.32.4-.98 1.06-1.37 1.38-.38.32-1.54 1.1-1.7 1.14-.1.03-.1.06-.07.26.03.18.64 2.56.7 2.78l.06.06a12.07 12.058 0 0 0 7.27-9.4c.13-.77.13-2.58 0-3.4a11.96 11.948 0 0 0-5.73-8.578c-.7-.42-2.05-1.06-2.25-1.06Z"/></svg>
+                <svg v-else viewBox="0 0 24 24" class="h-3 w-3 fill-current"><path fill="#F16436" d="M18.326 9.2145S23.2261 8.4418 24 6.1882h-7.5066V4.4H0l2.0318 2.3576V9.173s5.1267-.2665 7.1098 1.2372c2.7146 2.516-3.053 5.917-3.053 5.917L5.0995 19.6c1.5465-1.4726 4.494-3.3775 9.8983-3.2857-2.0565.65-4.1245 1.6651-5.7344 3.2857h10.9248l-1.0288-3.2726s-7.918-4.6688-.8336-7.1127z"/></svg>
+                {{ src === "author" ? t("catalog.sourceAuthor") : src === "modrinth" ? t("mods.serviceModrinth") : t("mods.serviceCurseforge") }}
+              </button>
+            </div>
+
             <div class="min-h-0 flex-1 overflow-y-auto pb-6">
+              <template v-if="catalogSource === 'author'">
               <div v-if="catalogLoading && catalog.length === 0" class="flex items-center justify-center py-16 text-xs text-[color:var(--tx-muted)]">
                 <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
                   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
@@ -2216,6 +2198,213 @@
                   </div>
                 </article>
               </div>
+              </template>
+
+              <template v-else-if="catalogSource === 'modrinth'">
+                <div class="mb-3 flex shrink-0 flex-wrap items-center gap-2">
+                  <FilterSelect
+                    v-model="packFilters.versions"
+                    :options="packVersionOptions"
+                    :placeholder="t('mods.fVersion')"
+                    @change="searchPacks()"
+                  />
+                  <FilterSelect
+                    v-model="packFilters.loaders"
+                    :options="packLoaderOptions"
+                    :placeholder="t('mods.fLoader')"
+                    @change="searchPacks()"
+                  />
+                    <FilterSelect
+                      v-model="packVersionTypeSel"
+                      :options="versionTypeOptions"
+                      :placeholder="t('mods.fType')"
+                      :multiple="false"
+                      @change="searchPacks()"
+                    />
+                  <FilterSelect
+                    v-model="packFilters.categories"
+                    :options="packCategoryOptions"
+                    :placeholder="t('mods.fCategory')"
+                    @change="searchPacks()"
+                  />
+                  <FilterSelect
+                    v-model="packEnvSel"
+                    :options="envOptions"
+                    :placeholder="t('mods.fAny')"
+                    :multiple="false"
+                    @change="searchPacks()"
+                  />
+                  <FilterSelect
+                    v-model="packSortSel"
+                    :options="sortSelectOptions"
+                    :placeholder="t('mods.fSort')"
+                    :multiple="false"
+                    @change="searchPacks()"
+                  />
+                </div>
+                <div class="mb-3 flex items-center gap-2">
+                  <div class="relative min-w-0 flex-1">
+                    <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 fill-[var(--tx-muted)]">
+                      <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
+                    </svg>
+                    <input
+                      v-model="modPackQuery"
+                      type="text"
+                      :placeholder="t('mods.packsPlaceholder')"
+                      class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] py-1.5 pl-8 pr-3 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors focus:border-[var(--accent)]"
+                      @keydown.enter="searchPacks"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                    :disabled="modPackLoading"
+                    @click="searchPacks"
+                  >
+                    {{ t("mods.search") }}
+                  </button>
+                </div>
+                <div v-if="modPackLoading" class="flex items-center justify-center py-16 text-xs text-[color:var(--tx-muted)]">
+                  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
+                    <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                  </svg>
+                  {{ t("mods.searchingAll") }}
+                </div>
+                <div v-else-if="modPackResults.length === 0" class="py-16 text-center text-xs text-[color:var(--tx-muted)]">
+                  {{ modPackQuery ? t("mods.noResults") : t("mods.packsHelp") }}
+                </div>
+                <div v-else class="space-y-2">
+                  <div
+                    v-for="p in modPackResults"
+                    :key="p.projectId"
+                    class="flex cursor-pointer items-start gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
+                    @click="openCatalogModrinthDetail(p)"
+                  >
+                    <img v-if="p.iconUrl" :src="p.iconUrl" alt="" loading="lazy" class="h-10 w-10 shrink-0 rounded-md object-cover" />
+                    <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-[10px] text-[color:var(--tx-muted)]">
+                      {{ p.title.slice(0, 2).toUpperCase() }}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <div class="flex flex-wrap items-center gap-x-2">
+                        <svg viewBox="0 0 24 24" class="h-3 w-3 shrink-0 self-center" :title="t('mods.serviceModrinth')"><path fill="#00AF5C" d="M12.252.004a11.78 11.768 0 0 0-8.92 3.73 11 10.999 0 0 0-2.17 3.11 11.37 11.359 0 0 0-1.16 5.169c0 1.42.17 2.5.6 3.77.24.759.77 1.899 1.17 2.529a12.3 12.298 0 0 0 8.85 5.639c.44.05 2.54.07 2.76.02.2-.04.22.1-.26-1.7l-.36-1.37-1.01-.06a8.5 8.489 0 0 1-5.18-1.8 5.34 5.34 0 0 1-1.3-1.26c0-.05.34-.28.74-.5a37.572 37.545 0 0 1 2.88-1.629c.03 0 .5.45 1.06.98l1 .97 2.07-.43 2.06-.43 1.47-1.47c.8-.8 1.48-1.5 1.48-1.52 0-.09-.42-1.63-.46-1.7-.04-.06-.2-.03-1.02.18-.53.13-1.2.3-1.45.4l-.48.15-.53.53-.53.53-.93.1-.93.07-.52-.5a2.7 2.7 0 0 1-.96-1.7l-.13-.6.43-.57c.68-.9.68-.9 1.46-1.1.4-.1.65-.2.83-.33.13-.099.65-.579 1.14-1.069l.9-.9-.7-.7-.7-.7-1.95.54c-1.07.3-1.96.53-1.97.53-.03 0-2.23 2.48-2.63 2.97l-.29.35.28 1.03c.16.56.3 1.16.31 1.34l.03.3-.34.23c-.37.23-2.22 1.3-2.84 1.63-.36.2-.37.2-.44.1-.08-.1-.23-.6-.32-1.03-.18-.86-.17-2.75.02-3.73a8.84 8.839 0 0 1 7.9-6.93c.43-.03.77-.08.78-.1.06-.17.5-2.999.47-3.039-.01-.02-.1-.02-.2-.03Zm3.68.67c-.2 0-.3.1-.37.38-.06.23-.46 2.42-.46 2.52 0 .04.1.11.22.16a8.51 8.499 0 0 1 2.99 2 8.38 8.379 0 0 1 2.16 3.449 6.9 6.9 0 0 1 .4 2.8c0 1.07 0 1.27-.1 1.73a9.37 9.369 0 0 1-1.76 3.769c-.32.4-.98 1.06-1.37 1.38-.38.32-1.54 1.1-1.7 1.14-.1.03-.1.06-.07.26.03.18.64 2.56.7 2.78l.06.06a12.07 12.058 0 0 0 7.27-9.4c.13-.77.13-2.58 0-3.4a11.96 11.948 0 0 0-5.73-8.578c-.7-.42-2.05-1.06-2.25-1.06Z"/></svg>
+                        <span class="truncate text-xs font-semibold text-[color:var(--tx-strong)]">{{ p.title }}</span>
+                        <span class="text-[10px] text-[color:var(--tx-muted)]">{{ t("mods.byAuthor", { author: p.author }) }}</span>
+                      </div>
+                      <p class="mt-0.5 line-clamp-2 text-[11px] leading-snug text-[color:var(--tx-muted)]">{{ p.description }}</p>
+                      <p class="mt-1 flex items-center gap-1 text-[10px] text-[color:var(--tx-muted)]">
+                        <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                        {{ p.downloads.toLocaleString() }}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      class="flex shrink-0 items-center gap-1.5 self-center rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                      :disabled="quickPackBusy !== null"
+                      :title="t('mods.downloadHint')"
+                      @click.stop="quickDownloadPack(p, $event)"
+                    >
+                      <svg v-if="quickPackBusy === p.projectId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+                        <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                      </svg>
+                      <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                        <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
+                      </svg>
+                      {{ t("mods.download") }}
+                    </button>
+                  </div>
+                </div>
+              </template>
+
+              <template v-else-if="catalogSource === 'curse'">
+                <div class="mb-3 flex shrink-0 flex-wrap items-center gap-2">
+                  <FilterSelect
+                    v-model="cpCatSel"
+                    :options="cpCatOptions"
+                    :placeholder="t('curse.fCategory')"
+                    :multiple="false"
+                    @change="searchCursePacks"
+                  />
+                  <FilterSelect
+                    v-model="cpVerSel"
+                    :options="packVersionOptions"
+                    :placeholder="t('mods.fVersion')"
+                    :multiple="false"
+                    @change="searchCursePacks"
+                  />
+                  <FilterSelect
+                    v-model="cpSortSel"
+                    :options="curseSortOptions"
+                    :placeholder="t('mods.fSort')"
+                    :multiple="false"
+                    @change="searchCursePacks"
+                  />
+                </div>
+                <div v-if="!curseKeyOk" class="mb-3 rounded-md border border-[var(--border)] bg-[var(--panel)] p-4 text-center text-xs text-[color:var(--tx-muted)]">
+                  {{ t("curse.noKey") }}
+                </div>
+                <div class="mb-3 flex items-center gap-2">
+                  <div class="relative min-w-0 flex-1">
+                    <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 fill-[var(--tx-muted)]">
+                      <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
+                    </svg>
+                    <input
+                      v-model="modPackQuery"
+                      type="text"
+                      :placeholder="t('curse.packsPlaceholder')"
+                      class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] py-1.5 pl-8 pr-3 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors focus:border-[var(--accent)]"
+                      @keydown.enter="searchCursePacks"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                    :disabled="cpLoading"
+                    @click="searchCursePacks"
+                  >
+                    {{ t("mods.search") }}
+                  </button>
+                </div>
+                <p v-if="!cpSearched" class="py-8 text-center text-[11px] text-[color:var(--tx-muted)]">{{ t("curse.packsHelp") }}</p>
+                <p v-else-if="cpLoading" class="flex items-center justify-center gap-2 py-8 text-[11px] text-[color:var(--tx-muted)]">
+                  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
+                    <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                  </svg>
+                  {{ t("mods.searchingAll") }}
+                </p>
+                <div v-else-if="cpErr" class="rounded-md border border-[var(--border)] bg-[var(--input-50)] p-6 text-center text-xs text-[color:var(--tx-muted)]">
+                  <p class="mb-2 whitespace-pre-wrap">{{ cpErr }}</p>
+                  <button type="button" class="text-[var(--accent)] hover:underline" @click="searchCursePacks">{{ t("catalog.retry") }}</button>
+                </div>
+                <div v-else-if="cpResults.length === 0" class="py-16 text-center text-xs text-[color:var(--tx-muted)]">
+                  {{ modPackQuery ? t("mods.noResults") : t("curse.packsHelp") }}
+                </div>
+                <div v-else class="space-y-2">
+                  <div
+                    v-for="p in cpResults"
+                    :key="p.projectId"
+                    class="flex cursor-pointer items-start gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
+                    @click="openCatalogCurseDetail(p)"
+                  >
+                    <img v-if="p.iconUrl" :src="p.iconUrl" alt="" loading="lazy" class="h-10 w-10 shrink-0 rounded-md object-cover" />
+                    <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-[10px] text-[color:var(--tx-muted)]">
+                      {{ p.name.slice(0, 2).toUpperCase() }}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <div class="flex flex-wrap items-center gap-x-2">
+                        <svg viewBox="0 0 24 24" class="h-3 w-3 shrink-0 self-center" :title="t('mods.serviceCurseforge')"><path fill="#F16436" d="M18.326 9.2145S23.2261 8.4418 24 6.1882h-7.5066V4.4H0l2.0318 2.3576V9.173s5.1267-.2665 7.1098 1.2372c2.7146 2.516-3.053 5.917-3.053 5.917L5.0995 19.6c1.5465-1.4726 4.494-3.3775 9.8983-3.2857-2.0565.65-4.1245 1.6651-5.7344 3.2857h10.9248l-1.0288-3.2726s-7.918-4.6688-.8336-7.1127z"/></svg>
+                        <span class="truncate text-xs font-semibold text-[color:var(--tx-strong)]">{{ p.name }}</span>
+                        <span class="text-[10px] text-[color:var(--tx-muted)]">{{ t("mods.byAuthor", { author: p.author }) }}</span>
+                      </div>
+                      <p class="mt-0.5 line-clamp-2 text-[11px] leading-snug text-[color:var(--tx-muted)]">{{ p.summary }}</p>
+                      <p class="mt-1 flex items-center gap-1 text-[10px] text-[color:var(--tx-muted)]">
+                        <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                        {{ p.downloadCount.toLocaleString() }}
+                      </p>
+                    </div>
+                    <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 self-center fill-[var(--tx-muted)]"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
         </template>
@@ -2311,7 +2500,7 @@
                     type="button"
                     class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[10px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
                     :title="t('dev.setIconHint')"
-                    @click="packIconTarget = p.id; packIconInput?.click()"
+                    @click="pickPackIcon(p.id)"
                   >
                     {{ p.icon ? t("dev.changeIcon") : t("dev.setIcon") }}
                   </button>
@@ -2428,7 +2617,142 @@
           </div>
         </template>
 
-        <!-- ======= Вкладка: Настройки ======= -->
+        <template v-else-if="tab === 'library'">
+          <div class="flex min-h-0 flex-1 flex-col">
+            <div class="mb-5 flex shrink-0 items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
+              <div>
+                <h2 class="text-lg font-semibold text-[color:var(--tx-strong)]">{{ t("nav.library") }}</h2>
+                <p class="mt-1 text-xs text-[color:var(--tx-muted)]">{{ t("library.subtitle") }}</p>
+              </div>
+              <div class="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  class="rounded-md border border-[var(--border)] bg-[var(--input)] p-1.5 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)] disabled:opacity-40"
+                  :title="t('library.zoomOut')"
+                  :disabled="libScale <= 1"
+                  @click="setLibScale(libScale - 1)"
+                >
+                  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M3 8a.75.75 0 0 1 .75-.75h8.5a.75.75 0 0 1 0 1.5h-8.5A.75.75 0 0 1 3 8Z"/></svg>
+                </button>
+                <span class="w-11 text-center text-xs font-semibold tabular-nums text-[color:var(--tx-muted)]">{{ libPercent }}%</span>
+                <button
+                  type="button"
+                  class="rounded-md border border-[var(--border)] bg-[var(--input)] p-1.5 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)] disabled:opacity-40"
+                  :title="t('library.zoomIn')"
+                  :disabled="libScale >= 4"
+                  @click="setLibScale(libScale + 1)"
+                >
+                  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M8 3.25a.75.75 0 0 1 .75.75v3.25H12a.75.75 0 0 1 0 1.5H8.75V12a.75.75 0 0 1-1.5 0V8.75H4a.75.75 0 0 1 0-1.5h3.25V4a.75.75 0 0 1 .75-.75Z"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+              <template v-for="cat in PACK_CATS" :key="cat">
+                <section v-if="packsBySource[cat].length > 0" class="mb-6">
+                  <h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">
+                    <button
+                      type="button"
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]"
+                      :title="t('library.toggleCat')"
+                      @click="toggleSidebarCat(cat)"
+                    >
+                      <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current transition-transform" :class="sidebarCat[cat] ? 'rotate-90' : ''"><path d="M6 4l4 4-4 4V4Z"/></svg>
+                    </button>
+                    {{ t(PACK_CAT_LABELS[cat]) }}
+                    <span class="rounded-full bg-[var(--input)] px-1.5 py-0.5 text-[9px] font-bold tabular-nums">{{ packsBySource[cat].length }}</span>
+                  </h3>
+                  <div v-if="sidebarCat[cat]" class="grid gap-3" :class="libTile.col">
+                    <div
+                      v-for="p in packsBySource[cat]"
+                      :key="p.id"
+                      class="flex aspect-square flex-col items-center justify-center gap-2 rounded-md border p-3 text-center transition-colors"
+                      :class="packId === p.id
+                        ? 'border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]'
+                        : 'border-[var(--border)] bg-[var(--panel)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:bg-[var(--input-50)]'"
+                      @contextmenu.prevent="openLibMenu($event, p)"
+                    >
+                      <button
+                        type="button"
+                        class="flex w-full flex-col items-center justify-center gap-2"
+                        :title="p.name"
+                        @click="openPackTab(p.id)"
+                      >
+                        <img
+                          v-if="p.icon"
+                          :src="convertFileSrc(p.icon)"
+                          :alt="p.name"
+                          class="shrink-0 aspect-square rounded-none border border-[var(--border)] object-cover"
+                          :class="libTile.icon"
+                        />
+                        <svg v-else viewBox="0 0 16 16" class="shrink-0 rounded-none fill-current text-[var(--tx-muted)]" :class="libTile.icon">
+                          <path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Z"/>
+                        </svg>
+                        <span class="w-full min-w-0 truncate text-xs font-medium" :class="packId === p.id ? 'text-[var(--accent)]' : 'text-[color:var(--tx)]'">{{ p.name }}</span>
+                        <span class="w-full min-w-0 truncate font-mono text-[10px] text-[color:var(--tx-muted)]" :title="libStatus[p.id]?.active_version ? `versionId: ${libStatus[p.id]?.active_version}` : undefined">
+                          {{ libStatus[p.id]?.active_source_tag ?? libStatus[p.id]?.active_version ?? t("library.notInstalled") }}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        class="flex w-full items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-sm transition-colors"
+                        :class="libStatus[p.id]?.installed ? 'bg-[#238636] hover:bg-[#2ea043]' : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)]'"
+                        :disabled="busy || gameRunning"
+                        @click="playLibraryPack(p)"
+                      >
+                        <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
+                        {{ libStatus[p.id]?.installed ? t("side.play") : t("side.downloadPlay") }}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              </template>
+              <div
+                v-if="packs.length === 0"
+                class="rounded-md border border-[var(--border)] bg-[var(--panel)] p-8 text-center text-xs text-[color:var(--tx-muted)]"
+              >
+                {{ t("library.empty") }}
+              </div>
+            </div>
+
+            <!-- Контекстное меню: ПКМ по экземпляру в библиотеке -->
+            <div
+              v-if="libMenuPack && libMenuPos"
+              class="fixed inset-0 z-[70]"
+              @mousedown="closeLibMenu"
+              @contextmenu.prevent="closeLibMenu"
+            >
+              <div
+                class="fixed z-[71] w-56 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)] py-1 shadow-2xl"
+                :style="{ left: `${libMenuPos.x}px`, top: `${libMenuPos.y}px` }"
+                @mousedown.stop
+                @contextmenu.stop
+              >
+                <div class="px-3 py-1.5">
+                  <div class="truncate text-xs font-semibold text-[color:var(--tx-strong)]">{{ libMenuPack.name }}</div>
+                  <div class="truncate font-mono text-[10px] text-[color:var(--tx-muted)]">{{ libMenuPack.id }}</div>
+                </div>
+                <div class="mx-3 border-t border-[var(--border)]"></div>
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
+                  :disabled="busy || gameRunning"
+                  @click="libDoPlay"
+                >
+                  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
+                  {{ libMenuPack && libStatus[libMenuPack.id]?.installed ? t("side.play") : t("side.downloadPlay") }}
+                </button>
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                  @click="libOpenSettings"
+                >
+                  <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 shrink-0 fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"></path></svg>
+                  {{ t("nav.settings") }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
         <template v-else>
           <div class="min-h-0 flex-1 overflow-y-auto pr-1">
           <div class="space-y-6">
@@ -2780,6 +3104,13 @@
             v-model="packFilters.loaders"
             :options="packLoaderOptions"
             :placeholder="t('mods.fLoader')"
+            @change="searchPacks()"
+          />
+          <FilterSelect
+            v-model="packVersionTypeSel"
+            :options="versionTypeOptions"
+            :placeholder="t('mods.fType')"
+            :multiple="false"
             @change="searchPacks()"
           />
           <FilterSelect
@@ -3501,38 +3832,7 @@
       </div>
     </div>
 
-    <!-- Скрытый вход для выбора PNG-скина -->
-    <input
-      ref="skinFileInput"
-      type="file"
-      accept=".png,image/png"
-      class="hidden"
-      @change="onSkinFileChange"
-    />
-    <!-- Скрытый вход для выбора PNG-иконки сборки -->
-    <input
-      ref="packIconInput"
-      type="file"
-      accept=".png,image/png"
-      class="hidden"
-      @change="onPackIconChange"
-    />
-    <!-- Скрытые входы для иконки/баннера новой сборки -->
-    <input
-      ref="createPackIconInput"
-      type="file"
-      accept=".png,.jpg,.jpeg,image/png,image/jpeg,image/webp"
-      class="hidden"
-      @change="onCreatePackFileChange('icon')"
-    />
-    <input
-      ref="createPackBannerInput"
-      type="file"
-      accept=".png,.jpg,.jpeg,image/png,image/jpeg,image/webp"
-      class="hidden"
-      @change="onCreatePackFileChange('banner')"
-    />
-  </div>
+    </div>
 
     <!-- Модалка: смена версии Minecraft / загрузчика у своей сборки -->
     <div v-if="editVerOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" @click.self="editVerOpen = false">
@@ -3548,6 +3848,46 @@
           </button>
         </div>
         <div class="space-y-3 px-4 py-3">
+          <div>
+            <label class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.editName") }}</label>
+            <input
+              v-model="editVerName"
+              class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs text-[color:var(--tx)] outline-none placeholder:text-[var(--tx-muted)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
+              :placeholder="activePack?.name || ''"
+              maxlength="60"
+            />
+          </div>
+
+          <div>
+            <label class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.editMedia") }}</label>
+            <div class="flex items-center gap-2">
+              <img
+                v-if="activePack?.icon"
+                :src="convertFileSrc(activePack.icon)"
+                alt=""
+                class="h-9 w-9 shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] object-cover"
+              />
+              <div v-else class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--input)] text-[color:var(--tx-muted)]">
+                <svg viewBox="0 0 16 16" class="h-5 w-5 fill-current"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/></svg>
+              </div>
+              <button
+                type="button"
+                class="flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                @click="pickPackIcon(packId)"
+              >
+                {{ t("dev.changeIcon") }}
+              </button>
+              <span v-if="activeBanner" class="inline-block h-9 w-24 shrink-0 rounded-md border border-[var(--border)] object-cover" :style="`background-image:url('${activeBanner}');background-size:cover;background-position:center`"></span>
+              <button
+                type="button"
+                class="flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                @click="pickPackBanner(packId)"
+              >
+                {{ activeBanner ? t("dev.changeBanner") : t("dev.setBanner") }}
+              </button>
+            </div>
+          </div>
+
           <div>
             <label class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.versionMc") }}</label>
             <div ref="editVerMcBox" class="relative">
@@ -3630,36 +3970,6 @@
                   <svg v-if="editVerLv === v" viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-current"><path d="M12.78 4.22a.75.75 0 0 1 0 1.06l-5.78 5.78a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L6.5 9.44l5.22-5.22a.75.75 0 0 1 1.06 0Z"/></svg>
                 </button>
               </div>
-            </div>
-          </div>
-
-          <div>
-            <label class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.versionJava") }}</label>
-            <div class="flex items-center justify-between gap-2">
-              <p class="min-w-0 flex-1 text-[10px] text-[color:var(--tx-muted)]">{{ t("pack.versionJavaHint", { req: editVerJavaReq }) }}</p>
-              <button
-                type="button"
-                class="flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
-                :title="t('pack.versionJavaAuto')"
-                :class="editVerJava === '' ? 'text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : ''"
-                @click="editVerJava = ''"
-              >
-                <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM5 4.25a.75.75 0 0 1 .75.75v1h.75a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1-.75-.75v-1.75a.75.75 0 0 1 .75-.75Zm6.75 2.5v1.75a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h.75v-1a.75.75 0 1 1 1.5 0ZM8 9.75a.75.75 0 0 1 .63.34l2 3a.75.75 0 0 1-1.26.84L8 11.6l-1.37 2.33a.75.75 0 0 1-1.26-.84l2-3A.75.75 0 0 1 8 9.75Z"/></svg>
-              </button>
-            </div>
-            <div class="mt-1 flex flex-wrap gap-1.5">
-              <button
-                v-for="j in [8, 17, 21]"
-                :key="j"
-                type="button"
-                class="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors"
-                :class="editVerJava === String(j)
-                  ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]'
-                  : 'border-[var(--border)] bg-[var(--input)] text-[color:var(--tx)] hover:bg-[var(--hover)]'"
-                @click="editVerJava = String(j)"
-              >
-                Java {{ j }}
-              </button>
             </div>
           </div>
 
@@ -4037,12 +4347,19 @@
             :placeholder="t('mods.fVersion')"
             @change="searchMods()"
           />
-          <FilterSelect
-            v-model="modFilters.loaders"
-            :options="loaderOptions"
-            :placeholder="t('mods.fLoader')"
-            @change="searchMods()"
-          />
+<FilterSelect
+              v-model="modFilters.loaders"
+              :options="loaderOptions"
+              :placeholder="t('mods.fLoader')"
+              @change="searchMods()"
+            />
+            <FilterSelect
+              v-model="modVersionTypeSel"
+              :options="versionTypeOptions"
+              :placeholder="t('mods.fType')"
+              :multiple="false"
+              @change="searchMods()"
+            />
           <FilterSelect
             v-model="modFilters.categories"
             :options="categoryOptions"
@@ -4064,7 +4381,7 @@
             @change="searchMods()"
           />
         </div>
-        <div v-if="searchService === 'modrinth'" class="min-h-0 flex-1 overflow-y-auto p-4">
+        <div v-if="searchService === 'modrinth'" ref="modSearchBox" class="min-h-0 flex-1 overflow-y-auto p-4" @scroll.passive="onModSearchScroll">
           <div
             v-if="selModrinth.size > 0 && !modSearchLoading && !modDetail"
             class="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-3 py-2"
@@ -4176,30 +4493,42 @@
               </div>
               <div v-else-if="modVersions.length === 0" class="py-8 text-center text-xs text-[color:var(--tx-muted)]">{{ t("mods.noVersions") }}</div>
               <div v-else class="space-y-2">
+                <div v-if="modVersionsRaw.length > 1" class="flex flex-wrap items-center gap-2">
+                  <FilterSelect v-model="verFilterMcSel" :options="verFilterMcOptions" :placeholder="t('curse.fVersion')" :multiple="false" />
+                  <FilterSelect v-model="verFilterLoaderSel" :options="verFilterLoaderOptions" :placeholder="t('curse.fLoader')" :multiple="false" />
+                  <FilterSelect v-model="verFilterTypeSel" :options="verFilterTypeOptions" :placeholder="t('mods.fType')" :multiple="false" />
+                </div>
+                <p v-if="filteredModVersions.length === 0" class="py-6 text-center text-xs text-[color:var(--tx-muted)]">{{ t("mods.noVersions") }}</p>
                 <div
-                  v-for="v in modVersions"
+                  v-for="v in filteredModVersions"
                   :key="v.id"
-                  class="flex items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2"
+                  class="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg)] py-1.5 pl-2.5 pr-1.5"
                 >
+                  <span
+                    class="h-2 w-2 shrink-0 rounded-full"
+                    :style="{ backgroundColor: verTypeColor(v.versionType) }"
+                    :title="t('mods.verType.' + v.versionType)"
+                  ></span>
                   <div class="min-w-0 flex-1">
-                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span class="truncate text-xs font-medium text-[color:var(--tx-strong)]">{{ v.name }}</span>
-                      <span class="rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 font-mono text-[10px] text-[color:var(--tx-muted)]">{{ v.versionNumber }}</span>
+                    <div class="flex items-center gap-1.5">
+                      <span class="truncate text-[11px] font-medium text-[color:var(--tx-strong)]">{{ v.name }}</span>
                       <span
                         v-if="status?.minecraft_version && v.gameVersions.includes(status.minecraft_version)"
-                        class="rounded-full border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent)]"
+                        class="shrink-0 rounded-full border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-1.5 py-px text-[9px] font-medium text-[var(--accent)]"
                       >
                         {{ t("mods.versionMatch") }}
                       </span>
                     </div>
-                    <div class="mt-0.5 truncate text-[10px] text-[color:var(--tx-muted)]">
-                      {{ v.gameVersions.slice(0, 2).join(", ") }} · {{ v.loaders.join(", ") }} · {{ formatDate(v.datePublished) }}
+                    <div class="truncate text-[10px] text-[color:var(--tx-muted)]">
+                      {{ v.loaders.map(cap).join(" · ") || "vanilla" }} · {{ v.gameVersions.slice(0, 2).join(", ") }} · {{ formatDate(v.datePublished) }}
                     </div>
                   </div>
+                  <span class="shrink-0 rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-px font-mono text-[9px] text-[color:var(--tx-muted)]">{{ v.versionNumber }}</span>
                   <button
                     type="button"
-                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+                    class="flex shrink-0 items-center gap-1 rounded-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2 py-1 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
                     :disabled="modInstallBusy !== null"
+                    :title="v.versionNumber"
                     @click="installModVersion(v)"
                   >
                     <svg v-if="modInstallBusy === v.id" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
@@ -4208,7 +4537,6 @@
                     <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
                       <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
                     </svg>
-                    {{ t("mods.install") }}
                   </button>
                 </div>
               </div>
@@ -4239,7 +4567,16 @@
           </template>
           <template v-else-if="modSearchResults.length === 0">
             <div class="py-16 text-center text-xs text-[color:var(--tx-muted)]">
-              {{ modSearchQuery ? t("mods.noResults") : t("mods.help") }}
+              <p class="mb-3">{{ modSearchQuery ? t("mods.noResults") : t("mods.help") }}</p>
+              <button
+                v-if="modFiltersActive"
+                type="button"
+                class="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                @click="resetModFiltersAndSearch"
+              >
+                <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1A1.75 1.75 0 0 0 0 2.75v3.5C0 7.216.784 8 1.75 8h3.5A1.75 1.75 0 0 0 7 6.25v-3.5A1.75 1.75 0 0 0 5.25 1h-3.5ZM1 2.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-.75.75h-3.5a.75.75 0 0 1-.75-.75v-3.5Zm9-1.75A1.75 1.75 0 0 0 8.25 2.75v3.5A1.75 1.75 0 0 0 10 8h3.5A1.75 1.75 0 0 0 15.25 6.25v-3.5A1.75 1.75 0 0 0 13.5 1H10Zm-.75 1.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-.75.75H10a.75.75 0 0 1-.75-.75v-3.5ZM1.75 9A1.75 1.75 0 0 0 0 10.75v3.5A1.75 1.75 0 0 0 1.75 16h3.5A1.75 1.75 0 0 0 7 14.25v-3.5A1.75 1.75 0 0 0 5.25 9h-3.5Zm-.75 1.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-.75.75h-3.5a.75.75 0 0 1-.75-.75v-3.5ZM10 9A1.75 1.75 0 0 0 8.25 10.75v3.5A1.75 1.75 0 0 0 10 16h3.5A1.75 1.75 0 0 0 15.25 14.25v-3.5A1.75 1.75 0 0 0 13.5 9H10Zm-.75 1.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-.75.75H10a.75.75 0 0 1-.75-.75v-3.5Z"/></svg>
+                {{ t("mods.resetFilters") }}
+              </button>
             </div>
           </template>
           <template v-else>
@@ -4304,6 +4641,17 @@
               </div>
             </div>
           </template>
+          <div v-if="modSearchMore || modSearchMoreBusy" class="flex justify-center py-4">
+            <svg v-if="modSearchMoreBusy" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-[var(--tx-muted)]">
+              <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+            </svg>
+            <button
+              v-else
+              type="button"
+              class="text-[11px] font-medium text-[var(--accent)] hover:underline"
+              @click="loadMoreMods"
+            >{{ t("mods.loadMore") }}</button>
+          </div>
         </div>
         <div v-else class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           <div
@@ -4470,15 +4818,10 @@
           <p v-else class="py-6 text-center text-xs italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
         </div>
         <div v-else-if="fileDetailTab === 'versions'">
-          <div v-if="fileDetailAllMcs.length > 1" class="mb-2 flex flex-wrap gap-1">
-            <button
-              v-for="mc in fileDetailAllMcs"
-              :key="mc"
-              type="button"
-              class="rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors"
-              :class="fileDetailMcFilter === mc ? 'bg-[var(--accent)] text-[var(--bg)]' : 'bg-[var(--input-50)] text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
-              @click="setFileDetailMcFilter(mc)"
-            >{{ mc }}</button>
+          <div v-if="fileDetailMrVersions !== null" class="mb-2 flex flex-wrap items-center gap-2">
+            <FilterSelect v-model="fileDetailMcSel" :options="fileDetailMcOptions" :placeholder="t('curse.fVersion')" :multiple="false" />
+            <FilterSelect v-model="fileDetailLoaderSel" :options="fileDetailLoaderOptions" :placeholder="t('mods.fLoader')" :multiple="false" />
+            <FilterSelect v-model="fileDetailTypeSel" :options="versionTypeOptions" :placeholder="t('mods.fType')" :multiple="false" />
           </div>
           <div v-if="fileDetailMrVersions === null" class="flex items-center justify-center py-10 text-xs text-[color:var(--tx-muted)]">
             <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
@@ -4492,18 +4835,30 @@
               v-for="v in fileDetailFilteredVersions"
               :key="v.id"
               type="button"
-              class="flex w-full items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-left transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] disabled:opacity-50"
+              class="flex w-full items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg)] py-1.5 pl-2.5 pr-2 text-left transition-colors hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] disabled:opacity-50"
               :disabled="fileDetailMrVersionBusy !== null"
               @click="installFileDetailVersion(v)"
             >
-              <svg v-if="fileDetailMrVersionBusy === v.id" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-[var(--accent)]"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
-              <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-[var(--accent)]"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/></svg>
+              <span
+                class="h-2 w-2 shrink-0 rounded-full"
+                :style="{ backgroundColor: verTypeColor(v.versionType) }"
+                :title="t('mods.verType.' + v.versionType)"
+              ></span>
               <span class="min-w-0 flex-1">
-                <span class="block truncate text-xs font-medium text-[color:var(--tx-strong)]">{{ v.name }}</span>
+                <span class="flex items-center gap-1.5 text-[11px] font-medium text-[color:var(--tx-strong)]">
+                  <span class="truncate">{{ v.name }}</span>
+                  <span v-if="fileDetailInstalledVersion(v)" class="shrink-0 rounded-full border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-1.5 py-px text-[9px] font-semibold text-[var(--accent)]">{{ t("mods.installedBadge") }}</span>
+                </span>
                 <span class="block truncate text-[10px] text-[color:var(--tx-muted)]">
-                  {{ v.versionNumber }} · {{ v.gameVersions.slice(0, 2).join(", ") }} {{ v.loaders.slice(0, 2).join(", ") }} · {{ formatDate(v.datePublished) }}
+                  {{ v.loaders.map(cap).join(" · ") || "vanilla" }} · {{ v.gameVersions.slice(0, 2).join(", ") }} · {{ formatDate(v.datePublished) }}
+                  <template v-if="verInstallSize(v)"> · {{ formatBytes(verInstallSize(v)) }}</template>
                 </span>
               </span>
+              <span class="shrink-0 rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-px font-mono text-[9px] text-[color:var(--tx-muted)]">{{ v.versionNumber }}</span>
+              <template v-if="fileDetailMrVersionBusy === v.id">
+                <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 animate-spin fill-[var(--accent)]"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+              </template>
+              <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-[var(--accent)]"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/></svg>
             </button>
           </div>
         </div>
@@ -4533,12 +4888,12 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { save } from "@tauri-apps/plugin-dialog";
-import { computed, nextTick, onBeforeUnmount, reactive, ref } from "vue";
+import { open as openDialog, save } from "@tauri-apps/plugin-dialog";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, editPackVersion, getPackJava, setPackJava, exportPack as exportPackFn, exportSourceList, exportAuthorPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, setPackIcon, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles } from "~/lib/bridge";
+import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, editPackVersion, exportPack as exportPackFn, exportSourceList, exportAuthorPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, installedModSha1, setPackIcon, setPackBanner, setPackName, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles, getStatus } from "~/lib/bridge";
 import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit, CursePackFile, CurseProjectDetail } from "~/lib/bridge";
-import type { AuthorPackConfig, AuthorServer, AuthorSocial, AuthorTheme, CatalogEntry, CrashAnalysis, CurseInstallResult, ExportSourceItem, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod } from "~/lib/types";
+import type { AuthorPackConfig, AuthorServer, AuthorSocial, AuthorTheme, CatalogEntry, CrashAnalysis, CurseInstallResult, ExportSourceItem, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod, AppStatus } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n, getLocaleMeta } from "~/composables/useI18n";
 import { getCachedIcon, setCachedIcon } from "~/lib/iconCache";
@@ -4592,6 +4947,7 @@ const {
   packs,
   packId,
   activePack,
+  sidebarRecentPacks,
   percent,
   filePercent,
   filesDone,
@@ -4619,6 +4975,7 @@ const {
   handleRemoveAccount,
   handlePlay,
   playOnServer,
+  handleStop,
   handleClearLog,
   handleCopyLog,
   handleOpenPackDir,
@@ -4804,11 +5161,47 @@ function openCrashIssue() {
   else window.open(url, "_blank");
 }
 
-const showAddPack = ref(false);
 const customModsOpen = ref(false);
-const addUrlInput = ref<HTMLInputElement | null>(null);
 
 const catalogBannerBroken = ref(new Set<string>());
+const catalogSource = ref<"author" | "modrinth" | "curse">("author");
+
+function switchCatalogSource(s: "author" | "modrinth" | "curse") {
+  if (catalogSource.value === s) return;
+  catalogSource.value = s;
+  modPackDetail.value = null;
+  modPackVersions.value = null;
+  cpProject.value = null;
+  cpFiles.value = null;
+  cpDetail.value = null;
+  cpErr.value = "";
+  cpSearched.value = false;
+  if (s === "modrinth") {
+    void (async () => {
+      await loadModrinthTags("modpack");
+      applyPackAutoFilters();
+      await searchPacks();
+    })();
+  } else if (s === "curse") {
+    void (async () => {
+      await loadCurseKeyStatus();
+      await loadCpCategories();
+      await searchCursePacks();
+    })();
+  }
+}
+
+async function openCatalogModrinthDetail(p: ModrinthProject) {
+  modPackService.value = "modrinth";
+  modPackOpen.value = true;
+  await openPackDetail(p);
+}
+
+async function openCatalogCurseDetail(p: CurseSearchHit) {
+  modPackService.value = "curseforge";
+  modPackOpen.value = true;
+  await openCpFiles(p);
+}
 
 /** Категории сборок в сайдбаре: авторские (GitHub), свои, с Modrinth, с CurseForge. */
 type PackCat = "github" | "custom" | "modrinth" | "curseforge";
@@ -4918,18 +5311,6 @@ function catalogBannerOk(entry: CatalogEntry): boolean {
 
 function markCatalogBannerBroken(entry: CatalogEntry) {
   catalogBannerBroken.value = new Set(catalogBannerBroken.value).add(entry.url);
-}
-
-function toggleAddPack() {
-  showAddPack.value = !showAddPack.value;
-  if (showAddPack.value) {
-    nextTick(() => addUrlInput.value?.focus());
-  }
-}
-
-async function submitAdd() {
-  await handleAddPack();
-  if (!addingPack.value) showAddPack.value = false;
 }
 
 const EXAMPLE_PACK_REPO = "https://github.com/n1orio/mono-pack-example/releases/latest";
@@ -5090,12 +5471,15 @@ onMounted(() => {
   document.addEventListener("keydown", onFileMenuKey);
   document.addEventListener("mousedown", onExportMenuDoc);
   document.addEventListener("keydown", onExportMenuKey);
+  document.addEventListener("keydown", onGlobalEscapeKey);
+  void loadCurseKeyStatus();
 });
 onBeforeUnmount(() => {
   document.removeEventListener("mousedown", onFileMenuDoc);
   document.removeEventListener("keydown", onFileMenuKey);
   document.removeEventListener("mousedown", onExportMenuDoc);
   document.removeEventListener("keydown", onExportMenuKey);
+  document.removeEventListener("keydown", onGlobalEscapeKey);
 });
 function onFileMenuDoc(e: MouseEvent) {
   if (!fileMenuOpen.value) return;
@@ -5113,6 +5497,47 @@ function onExportMenuDoc(e: MouseEvent) {
 function onExportMenuKey(e: KeyboardEvent) {
   if (e.key === "Escape") exportMenuOpen.value = false;
 }
+/** ESC закрывает верхнюю открытую модалку (единый порядок для всех окон). */
+function onGlobalEscapeKey(e: KeyboardEvent) {
+  if (e.key !== "Escape") return;
+  if (exportOpen.value) {
+    exportOpen.value = false;
+  } else if (editVerOpen.value) {
+    editVerOpen.value = false;
+  } else if (crashAnalysis.value) {
+    closeCrashAnalysis();
+  } else if (modPackOpen.value) {
+    modPackOpen.value = false;
+    modPackVersions.value = null;
+    modPackDetail.value = null;
+  } else if (createPackOpen.value) {
+    createPackOpen.value = false;
+  } else if (bugReportOpen.value) {
+    closeBugReport();
+  } else if (searchOpen.value) {
+    closeSearch();
+  } else if (fileDetail.value !== null) {
+    fileDetail.value = null;
+  } else if (shotIdx.value !== null) {
+    shotIdx.value = null;
+  }
+}
+
+/** Прогресс/запуск отражаем в заголовке окна — видно даже в свёрнутом виде. */
+const mainBaseTitle = document.title || "Mono Launcher";
+watch([gameRunning, progress, percent, activePack], () => {
+  if (isSearchWin.value || isFileDetailWin.value || !isTauri()) return;
+  const win = getCurrentWindow();
+  let title = mainBaseTitle;
+  if (gameRunning.value && activePack.value?.name) {
+    title = `▶ ${activePack.value.name}`;
+  } else if (progress.value) {
+    const p = percent.value;
+    const phase = String(progress.value.phase ?? "").trim();
+    title = p > 0 ? `${p}%${phase ? ` · ${phase}` : ""}` : (phase || mainBaseTitle);
+  }
+  void win.setTitle(title);
+});
 const fileListFiltered = computed(() => {
   let list = gameFiles.value[playSubTab.value as GameFolderKind] ?? [];
   if (fileSortKey.value === "name") {
@@ -5177,7 +5602,7 @@ function isFileToggling(folder: string, entry: GameFileEntry): boolean {
 }
 
 // ---- Метаданные Modrinth (название + аватар проекта), подгружаются лениво -----
-const modrinthMeta = ref<Record<string, { title: string; icon: string }>>({});
+const modrinthMeta = ref<Record<string, { title: string; icon: string; version?: string }>>({});
 
 // ---- Метаданные CurseForge (название + иконка проекта), подгружаются лениво ----
 const curseMeta = ref<Record<number, { title: string; icon: string }>>({});
@@ -5268,24 +5693,40 @@ function modrinthProjectId(url: string): string | null {
   return url.match(/\/mod\/([^/]+)/)?.[1] ?? null;
 }
 
+/** ID проекта Modrinth файла: из трекинга (скачан вручную) либо из URL индекса сборки. */
+function modrinthProjectIdFor(f: GameFileEntry): string | null {
+  if (f.modrinthProjectId) return f.modrinthProjectId;
+  if (!f.modrinthUrl) return null;
+  return modrinthProjectId(f.modrinthUrl) ?? null;
+}
+
 function modrinthMetaFor(f: GameFileEntry) {
-  if (!f.modrinthUrl) return undefined;
-  const id = modrinthProjectId(f.modrinthUrl);
+  const id = modrinthProjectIdFor(f);
   return id ? modrinthMeta.value[id] : undefined;
 }
 
-async function fetchModrinthMeta(url: string) {
-  const id = modrinthProjectId(url);
+/** Версия Modrinth файла (числовое имя версии), если известна. */
+function modrinthVersionFor(f: GameFileEntry): string | undefined {
+  return modrinthMetaFor(f)?.version;
+}
+
+async function fetchModrinthMeta(f: GameFileEntry) {
+  const id = modrinthProjectIdFor(f);
   if (!id || modrinthMeta.value[id]) return;
+  const versionId = f.modrinthVersionId;
   const cacheKey = `mr:${id}`;
   const cached = getCachedIcon(cacheKey);
   if (cached) {
     try {
-      const j = JSON.parse(cached.data) as { title?: string; icon?: string };
+      const j = JSON.parse(cached.data) as { title?: string; icon?: string; version?: string };
       if (j && typeof j.title === "string") {
         modrinthMeta.value = {
           ...modrinthMeta.value,
-          [id]: { title: j.title, icon: typeof j.icon === "string" ? j.icon : "" },
+          [id]: {
+            title: j.title,
+            icon: typeof j.icon === "string" ? j.icon : "",
+            version: typeof j.version === "string" ? j.version : undefined,
+          },
         };
         if (!cached.stale) return;
       }
@@ -5294,14 +5735,24 @@ async function fetchModrinthMeta(url: string) {
     }
   }
   try {
-    const res = await fetch(`https://api.modrinth.com/v2/project/${id}?fields=title,icon_url`);
-    if (!res.ok) return;
-    const j = await res.json();
-    if (typeof j?.title !== "string") return;
-    const meta = {
-      title: j.title,
-      icon: typeof j.icon_url === "string" ? j.icon_url : "",
-    };
+    const [proj, ver] = await Promise.all([
+      fetch(`https://api.modrinth.com/v2/project/${id}?fields=title,icon_url`),
+      versionId
+        ? fetch(`https://api.modrinth.com/v2/version/${versionId}?fields=version_number`)
+        : Promise.resolve(null),
+    ]);
+    const meta: { title: string; icon: string; version?: string } = { title: "", icon: "" };
+    if (proj.ok) {
+      const j = await proj.json();
+      if (typeof j?.title !== "string") return;
+      meta.title = j.title;
+      meta.icon = typeof j.icon_url === "string" ? j.icon_url : "";
+    }
+    if (ver?.ok) {
+      const j = await ver.json();
+      if (typeof j?.version_number === "string") meta.version = j.version_number;
+    }
+    if (!meta.title) return;
     modrinthMeta.value = { ...modrinthMeta.value, [id]: meta };
     setCachedIcon(cacheKey, JSON.stringify(meta));
   } catch {
@@ -5343,7 +5794,7 @@ async function warmSearchIcon(url: string) {
 // Тянем мету только для видимых строк (виртуализированный список).
 watch(fileListVisible, (rows) => {
   for (const f of rows) {
-    if (f.modrinthUrl) fetchModrinthMeta(f.modrinthUrl);
+    if (f.modrinthProjectId || f.modrinthUrl) fetchModrinthMeta(f);
     if (f.curseforgeProjectId) fetchCurseMeta(f.curseforgeProjectId);
   }
 });
@@ -5485,12 +5936,71 @@ const modSearchQuery = ref("");
 const modSearchLoading = ref(false);
 const modSearchResults = ref<ModrinthProject[]>([]);
 const modSearchErr = ref("");
+const modSearchOffset = ref(0);
+const modSearchMore = ref(false);
+const modSearchMoreBusy = ref(false);
+const modSearchBox = ref<HTMLElement | null>(null);
+let modSearchGen = 0;
+const MOD_SEARCH_PAGE = 20;
 const modVersions = ref<ModrinthVersion[] | null>(null);
+const modVersionsRaw = ref<ModrinthVersion[]>([]);
+const verFilterMc = ref("");
+const verFilterLoader = ref("");
+const verFilterType = ref("");
+
+const verFilterMcOptions = computed(() =>
+  Array.from(new Set(modVersionsRaw.value.flatMap((v) => v.gameVersions)))
+    .sort((a, b) => verCmp(b, a))
+    .map((v) => ({ value: v, label: v }))
+);
+const verFilterLoaderOptions = computed(() =>
+  Array.from(new Set(modVersionsRaw.value.flatMap((v) => v.loaders)))
+    .map((v) => ({ value: v, label: cap(v) }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+);
+const verFilterTypeOptions = computed(() =>
+  Array.from(new Set(modVersionsRaw.value.map((v) => v.versionType)))
+    .sort((a, b) => a.localeCompare(b))
+    .map((v) => ({ value: v, label: t("mods.verType." + v) }))
+);
+const filteredModVersions = computed(() =>
+  modVersionsRaw.value.filter((v) => {
+    if (verFilterMc.value && !v.gameVersions.includes(verFilterMc.value)) return false;
+    if (verFilterLoader.value && !v.loaders.includes(verFilterLoader.value)) return false;
+    if (verFilterType.value && v.versionType !== verFilterType.value) return false;
+    return true;
+  })
+);
+const verFilterMcSel = computed({
+  get: () => (verFilterMc.value ? [verFilterMc.value] : []),
+  set: (v: string[]) => { verFilterMc.value = v[0] ?? ""; },
+});
+const verFilterLoaderSel = computed({
+  get: () => (verFilterLoader.value ? [verFilterLoader.value] : []),
+  set: (v: string[]) => { verFilterLoader.value = v[0] ?? ""; },
+});
+const verFilterTypeSel = computed({
+  get: () => (verFilterType.value ? [verFilterType.value] : []),
+  set: (v: string[]) => { verFilterType.value = v[0] ?? ""; },
+});
+const verTypeColor = (ty: string) =>
+  ty === "beta" ? "#f59e0b" : ty === "alpha" ? "#ef4444" : "#22c55e";
+const verInstallSize = (v: ModrinthVersion) =>
+  v.files.reduce((m, f) => Math.max(m, f.size ?? 0), 0);
 const modInstallBusy = ref<string | null>(null);
 const modUpdates = ref<ModUpdate[]>([]);
 const trackedMods = ref<TrackedMod[]>([]);
 const updatingMod = ref<string | null>(null);
 const updateAllBusy = ref(false);
+
+/** Обновления только текущей вкладки (моды / ресурспаки / шейдеры). */
+const modUpdatesTab = computed(() =>
+  playSubTab.value === "mods" ||
+  playSubTab.value === "resourcepacks" ||
+  playSubTab.value === "shaderpacks"
+    ? modUpdates.value.filter((u) => u.folder === playSubTab.value)
+    : []
+);
 
 const modPackOpen = ref(false);
 const modPackService = ref<"modrinth" | "curseforge">("modrinth");
@@ -5523,6 +6033,7 @@ const fileDetail = ref<{ folder: GameFolderKind; entry: GameFileEntry } | null>(
 const fileDetailMrLoading = ref(false);
 const fileDetailMr = ref<ModrinthProject | null>(null);
 const fileDetailMrVersions = ref<ModrinthVersion[] | null>(null);
+const fileDetailInstalledSha = ref<string | null>(null);
 const fileDetailMcFilter = ref<string | null>(null);
 const fileDetailTab = ref<"about" | "versions" | "gallery">("about");
 const fileDetailTabs: { kind: "about" | "versions" | "gallery" }[] = [
@@ -5587,6 +6098,8 @@ async function openFileDetail(folder: GameFolderKind, entry: GameFileEntry) {
   fileDetailMrVersions.value = null;
   fileDetailCf.value = null;
   fileDetailMcFilter.value = status.value?.minecraft_version || null;
+  fileDetailLoaderFilter.value = "";
+  fileDetailTypeFilter.value = "";
   fileDetailTab.value = "about";
   if (slug) {
     fileDetailMrLoading.value = true;
@@ -5594,6 +6107,7 @@ async function openFileDetail(folder: GameFolderKind, entry: GameFileEntry) {
       fileDetailMr.value = await modrinthProject(slug);
       const fl = folder === "saves" && (entry.kind === "dir" ? true : false) ? "mods" : folder;
       void loadFileDetailVersions(slug, fl);
+      void loadFileDetailInstalledSha(fileDetailMr.value.projectId);
     } catch {
       /* не удалось — остаётся placeholder проекта */
     } finally {
@@ -5619,31 +6133,69 @@ async function loadFileDetailVersions(slug: string, folder: GameFolderKind) {
   }
 }
 
-/** Все версии игры, встречающиеся у файла (для фильтра-чипов). */
-const fileDetailAllMcs = computed(() => {
-  const set = new Set<string>();
-  for (const v of fileDetailMrVersions.value ?? []) {
-    for (const gv of v.gameVersions) set.add(gv);
+/** Загружает sha1 установленного файла проекта, чтобы отметить текущую версию. */
+async function loadFileDetailInstalledSha(projectId: string) {
+  fileDetailInstalledSha.value = null;
+  if (!isTauri() || !packId.value || !projectId) return;
+  try {
+    fileDetailInstalledSha.value = (await installedModSha1(packId.value, projectId)) ?? null;
+  } catch {
+    fileDetailInstalledSha.value = null;
   }
-  return [...set].sort(verCmpDesc).slice(0, 20);
+}
+
+/** Установлена ли уже эта версия (по sha1 файла среди файлов версии). */
+const fileDetailInstalledVersion = (v: ModrinthVersion) =>
+  !!fileDetailInstalledSha.value && v.files.some((f) => {
+    const h = f.hashes?.["sha1"];
+    return !!h && h.toLowerCase() === fileDetailInstalledSha.value;
+  });
+
+/** Все версии игры, встречающиеся у файла (для фильтра версии). */
+const fileDetailMcOptions = computed(() =>
+  Array.from(new Set((fileDetailMrVersions.value ?? []).flatMap((v) => v.gameVersions)))
+    .sort(verCmpDesc)
+    .map((mc) => ({ value: mc, label: mc }))
+);
+/** Платформы/загрузчики, встречающиеся у файла. */
+const fileDetailLoaderOptions = computed(() =>
+  Array.from(new Set((fileDetailMrVersions.value ?? []).flatMap((v) => v.loaders)))
+    .map((l) => ({ value: l, label: cap(l) }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+);
+
+const fileDetailMcSel = computed({
+  get: () => (fileDetailMcFilter.value ? [fileDetailMcFilter.value] : []),
+  set: (v: string[]) => { fileDetailMcFilter.value = v[0] ?? null; },
+});
+const fileDetailLoaderFilter = ref("");
+const fileDetailTypeFilter = ref("");
+const fileDetailLoaderSel = computed({
+  get: () => (fileDetailLoaderFilter.value ? [fileDetailLoaderFilter.value] : []),
+  set: (v: string[]) => { fileDetailLoaderFilter.value = v[0] ?? ""; },
+});
+const fileDetailTypeSel = computed({
+  get: () => (fileDetailTypeFilter.value ? [fileDetailTypeFilter.value] : []),
+  set: (v: string[]) => { fileDetailTypeFilter.value = v[0] ?? ""; },
 });
 
-/** Версии с применённым фильтром по версии игры (и загрузчику для модов):
+/** Версии с применёнными фильтрами (версия игры, загрузчик, канал):
  *  сначала подходящие под выбранную версию сборки, затем остальные. */
 const fileDetailFilteredVersions = computed<ModrinthVersion[]>(() => {
   const all = fileDetailMrVersions.value ?? [];
-  const mc = fileDetailMcFilter.value;
+  const explicit = all.filter((v) =>
+    (!fileDetailMcFilter.value || v.gameVersions.includes(fileDetailMcFilter.value)) &&
+    (!fileDetailLoaderFilter.value || v.loaders.includes(fileDetailLoaderFilter.value)) &&
+    (!fileDetailTypeFilter.value || v.versionType === fileDetailTypeFilter.value)
+  );
+  const mc = status.value?.minecraft_version;
   const loader = status.value?.loader?.replace("-loader", "");
   const isMod = fileDetailFolder.value !== "saves";
   const matchLoader = isMod && loader ? (v: ModrinthVersion) => v.loaders.includes(loader) : () => true;
-  const match = mc ? all.filter((v) => v.gameVersions.includes(mc) && matchLoader(v)) : all;
-  const rest = mc ? all.filter((v) => !match.includes(v)) : [];
+  const match = mc ? explicit.filter((v) => v.gameVersions.includes(mc) && matchLoader(v)) : explicit;
+  const rest = mc ? explicit.filter((v) => !match.includes(v)) : [];
   return [...match, ...rest];
 });
-
-function setFileDetailMcFilter(mc: string | null) {
-  fileDetailMcFilter.value = mc;
-}
 
 /** Сортировка версий «1.21.1» по убыванию (новые сверху). */
 function verCmpDesc(a: string, b: string): number {
@@ -5685,9 +6237,15 @@ async function updateFileDetail() {
     } else if (d.entry.modrinthProjectId && d.entry.name) {
       await modrinthUpdateMod(packId.value, d.entry.name);
     } else if (fileDetailMr.value) {
-      // Нет трекера, но есть slug — установим последнюю версию поверх (через версии).
-      if (fileDetailMrVersions.value?.length) {
-        await modrinthInstallMod(packId.value, fileDetailMrVersions.value[0].id, folder as ModrinthInstallFolder);
+      // Нет трекера, но есть slug — установим последнюю подходящую версию
+      // под версию сборки (через серверную фильтрацию по MC).
+      const mc = status.value?.minecraft_version || undefined;
+      const versions = fileDetailMr.value
+        ? await modrinthProjectVersions(fileDetailMr.value.projectId, mc, undefined)
+        : [];
+      const target = versions[0] ?? fileDetailMrVersions.value?.[0];
+      if (target) {
+        await modrinthInstallMod(packId.value, target.id, folder as ModrinthInstallFolder);
       }
     }
     await loadGameFiles(fileDetailFolder.value, true);
@@ -5905,8 +6463,6 @@ const createPackVersionBox = ref<HTMLElement | null>(null);
 let createPackVersionClose: ((e: MouseEvent) => void) | null = null;
 const createPackIcon = ref<string | null>(null);
 const createPackBanner = ref<string | null>(null);
-const createPackIconInput = ref<HTMLInputElement | null>(null);
-const createPackBannerInput = ref<HTMLInputElement | null>(null);
 
 /** Фильтры поиска Modrinth (теги грузятся по типам проектов). */
 const modrinthTagsMap = ref<Record<string, ModrinthTags | null>>({});
@@ -5915,11 +6471,26 @@ interface SearchFilterState {
   versions: string[];
   loaders: string[];
   categories: string[];
+  versionType: string;
   sort: string;
   env: string;
 }
-const modFilters = reactive<SearchFilterState>({ versions: [], loaders: [], categories: [], sort: "relevance", env: "" });
-const packFilters = reactive<SearchFilterState>({ versions: [], loaders: [], categories: [], sort: "relevance", env: "" });
+const modFilters = reactive<SearchFilterState>({ versions: [], loaders: [], categories: [], versionType: "", sort: "relevance", env: "" });
+const packFilters = reactive<SearchFilterState>({ versions: [], loaders: [], categories: [], versionType: "", sort: "relevance", env: "" });
+
+const versionTypeOptions = [
+  { value: "release", label: t("mods.verType.release") },
+  { value: "beta", label: t("mods.verType.beta") },
+  { value: "alpha", label: t("mods.verType.alpha") },
+];
+const modVersionTypeSel = computed({
+  get: () => (modFilters.versionType ? [modFilters.versionType] : []),
+  set: (v: string[]) => { modFilters.versionType = v[0] ?? ""; },
+});
+const packVersionTypeSel = computed({
+  get: () => (packFilters.versionType ? [packFilters.versionType] : []),
+  set: (v: string[]) => { packFilters.versionType = v[0] ?? ""; },
+});
 
 /** Теги модпаков (для фильтров окна поиска сборок). */
 const packTags = computed(() => modrinthTagsMap.value["modpack"] ?? null);
@@ -6055,9 +6626,10 @@ const packSortSel = computed({
 
 /** Общие опции поиска из фильтров. */
 function searchOpts(f: SearchFilterState) {
-  const opts: { categories?: string[]; versions?: string[]; environment?: string; index?: string } = {};
-  const cats = [...f.loaders, ...f.categories];
-  if (cats.length) opts.categories = cats;
+  const opts: { categories?: string[]; loaders?: string[]; versionType?: string; versions?: string[]; environment?: string; index?: string } = {};
+  if (f.categories.length) opts.categories = f.categories;
+  if (f.loaders.length) opts.loaders = f.loaders;
+  if (f.versionType) opts.versionType = f.versionType;
   if (f.versions.length) opts.versions = f.versions;
   if (f.env) opts.environment = f.env;
   if (f.sort && f.sort !== "relevance") opts.index = f.sort;
@@ -6241,8 +6813,8 @@ const curseSortOptions = CURSE_SORT.map((s) => ({ value: s.value, label: t(s.lab
 
 /** Поиск на CurseForge. */
 async function searchCurse() {
-  if (!isTauri() || !packId.value || curseLoading.value) return;
-  selCurse.value = new Set();
+  if (!isTauri() || !packId.value) return;
+  modDetail.value = null;
   curseLoading.value = true;
   curseSearched.value = true;
   curseErr.value = "";
@@ -6305,25 +6877,88 @@ async function installCurse(p: CurseSearchHit) {
   }
 }
 
+/** Активны ли фильтры/запрос поиска (для показа кнопки «сбросить» в пустом списке). */
+const modFiltersActive = computed(() => {
+  const f = modFilters;
+  return (
+    !!modSearchQuery.value.trim() ||
+    f.categories.length > 0 ||
+    f.loaders.length > 0 ||
+    f.versions.length > 0 ||
+    !!f.versionType ||
+    f.sort !== "relevance" ||
+    !!f.env
+  );
+});
+
+/** Сбрасывает фильтры и запрос поиска Modrinth и запускает поиск заново. */
+function resetModFiltersAndSearch() {
+  modFilters.versions = [];
+  modFilters.loaders = [];
+  modFilters.categories = [];
+  modFilters.env = "";
+  modFilters.sort = "relevance";
+  modFilters.versionType = "";
+  modSearchQuery.value = "";
+  modSearchErr.value = "";
+  void searchMods();
+}
+
 /** Поиск модов/ресурспаков/шейдеров/датапаков для добавления в сборку. */
 async function searchMods() {
   if (!isTauri() || !packId.value) return;
-  selModrinth.value = new Set();
   modDetail.value = null;
+  const gen = ++modSearchGen;
   modSearchLoading.value = true;
   modSearchErr.value = "";
+  modSearchMore.value = false;
   try {
     modSearchResults.value = await modrinthSearch(
       modSearchQuery.value.trim(),
       modSearchKind.value,
-      20,
-      searchOpts(modFilters)
+      MOD_SEARCH_PAGE,
+      searchOpts(modFilters),
+      0
     );
+    if (gen !== modSearchGen) return;
+    modSearchOffset.value = modSearchResults.value.length;
+    modSearchMore.value = modSearchResults.value.length >= MOD_SEARCH_PAGE;
+    modSearchBox.value?.scrollTo({ top: 0 });
   } catch (e) {
-    modSearchErr.value = String(e);
+    if (gen === modSearchGen) modSearchErr.value = String(e);
   } finally {
-    modSearchLoading.value = false;
+    if (gen === modSearchGen) modSearchLoading.value = false;
   }
+}
+
+/** Догрузка следующей страницы результатов (бесконечный поиск). */
+async function loadMoreMods() {
+  if (modSearchMoreBusy.value || modSearchLoading.value || !modSearchMore.value) return;
+  const gen = modSearchGen;
+  modSearchMoreBusy.value = true;
+  try {
+    const page = await modrinthSearch(
+      modSearchQuery.value.trim(),
+      modSearchKind.value,
+      MOD_SEARCH_PAGE,
+      searchOpts(modFilters),
+      modSearchOffset.value
+    );
+    if (gen !== modSearchGen) return;
+    if (page.length) modSearchResults.value.push(...page);
+    modSearchOffset.value += page.length;
+    modSearchMore.value = page.length >= MOD_SEARCH_PAGE;
+  } catch {
+    /* не критично: пользователь увидит кнопку «Ещё» и сможет повторить */
+  } finally {
+    modSearchMoreBusy.value = false;
+  }
+}
+
+function onModSearchScroll() {
+  const el = modSearchBox.value;
+  if (!el || modSearchMoreBusy.value || !modSearchMore.value) return;
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 160) loadMoreMods();
 }
 
 function modUpdateFor(f: GameFileEntry): ModUpdate | undefined {
@@ -6342,8 +6977,12 @@ const updatesByFile = computed(() => {
  *  часто поддержаны только на vanilla, даже в fabric-сборках. */
 async function openModVersions(p: ModrinthProject) {
   modVersions.value = null;
+  verFilterMc.value = "";
+  verFilterLoader.value = "";
+  verFilterType.value = "";
   try {
     const all = await modrinthProjectVersions(p.projectId);
+    modVersionsRaw.value = all;
     const mc = status.value?.minecraft_version;
     const loader = status.value?.loader?.replace("-loader", "");
     const kind = modSearchKind.value;
@@ -6356,6 +6995,7 @@ async function openModVersions(p: ModrinthProject) {
   } catch (e) {
     modSearchErr.value = String(e);
     modVersions.value = [];
+    modVersionsRaw.value = [];
   }
 }
 
@@ -6396,7 +7036,11 @@ const modDatapackWorldSel = computed({
 /** Устанавливает выбранную версию в папку активной сборки
  *  (датапаки — в saves/<мир>/datapacks). */
 async function installModVersion(v: ModrinthVersion, closeAfter = true) {
-  if (!packId.value || modInstallBusy.value) return;
+  if (modInstallBusy.value) return;
+  if (!packId.value) {
+    notify(t("mods.noPack"), "error");
+    return;
+  }
   const folder = MOD_KIND_FOLDER[modSearchKind.value];
   const world = modSearchKind.value === "datapack" ? (modDatapackWorld.value ?? undefined) : undefined;
   if (modSearchKind.value === "datapack" && !world) {
@@ -6427,21 +7071,34 @@ async function installModVersion(v: ModrinthVersion, closeAfter = true) {
 /** Подбирает версию проекта под версию Minecraft и загрузчик сборки
  *  (загрузчик учитываем только для модов). */
 async function pickModVersion(p: ModrinthProject): Promise<ModrinthVersion | null> {
-  const all = await modrinthProjectVersions(p.projectId);
-  const mc = status.value?.minecraft_version;
+  const isMod = modSearchKind.value === "mod";
+  const mc = status.value?.minecraft_version || undefined;
+  // Без активной версии Minecraft нельзя выбрать «самую свежую» версию мода —
+  // это приведёт к установке файла под более новую (или иную) версию игры.
+  if (!mc) return null;
   const loader = status.value?.loader?.replace("-loader", "");
-  const matchLoader = modSearchKind.value === "mod" && loader
-    ? (v: ModrinthVersion) => v.loaders.includes(loader)
-    : () => true;
-  if (!mc) return all[0] ?? null;
-  return all.find((v) => v.gameVersions.includes(mc) && matchLoader(v)) ?? null;
+  // Версии под текущую версию Minecraft (и загрузчик для модов) фильтруем на
+  // сервере — так не получится скачать файл под другую версию игры.
+  const reqLoader = isMod && loader ? loader : undefined;
+  let all = await modrinthProjectVersions(p.projectId, mc, reqLoader);
+  if (all.length === 0 && mc) {
+    // Под текущую MC нет версии с нужным загрузчиком — пробуем любой загрузчик.
+    all = await modrinthProjectVersions(p.projectId, mc, undefined);
+  }
+  if (all.length === 0) return null;
+  // project_versions возвращает от новых к старым — берём самую свежую под MC.
+  return all[0];
 }
 
 /** Быстрое скачивание мода: последняя версия под MC и загрузчик сборки. */
 const quickModBusy = ref<string | null>(null);
 async function quickDownloadMod(p: ModrinthProject, ev: Event) {
   ev.stopPropagation();
-  if (quickModBusy.value || !packId.value) return;
+  if (quickModBusy.value) return;
+  if (!packId.value) {
+    notify(t("mods.noPack"), "error");
+    return;
+  }
   quickModBusy.value = p.projectId;
   try {
     const pick = await pickModVersion(p);
@@ -6589,13 +7246,13 @@ async function updateOneMod(u: ModUpdate) {
   }
 }
 
-/** Обновляет все моды разом (последовательно). */
+/** Обновляет все моды текущей вкладки (последовательно). */
 async function updateAllMods() {
-  if (!packId.value || updateAllBusy.value || modUpdates.value.length === 0) return;
+  if (!packId.value || updateAllBusy.value || modUpdatesTab.value.length === 0) return;
   updateAllBusy.value = true;
   let ok = 0;
   let fail = 0;
-  for (const u of [...modUpdates.value]) {
+  for (const u of [...modUpdatesTab.value]) {
     try {
       await modrinthUpdateMod(packId.value, u.fileName);
       ok++;
@@ -6722,6 +7379,7 @@ async function createPack() {
 // ---- Смена версии Minecraft / загрузчика / версии загрузчика у своей сборки ----
 const editVerOpen = ref(false);
 const editVerBusy = ref(false);
+const editVerName = ref("");
 const exportBusy = ref(false);
 const exportOpen = ref(false);
 const exportFormat = ref<"mrpack" | "curseforge" | "author">("mrpack");
@@ -6789,19 +7447,6 @@ let editVerMcClose: ((e: MouseEvent) => void) | null = null;
 const editVerLvOpen = ref(false);
 const editVerLvBox = ref<HTMLElement | null>(null);
 let editVerLvClose: ((e: MouseEvent) => void) | null = null;
-const editVerJava = ref("");
-const editVerJavaReq = computed(() => {
-  const mc = editVerMc.value;
-  const major = parseInt(mc.split(".")[0] ?? "", 10);
-  const minor = parseInt(mc.split(".")[1] ?? "", 10);
-  const patch = parseInt(mc.split(".")[2] ?? "", 10);
-  if (isNaN(major)) return 21;
-  if (major > 1 || minor >= 21) return 21;
-  if (minor === 20 && patch >= 5) return 21;
-  if (minor >= 17) return 17;
-  return 8;
-});
-
 const editVerMcList = computed(() => {
   const q = editVerMcQuery.value.trim().toLowerCase();
   const list = editVerMcVersions.value.filter((v) => !q || v.id.toLowerCase().includes(q));
@@ -6812,12 +7457,7 @@ function openEditVersion() {
   editVerMc.value = status.value?.minecraft_version || "";
   editVerLoader.value = (status.value?.loader as LoaderKey) || "vanilla";
   editVerLv.value = status.value?.loader_version || "";
-  editVerJava.value = "";
-  if (packId.value && isTauri()) {
-    getPackJava(packId.value)
-      .then((j) => (editVerJava.value = j == null ? "" : String(j)))
-      .catch(() => {});
-  }
+  editVerName.value = activePack?.value?.name || "";
   editVerOpen.value = true;
   if (editVerMcVersions.value.length) return;
   void minecraftVersions()
@@ -7088,7 +7728,9 @@ async function saveEditVersion() {
   editVerBusy.value = true;
   try {
     await editPackVersion(packId.value, mc, editVerLoader.value, editVerLv.value);
-    await setPackJava(packId.value, editVerJava.value ? parseInt(editVerJava.value, 10) : null);
+    if (editVerName.value.trim() && editVerName.value.trim() !== activePack?.value?.name) {
+      await setPackName(packId.value, editVerName.value.trim());
+    }
     await load();
     refreshModUpdates(true);
     notify(t("pack.versionSaved"), "success");
@@ -7189,22 +7831,11 @@ watch(createPackVersionOpen, (open) => {
   }
 });
 
-function pickCreateFile(target: "icon" | "banner") {
-  (target === "icon" ? createPackIconInput : createPackBannerInput).value?.click();
-}
-
-function onCreatePackFileChange(target: "icon" | "banner") {
-  const input = (target === "icon" ? createPackIconInput : createPackBannerInput).value;
-  const file = input?.files?.[0];
-  if (!file) return;
-  const path = (file as File & { path?: string }).path;
-  if (!path) {
-    notify(t("skin.readFail"), "error");
-    return;
-  }
+async function pickCreateFile(target: "icon" | "banner") {
+  const path = await pickImage();
+  if (!path) return;
   if (target === "icon") createPackIcon.value = path;
   else createPackBanner.value = path;
-  if (input) input.value = "";
 }
 
 // При открытии сабтаба файлов — проверяем обновления установленных из Modrinth файлов.
@@ -7508,11 +8139,93 @@ async function copyServerIp(srv: PackServer) {
   }
 }
 
-const skinFileInput = ref<HTMLInputElement | null>(null);
-const packIconInput = ref<HTMLInputElement | null>(null);
-const packIconTarget = ref<string | null>(null);
 const sidebarWidth = ref(readSidebarWidth());
 const sidebarDragging = ref(false);
+const SIDEBAR_COLLAPSE = 260;
+const SIDEBAR_ICON = 68;
+const sidebarCollapsed = computed(() => sidebarWidth.value < SIDEBAR_COLLAPSE);
+
+/** Масштаб плиток «Библиотеки» (1–4), сохраняется в localStorage. */
+const LIB_SCALE_KEY = "mono.libScale";
+function readLibScale(): number {
+  const n = parseInt(localStorage.getItem(LIB_SCALE_KEY) ?? "", 10);
+  return Number.isFinite(n) ? Math.min(4, Math.max(1, n)) : 2;
+}
+const libScale = ref(readLibScale());
+function setLibScale(n: number) {
+  libScale.value = Math.min(4, Math.max(1, n));
+  localStorage.setItem(LIB_SCALE_KEY, String(libScale.value));
+}
+const LIB_TILES: Record<number, { col: string; icon: string }> = {
+  1: { col: "grid-cols-[repeat(auto-fill,minmax(92px,1fr))]", icon: "h-10 w-10" },
+  2: { col: "grid-cols-[repeat(auto-fill,minmax(124px,1fr))]", icon: "h-14 w-14" },
+  3: { col: "grid-cols-[repeat(auto-fill,minmax(164px,1fr))]", icon: "h-20 w-20" },
+  4: { col: "grid-cols-[repeat(auto-fill,minmax(220px,1fr))]", icon: "h-28 w-28" },
+};
+const libTile = computed(() => LIB_TILES[libScale.value] ?? LIB_TILES[2]);
+const libPercent = computed(() => 75 + libScale.value * 25);
+
+/** Кэш статусов сборок для «Библиотеки» (установлена ли, версия). */
+const libStatus = reactive<Record<string, AppStatus | null>>({});
+let libStatusLoading = false;
+async function loadLibraryStatus() {
+  if (!isTauri() || libStatusLoading) return;
+  libStatusLoading = true;
+  try {
+    await Promise.all(
+      packs.value.map(async (p) => {
+        libStatus[p.id] = await getStatus(p.id).catch(() => null);
+      })
+    );
+  } finally {
+    libStatusLoading = false;
+  }
+}
+watch(
+  () => tab.value,
+  (t) => {
+    if (t === "library") loadLibraryStatus();
+  }
+);
+onMounted(loadLibraryStatus);
+
+/** Запуск (или установка) конкретной сборки из плитки «Библиотеки». */
+async function playLibraryPack(p: PackDescriptor) {
+  if (!isTauri()) return;
+  await openPackTab(p.id);
+  if (status.value?.installed) await handlePlay();
+  else await handleInstall();
+}
+
+/** Контекстное меню «Библиотеки» (ПКМ по экземпляру). */
+const libMenuPack = ref<PackDescriptor | null>(null);
+const libMenuPos = ref<{ x: number; y: number } | null>(null);
+
+function openLibMenu(e: MouseEvent, p: PackDescriptor) {
+  const menuW = 224;
+  const menuH = 120;
+  const x = Math.min(e.clientX, window.innerWidth - menuW - 8);
+  const y = Math.min(e.clientY, window.innerHeight - menuH - 8);
+  libMenuPack.value = p;
+  libMenuPos.value = { x: Math.max(8, x), y: Math.max(8, y) };
+}
+
+function closeLibMenu() {
+  libMenuPack.value = null;
+  libMenuPos.value = null;
+}
+
+async function libDoPlay() {
+  const p = libMenuPack.value;
+  closeLibMenu();
+  if (p) await playLibraryPack(p);
+}
+
+function libOpenSettings() {
+  const p = libMenuPack.value;
+  closeLibMenu();
+  if (p) openPackTab(p.id);
+}
 
 /** Пользовательская ширина основного контента (0 = авто, растягивается). */
 const mainWidth = ref(readMainWidth());
@@ -7558,7 +8271,7 @@ function resetMainWidth() {
 
 function readSidebarWidth(): number {
   const saved = parseInt(localStorage.getItem("mono.sidebarWidth") ?? "", 10);
-  return Number.isFinite(saved) ? Math.min(420, Math.max(200, saved)) : 256;
+  return Number.isFinite(saved) ? Math.min(420, Math.max(SIDEBAR_ICON, saved)) : 272;
 }
 
 function startSidebarDrag(e: PointerEvent) {
@@ -7568,7 +8281,8 @@ function startSidebarDrag(e: PointerEvent) {
 
 function onSidebarDrag(e: PointerEvent) {
   if (!sidebarDragging.value) return;
-  const w = Math.min(420, Math.max(200, e.clientX));
+  let w = Math.min(420, Math.max(SIDEBAR_ICON, e.clientX));
+  if (w < SIDEBAR_COLLAPSE) w = SIDEBAR_ICON;
   sidebarWidth.value = w;
 }
 
@@ -7580,46 +8294,58 @@ function endSidebarDrag(e: PointerEvent) {
   } catch {
     /* ignore */
   }
+  let w = sidebarWidth.value;
+  if (w < SIDEBAR_COLLAPSE) w = SIDEBAR_ICON;
+  else if (w < SIDEBAR_COLLAPSE + 40) w = SIDEBAR_COLLAPSE;
+  sidebarWidth.value = w;
   localStorage.setItem("mono.sidebarWidth", String(sidebarWidth.value));
 }
 
-function pickSkinFile() {
-  if (isTauri()) {
-    skinFileInput.value?.click();
-  } else {
+async function pickImage(): Promise<string | null> {
+  if (!isTauri()) {
     notify(t("skin.tauriOnly"), "info");
-  }
-}
-
-async function onSkinFileChange(ev: Event) {
-  const input = ev.target as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = "";
-  if (!file) return;
-  const path = (file as File & { path?: string }).path;
-  if (!path) {
-    notify(t("skin.readFail"), "error");
-    return;
-  }
-  await applyLocalSkin(path);
-}
-
-async function onPackIconChange(ev: Event) {
-  const input = ev.target as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = "";
-  if (!file) return;
-  const path = (file as File & { path?: string }).path;
-  if (!path) {
-    notify(t("skin.readFail"), "error");
-    return;
+    return null;
   }
   try {
-    await setPackIcon(packIconTarget.value!, path);
+    const p = await openDialog({
+      multiple: false,
+      filters: [
+        { name: "Изображение", extensions: ["png", "jpg", "jpeg", "webp"] },
+      ],
+    });
+    return typeof p === "string" ? p : null;
+  } catch {
+    notify(t("skin.readFail"), "error");
+    return null;
+  }
+}
+
+async function pickSkinFile() {
+  const path = await pickImage();
+  if (path) await applyLocalSkin(path);
+}
+
+async function pickPackIcon(packId: string) {
+  const path = await pickImage();
+  if (!path) return;
+  try {
+    await setPackIcon(packId, path);
     notify(t("dev.iconSet"), "success");
     await loadPacks();
   } catch (e) {
     notify(t("dev.iconErr", { e }));
+  }
+}
+
+async function pickPackBanner(packId: string) {
+  const path = await pickImage();
+  if (!path) return;
+  try {
+    await setPackBanner(packId, path);
+    notify(t("dev.bannerSet"), "success");
+    await loadPacks();
+  } catch (e) {
+    notify(t("dev.bannerErr", { e }));
   }
 }
 
@@ -7814,6 +8540,8 @@ if (isFileDetailWin.value) {
   const cfid = typeof q.cfid === "string" && q.cfid ? q.cfid : "";
   fileDetailFolder.value = folder;
   fileDetailMcFilter.value = status.value?.minecraft_version || null;
+  fileDetailLoaderFilter.value = "";
+  fileDetailTypeFilter.value = "";
   fileDetailTab.value = "about";
   if (slug) {
     fileDetail.value = {
@@ -7829,6 +8557,7 @@ if (isFileDetailWin.value) {
         fileDetailMr.value = await modrinthProject(slug);
         const fl = folder === "saves" ? "mods" : folder;
         await loadFileDetailVersions(slug, fl);
+        await loadFileDetailInstalledSha(fileDetailMr.value.projectId);
       } catch {
         fileDetailMr.value = null;
       } finally {

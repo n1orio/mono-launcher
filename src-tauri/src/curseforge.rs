@@ -1,9 +1,8 @@
 //! CurseForge: поиск файлов (моды/ресурспаки/шейдеры) и установка в сборку.
 //!
-//! API v1 (api.curseforge.com) требует ключ: `x-api-key`. Ключ задаётся одним
-//! из способов:
-//! 1) файл `<данные лаунчера>/curseforge-key.txt` (одной строкой),
-//! 2) переменная окружения MONO_CURSEFORGE_KEY.
+//! API v1 (api.curseforge.com) требует ключ: `x-api-key`. Общий ключ встроен
+//! в лаунчер (константа CURSEFORGE_API_KEY); переопределяется переменной
+//! окружения MONO_CURSEFORGE_KEY (напр. в CI).
 //!
 //! Получить ключ: console.curseforge.com → API keys (нужен аккаунт Twitch/CurseForge).
 //! Файлы скачиваются с CDN forgecdn.net — отдельный доступ не нужен.
@@ -109,22 +108,27 @@ pub fn tracked_meta(
         .collect()
 }
 
-/// Ключ API задаётся одним из способов (приоритет сверху вниз):
-/// 1) файл `<данные лаунчера>/curseforge-key.txt` (одной строкой),
-/// 2) переменная окружения MONO_CURSEFORGE_KEY.
-///
-/// Секрет в бинарник не зашивается.
+/// Общий API-ключ CurseForge, встроенный в лаунчер (чтобы всем пользователям
+/// не нужно было вводить свой). Заполните своим значением вместо `CHANGE_ME`.
+/// Можно переопределить переменной окружения MONO_CURSEFORGE_KEY (напр. в CI).
+const CURSEFORGE_API_KEY: &str = "70e8212b-9a56-4713-8423-895b72bd7841";
+
+/// API-ключ CurseForge. Приоритет (сверху вниз):
+/// 1) переменная окружения MONO_CURSEFORGE_KEY,
+/// 2) встроенная константа CURSEFORGE_API_KEY.
 pub fn api_key_from_cfg() -> Option<String> {
-    let file =
-        std::fs::read_to_string(config::launcher_root().ok()?.join("curseforge-key.txt")).ok();
-    let env = std::env::var("MONO_CURSEFORGE_KEY").ok();
-    for candidate in [file, env].into_iter().flatten() {
-        let t = candidate.trim().to_string();
+    if let Ok(env) = std::env::var("MONO_CURSEFORGE_KEY") {
+        let t = env.trim().to_string();
         if !t.is_empty() && t != "CHANGE_ME" {
             return Some(t);
         }
     }
-    None
+    let t = CURSEFORGE_API_KEY.trim();
+    if !t.is_empty() && t != "CHANGE_ME" {
+        Some(t.to_string())
+    } else {
+        None
+    }
 }
 
 fn require_api_key() -> Result<String> {
@@ -132,11 +136,7 @@ fn require_api_key() -> Result<String> {
         anyhow!(
             "CurseForge требует API-ключ.\n\
              Получите его на console.curseforge.com → API keys (бесплатно, нужен аккаунт CurseForge),\n\
-             затем запишите одной строкой в файл:\n\
-             {}",
-            config::launcher_root()
-                .map(|p| p.join("curseforge-key.txt").display().to_string())
-                .unwrap_or_else(|_| "<данные лаунчера>/curseforge-key.txt".into())
+             затем впишите его в константу CURSEFORGE_API_KEY в src-tauri/src/curseforge.rs."
         )
     })
 }

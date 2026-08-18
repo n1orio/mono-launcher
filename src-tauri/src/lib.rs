@@ -7,6 +7,7 @@ mod discord_rp;
 mod export;
 mod files;
 mod game;
+mod http_cache;
 mod jre;
 mod license;
 mod modrinth;
@@ -389,18 +390,7 @@ async fn fetch_releases(client: &reqwest::Client, pack: &PackInfo) -> Vec<GhVers
 /// Релизы произвольного GitHub-репозитория (URL = страница релиза).
 async fn fetch_repo_releases(client: &reqwest::Client, owner: &str, repo: &str) -> Vec<GhVersion> {
     let url = format!("https://api.github.com/repos/{owner}/{repo}/releases");
-    let Ok(resp) = client
-        .get(&url)
-        .header("User-Agent", "mono-launcher")
-        .send()
-        .await
-    else {
-        return Vec::new();
-    };
-    if !resp.status().is_success() {
-        return Vec::new();
-    }
-    let Ok(json) = resp.json::<serde_json::Value>().await else {
+    let Some(json) = http_cache::cached_json(client, &url).await else {
         return Vec::new();
     };
     let Some(arr) = json.as_array() else {
@@ -480,18 +470,7 @@ async fn fetch_discussions(
     pack_name: &str,
 ) -> Vec<NewsItem> {
     let url = format!("https://api.github.com/repos/{owner}/{repo}/discussions?per_page=100");
-    let Ok(resp) = client
-        .get(&url)
-        .header("User-Agent", "mono-launcher")
-        .send()
-        .await
-    else {
-        return Vec::new();
-    };
-    if !resp.status().is_success() {
-        return Vec::new();
-    }
-    let Ok(json) = resp.json::<serde_json::Value>().await else {
+    let Some(json) = http_cache::cached_json(client, &url).await else {
         return Vec::new();
     };
     let Some(arr) = json.as_array() else {
@@ -741,6 +720,7 @@ async fn modrinth_search_command(
     query: String,
     kind: String,
     limit: Option<u32>,
+    offset: Option<u32>,
     filters: Option<modrinth::SearchFilters>,
 ) -> Result<Vec<modrinth::ModrinthProject>, String> {
     modrinth::search_projects(
@@ -748,6 +728,7 @@ async fn modrinth_search_command(
         &query,
         &kind,
         limit.unwrap_or(20),
+        offset.unwrap_or(0),
         &filters.unwrap_or_default(),
     )
     .await
@@ -1210,6 +1191,10 @@ async fn modrinth_check_updates_command(
 ) -> Result<Vec<ModUpdate>, String> {
     let pack = resolve_pack(Some(pack_id.clone()))?;
     let game_dir = config::active_game_dir(&pack.id).map_err(|e| e.to_string())?;
+    // Чистим осиротевшие записи трекинга (файла на диске уже нет) — иначе они
+    // считаются «устаревшими» и ошибочно показываются как доступные обновления,
+    // а при обновлении падают с «файл не найден».
+    let _ = modrinth::prune_missing_tracked(&pack.id, &game_dir);
     let tracked = modrinth::tracked_mods(&pack.id);
 
     // name -> (folder, local sha1, id версии обновления на текущий момент).
@@ -1239,15 +1224,18 @@ async fn modrinth_check_updates_command(
             if name.starts_with('.') {
                 continue;
             }
-            let active = name.strip_suffix(".disabled").unwrap_or(&name);
-            if !(active.ends_with(".jar") || active.ends_with(".zip")) {
+            // На диске мод может лежать с суффиксом ".disabled" (отключённый).
+            // Проверяем расширение по базовому имени, но ключом храним реальное
+            // имя файла, чтобы обновление находило файл на диске.
+            let base = name.strip_suffix(".disabled").unwrap_or(&name);
+            if !(base.ends_with(".jar") || base.ends_with(".zip")) {
                 continue;
             }
-            if files.contains_key(active) {
+            if files.contains_key(&name) {
                 continue;
             }
             if let Ok(sha) = mrpack::compute_sha1(&e.path()) {
-                files.insert(active.to_string(), (folder.to_string(), sha, None));
+                files.insert(name, (folder.to_string(), sha, None));
             }
         }
     }
@@ -1262,7 +1250,12 @@ async fn modrinth_check_updates_command(
         hashes.push(sha.clone());
     }
     // Пустые game_versions/loaders → каждый хэш резолвится в свою последнюю версию.
-    let updates = modrinth::check_updates(&state.client, &hashes, &[], &[])
+    // Фильтруем по версии MC и загрузчику сборки, чтобы не предлагать обновление
+    // под более свежую MC (например 26.x при сборке на 1.21.x).
+    let (mc, loader) = active_mc_loader(&pack.id);
+    let gv: Vec<String> = mc.into_iter().collect();
+    let ld: Vec<String> = loader.into_iter().collect();
+    let updates = modrinth::check_updates(&state.client, &hashes, &gv, &ld)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -1293,6 +1286,55 @@ async fn modrinth_check_updates_command(
     Ok(out)
 }
 
+/// sha1 установленного файла мода по project_id (для отметки «установлена» в списке версий).
+/// Ищет файл по отслеживанию; если на диске файл переименован в `.disabled` — берёт его.
+#[tauri::command]
+fn installed_mod_sha1_command(
+    pack_id: String,
+    project_id: String,
+) -> Result<Option<String>, String> {
+    let pack = resolve_pack(Some(pack_id))?;
+    let game_dir = config::active_game_dir(&pack.id).map_err(|e| e.to_string())?;
+    let tracked = modrinth::tracked_mods(&pack.id);
+    for t in tracked.iter().filter(|t| t.project_id == project_id) {
+        let dir = if t.folder == "datapacks" {
+            game_dir
+                .join("saves")
+                .join(t.world.as_deref().unwrap_or(""))
+                .join("datapacks")
+        } else {
+            game_dir.join(&t.folder)
+        };
+        let mut path = dir.join(&t.file_name);
+        if !path.exists() {
+            path = dir.join(format!("{}.disabled", t.file_name));
+        }
+        if path.exists() {
+            if let Ok(sha) = mrpack::compute_sha1(&path) {
+                return Ok(Some(sha.to_lowercase()));
+            }
+        }
+    }
+    Ok(None)
+}
+
+/// Версия Minecraft и загрузчик активной версии сборки (для фильтрации обновлений
+/// по совместимости — чтобы не обновлять мод под более новую MC, чем в сборке).
+fn active_mc_loader(pack_id: &str) -> (Option<String>, Option<String>) {
+    let idx = config::active_version(pack_id)
+        .ok()
+        .and_then(|v| mrpack::read_version_index(pack_id, &v));
+    let Some(idx) = idx else {
+        return (None, None);
+    };
+    let mc = idx.dependencies.get("minecraft").cloned();
+    let loader = ["fabric-loader", "forge", "neoforge", "quilt"]
+        .iter()
+        .find(|k| idx.dependencies.contains_key(**k))
+        .map(|k| k.replace("-loader", ""));
+    (mc, loader)
+}
+
 /// Обновляет один файл из Modrinth до последней подходящей версии
 /// (файл в своей папке перезаписывается). Работает и для файлов, пришедших
 /// со сборкой из .mrpack — их ищем по имени среди установленных.
@@ -1305,6 +1347,7 @@ async fn modrinth_update_mod_command(
     let pack = resolve_pack(Some(pack_id.clone()))?;
     ensure_unlocked(&pack.id)?;
     let game_dir = config::active_game_dir(&pack.id).map_err(|e| e.to_string())?;
+    let _ = modrinth::prune_missing_tracked(&pack.id, &game_dir);
     let tracked = modrinth::tracked_mods(&pack.id);
     let tracked_entry = tracked.iter().find(|t| t.file_name == file_name);
 
@@ -1341,7 +1384,10 @@ async fn modrinth_update_mod_command(
     }
     let local_sha = mrpack::compute_sha1(&path).map_err(|e| e.to_string())?;
     let hashes: Vec<String> = vec![local_sha.clone()];
-    let updates = modrinth::check_updates(&state.client, &hashes, &[], &[])
+    let (mc, loader) = active_mc_loader(&pack.id);
+    let gv: Vec<String> = mc.into_iter().collect();
+    let ld: Vec<String> = loader.into_iter().collect();
+    let updates = modrinth::check_updates(&state.client, &hashes, &gv, &ld)
         .await
         .map_err(|e| e.to_string())?;
     let Some(new) = updates.get(&local_sha) else {
@@ -1403,7 +1449,13 @@ fn modrinth_remove_mod_command(pack_id: String, file_name: String) -> Result<(),
     if !removed {
         return Err(format!("Файл {file_name} не найден в папке {folder}/"));
     }
-    modrinth::remove_tracked_mod(&pack.id, &file_name).map_err(|e| e.to_string())?;
+    modrinth::remove_tracked_mod(
+        &pack.id,
+        &file_name,
+        &folder,
+        entry.and_then(|t| t.world.as_deref()),
+    )
+    .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -1420,6 +1472,33 @@ fn set_pack_icon_command(pack_id: String, path: String) -> Result<(), String> {
     std::fs::create_dir_all(dest.parent().unwrap()).map_err(|e| e.to_string())?;
     std::fs::copy(&src, &dest).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+/// Устанавливает баннер сборки (копирует выбранный PNG в `packs/<id>/banner.png`).
+#[tauri::command]
+fn set_pack_banner_command(pack_id: String, path: String) -> Result<(), String> {
+    let src = std::path::PathBuf::from(&path);
+    if !src.is_file() {
+        return Err(format!("Файл не найден: {path}"));
+    }
+    let dest = config::pack_dir(&pack_id)
+        .map_err(|e| e.to_string())?
+        .join("banner.png");
+    std::fs::create_dir_all(dest.parent().unwrap()).map_err(|e| e.to_string())?;
+    std::fs::copy(&src, &dest).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Меняет название сборки (встроенной — переопределение, пользовательской — packs.json).
+#[tauri::command]
+fn set_pack_name_command(pack_id: String, name: String) -> Result<(), String> {
+    config::set_pack_name(&pack_id, &name).map_err(|e| e.to_string())
+}
+
+/// Id сборок в порядке убывания времени последнего запуска.
+#[tauri::command]
+fn recent_packs_command() -> Vec<String> {
+    config::recent_pack_ids()
 }
 
 /// Скачивает иконку сборки в `packs/<id>/icon.png` (если её ещё нет):
@@ -2491,111 +2570,88 @@ async fn fetch_pack_repo_content(
 ) -> PackRepoContent {
     let mut out = PackRepoContent::default();
 
-    // Звёзды: один API-вызов на репозиторий (кэшируется).
+    // Звёзды: один API-вызов на репозиторий (кэшируется + ETag).
     let meta_url = format!("https://api.github.com/repos/{owner}/{repo}");
-    if let Ok(resp) = client
-        .get(&meta_url)
-        .header("User-Agent", "mono-launcher")
-        .send()
-        .await
-    {
-        if resp.status().is_success() {
-            if let Ok(v) = resp.json::<serde_json::Value>().await {
-                out.stars = v["stargazers_count"].as_i64();
-            }
-        }
+    if let Some(v) = http_cache::cached_json(client, &meta_url).await {
+        out.stars = v["stargazers_count"].as_i64();
     }
 
     // Сервера: манифест списка серверов.
     let srv_url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/servers.json");
-    if let Ok(resp) = client.get(&srv_url).send().await {
-        if resp.status().is_success() {
-            if let Ok(v) = resp.json::<serde_json::Value>().await {
-                if let Some(arr) = v.as_array() {
-                    for item in arr {
-                        let name = item
-                            .get("name")
-                            .and_then(|x| x.as_str())
-                            .map(String::from)
-                            .unwrap_or_default();
-                        let ip = item
-                            .get("ip")
-                            .and_then(|x| x.as_str())
-                            .map(String::from)
-                            .unwrap_or_default();
-                        if name.is_empty() || ip.is_empty() {
-                            continue;
-                        }
-                        out.servers.push(PackServer {
-                            name,
-                            ip,
-                            port: item.get("port").and_then(|x| x.as_u64()).map(|p| p as u16),
-                            desc: item.get("desc").and_then(|x| x.as_str()).map(String::from),
-                        });
-                    }
+    if let Some(v) = http_cache::cached_json(client, &srv_url).await {
+        if let Some(arr) = v.as_array() {
+            for item in arr {
+                let name = item
+                    .get("name")
+                    .and_then(|x| x.as_str())
+                    .map(String::from)
+                    .unwrap_or_default();
+                let ip = item
+                    .get("ip")
+                    .and_then(|x| x.as_str())
+                    .map(String::from)
+                    .unwrap_or_default();
+                if name.is_empty() || ip.is_empty() {
+                    continue;
                 }
+                out.servers.push(PackServer {
+                    name,
+                    ip,
+                    port: item.get("port").and_then(|x| x.as_u64()).map(|p| p as u16),
+                    desc: item.get("desc").and_then(|x| x.as_str()).map(String::from),
+                });
             }
         }
     }
 
     // Соцсети: объект `{ "name": "url" }` или массив `["url", {"name": "url", "color": "#rrggbb"}]`.
     let soc_url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/socials.json");
-    if let Ok(resp) = client.get(&soc_url).send().await {
-        if resp.status().is_success() {
-            if let Ok(v) = resp.json::<serde_json::Value>().await {
-                let mut push = |name: String, url: String, color: Option<String>| {
-                    let name = normalize_social_name(&name, &url);
-                    let color = color.filter(|c| is_hex_color(c));
-                    if !name.is_empty() && url.starts_with("https://") && out.socials.len() < 8 {
-                        out.socials.push(PackSocial { name, url, color });
+    if let Some(v) = http_cache::cached_json(client, &soc_url).await {
+        let mut push = |name: String, url: String, color: Option<String>| {
+            let name = normalize_social_name(&name, &url);
+            let color = color.filter(|c| is_hex_color(c));
+            if !name.is_empty() && url.starts_with("https://") && out.socials.len() < 8 {
+                out.socials.push(PackSocial { name, url, color });
+            }
+        };
+        match v {
+            serde_json::Value::Object(map) => {
+                for (name, u) in map {
+                    if let Some(url) = u.as_str() {
+                        push(name, url.to_string(), None);
                     }
-                };
-                match v {
-                    serde_json::Value::Object(map) => {
-                        for (name, u) in map {
-                            if let Some(url) = u.as_str() {
-                                push(name, url.to_string(), None);
-                            }
-                        }
-                    }
-                    serde_json::Value::Array(arr) => {
-                        for item in arr {
-                            match item {
-                                serde_json::Value::String(url) => push(String::new(), url, None),
-                                serde_json::Value::Object(o) => {
-                                    let name = o
-                                        .get("name")
-                                        .and_then(|x| x.as_str())
-                                        .unwrap_or("")
-                                        .to_string();
-                                    let url =
-                                        o.get("url").and_then(|x| x.as_str()).map(String::from);
-                                    let color = o
-                                        .get("color")
-                                        .and_then(|x| x.as_str())
-                                        .map(String::from);
-                                    if let Some(url) = url {
-                                        push(name, url, color);
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                    _ => {}
                 }
             }
+            serde_json::Value::Array(arr) => {
+                for item in arr {
+                    match item {
+                        serde_json::Value::String(url) => push(String::new(), url, None),
+                        serde_json::Value::Object(o) => {
+                            let name = o
+                                .get("name")
+                                .and_then(|x| x.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let url = o.get("url").and_then(|x| x.as_str()).map(String::from);
+                            let color = o.get("color").and_then(|x| x.as_str()).map(String::from);
+                            if let Some(url) = url {
+                                push(name, url, color);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
     // Тема лаунчера: необязательный theme.json с hex-цветами.
     let theme_url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/theme.json");
-    if let Ok(resp) = client.get(&theme_url).send().await {
-        if resp.status().is_success() {
-            if let Ok(v) = resp.json::<serde_json::Value>().await {
-                let mut theme = PackTheme::default();
-                let mut has_any = false;
-                let fields: [(&str, &mut Option<String>); 11] = [
+    if let Some(v) = http_cache::cached_json(client, &theme_url).await {
+        let mut theme = PackTheme::default();
+        let mut has_any = false;
+        let fields: [(&str, &mut Option<String>); 11] = [
                     ("bg", &mut theme.bg),
                     ("panel", &mut theme.panel),
                     ("input", &mut theme.input),
@@ -2613,26 +2669,22 @@ async fn fetch_pack_repo_content(
                         continue;
                     };
                     if raw.len() == 7
-                        && raw.starts_with('#')
-                        && raw[1..].chars().all(|c| c.is_ascii_hexdigit())
-                    {
-                        *slot = Some(raw.to_string());
-                        has_any = true;
-                    }
-                }
-                if has_any {
-                    out.theme = Some(theme);
+                    && raw.starts_with('#')
+                    && raw[1..].chars().all(|c| c.is_ascii_hexdigit())
+                {
+                    *slot = Some(raw.to_string());
+                    has_any = true;
                 }
             }
+            if has_any {
+                out.theme = Some(theme);
+            }
         }
-    }
 
     // Баннер сборки: необязательный banner.png в корне репозитория.
     let banner_url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/banner.png");
-    if let Ok(resp) = client.get(&banner_url).send().await {
-        if resp.status().is_success() {
-            out.banner = Some(banner_url);
-        }
+    if http_cache::cached_get(client, &banner_url, &[]).await.is_some() {
+        out.banner = Some(banner_url);
     }
     out
 }
@@ -2717,18 +2769,16 @@ async fn fetch_catalog_cached(client: &reqwest::Client) -> Vec<CatalogEntry> {
         }
     }
     let mut entries: Vec<CatalogEntry> = Vec::new();
-    if let Ok(resp) = client.get(CATALOG_URL).send().await {
-        if resp.status().is_success() {
-            if let Ok(list) = resp.json::<Vec<CatalogEntry>>().await {
-                entries = list
-                    .into_iter()
-                    .filter(|e| !e.name.trim().is_empty() && !e.url.trim().is_empty())
-                    .map(|mut e| {
-                        e.min_ram_mb = e.min_ram_mb.map(|r| r.clamp(256, 65536));
-                        e
-                    })
-                    .collect();
-            }
+    if let Some(bytes) = http_cache::cached_get(client, CATALOG_URL, &[]).await {
+        if let Ok(list) = serde_json::from_slice::<Vec<CatalogEntry>>(&bytes) {
+            entries = list
+                .into_iter()
+                .filter(|e| !e.name.trim().is_empty() && !e.url.trim().is_empty())
+                .map(|mut e| {
+                    e.min_ram_mb = e.min_ram_mb.map(|r| r.clamp(256, 65536));
+                    e
+                })
+                .collect();
         }
     }
     let mut cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
@@ -3339,7 +3389,7 @@ fn delete_game_files_command(
     let removed = files::delete_files(&pack.id, &folder, &names).map_err(|e| e.to_string())?;
     if folder == "mods" {
         for name in &names {
-            let _ = modrinth::remove_tracked_mod(&pack.id, name);
+            let _ = modrinth::remove_tracked_mod(&pack.id, name, "mods", None);
         }
     }
     let _ = app.emit("mods-changed", ());
@@ -3475,6 +3525,7 @@ pub fn run() {
             switch_account_command,
             remove_account_command,
             launch_game_command,
+            game::stop_game_command,
             ping_server_command,
             get_local_skin_command,
             set_local_skin_command,
@@ -3518,11 +3569,15 @@ pub fn run() {
             modrinth_project_versions_command,
             modrinth_project_command,
             set_pack_icon_command,
+            set_pack_banner_command,
+            set_pack_name_command,
+            recent_packs_command,
             fetch_pack_icon_command,
             modrinth_version_command,
             modrinth_install_mod_command,
             modrinth_check_updates_command,
             modrinth_update_mod_command,
+            installed_mod_sha1_command,
             modrinth_remove_mod_command,
             modrinth_install_pack_command,
             create_local_pack_command,

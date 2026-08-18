@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.3.0] — 2026-08-18
+
+### Library
+- New **Library** tab: all installed packs grouped by category, sortable tiles with zoom in/out.
+- Each tile shows the active modloader/version or "not installed"; categories can be toggled.
+- New **Recent** section in the sidebar shows your last launched packs (up to 10).
+
+### Pack branding
+- **Rename a pack** right from the UI — custom names for built-in packs persist per install, user packs update in `packs.json`.
+- **Set a custom banner** image (icon editing was already supported) — stored locally per pack.
+
+### Mods & updates
+- Manually installed mods now display real metadata — Modrinth/CurseForge icon, project title and version — instead of raw file names.
+- **"Update all" is per-tab** (mods / resourcepacks / shaders), with a live count badge.
+- Modrinth search gains a **version-type filter** (Release/Beta/Alpha), loader filter, "Load more" and "Reset filters".
+- Stale tracked-mod entries (files already deleted on disk) are cleaned up, so the update badge no longer shows phantom updates.
+
+### Gameplay & UI
+- While the game is running the Play button becomes a red **Stop** button that terminates the process, with clean exit handling (no false crash report on intentional shutdown).
+- The main interface pane is now **centered** on screen instead of stretching edge-to-edge.
+
+### Under the hood
+- New persistent **HTTP cache** (ETag/304 conditional requests) so repeated launcher runs don't refetch unchanged data.
+- Rust unit tests extended; type-check gating for the frontend.
+
 ## [1.2.1] — 2026-08-16
 
 ### Авторизация (hotfix)

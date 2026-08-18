@@ -818,6 +818,11 @@ async fn ensure_authlib_agent(app: &AppHandle, client: &reqwest::Client, api: &s
 /// Снимается в цикле ожидания после выхода процесса.
 static GAME_RUNNING: Mutex<Option<u32>> = Mutex::new(None);
 
+/// Пользователь нажал «Остановить»: процесс убит намеренно, поэтому выход
+/// считаем «успешным» (без тревожного уведомления и краш-анализа).
+static STOPPING: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 pub async fn launch_game(
     pack_id: &str,
     ram_gb: u32,
@@ -839,6 +844,9 @@ pub async fn launch_game(
     let libraries_dir = root.join("libraries");
     let versions_dir = root.join("versions-libs");
     let client = reqwest::Client::new();
+
+    // Фиксируем факт запуска сборки для раздела «Недавние».
+    config::mark_pack_launched(pack_id);
 
     // 1. Определяем версию Minecraft и модлоадер из активной установленной версии.
     let game_dir = config::active_game_dir(pack_id)?;
@@ -1331,7 +1339,13 @@ pub async fn launch_game(
             );
         }
         crate::discord_rp::stop_presence();
-        let success = exit.success();
+        // Намеренная остановка (кнопка «Остановить») — считаем выход успешным,
+        // чтобы не было ложного «игра упала» и краш-анализа.
+        let success = if STOPPING.swap(false, std::sync::atomic::Ordering::SeqCst) {
+            true
+        } else {
+            exit.success()
+        };
         let _ = app2.emit(
             "game-exited",
             GameExited {
@@ -1365,6 +1379,37 @@ pub async fn launch_game(
     emit_log(&app, "sys", &format!("Process started, PID {pid:?}"));
 
     Ok(())
+}
+
+/// Принудительно завершает запущенную игру (кнопка «Остановить»).
+/// Кросс-платформенный: kill (unix) / taskkill (Windows). Выход помечается
+/// «успешным», чтобы не показывалось уведомление о сбое и краш-анализ.
+#[tauri::command]
+pub fn stop_game_command() -> Result<(), String> {
+    let pid = {
+        let guard = GAME_RUNNING
+            .lock()
+            .map_err(|_| "Не удалось получить состояние игры".to_string())?;
+        *guard
+    };
+    let Some(pid) = pid else {
+        return Ok(());
+    };
+    STOPPING.store(true, std::sync::atomic::Ordering::SeqCst);
+    #[cfg(unix)]
+    let status = std::process::Command::new("kill").arg(pid.to_string()).status();
+    #[cfg(windows)]
+    let status = std::process::Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/F"])
+        .status();
+    if let Ok(st) = status {
+        if st.success() {
+            return Ok(());
+        }
+    }
+    // Если команда не удалась — снимаем флаг и сообщаем.
+    STOPPING.store(false, std::sync::atomic::Ordering::SeqCst);
+    Err(format!("Не удалось остановить процесс (PID {pid})"))
 }
 
 #[derive(serde::Serialize, Clone)]
