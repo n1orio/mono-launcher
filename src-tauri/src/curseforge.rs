@@ -115,10 +115,19 @@ const CURSEFORGE_API_KEY: &str = "70e8212b-9a56-4713-8423-895b72bd7841";
 
 /// API-ключ CurseForge. Приоритет (сверху вниз):
 /// 1) переменная окружения MONO_CURSEFORGE_KEY,
-/// 2) встроенная константа CURSEFORGE_API_KEY.
+/// 2) локальный файл `curseforge-key.txt` в корне репозитория (не коммитится),
+/// 3) встроенная константа CURSEFORGE_API_KEY.
 pub fn api_key_from_cfg() -> Option<String> {
     if let Ok(env) = std::env::var("MONO_CURSEFORGE_KEY") {
         let t = env.trim().to_string();
+        if !t.is_empty() && t != "CHANGE_ME" {
+            return Some(t);
+        }
+    }
+    // Файл в корне репозитория (для локальной разработки без шитья секрета
+    // в исходники). Файл добавлен в .gitignore.
+    if let Ok(raw) = std::fs::read_to_string("curseforge-key.txt") {
+        let t = raw.trim().to_string();
         if !t.is_empty() && t != "CHANGE_ME" {
             return Some(t);
         }

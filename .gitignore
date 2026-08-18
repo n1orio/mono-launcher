@@ -12,3 +12,4 @@ src-tauri/gen/schemas/
 # Misc
 .DS_Store
 *.log
+curseforge-key.txt
