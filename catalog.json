@@ -5,7 +5,10 @@
     "description": "Тестовая сборка, залил по приколу.",
     "author": "n1orio",
     "tags": ["приключения", "магия", "строительство"],
-    "minRam": 8192
+    "minRam": 8192,
+    "rating": 4.8,
+    "ratingCount": 12,
+    "sponsored": true
   },
   {
     "name": "Example Pack",

@@ -416,6 +416,11 @@ export function fetchCatalog(): Promise<CatalogEntry[]> {
   return invoke("fetch_catalog_command");
 }
 
+/** Обновляет встроенные сборки из `builtin-packs.json` репозитория лаунчера. */
+export function refreshBuiltinPacks(): Promise<void> {
+  return invoke("refresh_builtin_packs_command");
+}
+
 export type GameFolderKind = "mods" | "resourcepacks" | "shaderpacks" | "saves";
 
 export function listGameFiles(

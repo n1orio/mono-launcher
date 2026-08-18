@@ -159,6 +159,12 @@ export interface CatalogEntry {
   boostyBlog: string | null;
   minRam: number | null;
   tags: string[];
+  /** Оценка сборки (0.0–5.0). */
+  rating: number | null;
+  /** Число оценок. */
+  ratingCount: number | null;
+  /** Спонсорская сборка — всегда в начале каталога. */
+  sponsored: boolean;
 }
 
 /** Статус лицензии сборки (привязка Boosty). */

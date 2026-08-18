@@ -195,6 +195,15 @@ pub struct CatalogEntry {
     pub min_ram_mb: Option<u32>,
     #[serde(default)]
     pub tags: Vec<String>,
+    /// Оценка сборки (0.0–5.0) — выводится звёздами и участвует в сортировке.
+    #[serde(default, rename = "rating")]
+    pub rating: Option<f32>,
+    /// Число оценок (показывается рядом с рейтингом).
+    #[serde(default, rename = "ratingCount")]
+    pub rating_count: Option<u64>,
+    /// Признак спонсорской сборки: такие всегда идут в начало каталога.
+    #[serde(default)]
+    pub sponsored: bool,
 }
 
 /// Источник каталога сборок (raw-файл в корне репозитория лаунчера).
@@ -209,7 +218,7 @@ pub struct SystemInfo {
 
 /// Определяет сборку по id (или берёт дефолтную из конфига).
 fn resolve_pack(pack_id: Option<String>) -> Result<PackInfo, String> {
-    let id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
+    let id = pack_id.unwrap_or_else(default_pack_id);
     config::find_pack(&id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Сборка не найдена: {id}"))
@@ -2816,9 +2825,17 @@ async fn fetch_catalog_cached(client: &reqwest::Client) -> Vec<CatalogEntry> {
                 .filter(|e| !e.name.trim().is_empty() && !e.url.trim().is_empty())
                 .map(|mut e| {
                     e.min_ram_mb = e.min_ram_mb.map(|r| r.clamp(256, 65536));
+                    e.rating = e.rating.map(|r| r.clamp(0.0, 5.0));
                     e
                 })
                 .collect();
+            // Спонсорские — вверх; дальше по убыванию рейтинга; затем по имени.
+            entries.sort_by(|a, b| {
+                b.sponsored
+                    .cmp(&a.sponsored)
+                    .then_with(|| b.rating.unwrap_or(0.0).total_cmp(&a.rating.unwrap_or(0.0)))
+                    .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+            });
         }
     }
     let mut cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
@@ -2835,6 +2852,27 @@ async fn fetch_catalog_cached(client: &reqwest::Client) -> Vec<CatalogEntry> {
 #[tauri::command]
 async fn fetch_catalog_command(state: State<'_, AppState>) -> Result<Vec<CatalogEntry>, String> {
     Ok(fetch_catalog_cached(&state.client).await)
+}
+
+/// URL списка встроенных сборок в репозитории лаунчера (без квоты GitHub API).
+const BUILTIN_PACKS_URL: &str =
+    "https://raw.githubusercontent.com/n1orio/mono-launcher/main/builtin-packs.json";
+
+/// Обновляет встроенные сборки из `builtin-packs.json` репозитория и кэширует
+/// локально. Ошибки не фатальны: при отсутствии сети используется прошлый кэш.
+async fn refresh_builtin_packs(client: &reqwest::Client) {
+    if let Some(bytes) = http_cache::cached_get(client, BUILTIN_PACKS_URL, &[]).await {
+        if let Ok(list) = serde_json::from_slice::<Vec<crate::config::PackDef>>(&bytes) {
+            let _ = crate::config::save_builtin_packs(&list);
+        }
+    }
+}
+
+/// Команда обновления встроенных сборок (вызывается при старте и по требованию).
+#[tauri::command]
+async fn refresh_builtin_packs_command(state: State<'_, AppState>) -> Result<(), String> {
+    refresh_builtin_packs(&state.client).await;
+    Ok(())
 }
 
 /// Скриншоты и сервера текущей сборки (из её GitHub-репозитория).
@@ -3139,7 +3177,7 @@ async fn launch_game_command(
     height: u32,
     server_address: Option<String>,
 ) -> Result<(), String> {
-    let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
+    let pack_id = pack_id.unwrap_or_else(default_pack_id);
     // Гейт лицензии: платные сборки требуют активную подписку Boosty.
     license::ensure_license(&state.client, &pack_id)
         .await
@@ -3258,7 +3296,7 @@ struct ScreenshotList {
 /// `modified` — время создания/изменения файла (epoch, секунды) для даты скрина.
 #[tauri::command]
 fn list_screenshots_command(pack_id: Option<String>) -> Result<ScreenshotList, String> {
-    let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
+    let pack_id = pack_id.unwrap_or_else(default_pack_id);
     let installed = config::active_version_file(&pack_id)
         .map(|f| f.exists())
         .unwrap_or(false);
@@ -3338,7 +3376,7 @@ struct DuplicatesResult {
 /// освободится, если в каждой группе оставить по одному файлу.
 #[tauri::command]
 fn analyze_duplicates_command(pack_id: Option<String>) -> Result<DuplicatesResult, String> {
-    let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
+    let pack_id = pack_id.unwrap_or_else(default_pack_id);
     let dir = config::active_game_dir(&pack_id).map_err(|e| e.to_string())?;
 
     // Сначала по размеру файла — дешёвый фильтр, чтобы не хэшировать всё подряд.
@@ -3432,7 +3470,7 @@ struct SavedServersList {
 /// Сервера игрока из servers.dat активной установленной версии.
 #[tauri::command]
 fn list_servers_command(pack_id: Option<String>) -> Result<SavedServersList, String> {
-    let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
+    let pack_id = pack_id.unwrap_or_else(default_pack_id);
     let installed = config::active_version_file(&pack_id)
         .map(|f| f.exists())
         .unwrap_or(false);
@@ -3475,7 +3513,7 @@ fn clear_launch_log() -> Result<(), String> {
 /// Анализирует свежие краш-артефакты сборки и классифицирует причину.
 #[tauri::command]
 fn analyze_crash_command(pack_id: Option<String>) -> crash::CrashAnalysis {
-    let pack_id = pack_id.unwrap_or_else(|| default_pack_id().to_string());
+    let pack_id = pack_id.unwrap_or_else(default_pack_id);
     crash::analyze_pack(&pack_id)
 }
 
@@ -3670,6 +3708,11 @@ pub fn run() {
         .setup(|app| {
             #[cfg(desktop)]
             register_deep_link_handlers(app.handle());
+            // Подтягиваем свежие встроенные сборки из репозитория (не блокируя старт).
+            let client = app.state::<AppState>().client.clone();
+            tauri::async_runtime::spawn(async move {
+                refresh_builtin_packs(&client).await;
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -3737,6 +3780,7 @@ pub fn run() {
             get_game_file_icons_command,
             pack_repo_content_command,
             fetch_catalog_command,
+            refresh_builtin_packs_command,
             set_boosty_command,
             license_status_command,
             clear_license_command,

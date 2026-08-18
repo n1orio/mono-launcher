@@ -25,6 +25,7 @@ import {
   listPacks,
   listSavedServers,
   recentPacks,
+  refreshBuiltinPacks,
   listScreenshots,
   analyzeDuplicates,
   deleteGameFiles,
@@ -1501,6 +1502,12 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
       await loadPacks();
     } catch {
       packId.value = "untold-legends";
+    }
+    try {
+      await refreshBuiltinPacks();
+      await loadPacks();
+    } catch {
+      // Нет сети — остаёмся на прошлом (кэшированном) списке встроенных сборок.
     }
     await load();
     refreshVersions();

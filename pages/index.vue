@@ -2186,7 +2186,19 @@
                   <div class="flex flex-1 flex-col p-4">
                   <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
-                      <h3 class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">{{ entry.name }}</h3>
+                      <div class="flex items-center gap-1.5">
+                        <h3 class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">{{ entry.name }}</h3>
+                        <span
+                          v-if="entry.sponsored"
+                          class="inline-flex shrink-0 items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2 py-0.5 text-[10px] font-bold text-[var(--accent)]"
+                          :title="t('catalog.sponsoredTitle')"
+                        >
+                          <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                            <path d="M8 1 3.6 2.2a.75.75 0 0 0-.55.72v4.5c0 3.4 1.9 6 4.95 7.3a.6.6 0 0 0 0 0l.4.16a.6.6 0 0 0 0 0l.4-.16c3.05-1.3 4.95-3.9 4.95-7.3v-4.5a.75.75 0 0 0-.55-.72L8 1Zm0 1.5 3.6.9v3.02c0 2.7-1.4 4.8-3.6 5.95-2.2-1.15-3.6-3.25-3.6-5.95V3.4l3.6-.9Z"/>
+                          </svg>
+                          {{ t("catalog.sponsored") }}
+                        </span>
+                      </div>
                       <div v-if="entry.author" class="mt-0.5 font-mono text-[11px] text-[color:var(--tx-muted)]">
                         @{{ entry.author }}
                       </div>
@@ -2213,6 +2225,23 @@
                   <p v-if="entry.description" class="mt-2 min-h-0 flex-1 text-xs leading-relaxed text-[color:var(--tx-muted)]">
                     {{ entry.description }}
                   </p>
+                  <div v-if="entry.rating != null" class="mt-2 flex items-center gap-1.5">
+                    <span class="inline-flex items-center gap-0.5" :title="t('catalog.ratingTitle', { rating: entry.rating.toFixed(1) })">
+                      <svg
+                        v-for="i in 5"
+                        :key="i"
+                        viewBox="0 0 16 16"
+                        class="h-3.5 w-3.5"
+                        :class="i <= Math.round(entry.rating) ? 'fill-[var(--accent)]' : 'fill-[color:var(--tx-muted)]/30'"
+                      >
+                        <path d="M8 1.3 9.9 5l4 .56-2.9 2.8.7 4L8 10.38 4.3 12.36l.7-4L2.1 5.56 6.1 5 8 1.3Z"/>
+                      </svg>
+                    </span>
+                    <span class="text-[11px] font-semibold text-[color:var(--tx)]">{{ entry.rating.toFixed(1) }}</span>
+                    <span v-if="entry.ratingCount != null" class="text-[10px] text-[color:var(--tx-muted)]">
+                      ({{ t("catalog.ratingCount", { n: entry.ratingCount }) }})
+                    </span>
+                  </div>
                   <div v-if="entry.tags.length" class="mt-2.5 flex flex-wrap gap-1.5">
                     <span
                       v-for="tag in entry.tags"

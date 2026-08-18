@@ -5,15 +5,17 @@ use dirs::data_dir;
 use serde::{Deserialize, Serialize};
 
 /// Описание сборки: id используется в путях и командах IPC.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PackDef {
-    pub id: &'static str,
-    pub name: &'static str,
-    pub url: &'static str,
+    pub id: String,
+    pub name: String,
+    pub url: String,
     /// Ник блога на Boosty: задан → сборка платная (подписка обязательна).
-    pub boosty_blog: Option<&'static str>,
+    #[serde(default, rename = "boostyBlog")]
+    pub boosty_blog: Option<String>,
     /// Минимальная оперативка (МБ) для запуска сборки: задан → лаунчер
     /// предупреждает и не даёт запустить при меньшем выделении.
+    #[serde(default, rename = "minRam")]
     pub min_ram_mb: Option<u32>,
 }
 
@@ -59,42 +61,44 @@ pub struct PackInfo {
     pub banner: Option<String>,
 }
 
-/// Все поддерживаемые сборки. GitHub-endpoints выводятся из `url`.
-/// `boosty_blog` — ник блога издателя на Boosty: укажите свой, чтобы сборка
-/// стала платной (подписка на блог обязательна для установки/запуска).
-/// `min_ram_mb` — минимальная оперативка (МБ) для запуска сборки.
-pub const PACKS: &[PackDef] = &[PackDef {
-    id: "untold-legends",
-    name: "Untold Legends",
-    url: "https://github.com/n1orio/Untold-legends/releases/latest/download/Untold.legends.mrpack",
-    boosty_blog: None,
-    min_ram_mb: None,
-}];
-
-pub fn pack_by_id(id: &str) -> Option<&'static PackDef> {
-    PACKS.iter().find(|p| p.id == id)
+/// Файл, из которого читаются встроенные сборки. Обновляется из `builtin-packs.json`
+/// репозитория лаунчера при старте/по команде — так сборки меняются без пересборки.
+fn builtin_packs_file() -> Result<PathBuf> {
+    Ok(launcher_root()?.join("builtin-packs.json"))
 }
 
-pub fn default_pack_id() -> &'static str {
-    PACKS[0].id
+/// Встроенные сборки из локального файла (обновляется из репозитория).
+/// Если файла нет или он битый — возвращаем пустой список: лаунчер сам
+/// подтянет актуальный список из `builtin-packs.json` репозитория.
+pub fn builtin_packs() -> Vec<PackDef> {
+    let Ok(path) = builtin_packs_file() else {
+        return Vec::new();
+    };
+    let Ok(raw) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    serde_json::from_str::<Vec<PackDef>>(&raw).unwrap_or_default()
 }
 
-/// Встроенные сборки как общий тип `PackInfo`.
-pub fn builtin_packs() -> Vec<PackInfo> {
-    PACKS
-        .iter()
-        .map(|p| PackInfo {
-            id: p.id.to_string(),
-            name: pack_name(p.id, p.name),
-            url: p.url.to_string(),
-            builtin: true,
-            kind: "remote".into(),
-            boosty_blog: p.boosty_blog.map(String::from),
-            min_ram_mb: p.min_ram_mb,
-            icon: pack_icon_path(p.id),
-            banner: pack_banner_path(p.id),
-        })
-        .collect()
+/// Сохраняет список встроенных сборок (из `builtin-packs.json` репозитория),
+/// чтобы следующие запуски читали его без сети.
+pub fn save_builtin_packs(list: &[PackDef]) -> Result<()> {
+    let file = builtin_packs_file()?;
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let tmp = file.with_extension("json.tmp");
+    std::fs::write(&tmp, serde_json::to_string_pretty(list)?)?;
+    std::fs::rename(&tmp, &file)?;
+    Ok(())
+}
+
+/// Первая встроенная сборка как дефолтная (иначе пустая строка).
+pub fn default_pack_id() -> String {
+    builtin_packs()
+        .first()
+        .map(|p| p.id.clone())
+        .unwrap_or_default()
 }
 
 /// Файл реестра пользовательских сборок.
@@ -141,7 +145,20 @@ fn save_user_packs(list: &[UserPack]) -> Result<()> {
 
 /// Все сборки: встроенные + пользовательские.
 pub fn all_packs() -> Result<Vec<PackInfo>> {
-    let mut out = builtin_packs();
+    let mut out = builtin_packs()
+        .into_iter()
+        .map(|p| PackInfo {
+            id: p.id.clone(),
+            name: pack_name(&p.id, &p.name),
+            url: p.url,
+            builtin: true,
+            kind: "remote".into(),
+            boosty_blog: p.boosty_blog,
+            min_ram_mb: p.min_ram_mb,
+            icon: pack_icon_path(&p.id),
+            banner: pack_banner_path(&p.id),
+        })
+        .collect::<Vec<_>>();
     for p in user_packs()? {
         let icon = pack_icon_path(&p.id);
         let banner = pack_banner_path(&p.id);
@@ -162,17 +179,17 @@ pub fn all_packs() -> Result<Vec<PackInfo>> {
 
 /// Ищет сборку (сначала встроенную, потом пользовательскую).
 pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
-    if let Some(p) = pack_by_id(id) {
+    if let Some(p) = builtin_packs().into_iter().find(|p| p.id == id) {
         return Ok(Some(PackInfo {
-            id: p.id.to_string(),
-            name: pack_name(p.id, p.name),
-            url: p.url.to_string(),
+            id: p.id.clone(),
+            name: pack_name(&p.id, &p.name),
+            url: p.url,
             builtin: true,
             kind: "remote".into(),
-            boosty_blog: p.boosty_blog.map(String::from),
+            boosty_blog: p.boosty_blog,
             min_ram_mb: p.min_ram_mb,
-            icon: pack_icon_path(p.id),
-            banner: pack_banner_path(p.id),
+            icon: pack_icon_path(&p.id),
+            banner: pack_banner_path(&p.id),
         }));
     }
     Ok(user_packs()?
@@ -220,7 +237,7 @@ pub fn set_pack_name(pack_id: &str, name: &str) -> Result<()> {
     if name.is_empty() {
         return Err(anyhow::anyhow!("Название не может быть пустым"));
     }
-    if pack_by_id(pack_id).is_some() {
+    if builtin_packs().iter().any(|p| p.id == pack_id) {
         let path = pack_dir(pack_id)?.join("name.txt");
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
