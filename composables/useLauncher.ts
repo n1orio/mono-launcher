@@ -379,11 +379,11 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     }
   }
 
-  let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
+let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
   /** Пока ползунок тянут — глушим ВСЕ transition (`no-theme-transition` на html):
-      иначе элементы с собственными `transition-colors/all` анимируют цвет за свою
-      длительность и «запаздывают» относительно остальных. Через ~150мс после
-      остановки транзишены возвращаются. */
+       иначе элементы с собственными `transition-colors/all` анимируют цвет за свою
+       длительность и «запаздывают» относительно остальных. Через ~150мс после
+       остановки транзишены возвращаются. */
   function suppressTransitions() {
     if (typeof document === "undefined") return;
     const root = document.documentElement;
@@ -399,11 +399,24 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     applyThemeLevel(themeLevel.value < 0.5 ? 1 : 0);
   }
 
+  let themeRaf: number | null = null;
+  let themePendingLevel = 1;
+  /** Применяет уровень темы не чаще одного раза за кадр обработчика (rAF-троттлинг).
+       Пересчёт ~30 CSS-переменных на каждое событие `input` вызывает лаги у слайдера. */
+  function applyThemeLevelThrottled(level: number) {
+    themePendingLevel = level;
+    if (themeRaf !== null) return;
+    themeRaf = requestAnimationFrame(() => {
+      themeRaf = null;
+      applyThemeLevel(themePendingLevel, false);
+    });
+  }
+
   function setThemeLevel(level: number) {
     if (packThemeActive.value) return;
     killThemeFade();
     suppressTransitions();
-    applyThemeLevel(level);
+    applyThemeLevelThrottled(level);
   }
 
   {

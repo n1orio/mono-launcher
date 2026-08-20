@@ -659,5 +659,10 @@
   "duplicates.group": "Группа · {n} файлов по {size}",
   "duplicates.keepOne": "Оставить один",
   "duplicates.delete": "Удалить",
-  "duplicates.removed": "Удалено: {name}"
+  "duplicates.removed": "Удалено: {name}",
+  "window.minimize": "Свернуть",
+  "window.maximize": "Развернуть",
+  "window.close": "Закрыть",
+  "side.collapse": "Свернуть панель",
+  "side.expand": "Развернуть панель"
 }

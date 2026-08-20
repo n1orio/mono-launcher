@@ -53,7 +53,21 @@
         </div>
       </TransitionGroup>
     </div>
-  <div v-if="!isSearchWin && !isFileDetailWin" class="flex h-full w-full select-none overflow-hidden bg-[var(--bg)] text-[color:var(--tx)] font-sans">
+  <div v-if="!isSearchWin && !isFileDetailWin" class="flex flex-col h-full w-full select-none overflow-hidden bg-[var(--panel)] text-[color:var(--tx)] font-sans">
+    <!-- ==== Кастомный Titlebar (macOS Style) ==== -->
+    <div class="flex h-10 shrink-0 items-center gap-2 px-4">
+      <button type="button" class="group flex h-3 w-3 items-center justify-center rounded-full bg-[#ff5f56] transition-colors hover:bg-[#ff5f56]/80" @click="appClose">
+        <svg viewBox="0 0 16 16" class="h-2 w-2 opacity-0 transition-opacity fill-black/60 group-hover:opacity-100"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+      </button>
+      <button type="button" class="group flex h-3 w-3 items-center justify-center rounded-full bg-[#ffbd2e] transition-colors hover:bg-[#ffbd2e]/80" @click="appMinimize">
+        <svg viewBox="0 0 16 16" class="h-2 w-2 opacity-0 transition-opacity fill-black/60 group-hover:opacity-100"><path d="M2 8a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 8Z"/></svg>
+      </button>
+      <button type="button" class="group flex h-3 w-3 items-center justify-center rounded-full bg-[#27c93f] transition-colors hover:bg-[#27c93f]/80" @click="appToggleMaximize">
+        <svg viewBox="0 0 16 16" class="h-2 w-2 opacity-0 transition-opacity fill-black/60 group-hover:opacity-100"><path d="M1.5 2.5A1.5 1.5 0 0 1 3 1h10a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5H3A1.5 1.5 0 0 1 1.5 12.5v-10Zm1.5-.5a.5.5 0 0 0-.5.5v10a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5v-10a.5.5 0 0 0-.5-.5H3Z"/></svg>
+      </button>
+      <div data-tauri-drag-region class="h-full flex-1"></div>
+    </div>
+    <div class="flex min-h-0 flex-1 w-full">
     <!-- Карточка обновления лаунчера -->
     <div
       v-if="appUpdate && !appUpdating"
@@ -106,7 +120,7 @@
     </div>
     <!-- ==== Боковая панель ==== -->
     <aside
-      class="relative flex shrink-0 flex-col border-r border-[var(--border)] bg-[var(--panel)]"
+      class="relative flex shrink-0 flex-col bg-[var(--panel)]"
       :class="[sidebarDragging ? '' : 'transition-[width] duration-150', sidebarCollapsed ? 'items-center' : '']"
       :style="{ width: `${sidebarWidth}px` }"
     >
@@ -380,9 +394,9 @@
       <div v-if="tab === 'play'" class="p-3 border-t border-[var(--border)] bg-[var(--panel)]">
         <button
           type="button"
-          class="flex items-center justify-center rounded-md py-2 text-xs font-semibold text-white shadow-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="flex items-center justify-center rounded-md py-2.5 text-sm font-bold tracking-wide text-white shadow-sm transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
           :class="[
-            sidebarCollapsed ? 'px-1.5' : 'w-full px-3',
+            sidebarCollapsed ? 'px-1.5' : 'w-full px-4',
             status?.installed
               ? gameRunning
                 ? 'bg-[#b91c1c] hover:bg-[#dc2626] focus-visible:outline-[#dc2626]'
@@ -433,7 +447,7 @@
     </aside>
 
     <!-- ==== Основной контент ==== -->
-    <main class="relative mx-auto h-full w-full flex-1 overflow-hidden bg-[var(--bg)]" style="max-width: 1500px">
+    <main class="relative mx-auto h-full w-full flex-1 overflow-hidden rounded-tl-2xl border-l border-[var(--border)] bg-[var(--bg)]" style="max-width: 1500px">
       <!-- Scalable main column: width = user-draggable (наплыва inner-контента),
            по умолчанию растягивается на всю доступную ширину. -->
       <div class="relative flex h-full w-full">
@@ -459,11 +473,11 @@
                 <svg viewBox="0 0 16 16" class="h-5 w-5 fill-[var(--tx-muted)]">
                   <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-1 1v.878A2.25 2.25 0 1 1 2 13.378V2.5Z"/>
                 </svg>
-                <h1 class="text-xl font-semibold text-[color:var(--tx-strong)]">
+<h1 class="text-2xl font-bold tracking-tight text-[color:var(--tx-strong)]">
                   {{ activePack?.name ?? t("pack.none") }}
                 </h1>
                                 <span
-                  class="ml-2 rounded-full px-2 py-0.5 text-[11px] font-medium border"
+                  class="ml-3 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border shadow-sm"
                   :class="status?.installed
                     ? 'border-[#238636]/40 bg-[#238636]/10 text-[#3fb950]'
                     : 'border-[var(--border)] bg-[var(--input)] text-[color:var(--tx-muted)]'"
@@ -768,18 +782,18 @@
           </div>
 
           <!-- Сабтабы: релизы / моды / ресурспаки / шейдеры / миры / консоль -->
-          <div class="mb-4 flex shrink-0 flex-wrap items-center justify-start gap-1 border-b border-[var(--border)] pb-2">
+          <div class="mb-5 flex shrink-0 flex-wrap items-center justify-start gap-1.5 border-b border-[var(--border)] pb-3">
             <button
               v-for="st in playSubTabsVisible"
               :key="st.kind"
               type="button"
-              class="relative flex items-center justify-center rounded-md border border-[var(--border)] bg-[var(--input)] px-7 py-1.5 text-[11px] font-medium text-[color:var(--tx)] transition-colors"
+              class="relative flex items-center justify-center rounded-full border border-transparent px-5 py-1.5 pl-8 text-[11px] font-medium transition-all"
               :class="playSubTab === st.kind
-                ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[color:var(--tx-strong)] ring-1 ring-inset ring-[var(--accent)]'
-                : 'hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]'"
+                ? 'bg-[var(--tx-strong)] text-[color:var(--panel)] shadow-sm'
+                : 'bg-[var(--input)] text-[color:var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)] border-[var(--border)]'"
               @click="playSubTab = st.kind"
             >
-              <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-1.5 h-3.5 w-3.5 shrink-0 fill-current" v-html="st.icon"></svg>
+              <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-2.5 h-3.5 w-3.5 shrink-0 fill-current" v-html="st.icon"></svg>
               <span>{{ t("sub." + st.kind) }}</span>
             </button>
           </div>
@@ -794,7 +808,7 @@
             <article
               v-for="r in versions.github"
               :key="r.tag"
-              class="rounded-md border border-[var(--border)] bg-[var(--panel)]"
+              class="rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-sm transition-shadow hover:shadow-md"
             >
               <!-- Шапка релиза -->
               <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
@@ -3107,7 +3121,7 @@
         </div>
         </div>
     </main>
-
+    </div>
 
     <!-- Модалка: скачать сборку с Modrinth -->
     <div
@@ -5010,6 +5024,10 @@ function isFileDetailWindowQuery() {
 const route = useRoute();
 const isSearchWin = computed(() => route.query.win === "search");
 const isFileDetailWin = computed(() => route.query.win === "filedetail");
+
+function appClose() { if (isTauri()) getCurrentWindow().close(); }
+function appMinimize() { if (isTauri()) getCurrentWindow().minimize(); }
+function appToggleMaximize() { if (isTauri()) getCurrentWindow().toggleMaximize(); }
 
 const {
   status,

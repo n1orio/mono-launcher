@@ -659,5 +659,10 @@
   "duplicates.group": "Gruppe · {n} Dateien à {size}",
   "duplicates.keepOne": "Einen behalten",
   "duplicates.delete": "Löschen",
-  "duplicates.removed": "Gelöscht: {name}"
+  "duplicates.removed": "Gelöscht: {name}",
+  "window.minimize": "Minimieren",
+  "window.maximize": "Maximieren",
+  "window.close": "Schließen",
+  "side.collapse": "Seitenleiste einklappen",
+  "side.expand": "Seitenleiste ausklappen"
 }

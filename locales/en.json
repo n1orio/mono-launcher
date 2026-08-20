@@ -659,5 +659,10 @@
   "duplicates.group": "Group · {n} files of {size}",
   "duplicates.keepOne": "Keep one",
   "duplicates.delete": "Delete",
-  "duplicates.removed": "Deleted: {name}"
+  "duplicates.removed": "Deleted: {name}",
+  "window.minimize": "Minimize",
+  "window.maximize": "Maximize",
+  "window.close": "Close",
+  "side.collapse": "Collapse sidebar",
+  "side.expand": "Expand sidebar"
 }

@@ -659,5 +659,10 @@
   "duplicates.group": "Група · {n} файлаў па {size}",
   "duplicates.keepOne": "Пакінуць адзін",
   "duplicates.delete": "Выдаліць",
-  "duplicates.removed": "Выдалена: {name}"
+  "duplicates.removed": "Выдалена: {name}",
+  "window.minimize": "Згарнуць",
+  "window.maximize": "Разгарнуць",
+  "window.close": "Зачыніць",
+  "side.collapse": "Згарнуць панэль",
+  "side.expand": "Разгарнуць панэль"
 }
