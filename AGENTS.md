@@ -1,6 +1,6 @@
 # AGENTS.md — Mono Launcher
 
-Desktop Minecraft modpack launcher. **Tauri 2** (Rust backend) + **Nuxt 3 / Vue 3 + TypeScript + Tailwind** (Vite SPA). Modpacks distributed as `.mrpack` on GitHub Releases.
+Desktop Minecraft modpack launcher. **Tauri 2** (Rust backend) + **Nuxt 3 / Vue 3 + TypeScript + Tailwind** (Vite SPA). Pack files distributed via `mono-launcher-storage` (separate host).
 
 ## Commands
 | Command | Description |

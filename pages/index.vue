@@ -1,450 +1,14 @@
 <template>
     <!-- Уведомления (тосты) -->
-    <div class="pointer-events-none fixed right-4 top-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2">
-      <TransitionGroup name="toast">
-        <div
-          v-for="n in notifications"
-          :key="n.id"
-          class="pointer-events-auto flex items-start gap-2.5 rounded-md border bg-[var(--panel)] px-3.5 py-2.5 text-xs shadow-lg shadow-black/40"
-          :class="{
-            'border-[#f85149]/50': n.type === 'error',
-            'border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)]': n.type === 'info',
-            'border-[#238636]/50': n.type === 'success',
-          }"
-        >
-          <svg
-            viewBox="0 0 16 16"
-            class="mt-0.5 h-3.5 w-3.5 shrink-0 fill-current"
-            :class="{
-              'text-[#f85149]': n.type === 'error',
-              'text-[var(--accent)]': n.type === 'info',
-              'text-[#3fb950]': n.type === 'success',
-            }"
-          >
-            <path v-if="n.type === 'error'" d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM4.97 4.97a.749.749 0 0 0-1.06 1.06L6.94 8l-3.03 3.03a.749.749 0 1 0 1.06 1.06L8 9.06l3.03 3.03a.749.749 0 1 0 1.06-1.06L9.06 8l3.03-3.03a.749.749 0 0 0-1.06-1.06L8 6.94Z"/>
-            <path v-else-if="n.type === 'info'" d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM7.25 3.5a.75.75 0 0 0 0 1.5h.008a.75.75 0 0 0 0-1.5ZM7 7.25a.75.75 0 0 0 0 1.5h.25V12H7a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 .75-.75v-5.5A.75.75 0 0 0 7.5 6.5H7a.75.75 0 0 0 0 .75Z"/>
-            <path v-else d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0Zm3.03 5.03a.75.75 0 0 0-1.06-1.06L6.5 7.44l-1.47-1.47a.75.75 0 0 0-1.06 1.06l2 2a.75.75 0 0 0 1.06 0Z"/>
-          </svg>
-          <p class="min-w-0 break-words leading-relaxed text-[color:var(--tx)]">{{ n.text }}</p>
-          <div class="ml-auto flex shrink-0 items-center gap-1.5">
-            <button
-              v-if="n.reportable"
-              type="button"
-              class="flex items-center gap-1 rounded border border-[#f85149]/40 bg-[#f85149]/10 px-2 py-0.5 text-[10px] font-semibold text-[#f85149] transition-colors hover:bg-[#f85149]/20"
-              :title="t('toast.report')"
-              @click="reportError(n.text)"
-            >
-              <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
-              </svg>
-              GitHub Issue
-            </button>
-            <button
-              type="button"
-              class="shrink-0 text-[color:var(--tx-muted)] transition-colors hover:text-[color:var(--tx-strong)]"
-              :title="t('toast.close')"
-              @click="dismissNotification(n.id)"
-            >
-              <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.06 1.06L9.06 8l3.22 3.22a.749.749 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.749.749 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.749.749 0 0 1 0-1.06Z"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </TransitionGroup>
-    </div>
+    <ToastNotifications />
   <div v-if="!isSearchWin && !isFileDetailWin" class="flex flex-col h-full w-full select-none overflow-hidden bg-[var(--panel)] text-[color:var(--tx)] font-sans">
     <!-- ==== Кастомный Titlebar (macOS Style) ==== -->
-    <div class="flex h-10 shrink-0 items-center gap-2 px-4">
-      <button type="button" class="group flex h-3 w-3 items-center justify-center rounded-full bg-[#ff5f56] transition-colors hover:bg-[#ff5f56]/80" @click="appClose">
-        <svg viewBox="0 0 16 16" class="h-2 w-2 opacity-0 transition-opacity fill-black/60 group-hover:opacity-100"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
-      </button>
-      <button type="button" class="group flex h-3 w-3 items-center justify-center rounded-full bg-[#ffbd2e] transition-colors hover:bg-[#ffbd2e]/80" @click="appMinimize">
-        <svg viewBox="0 0 16 16" class="h-2 w-2 opacity-0 transition-opacity fill-black/60 group-hover:opacity-100"><path d="M2 8a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 8Z"/></svg>
-      </button>
-      <button type="button" class="group flex h-3 w-3 items-center justify-center rounded-full bg-[#27c93f] transition-colors hover:bg-[#27c93f]/80" @click="appToggleMaximize">
-        <svg viewBox="0 0 16 16" class="h-2 w-2 opacity-0 transition-opacity fill-black/60 group-hover:opacity-100"><path d="M1.5 2.5A1.5 1.5 0 0 1 3 1h10a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5H3A1.5 1.5 0 0 1 1.5 12.5v-10Zm1.5-.5a.5.5 0 0 0-.5.5v10a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5v-10a.5.5 0 0 0-.5-.5H3Z"/></svg>
-      </button>
-      <div data-tauri-drag-region class="h-full flex-1"></div>
-    </div>
+    <TitleBar />
     <div class="flex min-h-0 flex-1 w-full">
     <!-- Карточка обновления лаунчера -->
-    <div
-      v-if="appUpdate && !appUpdating"
-      class="fixed bottom-4 right-4 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[var(--panel)] p-3.5 shadow-lg shadow-black/40"
-    >
-      <div class="flex items-start gap-2.5">
-        <svg viewBox="0 0 16 16" class="mt-0.5 h-4 w-4 shrink-0 fill-[var(--accent)]">
-          <path d="M8 1.5a.75.75 0 0 1 .75.75V2.5H14a1 1 0 0 1 1 1v2.75A1.75 1.75 0 0 1 13.25 8H8.75v5.75a1.75 1.75 0 0 1-3.5 0V8H2A1.75 1.75 0 0 1 .25 6.25V3.5a1 1 0 0 1 1-1h5.25v-.25A.75.75 0 0 1 8 1.5Z"/>
-        </svg>
-        <div class="min-w-0 flex-1">
-          <div class="text-xs font-semibold text-[color:var(--tx-strong)]">
-            {{ t("appUpdate.title") }}
-          </div>
-          <div class="mt-0.5 truncate text-[11px] text-[color:var(--tx-muted)]">
-            {{ t("appUpdate.version", { v: appUpdate.version }) }}
-          </div>
-          <p v-if="appUpdate.notes" class="mt-1 max-h-12 overflow-hidden text-[11px] leading-snug text-[color:var(--tx)]">
-            {{ appUpdate.notes.slice(0, 180) }}{{ appUpdate.notes.length > 180 ? "…" : "" }}
-          </p>
-          <button
-            type="button"
-            class="mt-2.5 w-full rounded-md bg-[var(--accent-deep)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
-            @click="installAppUpdate"
-          >
-            {{ t("appUpdate.install") }}
-          </button>
-        </div>
-      </div>
-    </div>
-    <!-- Прогресс обновления лаунчера -->
-    <div
-      v-if="appUpdating"
-      class="fixed bottom-4 right-4 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[var(--panel)] p-3.5 shadow-lg shadow-black/40"
-    >
-      <div class="mb-1.5 flex items-center justify-between text-[11px]">
-        <span class="font-medium text-[color:var(--tx)]">{{ t("appUpdate.progress") }}</span>
-        <span class="tabular-nums font-mono text-[10px] text-[color:var(--tx-muted)]">
-          {{ appUpdateProgress ?? 0 }}%
-        </span>
-      </div>
-      <div class="h-1.5 w-full overflow-hidden rounded-full bg-[var(--input)]">
-        <div
-          class="h-full bg-[#2f81f7] transition-all duration-200"
-          :style="{ width: `${appUpdateProgress ?? 0}%` }"
-        />
-      </div>
-      <div class="mt-1.5 text-[10px] text-[color:var(--tx-muted)]">
-        {{ t("appUpdate.restart") }}
-      </div>
-    </div>
+    <AppUpdateCard />
     <!-- ==== Боковая панель ==== -->
-    <aside
-      class="relative flex shrink-0 flex-col bg-[var(--panel)]"
-      :class="[sidebarDragging ? '' : 'transition-[width] duration-150', sidebarCollapsed ? 'items-center' : '']"
-      :style="{ width: `${sidebarWidth}px` }"
-    >
-<!-- Выбор сборки (вкладка каждого репозитория) -->
-      <div v-if="!sidebarCollapsed" class="relative p-3.5 border-b border-[var(--border)]">
-        <div class="flex items-center justify-between gap-2">
-          <label class="text-[11px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">
-            {{ t("side.packRepo") }}
-          </label>
-          <div class="flex items-center gap-1.5">
-            <button
-              v-if="activePack && !activePack.builtin"
-              type="button"
-              class="shrink-0 rounded-md border px-2 py-1.5 leading-none transition-colors disabled:opacity-50"
-              :class="removeArmed === activePack.id
-                ? 'border-[#f85149]/60 bg-[#f85149]/15 text-[#f85149]'
-                : 'border-[var(--border)] bg-[var(--input)] text-[var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]'"
-              :title="removeArmed === activePack.id ? t('dev.removeConfirm') : t('dev.remove')"
-              :disabled="busy || removingPack === activePack.id"
-              @click.stop="handleRemovePack(activePack.id)"
-            >
-              <svg v-if="removingPack === activePack.id" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current">
-                <path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Zm3.36 2.14a.75.75 0 0 1 0 1.06 4 4 0 1 1-6.72 0 .75.75 0 0 1 1.06-1.06 2.5 2.5 0 1 0 4.6 0 .75.75 0 0 1 1.06-1.06Z"/>
-              </svg>
-              <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
-                <path d="M6 1.75a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75V2h3.5a.75.75 0 0 1 0 1.5h-.38l-.89 10.055A1.75 1.75 0 0 1 10.495 15H5.505a1.75 1.75 0 0 1-1.735-1.445L2.88 3.5H2.5a.75.75 0 0 1 0-1.5H6v-.25ZM4.416 3.5l.864 9.9A.25.25 0 0 0 5.525 13.5h4.95a.25.25 0 0 0 .245-.22l.864-9.78H4.416Z"/>
-              </svg>
-            </button>
-          </div>
-          </div>
-        <div class="mt-2 flex items-center gap-1.5 text-[11px] text-[color:var(--tx-muted)]">
-          <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-[var(--tx-muted)] shrink-0">
-            <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-1 1v.878A2.25 2.25 0 1 1 2 13.378V2.5Z"/>
-          </svg>
-          <span v-if="activePack?.author" class="truncate font-mono text-[var(--accent)]">@{{ activePack.author }}</span>
-          <button
-            v-if="activePackRepo"
-            type="button"
-            class="shrink-0 truncate font-mono text-[color:var(--tx-muted)] transition-colors hover:text-[color:var(--tx)] hover:underline"
-            :title="activePackRepo"
-            @click="openExternal(activePackRepo)"
-          >
-            открыть репозиторий
-          </button>
-        </div>
-      </div>
-
-      <!-- Навигация -->
-      <nav class="flex min-h-0 flex-1 flex-col overflow-y-auto border-b border-[var(--border)] p-2" :class="sidebarCollapsed ? 'gap-1.5' : 'gap-0.5'">
-        <!-- Вкладки категорий сборок: авторские / свои / Modrinth / CurseForge (перетаскиваются) -->
-        <template v-if="!sidebarCollapsed">
-          <button
-            type="button"
-            class="flex w-full items-center gap-1 px-3 pb-1 pt-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]"
-            disabled
-          >
-            {{ t("side.recent") }}
-          </button>
-          <template v-for="rp in sidebarRecentPacks" :key="rp.pack.id">
-            <button
-              type="button"
-              class="flex items-center gap-2 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs font-medium transition-colors"
-              :class="tab === 'play' && packId === rp.pack.id ? 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
-              @click="openPackTab(rp.pack.id)"
-            >
-              <img
-                v-if="rp.pack.icon"
-                :src="convertFileSrc(rp.pack.icon)"
-                alt=""
-                class="h-4 w-4 shrink-0 rounded object-cover"
-              />
-              <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
-                <path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/>
-              </svg>
-              <span class="min-w-0 flex-1 truncate text-left">{{ rp.pack.name }}</span>
-              <span v-if="rp.pack.id === packId" class="h-2 w-2 shrink-0 rounded-full" :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"></span>
-            </button>
-          </template>
-          <p v-if="sidebarRecentPacks.length === 0" class="px-3 py-1 text-[11px] text-[color:var(--tx-muted)]">
-            {{ t("side.recentEmpty") }}
-          </p>
-        </template>
-        <!-- Свернутый режим: только иконки недавних сборок -->
-        <template v-else>
-          <button
-            v-for="rp in sidebarRecentPacks"
-            :key="rp.pack.id"
-            type="button"
-            class="flex items-center justify-center rounded-md p-1.5 transition-colors"
-            :class="tab === 'play' && packId === rp.pack.id ? 'bg-[var(--input)] text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
-            :title="rp.pack.name"
-            @click="openPackTab(rp.pack.id)"
-          >
-            <img
-              v-if="rp.pack.icon"
-              :src="convertFileSrc(rp.pack.icon)"
-              alt=""
-              class="h-6 w-6 shrink-0 rounded object-cover"
-            />
-            <svg v-else viewBox="0 0 16 16" class="h-5 w-5 shrink-0 fill-current">
-              <path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/>
-            </svg>
-          </button>
-        </template>
-      </nav>
-
-      <nav class="flex flex-col gap-0.5 p-2 border-b border-[var(--border)]">
-        <button
-          type="button"
-          class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
-          :class="[
-            sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2 px-3',
-            tab === 'news' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
-          ]"
-          :title="t('nav.news')"
-          @click="tab = 'news'"
-        >
-          <svg viewBox="0 0 16 16" class="shrink-0 fill-current" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'">
-            <path d="M1.5 3.25A2.25 2.25 0 0 1 3.75 1h8.5A2.25 2.25 0 0 1 14.5 3.25v9.5A2.25 2.25 0 0 1 12.25 15H3.75a2.25 2.25 0 0 1-2.25-2.25v-9.5Zm1.5 0v9.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-9.5a.75.75 0 0 0-.75-.75h-8.5a.75.75 0 0 0-.75.75ZM4 5.5A.75.75 0 0 1 4.75 4.75h1.5a.75.75 0 0 1 0 1.5h-1.5A.75.75 0 0 1 4 5.5Zm3.75 0a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5H8.5a.75.75 0 0 1-.75-.75ZM4 8.5a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5A.75.75 0 0 1 4 8.5Zm3.75 0a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5H8.5a.75.75 0 0 1-.75-.75Zm-3.75 3a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1-.75-.75Z"/>
-          </svg>
-          <span v-if="!sidebarCollapsed">{{ t("nav.news") }}</span>
-        </button>
-        <button
-          type="button"
-          class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
-          :class="[
-            sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2 px-3',
-            tab === 'catalog' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
-          ]"
-          :title="t('nav.catalog')"
-          @click="tab = 'catalog'"
-        >
-          <svg viewBox="0 0 16 16" class="shrink-0 fill-current" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'">
-            <path d="M1.75 2A1.75 1.75 0 0 0 0 3.75v3.5C0 8.216.784 9 1.75 9h3.5A1.75 1.75 0 0 0 7 7.25v-3.5A1.75 1.75 0 0 0 5.25 2h-3.5Zm0 1.5h3.5c.138 0 .25.112.25.25v3.5c0 .138-.112.25-.25.25h-3.5a.25.25 0 0 1-.25-.25v-3.5c0-.138.112-.25.25-.25ZM10.75 2A1.75 1.75 0 0 0 9 3.75v3.5c0 .966.784 1.75 1.75 1.75h3.5A1.75 1.75 0 0 0 16 7.25v-3.5A1.75 1.75 0 0 0 14.25 2h-3.5Zm0 1.5h3.5c.138 0 .25.112.25.25v3.5c0 .138-.112.25-.25.25h-3.5a.25.25 0 0 1-.25-.25v-3.5c0-.138.112-.25.25-.25ZM1.75 10A1.75 1.75 0 0 0 0 11.75v.5C0 13.216.784 14 1.75 14h3.5A1.75 1.75 0 0 0 7 12.25v-.5A1.75 1.75 0 0 0 5.25 10h-3.5Zm0 1.5h3.5c.138 0 .25.112.25.25v.5c0 .138-.112.25-.25.25h-3.5a.25.25 0 0 1-.25-.25v-.5c0-.138.112-.25.25-.25ZM10.75 10A1.75 1.75 0 0 0 9 11.75v.5c0 .966.784 1.75 1.75 1.75h3.5A1.75 1.75 0 0 0 16 12.25v-.5A1.75 1.75 0 0 0 14.25 10h-3.5Zm0 1.5h3.5c.138 0 .25.112.25.25v.5c0 .138-.112.25-.25.25h-3.5a.25.25 0 0 1-.25-.25v-.5c0-.138.112-.25.25-.25Z"/>
-          </svg>
-          <span v-if="!sidebarCollapsed">{{ t("nav.catalog") }}</span>
-        </button>
-        <button
-          type="button"
-          class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
-          :class="[
-            sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2 px-3',
-            tab === 'library' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
-          ]"
-          :title="t('nav.library')"
-          @click="tab = 'library'"
-        >
-          <svg viewBox="0 0 16 16" class="shrink-0 fill-current" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'">
-            <path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.744 3.744 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.846V7.06h7.745V2.5h-3.496a2.249 2.249 0 0 0-2.24 2.236l-.009.11Zm-.001 7.003a3.752 3.752 0 0 1 2.003-.575H14.5v-9h-3.495a2.249 2.249 0 0 0-2.24 2.236l-.009.111-.001 5.228Z"/>
-          </svg>
-          <span v-if="!sidebarCollapsed">{{ t("nav.library") }}</span>
-        </button>
-        <button
-          type="button"
-          class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
-          :class="sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2 px-3'"
-          :title="t('side.createInstance')"
-          @click="createPackOpen = true"
-        >
-          <svg viewBox="0 0 16 16" class="shrink-0 fill-[var(--accent)]" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'">
-            <path d="M8 0a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2H9v6a1 1 0 1 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1Z"/>
-          </svg>
-          <span v-if="!sidebarCollapsed">{{ t("side.createInstance") }}</span>
-        </button>
-        <button
-          type="button"
-          class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
-          :class="[
-            sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2 px-3',
-            tab === 'settings' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
-          ]"
-          :title="t('nav.settings')"
-          @click="tab = 'settings'"
-        >
-          <svg viewBox="0 0 24 24" class="shrink-0 fill-none stroke-current" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
-          </svg>
-          <span v-if="!sidebarCollapsed">{{ t("nav.settings") }}</span>
-        </button>
-        <button
-          type="button"
-          class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
-          :class="[
-            sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2 px-3',
-            tab === 'dev' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
-          ]"
-          :title="t('side.dev')"
-          @click="tab = 'dev'"
-        >
-          <svg viewBox="0 0 16 16" class="shrink-0 fill-current" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'">
-            <path d="M2 1.75C2 .784 2.784 0 3.75 0h8.5C13.216 0 14 .784 14 1.75v12.5A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.69 1.884a.75.75 0 0 1 .79.075l4.244 3.253a.75.75 0 0 1 0 1.13L4.48 11.345a.75.75 0 0 1-.79.075.75.75 0 0 1-.388-.67v-6.5a.75.75 0 0 1 .388-.547ZM10.5 8.75h3a.75.75 0 0 0 0-1.5h-3a.75.75 0 0 0 0 1.5Z"/>
-          </svg>
-          <span v-if="!sidebarCollapsed">{{ t("side.dev") }}</span>
-        </button>
-      </nav>
-
-      <!-- Сводка статуса -->
-      <div v-if="!sidebarCollapsed" class="space-y-2 p-3.5 text-xs text-[color:var(--tx-muted)]">
-        <div class="flex items-center justify-between">
-          <span>{{ t("side.status") }}</span>
-          <span class="inline-flex items-center gap-1.5 font-medium">
-            <span class="h-2 w-2 rounded-full" :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"></span>
-            <span :class="status?.installed ? 'text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)]'">
-              {{ status?.installed ? t("side.installed") : t("side.notInstalled") }}
-            </span>
-          </span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span>{{ t("side.packVersion") }}</span>
-          <span class="font-mono font-medium text-[color:var(--tx)] truncate max-w-[110px]" :title="status?.active_version ? `versionId: ${status.active_version}` : undefined">
-            {{ status?.active_source_tag ?? status?.active_version ?? "—" }}
-          </span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span>{{ t("side.memory") }}</span>
-          <span class="font-mono font-medium text-[color:var(--tx)]">{{ ram }} {{ t("units.gb") }}</span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span>{{ t("side.launcherVersion") }}</span>
-          <span class="font-mono font-medium text-[color:var(--tx)]">v{{ launcherVer || "?" }}</span>
-        </div>
-      </div>
-
-      <!-- Глобальный прогресс установки/скачивания -->
-      <div v-if="progress && busy" class="border-t border-[var(--border)] p-3 bg-[var(--panel-soft)]">
-        <div class="mb-1 flex items-center justify-between text-[11px] text-[color:var(--tx-muted)]">
-          <span class="truncate pr-2 font-medium text-[color:var(--tx)]">{{ phaseLabel(progress.phase) }}</span>
-          <span v-if="progress.fileTotal > 1" class="tabular-nums font-mono text-[10px]">{{ t("progress.files", { n: filesDone, m: progress.fileTotal }) }}</span>
-          <span v-else class="tabular-nums font-mono text-[10px]">{{ percent }}%</span>
-        </div>
-        <div class="h-1.5 w-full overflow-hidden rounded-full bg-[var(--input)]">
-          <div
-            class="h-full bg-[#2f81f7] transition-all duration-200"
-            :style="{ width: `${percent}%` }"
-          />
-        </div>
-        <div class="mt-1 flex items-center justify-between text-[10px] text-[color:var(--tx-muted)]">
-          <span class="truncate max-w-[120px]">{{ progress.currentFile || t("side.preparing") }}</span>
-          <span class="tabular-nums font-mono">{{ progress.speed > 0 ? `${formatBytes(progress.speed)}${t("units.perSec")}` : "" }}</span>
-        </div>
-        <div v-if="progress.fileTotal > 1 && filePercent > 0" class="mt-1">
-          <div class="h-1 w-full overflow-hidden rounded-full bg-[var(--input)]">
-            <div
-              class="h-full bg-[color-mix(in_srgb,var(--accent)_60%,transparent)]"
-              :style="{ width: `${filePercent}%` }"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div class="flex-1" />
-
-      <!-- Учётная запись -->
-      <div class="flex items-center gap-2.5 border-t border-[var(--border)] p-3 bg-[var(--bg-30)]" :class="sidebarCollapsed ? 'justify-center p-2' : ''">
-        <div class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--input)] font-mono text-xs font-bold text-[color:var(--tx-strong)]">
-          <img v-if="skinUrl" :src="skinUrl" :alt="t('side.skin')" class="h-full w-full object-cover" />
-          <template v-else>{{ session?.username?.[0]?.toUpperCase() ?? "?" }}</template>
-        </div>
-        <div v-if="!sidebarCollapsed" class="min-w-0 flex-1">
-          <div class="truncate text-xs font-medium text-[color:var(--tx)]">
-            {{ session?.username ?? t("side.guest") }}
-          </div>
-          <div class="truncate text-[10px] text-[color:var(--tx-muted)]">
-            {{ session ? session.user_type : t("side.offline") }}
-          </div>
-        </div>
-      </div>
-
-      <!-- Главное действие (Кнопка запуска) — только во вкладке сборки -->
-      <div v-if="tab === 'play'" class="p-3 border-t border-[var(--border)] bg-[var(--panel)]">
-        <button
-          type="button"
-          class="flex items-center justify-center rounded-md py-2.5 text-sm font-bold tracking-wide text-white shadow-sm transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
-          :class="[
-            sidebarCollapsed ? 'px-1.5' : 'w-full px-4',
-            status?.installed
-              ? gameRunning
-                ? 'bg-[#b91c1c] hover:bg-[#dc2626] focus-visible:outline-[#dc2626]'
-                : 'bg-[#238636] hover:bg-[#2ea043] focus-visible:outline-[#2ea043]'
-              : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)] focus-visible:outline-[var(--accent-hover)]',
-          ]"
-          :title="status?.installed ? (gameRunning ? t('side.stopGame') : t('side.play')) : t('side.downloadPlay')"
-          :disabled="busy"
-          @click="status?.installed ? (gameRunning ? handleStop() : handlePlay()) : handleInstall()"
-        >
-          <template v-if="!sidebarCollapsed">
-            <template v-if="!status?.installed">
-              {{ busy ? t("side.installing") : t("side.downloadPlay") }}
-            </template>
-            <template v-else>
-              {{ busy ? t("side.launching") : gameRunning ? t("side.stopGame") : t("side.play") }}
-            </template>
-          </template>
-          <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current">
-            <path
-              v-if="gameRunning"
-              d="M3.5 3.5h9v9h-9z"
-            />
-            <path
-              v-else
-              d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"
-            />
-          </svg>
-        </button>
-      </div>
-
-      <!-- Версия и перевод лаунчера -->
-      <div v-if="!sidebarCollapsed" class="flex items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-[9px] text-[var(--tx-muted)]">
-        <span class="min-w-0 truncate">
-          {{ t("lang.byAuthor") }}
-          <span class="font-semibold" :class="activeLocaleAuthor ? 'text-[color:var(--tx)]' : ''">{{ activeLocaleAuthor || "—" }}</span>
-          <template v-if="activeLocaleVersion"> · v{{ activeLocaleVersion }}</template>
-        </span>
-        <span class="shrink-0 tabular-nums">{{ t("lang.launcherVer") }} v{{ launcherVer || "?" }}</span>
-      </div>
-              <!-- Ручка изменения ширины панели -->
-      <div
-        class="absolute inset-y-0 -right-[3px] z-40 w-[6px] cursor-col-resize transition-colors hover:bg-[var(--accent)] active:bg-[var(--accent-strong)]"
-        @pointerdown="startSidebarDrag"
-        @pointermove="onSidebarDrag"
-        @pointerup="endSidebarDrag"
-      ></div>
-    </aside>
+    <SideBar />
 
     <!-- ==== Основной контент ==== -->
     <main class="relative mx-auto h-full w-full flex-1 overflow-hidden rounded-tl-2xl border-l border-[var(--border)] bg-[var(--bg)]" style="max-width: 1500px">
@@ -706,43 +270,99 @@
                   {{ t("license.remove") }}
                 </button>
               </div>
+              <div
+                v-if="licenseInfo?.requiredTiers.length"
+                class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[color:var(--tx-muted)]"
+              >
+                <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-current">
+                  <path d="M4.5 7.5a3.5 3.5 0 1 1 7 0v1h.75A.75.75 0 0 1 13 9.25v4A.75.75 0 0 1 12.25 14h-8.5a.75.75 0 0 1-.75-.75v-4A.75.75 0 0 1 3.75 8.5h.75v-1Zm1.5 1v-1a2 2 0 0 1 4 0v1h-4Z"/>
+                </svg>
+                <span>
+                  {{
+                    licenseInfo.tier
+                      ? t("license.tierOk", {
+                          tier: licenseInfo.tier,
+                          list: licenseInfo.requiredTiers.join(" / "),
+                        })
+                      : t("license.tierList", { list: licenseInfo.requiredTiers.join(" / ") })
+                  }}
+                </span>
+              </div>
               <template v-else>
                 <div class="flex items-center gap-2">
                   <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
                     <path d="M7.75.5A4.5 4.5 0 0 1 11.5 5.5v.85A4.5 4.5 0 0 1 13 10v3A2.5 2.5 0 0 1 10.5 15.5h-6A2.5 2.5 0 0 1 2 13v-3a4.5 4.5 0 0 1 1.5-3.35V5.5A4.25 4.25 0 0 1 7.75.5Zm0 1.5a2.75 2.75 0 0 0-2.75 2.75v.5h5.5v-.5A2.75 2.75 0 0 0 7.75 2Z"/>
                   </svg>
                   <span class="min-w-0">
-                    {{ t("license.required", { blog: activePack.boostyBlog }) }}
+                    {{
+                      licenseInfo?.requiredTiers.length
+                        ? t("license.requiredTier", {
+                            blog: activePack.boostyBlog,
+                            list: licenseInfo.requiredTiers.join(" / "),
+                          })
+                        : t("license.required", { blog: activePack.boostyBlog })
+                    }}
                   </span>
                 </div>
                 <div v-if="licenseError" class="mt-1.5 text-[color:var(--tx-muted)]">
                   {{ licenseError }}
                 </div>
-                <form class="mt-2 flex gap-2" @submit.prevent="saveLicense">
-                  <input
-                    v-model="licenseKeyInput"
-                    type="text"
-                    :placeholder="t('license.placeholder')"
-                    autocomplete="off"
-                    spellcheck="false"
-                    class="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 font-mono text-xs text-[color:var(--tx)] placeholder:text-[color:var(--tx-muted)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] focus:outline-none"
-                  />
+                <div class="mt-2">
                   <button
-                    type="submit"
-                    class="shrink-0 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
-                    :disabled="licenseBusy || !licenseKeyInput.trim()"
+                    v-if="!boostyAuthOpen"
+                    type="button"
+                    class="w-full rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
+                    :disabled="licenseBusy"
+                    @click="startBoostyLogin()"
                   >
-                    {{ t("license.activate") }}
+                    {{ t("license.oauth") }}
                   </button>
-                </form>
+                  <div
+                    v-else
+                    class="flex items-center justify-between gap-3 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-[11px] text-[color:var(--tx-muted)]"
+                  >
+                    <span class="flex items-center gap-2">
+                      <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v3a5 5 0 0 0-5 5H4z"/>
+                      </svg>
+                      {{ t("license.waiting") }}
+                    </span>
+                    <button type="button" class="text-[var(--accent)] hover:underline" @click="cancelBoostyLogin">
+                      {{ t("license.cancel") }}
+                    </button>
+                  </div>
+                  <div class="mt-2 flex items-center gap-2 text-[11px] text-[color:var(--tx-muted)]">
+                    <span class="h-px flex-1 bg-[var(--border)]"></span>
+                    <span>{{ t("license.orManual") }}</span>
+                    <span class="h-px flex-1 bg-[var(--border)]"></span>
+                  </div>
+                  <form class="mt-2 flex gap-2" @submit.prevent="saveLicense">
+                    <input
+                      v-model="licenseKeyInput"
+                      type="text"
+                      :placeholder="t('license.placeholder')"
+                      autocomplete="off"
+                      spellcheck="false"
+                      class="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 font-mono text-xs text-[color:var(--tx)] placeholder:text-[color:var(--tx-muted)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      class="shrink-0 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
+                      :disabled="licenseBusy || !licenseKeyInput.trim()"
+                    >
+                      {{ t("license.activate") }}
+                    </button>
+                  </form>
+                </div>
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[color:var(--tx-muted)]">
                   <span>{{ t("license.howTo") }}</span>
                   <button
                     type="button"
                     class="text-[var(--accent)] hover:underline"
-                    @click="openExternal('https://boosty.to/')"
+                    @click="openExternal(`https://boosty.to/${activePack.boostyBlog}`)"
                   >
-                    boosty.to →
+                    {{ t("license.openBlog") }} →
                   </button>
                 </div>
               </template>
@@ -1735,9 +1355,10 @@
                       <ul v-if="verifyResult.broken.length > 0" class="mt-2 max-h-32 space-y-1 overflow-y-auto font-mono text-[10px] text-[#f85149]">
                         <li v-for="b in verifyResult.broken" :key="b">{{ b }}</li>
                       </ul>
-                    </div>
-                  </div>
-</section>
+</div>
+
+              </div>
+            </section>
           </div>
           </div>
         </template>
@@ -2148,9 +1769,9 @@
               </div>
             </div>
 
-            <div class="mb-3 flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--panel)] p-1">
+            <div v-if="!catalogDetail" class="mb-3 flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--panel)] p-1">
               <button
-                v-for="src in (['author', 'modrinth', 'curse'] as const)"
+                v-for="src in (['mono', 'author', 'modrinth', 'curse'] as const)"
                 :key="src"
                 type="button"
                 class="flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-[11px] font-semibold transition-colors"
@@ -2159,14 +1780,240 @@
                   : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
                 @click="switchCatalogSource(src)"
               >
-                <svg v-if="src === 'author'" viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M8 .75 6.14 4.02.75 4.02a1 1 0 0 0-.58 1.81l3.95 3-1.51 4.7a1 1 0 0 0 1.54 1.12L8 13.6l3.85 3.05a1 1 0 0 0 1.54-1.12l-1.51-4.7 3.95-3a1 1 0 0 0-.58-1.81l-5.4 0L8 .75Z"/></svg>
+                <svg v-if="src === 'mono'" viewBox="0 0 24 24" class="h-3 w-3 rounded-[3px] bg-[var(--accent)] p-[3px] fill-[color:var(--panel)]"><path d="M3 8.4 8.4 3h7.2L21 8.4v7.2L15.6 21H8.4L3 15.6V8.4Zm2 1.3v4.6L8.3 19H9.7l2.5-6.2L14.7 19h1.4L19 14.3V9.7L15.7 5H9.9L5 9.7Z"/></svg>
+                <svg v-else-if="src === 'author'" viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M8 .75 6.14 4.02.75 4.02a1 1 0 0 0-.58 1.81l3.95 3-1.51 4.7a1 1 0 0 0 1.54 1.12L8 13.6l3.85 3.05a1 1 0 0 0 1.54-1.12l-1.51-4.7 3.95-3a1 1 0 0 0-.58-1.81l-5.4 0L8 .75Z"/></svg>
                 <svg v-else-if="src === 'modrinth'" viewBox="0 0 24 24" class="h-3 w-3 fill-current"><path fill="#00AF5C" d="M12.252.004a11.78 11.768 0 0 0-8.92 3.73 11 10.999 0 0 0-2.17 3.11 11.37 11.359 0 0 0-1.16 5.169c0 1.42.17 2.5.6 3.77.24.759.77 1.899 1.17 2.529a12.3 12.298 0 0 0 8.85 5.639c.44.05 2.54.07 2.76.02.2-.04.22.1-.26-1.7l-.36-1.37-1.01-.06a8.5 8.489 0 0 1-5.18-1.8 5.34 5.34 0 0 1-1.3-1.26c0-.05.34-.28.74-.5a37.572 37.545 0 0 1 2.88-1.629c.03 0 .5.45 1.06.98l1 .97 2.07-.43 2.06-.43 1.47-1.47c.8-.8 1.48-1.5 1.48-1.52 0-.09-.42-1.63-.46-1.7-.04-.06-.2-.03-1.02.18-.53.13-1.2.3-1.45.4l-.48.15-.53.53-.53.53-.93.1-.93.07-.52-.5a2.7 2.7 0 0 1-.96-1.7l-.13-.6.43-.57c.68-.9.68-.9 1.46-1.1.4-.1.65-.2.83-.33.13-.099.65-.579 1.14-1.069l.9-.9-.7-.7-.7-.7-1.95.54c-1.07.3-1.96.53-1.97.53-.03 0-2.23 2.48-2.63 2.97l-.29.35.28 1.03c.16.56.3 1.16.31 1.34l.03.3-.34.23c-.37.23-2.22 1.3-2.84 1.63-.36.2-.37.2-.44.1-.08-.1-.23-.6-.32-1.03-.18-.86-.17-2.75.02-3.73a8.84 8.839 0 0 1 7.9-6.93c.43-.03.77-.08.78-.1.06-.17.5-2.999.47-3.039-.01-.02-.1-.02-.2-.03Zm3.68.67c-.2 0-.3.1-.37.38-.06.23-.46 2.42-.46 2.52 0 .04.1.11.22.16a8.51 8.499 0 0 1 2.99 2 8.38 8.379 0 0 1 2.16 3.449 6.9 6.9 0 0 1 .4 2.8c0 1.07 0 1.27-.1 1.73a9.37 9.369 0 0 1-1.76 3.769c-.32.4-.98 1.06-1.37 1.38-.38.32-1.54 1.1-1.7 1.14-.1.03-.1.06-.07.26.03.18.64 2.56.7 2.78l.06.06a12.07 12.058 0 0 0 7.27-9.4c.13-.77.13-2.58 0-3.4a11.96 11.948 0 0 0-5.73-8.578c-.7-.42-2.05-1.06-2.25-1.06Z"/></svg>
                 <svg v-else viewBox="0 0 24 24" class="h-3 w-3 fill-current"><path fill="#F16436" d="M18.326 9.2145S23.2261 8.4418 24 6.1882h-7.5066V4.4H0l2.0318 2.3576V9.173s5.1267-.2665 7.1098 1.2372c2.7146 2.516-3.053 5.917-3.053 5.917L5.0995 19.6c1.5465-1.4726 4.494-3.3775 9.8983-3.2857-2.0565.65-4.1245 1.6651-5.7344 3.2857h10.9248l-1.0288-3.2726s-7.918-4.6688-.8336-7.1127z"/></svg>
-                {{ src === "author" ? t("catalog.sourceAuthor") : src === "modrinth" ? t("mods.serviceModrinth") : t("mods.serviceCurseforge") }}
+                {{ src === "mono" ? t("catalog.sourceMono") : src === "author" ? t("catalog.sourceAuthor") : src === "modrinth" ? t("mods.serviceModrinth") : t("mods.serviceCurseforge") }}
               </button>
             </div>
 
             <div class="min-h-0 flex-1 overflow-y-auto pb-6">
+              <template v-if="catalogSource === 'mono'">
+              <!-- Catalog Detail View -->
+              <template v-if="catalogDetail">
+                <div class="flex flex-col h-full">
+                  <div class="flex items-center gap-3 mb-4">
+                    <button type="button" @click="closeCatalogDetail()" class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-xs text-[color:var(--tx-muted)] hover:text-[var(--accent)] transition-colors">
+                      &larr; {{ t("catalog.title") }}
+                    </button>
+                    <div class="flex items-center gap-2 min-w-0">
+                      <img v-if="catalogDetail.icon_url" :src="catalogDetail.icon_url" class="h-8 w-8 shrink-0 rounded object-cover" />
+                      <h3 class="truncate text-sm font-bold text-[color:var(--tx-strong)]">{{ catalogDetail.name }}</h3>
+                      <span v-if="catalogDetail.versions?.length" class="shrink-0 rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 text-[10px] font-mono text-[color:var(--accent)]">v{{ catalogDetail.versions[0].version }}</span>
+                    </div>
+                    <div class="ml-auto flex items-center gap-2 shrink-0">
+                      <span v-if="(catalogDetail.likes - catalogDetail.dislikes) !== 0" class="text-xs font-semibold" :class="(catalogDetail.likes - catalogDetail.dislikes) > 0 ? 'text-green-400' : 'text-red-400'">
+                        {{ (catalogDetail.likes - catalogDetail.dislikes) > 0 ? '+' : '' }}{{ catalogDetail.likes - catalogDetail.dislikes }}
+                      </span>
+                      <button v-if="!packs.some((p: any) => p.url === catalogDetail!.url)" type="button" @click="addMonoPack({ url: catalogDetail!.url, name: catalogDetail!.name, boosty_blog: catalogDetail!.boosty_blog } as any)" :disabled="addingPack"
+                        class="rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50">
+                        {{ addingPack ? t("dev.adding") : t("catalog.add") }}
+                      </button>
+                      <button v-else type="button" @click="openMonoPack({ url: catalogDetail!.url, name: catalogDetail!.name } as any)"
+                        class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]">
+                        {{ t("catalog.open") }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div v-if="catalogDetailBusy" class="flex items-center justify-center py-16 text-xs text-[color:var(--tx-muted)]">
+                    <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+                    {{ t("catalog.loading") }}
+                  </div>
+
+                  <template v-else>
+                    <!-- Detail tabs -->
+                    <div class="mb-3 flex gap-1 rounded-md border border-[var(--border)] bg-[var(--input)] p-0.5">
+                      <button type="button" @click="catalogDetailTab = 'description'"
+                        class="flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors"
+                        :class="catalogDetailTab === 'description' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[var(--tx)]'">
+                        {{ t('pack.description') }}
+                      </button>
+                      <button v-if="(catalogDetail.meta as any)?.screenshots?.length" type="button" @click="catalogDetailTab = 'screenshots'"
+                        class="flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors"
+                        :class="catalogDetailTab === 'screenshots' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[var(--tx)]'">
+                        {{ t('pack.screenshots') }} ({{ ((catalogDetail.meta as any)?.screenshots ?? []).length }})
+                      </button>
+                      <button v-if="catalogDetail.versions?.length" type="button" @click="catalogDetailTab = 'versions'"
+                        class="flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors"
+                        :class="catalogDetailTab === 'versions' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[var(--tx)]'">
+                        {{ t('pack.versions') }} ({{ catalogDetail.versions.length }})
+                      </button>
+                      <button v-if="catalogDetail.news?.length" type="button" @click="catalogDetailTab = 'news'"
+                        class="flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors"
+                        :class="catalogDetailTab === 'news' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[var(--tx)]'">
+                        {{ t('pack.news') || 'Новости' }} ({{ catalogDetail.news.length }})
+                      </button>
+                    </div>
+
+                    <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+                      <!-- Description -->
+                      <div v-if="catalogDetailTab === 'description'" class="space-y-3">
+                        <div class="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+                          <div v-if="catalogDetail.description" class="text-xs leading-relaxed text-[color:var(--tx)] whitespace-pre-wrap">{{ catalogDetail.description }}</div>
+                          <p v-else class="text-xs text-[color:var(--tx-muted)]">{{ t("common.notFound") }}</p>
+                        </div>
+                        <div v-if="catalogDetail.boosty_blog" class="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 text-xs">
+                          <span class="text-[color:var(--tx-muted)]">Boosty: </span>
+                          <a :href="catalogDetail.boosty_blog" class="text-[var(--accent)] hover:underline" @click.prevent="openExternal(catalogDetail.boosty_blog!)">{{ catalogDetail.boosty_blog }}</a>
+                        </div>
+                        <div v-if="catalogDetail.min_ram_mb" class="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 text-xs">
+                          <span class="text-[color:var(--tx-muted)]">{{ t("pack.minRam") || "Мин. RAM" }}: </span>
+                          <span>{{ catalogDetail.min_ram_mb }} MB</span>
+                        </div>
+                      </div>
+
+                      <!-- Screenshots -->
+                      <div v-if="catalogDetailTab === 'screenshots'" class="space-y-3">
+                        <div v-if="!(catalogDetail.meta as any)?.screenshots?.length" class="text-center py-8 text-xs text-[color:var(--tx-muted)]">{{ t("common.notFound") }}</div>
+                        <div v-for="(s, i) in ((catalogDetail.meta as any)?.screenshots || [])" :key="i" class="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+                          <img :src="typeof s === 'string' ? s : s.url" :alt="`Screenshot ${i + 1}`" class="w-full object-cover max-h-64" loading="lazy" />
+                        </div>
+                      </div>
+
+                      <!-- Versions -->
+                      <div v-if="catalogDetailTab === 'versions'" class="space-y-2">
+                        <div v-if="!catalogDetail.versions?.length" class="text-center py-8 text-xs text-[color:var(--tx-muted)]">{{ t("common.notFound") }}</div>
+                        <div v-for="v in catalogDetail.versions" :key="v.id" class="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 flex items-center justify-between gap-3">
+                          <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                              <span class="font-mono text-[11px] font-bold text-[var(--accent)]">v{{ v.version }}</span>
+                              <span class="text-[10px] text-[color:var(--tx-muted)]">{{ formatDate(v.created_at) }}</span>
+                              <span class="text-[10px] text-[color:var(--tx-muted)]">{{ formatBytes(v.size) }}</span>
+                            </div>
+                            <p v-if="v.changelog" class="mt-1 text-[11px] text-[color:var(--tx-muted)] whitespace-pre-wrap line-clamp-2">{{ v.changelog }}</p>
+                          </div>
+                          <a :href="v.url" class="shrink-0 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)]">
+                            {{ t("pack.download") }}
+                          </a>
+                        </div>
+                      </div>
+
+                      <!-- News -->
+                      <div v-if="catalogDetailTab === 'news'" class="space-y-2">
+                        <div v-if="!catalogDetail.news?.length" class="text-center py-8 text-xs text-[color:var(--tx-muted)]">{{ t("common.notFound") }}</div>
+                        <div v-for="n in catalogDetail.news" :key="n.id" class="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+                          <div class="flex items-center gap-2 mb-1">
+                            <span class="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                              :class="n.kind === 'update' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]' : 'bg-green-500/10 text-green-400'">
+                              {{ n.kind === 'update' ? 'Update' : 'Post' }}
+                            </span>
+                            <span class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ n.title }}</span>
+                            <span class="text-[10px] text-[color:var(--tx-muted)] ml-auto">{{ formatDate(n.created_at) }}</span>
+                          </div>
+                          <p class="text-[11px] text-[color:var(--tx-muted)] whitespace-pre-wrap">{{ n.body }}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <!-- Catalog List View -->
+              <template v-else>
+              <div v-if="monoCatalogLoading && monoCatalog.length === 0" class="flex items-center justify-center py-16 text-xs text-[color:var(--tx-muted)]">
+                <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
+                  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+                </svg>
+                {{ t("catalog.loading") }}
+              </div>
+              <div v-else-if="monoCatalogError && monoCatalog.length === 0" class="rounded-md border border-[var(--border)] bg-[var(--panel)] p-8 text-center text-xs text-[color:var(--tx-muted)]">
+                <p class="mb-3">{{ t("catalog.err", { e: monoCatalogError }) }}</p>
+                <button type="button" class="text-[var(--accent)] hover:underline" @click="loadMonoCatalog">
+                  {{ t("catalog.retry") }}
+                </button>
+              </div>
+              <div v-else-if="monoCatalog.length === 0" class="rounded-md border border-[var(--border)] bg-[var(--panel)] p-8 text-center text-xs text-[color:var(--tx-muted)]">
+                {{ t("catalog.emptyMono") }}
+              </div>
+              <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <article
+                  v-for="entry in monoCatalog"
+                  :key="entry.id"
+                  class="flex flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                >
+                  <div class="flex flex-1 flex-col p-4">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-1.5 cursor-pointer" @click="openCatalogDetail(entry)">
+                        <img v-if="entry.icon_url" :src="entry.icon_url" :alt="entry.name" loading="lazy" @error="(e: any) => (e.target.style.display = 'none')" class="h-6 w-6 shrink-0 rounded object-cover" />
+                        <h3 class="truncate text-sm font-semibold text-[color:var(--tx-strong)] hover:text-[var(--accent)] transition-colors">{{ entry.name }}</h3>
+                      </div>
+                      <div v-if="entry.author_name" class="mt-0.5 font-mono text-[11px] text-[color:var(--tx-muted)]">
+                        @{{ entry.author_name }}
+                      </div>
+                    </div>
+                    <div class="flex shrink-0 flex-wrap items-center gap-1.5">
+                      <span
+                        v-if="entry.boosty_blog"
+                        class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                        :class="isMonoPackAdded(entry) ? 'opacity-60' : ''"
+                      >
+                        <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+                          <path d="M7.75.5A4.5 4.5 0 0 1 11.5 5.5v.85A4.5 4.5 0 0 1 13 10v3A2.5 2.5 0 0 1 10.5 15.5h-6A2.5 2.5 0 0 1 2 13v-3a4.5 4.5 0 0 1 1.5-3.35V5.5A4.25 4.25 0 0 1 7.75.5Zm0 1.5a2.75 2.75 0 0 0-2.75 2.75v.5h5.5v-.5A2.75 2.75 0 0 0 7.75 2Z"/>
+                        </svg>
+                        {{ t("catalog.paid") }}
+                      </span>
+                      <span
+                        v-if="entry.min_ram_mb"
+                        class="rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--tx-muted)]"
+                      >
+                        ≥ {{ entry.min_ram_mb / 1024 }} {{ t("units.gb") }}
+                      </span>
+                    </div>
+                  </div>
+                  <p v-if="entry.description" class="mt-2 min-h-0 flex-1 text-xs leading-relaxed text-[color:var(--tx-muted)]">
+                    {{ entry.description }}
+                  </p>
+                  <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
+                    <span v-if="entry.version" class="rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 text-[10px] text-[color:var(--tx-muted)]">
+                      v{{ entry.version }}
+                    </span>
+                    <span v-if="entry.size" class="rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 text-[10px] text-[color:var(--tx-muted)]">
+                      {{ formatBytes(entry.size) }}
+                    </span>
+                    <span v-if="entry.rating" class="inline-flex items-center gap-1 rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 text-[10px] text-[color:var(--tx-muted)]">
+                      <svg viewBox="0 0 16 16" class="h-3 w-3 fill-[var(--accent)]"><path d="M8 1.3 9.9 5l4 .56-2.9 2.8.7 4L8 10.38 4.3 12.36l.7-4L2.1 5.56 6.1 5 8 1.3Z"/></svg>
+                      {{ entry.rating }}
+                      <template v-if="entry.likes + entry.dislikes">({{ entry.likes }}👍/{{ entry.dislikes }}👎)</template>
+                    </span>
+                  </div>
+                  <div class="mt-3.5 flex items-center gap-2 border-t border-[var(--border)] pt-3">
+                    <button
+                      type="button"
+                      v-if="!isMonoPackAdded(entry)"
+                      class="flex-1 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
+                      :disabled="addingPack"
+                      @click="addMonoPack(entry)"
+                    >
+                      {{ addingPack ? t("dev.adding") : t("catalog.add") }}
+                    </button>
+                    <button
+                      type="button"
+                      v-else
+                      class="flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                      @click="openMonoPack(entry)"
+                    >
+                      {{ t("catalog.open") }}
+                    </button>
+                    <button
+                      type="button"
+                      class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-xs text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]"
+                      :title="entry.url"
+                      @click="openExternal(entry.url)"
+                    >
+                      <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+                        <path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-2l6 6V7.5a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75H5.5a.75.75 0 0 1 0-1.5h2l-6-6v2a.75.75 0 0 1-1.5 0V3.5A1.75 1.75 0 0 1 1.75 1.75h2a.75.75 0 0 1 0 1.5Z"/>
+                      </svg>
+                    </button>
+                  </div>
+                  </div>
+                </article>
+              </div>
+              </template>
+              </template>
+
               <template v-if="catalogSource === 'author'">
               <div v-if="catalogLoading && catalog.length === 0" class="flex items-center justify-center py-16 text-xs text-[color:var(--tx-muted)]">
                 <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
@@ -2787,9 +2634,6 @@
                           <path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Z"/>
                         </svg>
                         <span class="w-full min-w-0 truncate text-xs font-medium" :class="packId === p.id ? 'text-[var(--accent)]' : 'text-[color:var(--tx)]'">{{ p.name }}</span>
-                        <span class="w-full min-w-0 truncate font-mono text-[10px] text-[color:var(--tx-muted)]" :title="libStatus[p.id]?.active_version ? `versionId: ${libStatus[p.id]?.active_version}` : undefined">
-                          {{ libStatus[p.id]?.active_source_tag ?? libStatus[p.id]?.active_version ?? t("library.notInstalled") }}
-                        </span>
                       </button>
                       <button
                         type="button"
@@ -2852,6 +2696,178 @@
             </div>
           </div>
         </template>
+        <template v-else-if="tab === 'author'">
+          <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div class="space-y-6">
+            <div class="border-b border-[var(--border)] pb-3 flex items-start justify-between gap-4">
+              <div>
+                <h1 class="text-lg font-semibold text-[color:var(--tx-strong)]">{{ t("author.title") }}</h1>
+                <p class="text-xs text-[color:var(--tx-muted)]">{{ t("author.subtitle") }}</p>
+              </div>
+              <button
+                v-if="monoProfile"
+                type="button"
+                class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                :disabled="authorBusy"
+                @click="pickAuthorImportFile"
+              >
+                {{ t("author.create") }}
+              </button>
+            </div>
+
+            <div v-if="!monoProfile" class="rounded-md border border-[var(--border)] bg-[var(--panel)] p-8 text-center text-xs text-[color:var(--tx-muted)]">
+              <p>{{ t("author.needLogin") }}</p>
+              <button type="button" class="mt-4 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)]" @click="tab = 'settings'">
+                {{ t("nav.settings") }}
+              </button>
+            </div>
+
+            <template v-else-if="authorDetail">
+              <button type="button" class="flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)]" @click="closeAuthorDetail()">
+                <svg viewBox="0 0 16 16" class="h-3 w-3 fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4 6 8l4 4"/></svg>
+                {{ t("author.back") }}
+              </button>
+
+              <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+                <div class="flex items-start gap-3 border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-3">
+                  <img v-if="authorDetail.icon_url" :src="authorDetail.icon_url" class="h-10 w-10 shrink-0 rounded-md object-cover" />
+                  <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--input)] text-sm font-semibold text-[var(--accent)]">
+                    {{ authorDetail.name?.[0]?.toUpperCase() }}
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2">
+                      <h2 class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">{{ authorDetail.name }}</h2>
+                      <span v-if="authorVersions.length > 0" class="rounded bg-[var(--input)] px-1.5 py-0.5 text-[10px] text-[color:var(--tx-muted)]">{{ authorVersions[0].version }}</span>
+                    </div>
+                    <p class="truncate text-xs text-[color:var(--tx-muted)]">
+                      @{{ authorDetail.author_name ?? t("author.unknown") }} · {{ t("author.rating") }}: {{ authorDetail.likes - authorDetail.dislikes }} ({{ authorDetail.likes }}👍 / {{ authorDetail.dislikes }}👎)
+                    </p>
+                  </div>
+                </div>
+                <div class="space-y-3 p-4">
+                  <label class="block text-xs text-[color:var(--tx-muted)]">
+                    {{ t("author.name") }}
+                    <input v-model="authorDetail.name" type="text" class="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none" />
+                  </label>
+                  <label class="block text-xs text-[color:var(--tx-muted)]">
+                    {{ t("author.desc") }}
+                    <textarea v-model="authorDetail.description" rows="3" class="mt-1 w-full resize-y rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"></textarea>
+                  </label>
+                  <div class="grid grid-cols-2 gap-3">
+                    <label class="block text-xs text-[color:var(--tx-muted)]">
+                      {{ t("author.minRamMb") }}
+                      <input v-model.number="authorDetail.min_ram_mb" type="number" min="0" class="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] focus:border-[var(--accent)] focus:outline-none" />
+                    </label>
+                    <label class="block text-xs text-[color:var(--tx-muted)]">
+                      {{ t("author.iconUrl") }}
+                      <input v-model="authorDetail.icon_url" type="text" class="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none" />
+                    </label>
+                    <label class="col-span-2 block text-xs text-[color:var(--tx-muted)]">
+                      {{ t("author.boosty") }}
+                      <input v-model="authorDetail.boosty_blog" type="text" class="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none" />
+                    </label>
+                  </div>
+                  <div class="flex gap-2">
+                    <button type="button" class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50" :disabled="authorBusy" @click="updateAuthorMeta({ name: authorDetail.name, description: authorDetail.description, min_ram_mb: authorDetail.min_ram_mb, boosty_blog: authorDetail.boosty_blog, icon_url: authorDetail.icon_url })">
+                      {{ t("author.save") }}
+                    </button>
+                    <button type="button" class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50" @click="authorNewTitle = ''">
+                      {{ t("author.cancel") }}
+                    </button>
+                  </div>
+                  <button type="button" class="rounded-md border border-[#b91c1c]/40 bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[#f87171] hover:bg-[#b91c1c]/20 disabled:opacity-50" @click="deleteAuthorPack()">
+                    {{ t("author.delete") }}
+                  </button>
+                </div>
+              </section>
+
+              <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+                <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5 text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("author.versions") }}</div>
+                <div class="divide-y divide-[var(--border)]">
+                  <div v-for="v in authorVersions" :key="v.id" class="flex items-center gap-3 px-4 py-2.5">
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-xs font-medium text-[color:var(--tx)]">{{ v.version }}</p>
+                      <p v-if="v.changelog" class="truncate text-[11px] text-[color:var(--tx-muted)]">{{ v.changelog }}</p>
+                    </div>
+                    <span class="shrink-0 text-[11px] text-[color:var(--tx-muted)]">{{ formatDate(v.created_at) }}</span>
+                    <button type="button" class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[11px] text-[#f87171] hover:bg-[#b91c1c]/20 disabled:opacity-50" :disabled="authorBusy" @click="deleteAuthorVersion(v.id)">
+                      {{ t("author.delete") }}
+                    </button>
+                  </div>
+                </div>
+                <div class="space-y-2 border-t border-[var(--border)] p-4">
+                  <p class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("author.addVersion") }}</p>
+                  <div class="flex items-center gap-2">
+                    <button type="button" class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)]" @click="pickAuthorVersionFile">
+                      {{ t("author.pickFile") }}
+                    </button>
+                    <span class="truncate text-xs text-[color:var(--tx-muted)]">{{ authorVersionFile || t("author.noFile") }}</span>
+                  </div>
+                  <input v-model="authorNewVersion" type="text" :placeholder="t('author.versionTag')" class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none" />
+                  <textarea v-model="authorNewChangelog" :placeholder="t('author.changelog')" rows="2" class="w-full resize-y rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"></textarea>
+                  <button type="button" class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50" :disabled="authorBusy || !authorVersionFile || !authorNewVersion.trim()" @click="createAuthorVersion(authorVersionFile, authorNewVersion.trim(), authorNewChangelog)">
+                    {{ t("author.upload") }}
+                  </button>
+                </div>
+              </section>
+
+              <section class="rounded-md border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+                <div class="border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5 text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("author.news") }}</div>
+                <div class="divide-y divide-[var(--border)]">
+                  <div v-for="n in authorNews" :key="n.id" class="px-4 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="rounded bg-[var(--input)] px-1.5 py-0.5 text-[10px] uppercase text-[color:var(--tx-muted)]">{{ n.kind }}</span>
+                      <p class="min-w-0 flex-1 truncate text-xs font-medium text-[color:var(--tx)]">{{ n.title }}</p>
+                      <span class="shrink-0 text-[11px] text-[color:var(--tx-muted)]">{{ formatDate(n.created_at) }}</span>
+                      <button type="button" class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[11px] text-[#f87171] hover:bg-[#b91c1c]/20" @click="deleteAuthorNews(n.id)">
+                        {{ t("author.delete") }}
+                      </button>
+                    </div>
+                    <p v-if="n.body" class="mt-1 line-clamp-2 text-[11px] text-[color:var(--tx-muted)]">{{ n.body }}</p>
+                  </div>
+                  <div v-if="authorNews.length === 0" class="px-4 py-6 text-center text-xs text-[color:var(--tx-muted)]">{{ t("author.noNews") }}</div>
+                </div>
+                <div class="space-y-2 border-t border-[var(--border)] p-4">
+                  <p class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("author.addNews") }}</p>
+                  <div class="flex items-center gap-2">
+                    <select v-model="authorNewsKind" class="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-xs text-[color:var(--tx)] focus:border-[var(--accent)] focus:outline-none">
+                      <option value="post">{{ t("author.post") }}</option>
+                      <option value="update">{{ t("author.update") }}</option>
+                    </select>
+                    <input v-model="authorNewTitle" type="text" :placeholder="t('author.titleField')" class="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none" />
+                  </div>
+                  <textarea v-model="authorNewBody" :placeholder="t('author.body')" rows="2" class="w-full resize-y rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"></textarea>
+                  <button type="button" class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50" :disabled="authorBusy || !authorNewTitle.trim()" @click="addAuthorNews(authorNewTitle.trim(), authorNewBody)">
+                    {{ t("author.addNews") }}
+                  </button>
+                </div>
+              </section>
+            </template>
+
+            <div v-else-if="authorPacks.length === 0" class="rounded-md border border-[var(--border)] bg-[var(--panel)] p-8 text-center text-xs text-[color:var(--tx-muted)]">
+              {{ t("author.noPacks") }}
+            </div>
+
+            <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div v-for="p in authorPacks" :key="p.id" class="flex items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--panel)] p-3">
+                <img v-if="p.icon_url" :src="p.icon_url" class="h-10 w-10 shrink-0 rounded-md object-cover" />
+                <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--input)] text-sm font-semibold text-[var(--accent)]">
+                  {{ p.name?.[0]?.toUpperCase() }}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium text-[color:var(--tx)]">{{ p.name }}</p>
+                  <p class="truncate text-[11px] text-[color:var(--tx-muted)]">
+                    {{ p.version }} · {{ t("author.rating") }}: {{ p.likes - p.dislikes }}
+                  </p>
+                </div>
+                <button type="button" class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)]" @click="openAuthorDetail(p.id)">
+                  {{ t("author.edit") }}
+                </button>
+              </div>
+            </div>
+          </div>
+          </div>
+        </template>
         <template v-else>
           <div class="min-h-0 flex-1 overflow-y-auto pr-1">
           <div class="space-y-6">
@@ -2866,6 +2882,77 @@
                 <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.account") }}</h3>
               </div>
               <div class="p-4 space-y-3">
+                <!-- Профиль Mono — отдельный, поверх всех игровых аккаунтов -->
+                <div class="rounded-md border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_12%,transparent)] to-transparent p-3 space-y-2">
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--accent)_60%,transparent)] bg-[var(--input)] font-mono text-[11px] font-bold text-[var(--accent)]"
+                    >
+                      {{ monoProfile?.username?.[0]?.toUpperCase() ?? "M" }}
+                    </span>
+                    <div class="min-w-0 flex-1">
+                      <p class="text-[11px] font-semibold text-[var(--accent)]">{{ t("settings.monoTitle") }}</p>
+                      <p class="text-[10px] leading-tight text-[color:var(--tx-muted)]">{{ t("settings.monoNote") }}</p>
+                    </div>
+                  </div>
+
+                  <template v-if="monoProfile">
+                    <p class="flex items-center gap-1.5 text-xs font-medium text-[color:var(--tx-strong)]">
+                      {{ monoProfile.username }}
+                      <svg class="h-3.5 w-3.5 fill-[#3fb950]" viewBox="0 0 16 16">
+                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm-1.31-4.21 4.55-4.55-1.06-1.06-3.49 3.49-1.42-1.42-1.06 1.06 2.48 2.48Z"/>
+                      </svg>
+                    </p>
+                    <button
+                      type="button"
+                      class="w-full rounded-md border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] py-1.5 text-xs font-medium text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
+                      :disabled="busy || monoBusy"
+                      @click="handleMonoLogout"
+                    >
+                      {{ monoBusy ? t("settings.monoWait") : t("accounts.signOut") }}
+                    </button>
+                  </template>
+                  <template v-else>
+                    <input
+                      v-model="monoName"
+                      :placeholder="t('settings.monoUsername')"
+                      class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
+                    />
+                    <input
+                      v-model="monoPass"
+                      type="password"
+                      :placeholder="t('settings.monoPassword')"
+                      @keydown.enter="handleMonoLogin"
+                      class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
+                    />
+                    <div class="flex gap-2">
+                      <button
+                        type="button"
+                        class="flex-1 rounded-md border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] py-1.5 text-xs font-medium text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
+                        :disabled="busy || monoBusy"
+                        @click="handleMonoLogin"
+                      >
+                        {{ monoBusy ? t("settings.monoWait") : t("settings.monoSignIn") }}
+                      </button>
+                      <button
+                        type="button"
+                        class="flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                        :disabled="busy || monoBusy"
+                        @click="handleMonoRegister"
+                      >
+                        {{ t("settings.monoRegister") }}
+                      </button>
+                    </div>
+                  </template>
+                </div>
+
+                <!-- Игровые аккаунты -->
+                <div class="flex items-center gap-2 pt-1">
+                  <div class="border-t border-[var(--border)] w-full"></div>
+                  <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("settings.gameAccounts") }}</span>
+                  <div class="border-t border-[var(--border)] w-full"></div>
+                </div>
+
                 <div class="flex gap-2">
                   <input
                     v-model="username"
@@ -2987,6 +3074,166 @@
                         <path d="M4.75 1.5h6.5a.75.75 0 0 1 .75.75V3.5h2.5a.75.75 0 0 1 0 1.5h-.75v9A1.75 1.75 0 0 1 12 15.75H4A1.75 1.75 0 0 1 2.25 14V5H1.5a.75.75 0 0 1 0-1.5H4V2.25a.75.75 0 0 1 .75-.75Zm.75 5.75a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-1.5 0Zm3.5 0a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-1.5 0Z"/>
                       </svg>
                     </button>
+                  </div>
+                </div>
+
+                <!-- Boosty: платные сборки -->
+                <div class="space-y-1.5 border-t border-[var(--border)] pt-3">
+                  <div class="flex items-center justify-between">
+                    <span class="flex items-center gap-1.5 text-[11px] font-semibold text-[color:var(--tx-strong)]">
+                      <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-[var(--accent)]" preserveAspectRatio="none">
+                        <path d="M8 1C3.9 1 .7 4.3.7 8.4h3.1L1.6 15l7.2-7.2H6.3C6.3 5.3 7.2 2.9 9.6 2.4 11.9 2 13.7 3.6 13.7 5.8c0 .4-.1.9-.1 1.3.9.5 1.5 1.4 1.7 2.5.1-.6.2-1.2.2-1.8 0-3.8-3.2-6.8-7.5-6.8Z" transform="translate(0 -1)"/>
+                      </svg>
+                      {{ t("settings.boosty") }}
+                    </span>
+                  </div>
+                  <p class="text-[11px] leading-snug text-[color:var(--tx-muted)]">{{ t("settings.boostyNote") }}</p>
+                  <!-- Глобальный аккаунт Boosty: работает даже без платных сборок -->
+                  <div class="rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2">
+                    <div class="flex items-center gap-2">
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate text-xs font-medium text-[color:var(--tx-strong)]">{{ t("settings.boostyGlobal") }}</p>
+                        <p class="truncate text-[10px] text-[color:var(--tx-muted)]">{{ t("settings.boostyGlobalNote") }}</p>
+                      </div>
+                      <span
+                        v-if="boostyGlobalLinkedState"
+                        class="shrink-0 rounded-full border border-[#3fb950]/30 bg-[#3fb950]/10 px-2 py-0.5 text-[10px] font-semibold text-[#3fb950]"
+                      >
+                        {{ t("settings.boostyOk") }}
+                      </span>
+                      <span
+                        v-else
+                        class="shrink-0 rounded-full border border-[var(--border)] bg-[var(--input)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--tx-muted)]"
+                      >
+                        {{ t("settings.boostyNo") }}
+                      </span>
+                    </div>
+                    <template v-if="boostyGlobalLinkedState">
+                      <button
+                        type="button"
+                        class="mt-1.5 w-full rounded-md border border-[#f85149]/30 bg-[#f85149]/10 py-1 text-[10px] font-medium text-[#f85149] transition-colors hover:bg-[#f85149]/20 disabled:opacity-50"
+                        :disabled="licenseBusy"
+                        @click="unlinkBoostyGlobal"
+                      >
+                        {{ t("accounts.signOut") }}
+                      </button>
+                    </template>
+                    <div v-else class="mt-2 space-y-1.5">
+                      <button
+                        type="button"
+                        class="flex w-full items-center justify-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] py-1.5 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
+                        :disabled="licenseBusy || boostyAuthOpen"
+                        @click="startBoostyGlobalLogin"
+                      >
+                        <svg v-if="boostyAuthOpen && boostyGlobalOpen" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+                        {{ boostyAuthOpen && boostyGlobalOpen ? t("license.waiting") : t("license.oauth") }}
+                      </button>
+                      <div v-if="boostyAuthOpen && boostyGlobalOpen" class="flex justify-center">
+                        <button
+                          type="button"
+                          class="text-[11px] font-medium text-[color:var(--tx-muted)] hover:text-[color:var(--tx)]"
+                          @click="cancelBoostyLogin"
+                        >
+                          {{ t("license.cancel") }}
+                        </button>
+                      </div>
+                      <div class="flex gap-1.5">
+                        <input
+                          v-model="licenseKeyInput"
+                          type="password"
+                          :placeholder="t('license.placeholder')"
+                          class="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
+                          @keydown.enter="saveBoostyGlobal(licenseKeyInput)"
+                        />
+                        <button
+                          type="button"
+                          class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-[10px] font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                          :disabled="licenseBusy"
+                          @click="saveBoostyGlobal(licenseKeyInput)"
+                        >
+                          {{ t("license.activate") }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    v-for="p in paidPacks"
+                    :key="p.id"
+                    class="rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2"
+                  >
+                    <div class="flex items-center gap-2">
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate text-xs font-medium text-[color:var(--tx-strong)]">{{ p.name }}</p>
+                        <p class="truncate text-[10px] text-[color:var(--tx-muted)]">
+                          boosty.to/{{ p.boostyBlog }}
+                        </p>
+                      </div>
+                      <span
+                        v-if="licenseByPack[p.id]?.subscribed"
+                        class="shrink-0 rounded-full border border-[#3fb950]/30 bg-[#3fb950]/10 px-2 py-0.5 text-[10px] font-semibold text-[#3fb950]"
+                      >
+                        {{ t("settings.boostyOk") }}
+                      </span>
+                      <span
+                        v-else-if="licenseByPack[p.id] && !licenseByPack[p.id]?.subscribed"
+                        class="shrink-0 rounded-full border border-[var(--border)] bg-[var(--input)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--tx-muted)]"
+                      >
+                        {{ t("settings.boostyNo") }}
+                      </span>
+                    </div>
+                    <template v-if="licenseByPack[p.id]?.subscribed">
+                      <p v-if="licenseByPack[p.id]?.tier" class="mt-1 truncate text-[10px] text-[color:var(--tx-muted)]">
+                        {{ t("license.tierList", { list: licenseByPack[p.id]?.tier ?? "" }) }}
+                      </p>
+                      <p v-if="licenseByPack[p.id]?.expiresAt" class="mt-0.5 text-[10px] text-[color:var(--tx-muted)]">
+                        {{ t("license.active", { blog: p.boostyBlog ?? "", until: formatUnixDate(licenseByPack[p.id]?.expiresAt ?? 0) }) }}
+                      </p>
+                      <button
+                        type="button"
+                        class="mt-1.5 w-full rounded-md border border-[#f85149]/30 bg-[#f85149]/10 py-1 text-[10px] font-medium text-[#f85149] transition-colors hover:bg-[#f85149]/20 disabled:opacity-50"
+                        :disabled="licenseBusyFor === p.id"
+                        @click="removeLicenseFor(p.id)"
+                      >
+                        {{ t("accounts.signOut") }}
+                      </button>
+                    </template>
+                    <div v-else class="mt-2 space-y-1.5">
+                      <button
+                        type="button"
+                        class="flex w-full items-center justify-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] py-1.5 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
+                        :disabled="licenseBusyFor === p.id || boostyAuthOpen"
+                        @click="startBoostyLogin(p.id)"
+                      >
+                        <svg v-if="boostyAuthOpen && boostyTargetPack === p.id" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+                        {{ boostyAuthOpen && boostyTargetPack === p.id ? t("license.waiting") : t("license.oauth") }}
+                      </button>
+                      <div v-if="boostyAuthOpen && boostyTargetPack === p.id" class="flex justify-center">
+                        <button
+                          type="button"
+                          class="text-[11px] font-medium text-[color:var(--tx-muted)] hover:text-[color:var(--tx)]"
+                          @click="cancelBoostyLogin"
+                        >
+                          {{ t("license.cancel") }}
+                        </button>
+                      </div>
+                      <div class="flex gap-1.5">
+                        <input
+                          v-model="licenseKeyInput"
+                          type="password"
+                          :placeholder="t('license.placeholder')"
+                          class="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
+                          @keydown.enter="saveLicenseFor(p.id, licenseKeyInput)"
+                        />
+                        <button
+                          type="button"
+                          class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-[10px] font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                          :disabled="licenseBusyFor === p.id"
+                          @click="saveLicenseFor(p.id, licenseKeyInput)"
+                        >
+                          {{ t("license.activate") }}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4098,7 +4345,7 @@
     <div v-if="exportOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" @click.self="exportOpen = false">
       <div class="flex max-h-[80vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl">
         <div class="flex items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--input-50)] px-4 py-2.5">
-          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ exportFormat === "author" ? t("pack.exportAuthorTitle") : t("pack.exportTitle") }}</h3>
+          <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ authorImportMode ? t("author.importTitle") : exportFormat === "author" ? t("pack.exportAuthorTitle") : t("pack.exportTitle") }}</h3>
           <button
             type="button"
             class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
@@ -4109,7 +4356,7 @@
         </div>
         <div class="flex items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2">
           <p class="text-[11px] text-[color:var(--tx-muted)]">
-            {{ exportFormat === "curseforge" ? t("pack.exportFormatCurseforge") : exportFormat === "author" ? t("pack.exportAuthorHint") : t("pack.exportFormatMrpack") }}
+            {{ authorImportMode ? t("author.importHint") : exportFormat === "curseforge" ? t("pack.exportFormatCurseforge") : exportFormat === "author" ? t("pack.exportAuthorHint") : t("pack.exportFormatMrpack") }}
           </p>
           <button
             v-if="exportFormat !== 'author'"
@@ -4142,12 +4389,16 @@
         <div class="min-h-0 flex-1 overflow-y-auto px-2 py-1">
           <template v-if="exportFormat === 'author'">
             <div class="space-y-3 px-2 py-2">
+              <div v-if="authorImportMode" class="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-30)] px-2 py-1.5">
+                <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-[var(--tx-muted)]"><path d="M9 1H4.5A1.5 1.5 0 0 0 3 2.5v11A1.5 1.5 0 0 0 4.5 15h7A1.5 1.5 0 0 0 13 13.5V5l-4-4Z"/></svg>
+                <span class="min-w-0 flex-1 truncate font-mono text-[11px] text-[color:var(--tx)]">{{ authorImportFile || t("author.noFile") }}</span>
+              </div>
               <div class="grid grid-cols-2 gap-2">
-                <label class="block">
+                <label :class="authorImportMode ? 'col-span-2' : ''" class="block">
                   <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorName") }}</span>
                   <input v-model="authorName" class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" />
                 </label>
-                <label class="block">
+                <label v-if="!authorImportMode" class="block">
                   <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorAuthor") }}</span>
                   <input v-model="authorAuthor" class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" :placeholder="t('pack.exportAuthorAuthorPh')" />
                 </label>
@@ -4156,6 +4407,16 @@
                 <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorDesc") }}</span>
                 <textarea v-model="authorDesc" rows="2" class="w-full resize-none rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" :placeholder="t('pack.exportAuthorDescPh')"></textarea>
               </label>
+              <div v-if="authorImportMode" class="grid grid-cols-2 gap-2">
+                <label class="block">
+                  <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorIcon") }}</span>
+                  <input v-model="authorIcon" type="text" class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" :placeholder="t('pack.exportAuthorIconPh')" />
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorBanner") }}</span>
+                  <input v-model="authorBanner" type="text" class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-xs text-[color:var(--tx)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--accent)_60%,transparent)]" :placeholder="t('pack.exportAuthorBannerPh')" />
+                </label>
+              </div>
               <div class="grid grid-cols-2 gap-2">
                 <label class="block">
                   <span class="mb-1 block text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorBoosty") }}</span>
@@ -4248,7 +4509,7 @@
                 </div>
               </div>
             </div>
-            <div class="flex items-center gap-2 border-t border-[var(--border)] px-2 pt-2 pb-1">
+            <div v-if="!authorImportMode" class="flex items-center gap-2 border-t border-[var(--border)] px-2 pt-2 pb-1">
               <span class="shrink-0 text-[11px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.exportAuthorFiles") }}</span>
               <span class="shrink-0 rounded bg-[var(--input-50)] px-1.5 py-0.5 text-[10px] font-bold tabular-nums">{{ exportSelected.size }}</span>
               <span class="h-px flex-1 bg-[var(--border)]"></span>
@@ -4257,12 +4518,12 @@
               </button>
             </div>
           </template>
-          <div v-if="exportLoading" class="flex items-center justify-center gap-2 py-8 text-xs text-[color:var(--tx-muted)]">
+          <div v-if="!authorImportMode && exportLoading" class="flex items-center justify-center gap-2 py-8 text-xs text-[color:var(--tx-muted)]">
             <svg viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
             {{ t("pack.exportLoading") }}
           </div>
-          <div v-else-if="exportItems.length === 0" class="px-2 py-8 text-center text-xs text-[color:var(--tx-muted)]">{{ t("pack.exportEmpty") }}</div>
-          <div v-else>
+          <div v-else-if="!authorImportMode && exportItems.length === 0" class="px-2 py-8 text-center text-xs text-[color:var(--tx-muted)]">{{ t("pack.exportEmpty") }}</div>
+          <div v-else-if="!authorImportMode">
             <div
               v-for="row in exportVisibleRows"
               :key="row.it.path"
@@ -4296,6 +4557,13 @@
           </div>
         </div>
         <div class="flex items-center justify-end gap-2 border-t border-[var(--border)] px-4 py-3">
+          <label
+            v-if="monoProfile && exportFormat === 'mrpack'"
+            class="mr-auto flex cursor-pointer items-center gap-1.5 text-[11px] text-[color:var(--tx-muted)]"
+          >
+            <input type="checkbox" v-model="exportUpload" class="h-3.5 w-3.5 accent-[var(--accent)]" />
+            {{ t("pack.uploadMono") }}
+          </label>
           <button
             type="button"
             class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
@@ -4306,11 +4574,11 @@
           <button
             type="button"
             class="flex items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-3 py-1.5 text-[11px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
-            :disabled="exportBusy || exportLoading || exportSelected.size === 0"
-            @click="exportFormat === 'author' ? doAuthorExport() : doExport()"
+            :disabled="exportBusy || exportLoading || (!authorImportMode && exportSelected.size === 0)"
+            @click="authorImportMode ? doAuthorImport() : exportFormat === 'author' ? doAuthorExport() : doExport()"
           >
             <svg v-if="exportBusy" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
-            {{ exportFormat === "author" ? t("pack.exportAuthorBtn") : t("pack.exportBtn") }}
+            {{ authorImportMode ? t("author.upload") : exportFormat === "author" ? t("pack.exportAuthorBtn") : t("pack.exportBtn") }}
           </button>
         </div>
       </div>
@@ -4988,13 +5256,14 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open as openDialog, save } from "@tauri-apps/plugin-dialog";
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, editPackVersion, exportPack as exportPackFn, exportSourceList, exportAuthorPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, installedModSha1, setPackIcon, setPackBanner, setPackName, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles, getStatus } from "~/lib/bridge";
+import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, editPackVersion, exportPack as exportPackFn, exportSourceList, exportAuthorPack, uploadPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, installedModSha1, setPackIcon, setPackBanner, setPackName, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles, getStatus } from "~/lib/bridge";
 import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit, CursePackFile, CurseProjectDetail } from "~/lib/bridge";
-import type { AuthorPackConfig, AuthorServer, AuthorSocial, AuthorTheme, CatalogEntry, CrashAnalysis, CurseInstallResult, ExportSourceItem, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod, AppStatus, DuplicateGroup } from "~/lib/types";
+import type { AuthorPackConfig, AuthorServer, AuthorSocial, AuthorTheme, CatalogEntry, CrashAnalysis, CurseInstallResult, ExportSourceItem, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackCatalog, PackDescriptor, PackServer, PackTheme, ServerStatus, TrackedMod, AppStatus, DuplicateGroup } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
 import { useI18n, getLocaleMeta } from "~/composables/useI18n";
+import { LauncherCtxKey } from "~/composables/useLauncherContext";
 import { getCachedIcon, setCachedIcon } from "~/lib/iconCache";
 import {
   changelogLines,
@@ -5029,6 +5298,7 @@ function appClose() { if (isTauri()) getCurrentWindow().close(); }
 function appMinimize() { if (isTauri()) getCurrentWindow().minimize(); }
 function appToggleMaximize() { if (isTauri()) getCurrentWindow().toggleMaximize(); }
 
+const __launcher = useLauncher({ keepPackId: isSearchWindowQuery() || isFileDetailWindowQuery() });
 const {
   status,
   username,
@@ -5076,6 +5346,32 @@ const {
   accountBusy,
   handleSwitchAccount,
   handleRemoveAccount,
+  monoName,
+  monoPass,
+  monoBusy,
+  monoProfile,
+  handleMonoLogin,
+  handleMonoRegister,
+  handleMonoLogout,
+  authorPacks,
+  authorDetail,
+  authorNews,
+  authorBusy,
+  authorSelected,
+  authorVersions,
+  authorTab,
+  authorNewsKind,
+  loadAuthorPacks,
+  openAuthorDetail,
+  closeAuthorDetail,
+  createAuthorVersion,
+  importAuthorPack,
+  deleteAuthorVersion,
+  addAuthorNews,
+  deleteAuthorNews,
+  updateAuthorMeta,
+  deleteAuthorPack,
+  ratePack,
   handlePlay,
   playOnServer,
   handleStop,
@@ -5083,6 +5379,8 @@ const {
   handleCopyLog,
   handleOpenPackDir,
   selectPack,
+  addPack,
+  refreshVersions,
   notifications,
   notify,
   dismissNotification,
@@ -5109,6 +5407,22 @@ const {
   licenseError,
   saveLicense,
   removeLicense,
+  boostyAuthOpen,
+  startBoostyLogin,
+  cancelBoostyLogin,
+  boostyTargetPack,
+  boostyGlobalLinkedState,
+  boostyGlobalOpen,
+  loadBoostyGlobal,
+  saveBoostyGlobal,
+  startBoostyGlobalLogin,
+  unlinkBoostyGlobal,
+  licenseByPack,
+  licenseBusyFor,
+  loadLicenseStatusFor,
+  loadAllLicenses,
+  saveLicenseFor,
+  removeLicenseFor,
   javaList,
   javaSelected,
   javaBusy,
@@ -5181,10 +5495,19 @@ const {
   catalogError,
   loadCatalog,
   addFromCatalog,
+  monoCatalog,
+  monoCatalogLoading,
+  monoCatalogError,
+  loadMonoCatalog,
   loadPacks,
   loadGameFiles,
   load,
-} = useLauncher({ keepPackId: isSearchWindowQuery() || isFileDetailWindowQuery() });
+  catalogDetail,
+  catalogDetailBusy,
+  catalogDetailTab,
+  openCatalogDetail,
+  closeCatalogDetail,
+} = __launcher;
 
 const { t, locale, locales, setLocale } = useI18n();
 
@@ -5271,9 +5594,9 @@ function openCrashIssue() {
 const customModsOpen = ref(false);
 
 const catalogBannerBroken = ref(new Set<string>());
-const catalogSource = ref<"author" | "modrinth" | "curse">("author");
+const catalogSource = ref<"mono" | "author" | "modrinth" | "curse">("mono");
 
-function switchCatalogSource(s: "author" | "modrinth" | "curse") {
+function switchCatalogSource(s: "mono" | "author" | "modrinth" | "curse") {
   if (catalogSource.value === s) return;
   catalogSource.value = s;
   modPackDetail.value = null;
@@ -5390,6 +5713,10 @@ function packTabDragEnd() {
 /** Разбивка сборок по источнику: id mrn-* → Modrinth, cf-* → CurseForge,
  *  local-* / local:// → свои, остальные (встроенные и GitHub) → авторские. */
 type PacksBySource = Record<PackCat, PackDescriptor[]>;
+
+/** Платные сборки (с привязанным Boosty-блогом) — для панели Boosty в Настройках. */
+const paidPacks = computed<PackDescriptor[]>(() => packs.value.filter((p) => Boolean(p.boostyBlog)));
+
 const packsBySource = computed<PacksBySource>(() => {
   const out: PacksBySource = { github: [], custom: [], modrinth: [], curseforge: [] };
   for (const p of packs.value) {
@@ -7491,6 +7818,74 @@ const editVerOpen = ref(false);
 const editVerBusy = ref(false);
 const editVerName = ref("");
 const exportBusy = ref(false);
+const exportUpload = ref(false);
+const authorNewTitle = ref("");
+const authorNewBody = ref("");
+const authorNewVersion = ref("");
+const authorNewChangelog = ref("");
+const authorVersionFile = ref("");
+async function pickAuthorVersionFile() {
+  const picked = await openDialog({
+    filters: [{ name: "Modrinth Pack", extensions: ["mrpack", "zip"] }],
+  });
+  if (typeof picked === "string") authorVersionFile.value = picked;
+}
+
+const authorImportFile = ref("");
+const authorImportVersion = ref("");
+const authorImportChangelog = ref("");
+const authorImportMode = ref(false);
+async function pickAuthorImportFile() {
+  const picked = await openDialog({
+    filters: [{ name: "Modrinth Pack", extensions: ["mrpack", "zip"] }],
+  });
+  if (typeof picked === "string") {
+    authorImportFile.value = picked;
+    const base = picked.split("/").pop()?.replace(/\.(mrpack|zip)$/i, "") ?? "";
+    authorName.value = base;
+    authorAuthor.value = "";
+    authorDesc.value = "";
+    authorBoosty.value = "";
+    authorIcon.value = "";
+    authorBanner.value = "";
+    authorMinRam.value = false;
+    authorMinRamMb.value = null;
+    authorServers.value = [{ name: "", ip: "", port: null, desc: "" }];
+    authorSocials.value = [{ name: "", url: "", color: "" }];
+    authorTheme.value = {};
+    authorAccent.value = "";
+    authorImportVersion.value = "";
+    authorImportChangelog.value = "";
+    authorImportMode.value = true;
+    exportFormat.value = "author";
+    exportOpen.value = true;
+  }
+}
+
+async function doAuthorImport() {
+  if (!authorImportFile.value || exportBusy.value) return;
+  const cfg = authorConfig();
+  const meta: Record<string, unknown> = {
+    theme: cfg.theme,
+    servers: cfg.servers,
+    socials: cfg.socials,
+  };
+  if (authorBanner.value.trim()) meta.banner = authorBanner.value.trim();
+  const ok = await importAuthorPack(
+    authorImportFile.value,
+    cfg.name,
+    cfg.description ?? "",
+    authorImportVersion.value,
+    authorImportChangelog.value,
+    {
+      minRamMb: cfg.minRam,
+      boostyBlog: cfg.boostyBlog,
+      meta,
+      iconUrl: authorIcon.value.trim() ? authorIcon.value.trim() : null,
+    }
+  );
+  if (ok) exportOpen.value = false;
+}
 const exportOpen = ref(false);
 const exportFormat = ref<"mrpack" | "curseforge" | "author">("mrpack");
 const exportLoading = ref(false);
@@ -7701,12 +8096,23 @@ async function doExport() {
   exportBusy.value = true;
   try {
     await exportPackFn(packId.value, "", format, dest, include, name, exportVersionNum.value.trim() || "1.0.0");
-    notify(t("pack.exportDone"), "success");
+    if (exportUpload.value && monoProfile.value) {
+      try {
+        const pack = await uploadPack(monoProfile.value.access_token, dest, name, "");
+        notify(t("pack.uploadDone"), "success");
+        void openExternal(pack.url);
+      } catch (e) {
+        notify(t("pack.uploadErr", { e }), "error");
+      }
+    } else {
+      notify(t("pack.exportDone"), "success");
+    }
     exportOpen.value = false;
   } catch (e) {
     notify(t("pack.exportErr", { e }));
   } finally {
     exportBusy.value = false;
+    exportUpload.value = false;
   }
 }
 
@@ -7715,6 +8121,8 @@ const authorName = ref("");
 const authorAuthor = ref("");
 const authorDesc = ref("");
 const authorBoosty = ref("");
+const authorIcon = ref("");
+const authorBanner = ref("");
 const authorMinRam = ref(false);
 const authorMinRamMb = ref<number | null>(null);
 const authorServers = ref<AuthorServer[]>([{ name: "", ip: "", port: null, desc: "" }]);
@@ -7726,6 +8134,7 @@ const AUTHOR_MAX_SOCIALS = 4;
 
 function openAuthorExport() {
   if (exportBusy.value || !packId.value || !isTauri()) return;
+  authorImportMode.value = false;
   exportFormat.value = "author";
   authorName.value = activePack?.value?.name || "pack";
   authorAuthor.value = activePack?.value?.author || "";
@@ -8114,9 +8523,13 @@ let packThemeFadeTimer: ReturnType<typeof setTimeout> | null = null;
 /** Применяет тему сборки к CSS-переменным (или сбрасывает на дефолт). */
 function applyPackTheme(theme: PackTheme | null) {
   const root = document.documentElement;
-  root.classList.add("pack-theme-fade");
-  if (packThemeFadeTimer) clearTimeout(packThemeFadeTimer);
-  packThemeFadeTimer = setTimeout(() => root.classList.remove("pack-theme-fade"), 700);
+  if (theme) {
+    root.classList.add("pack-theme-fade");
+    if (packThemeFadeTimer) clearTimeout(packThemeFadeTimer);
+    packThemeFadeTimer = setTimeout(() => root.classList.remove("pack-theme-fade"), 700);
+  } else {
+    root.classList.remove("pack-theme-fade");
+  }
   const overridden = new Set<string>();
   const setOrRemove = (cssVar: string, val: string | null | undefined) => {
     if (val) {
@@ -8304,9 +8717,15 @@ watch(
   () => tab.value,
   (t) => {
     if (t === "library") loadLibraryStatus();
+    if (t === "settings") loadAllLicenses();
   }
 );
+watch(
+  () => packs.value.length,
+  () => loadAllLicenses()
+);
 onMounted(loadLibraryStatus);
+onMounted(loadAllLicenses);
 
 /** Запуск (или установка) конкретной сборки из плитки «Библиотеки». */
 async function playLibraryPack(p: PackDescriptor) {
@@ -8575,6 +8994,37 @@ async function openCatalogPack(entry: CatalogEntry) {
   if (pack) await openPackTab(pack.id);
 }
 
+/** Сборка из каталога Mono уже добавлена в лаунчер? */
+function isMonoPackAdded(entry: PackCatalog): boolean {
+  return packs.value.some((p) => p.url === entry.url);
+}
+
+/** Добавить сборку из каталога Mono в библиотеку. */
+async function addMonoPack(entry: PackCatalog) {
+  if (addingPack.value || busy.value) return;
+  addingPack.value = true;
+  try {
+    const added = await addPack(entry.url, entry.name, entry.boosty_blog ?? undefined);
+    await loadPacks();
+    await load();
+    refreshVersions();
+    if (packId.value !== added.id) {
+      await selectPack(added.id);
+    }
+    notify(t("catalog.added", { name: added.name }), "success");
+  } catch (e) {
+    notify(t("dev.errAdd", { e }), "error");
+  } finally {
+    addingPack.value = false;
+  }
+}
+
+/** Открыть уже добавленную сборку из каталога Mono. */
+async function openMonoPack(entry: PackCatalog) {
+  const pack = packs.value.find((p) => p.url === entry.url);
+  if (pack) await openPackTab(pack.id);
+}
+
 function newsKey(n: NewsItem): string {
   return `${n.kind}-${n.url || n.tag || n.title}`;
 }
@@ -8703,4 +9153,41 @@ if (isFileDetailWin.value) {
     })();
   }
 }
+
+provide(LauncherCtxKey, {
+  ...__launcher,
+  t,
+  locale,
+  locales,
+  setLocale,
+  getLocaleMeta,
+  formatPlaytimeShort,
+  phaseLabel,
+  javaArchLabel,
+  localeLabel,
+  activeLocaleAuthor,
+  activeLocaleVersion,
+  crashView,
+  appClose,
+  appMinimize,
+  appToggleMaximize,
+  sidebarWidth,
+  sidebarDragging,
+  SIDEBAR_COLLAPSE,
+  SIDEBAR_ICON,
+  sidebarCollapsed,
+  startSidebarDrag,
+  onSidebarDrag,
+  endSidebarDrag,
+  mainWidth,
+  startMainDrag,
+  onMainDrag,
+  endMainDrag,
+  resetMainWidth,
+  createPackOpen,
+  customModsOpen,
+  openEditVersion,
+  openPackTab,
+  activePackRepo,
+});
 </script>

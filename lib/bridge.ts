@@ -15,6 +15,7 @@ import type {
   GameFileIcon,
   JavaInfo,
   LaunchLogEntry,
+  BoostyAuth,
   LicenseInfo,
   McVersionInfo,
   ModUpdate,
@@ -41,6 +42,13 @@ import type {
   ExportSourceItem,
   CrashAnalysis,
   AuthorPackConfig,
+  MonoPackPublic,
+  MonoProfile,
+  PackCatalog,
+  PackDetail,
+  PackNewsPublic,
+  PackVersionPublic,
+  UpdatePackRequest,
 } from "./types";
 
 export const isTauri = () =>
@@ -136,6 +144,22 @@ export function elyPoll(
   expiresIn: number
 ): Promise<UserSession> {
   return invoke("ely_poll_command", { deviceCode, interval, expiresIn });
+}
+
+export function monoRegister(username: string, password: string): Promise<MonoProfile> {
+  return invoke("mono_register_command", { username, password });
+}
+
+export function monoLogin(username: string, password: string): Promise<MonoProfile> {
+  return invoke("mono_login_command", { username, password });
+}
+
+export function monoProfile(): Promise<MonoProfile | null> {
+  return invoke("mono_profile_command");
+}
+
+export function monoLogout(): Promise<MonoProfile | null> {
+  return invoke("mono_logout_command");
 }
 
 export function curseforgeSearch(
@@ -359,8 +383,20 @@ export function skinApiUrl(): Promise<string> {
   return invoke("skin_api_url_command");
 }
 
-export function setBoosty(packId: string, token: string): Promise<LicenseInfo> {
-  return invoke("set_boosty_command", { packId, token });
+export function setBoosty(
+  packId: string,
+  token: string,
+  refreshToken?: string,
+  deviceId?: string,
+  tokenExpiresAt?: number
+): Promise<LicenseInfo> {
+  return invoke("set_boosty_command", {
+    packId,
+    token,
+    refreshToken,
+    deviceId,
+    tokenExpiresAt,
+  });
 }
 
 export function licenseStatus(packId: string): Promise<LicenseInfo> {
@@ -369,6 +405,46 @@ export function licenseStatus(packId: string): Promise<LicenseInfo> {
 
 export function clearLicense(packId: string): Promise<void> {
   return invoke("clear_license_command", { packId });
+}
+
+/** Глобальная привязка Boosty (на весь лаунчер, не для конкретной сборки). */
+export function setBoostyGlobal(
+  token: string,
+  refreshToken?: string,
+  deviceId?: string,
+  tokenExpiresAt?: number
+): Promise<void> {
+  return invoke("set_global_boosty_command", {
+    token,
+    refreshToken,
+    deviceId,
+    tokenExpiresAt,
+  });
+}
+
+/** Привязан ли глобальный аккаунт Boosty. */
+export function boostyGlobalLinked(): Promise<boolean> {
+  return invoke("global_boosty_linked_command");
+}
+
+/** Отвязывает глобальный аккаунт Boosty. */
+export function clearBoostyGlobal(): Promise<void> {
+  return invoke("clear_global_boosty_command");
+}
+
+/** Открывает отдельное окно входа Boosty (захват токенов из localStorage). */
+export function boostyLoginBegin(): Promise<void> {
+  return invoke("boosty_login_begin_command");
+}
+
+/** Опрашивает окно входа Boosty: вернул токены — забирает и закрывает окно. */
+export function boostyPoll(): Promise<BoostyAuth | null> {
+  return invoke("boosty_poll_command");
+}
+
+/** Закрывает окно входа Boosty (отмена). */
+export function boostyLoginCancel(): Promise<void> {
+  return invoke("boosty_login_cancel_command");
 }
 
 export function onJavaProgress(cb: (e: LaunchLogEntry) => void): Promise<UnlistenFn> {
@@ -662,4 +738,139 @@ export function exportAuthorPack(
     include,
     config,
   });
+}
+
+/** Загружает .mrpack на бэкенд Mono (multipart; бэкенд проверит мат и перешлёт файл на storage). */
+export function uploadPack(
+  accessToken: string,
+  filePath: string,
+  name: string,
+  description: string,
+  version?: string,
+  changelog?: string,
+  minRamMb?: number | null,
+  boostyBlog?: string | null,
+  meta?: Record<string, unknown> | null,
+  iconUrl?: string | null
+): Promise<MonoPackPublic> {
+  return invoke("upload_pack_command", {
+    accessToken,
+    filePath,
+    name,
+    description,
+    version: version ?? "",
+    changelog: changelog ?? "",
+    minRamMb: minRamMb ?? null,
+    boostyBlog: boostyBlog ?? null,
+    meta: meta ?? null,
+    iconUrl: iconUrl ?? null,
+  });
+}
+
+// ==== Панель автора: управление сборками на бэкенде Mono ====
+
+/** Каталог сборок Mono (без авторизации). */
+export function packCatalog(): Promise<PackCatalog[]> {
+  return invoke("pack_catalog_command");
+}
+
+/** Сборки, автором которых является текущий пользователь. */
+export function packMine(accessToken: string): Promise<PackCatalog[]> {
+  return invoke("pack_mine_command", { accessToken });
+}
+
+/** Новости Mono (глобальные и по сборкам, свежие сверху). */
+export function packNews(): Promise<PackNewsPublic[]> {
+  return invoke("pack_news_command");
+}
+
+/** Деталь сборки Mono; пустой accessToken — запрос без авторизации. */
+export function packDetail(
+  accessToken: string,
+  id: string
+): Promise<PackDetail> {
+  return invoke("pack_detail_command", { accessToken, id });
+}
+
+/** Частичное обновление описания сборки (PUT /packs/{id}). */
+export function packUpdate(
+  accessToken: string,
+  id: string,
+  body: UpdatePackRequest
+): Promise<PackDetail> {
+  return invoke("pack_update_command", { accessToken, id, body });
+}
+
+/** Удаляет сборку с бэкенда Mono и storage (DELETE /packs/{id}). */
+export function packDelete(accessToken: string, id: string): Promise<void> {
+  return invoke("pack_delete_command", { accessToken, id });
+}
+
+/** Загружает новую версию .mrpack для сборки. */
+export function packAddVersion(
+  accessToken: string,
+  id: string,
+  filePath: string,
+  version: string,
+  changelog: string
+): Promise<PackVersionPublic> {
+  return invoke("pack_add_version_command", {
+    accessToken,
+    id,
+    filePath,
+    version,
+    changelog,
+  });
+}
+
+/** Удаляет версию сборки. */
+export function packDeleteVersion(
+  accessToken: string,
+  id: string,
+  versionId: string
+): Promise<void> {
+  return invoke("pack_delete_version_command", {
+    accessToken,
+    id,
+    versionId,
+  });
+}
+
+/** Добавляет новость к сборке. */
+export function packAddNews(
+  accessToken: string,
+  id: string,
+  kind: string,
+  title: string,
+  body: string
+): Promise<PackNewsPublic> {
+  return invoke("pack_add_news_command", {
+    accessToken,
+    id,
+    kind,
+    title,
+    body,
+  });
+}
+
+/** Удаляет новость сборки. */
+export function packDeleteNews(
+  accessToken: string,
+  id: string,
+  newsId: string
+): Promise<void> {
+  return invoke("pack_delete_news_command", {
+    accessToken,
+    id,
+    newsId,
+  });
+}
+
+/** Оценивает сборку (value: 1 или -1). */
+export function packRate(
+  accessToken: string,
+  id: string,
+  value: number
+): Promise<{ likes: number; dislikes: number; rating: number; myRating: number | null }> {
+  return invoke("pack_rate_command", { accessToken, id, value });
 }

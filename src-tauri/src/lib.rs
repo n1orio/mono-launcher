@@ -549,10 +549,53 @@ async fn add_pack_impl(
     blog: Option<&str>,
 ) -> Result<PackDescriptor, String> {
     let url = url.trim().to_string();
-    if url.is_empty() || !url.contains("github.com/") {
+    if url.is_empty() {
         return Err(
             "URL должен быть ссылкой на GitHub (например https://github.com/USER/REPO).".into(),
         );
+    }
+    // Прямая ссылка на .mrpack (сборка, опубликованная на бэкенд Mono/storage):
+    // без GitHub API — добавляем как обычную удалённую сборку.
+    if !url.contains("github.com/") {
+        if !url.to_ascii_lowercase().ends_with(".mrpack") {
+            return Err("URL должен быть ссылкой на GitHub или прямой ссылкой на .mrpack".into());
+        }
+        for existing in config::all_packs().map_err(|e| e.to_string())? {
+            if existing.url == url {
+                return Err(format!("Сборка «{}» уже добавлена", existing.name));
+            }
+        }
+        let file_stem = url
+            .rsplit('/')
+            .next()
+            .unwrap_or("pack")
+            .trim_end_matches(".mrpack")
+            .to_string();
+        let pack_id = if file_stem.is_empty() {
+            "pack".to_string()
+        } else {
+            file_stem
+        };
+        let pack_name = name
+            .map(str::trim)
+            .filter(|n| !n.is_empty())
+            .map(String::from)
+            .unwrap_or_else(|| url.clone());
+        let blog = blog.map(str::trim).filter(|b| !b.is_empty()).map(String::from);
+        config::add_user_pack(&pack_id, &pack_name, &url, "remote", blog.as_deref(), None)
+            .map_err(|e| e.to_string())?;
+        return Ok(PackDescriptor {
+            id: pack_id,
+            name: pack_name,
+            url,
+            builtin: false,
+            kind: "remote".into(),
+            author: None,
+            boosty_blog: blog,
+            min_ram_mb: None,
+            icon: None,
+            banner: None,
+        });
     }
     let (owner, repo) = parse_github_repo_from_url(&url)
         .ok_or("Не удалось разобрать владельца/репозиторий из URL")?;
@@ -3164,6 +3207,212 @@ fn remove_account_command(id: String) -> Result<Option<UserSession>, String> {
     auth::remove_account(&id).map_err(|e| e.to_string())
 }
 
+/// Регистрация аккаунта Mono (собственный бэкенд лаунчера).
+/// Профиль Mono хранится отдельно от игровых аккаунтов (mono.json).
+#[tauri::command]
+async fn mono_register_command(
+    state: State<'_, AppState>,
+    username: String,
+    password: String,
+) -> Result<auth::MonoProfile, String> {
+    auth::mono_register(&state.client, &username, &password)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Вход в аккаунт Mono.
+#[tauri::command]
+async fn mono_login_command(
+    state: State<'_, AppState>,
+    username: String,
+    password: String,
+) -> Result<auth::MonoProfile, String> {
+    auth::mono_login(&state.client, &username, &password)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Отдаёт текущий локальный профиль Mono (или None) — не трогает игровые аккаунты.
+#[tauri::command]
+fn mono_profile_command() -> Result<Option<auth::MonoProfile>, String> {
+    auth::load_mono_profile().map_err(|e| e.to_string())
+}
+
+/// Разлогин на сервере Mono (отзывает токены) и удаляет локальный профиль.
+#[tauri::command]
+async fn mono_logout_command(state: State<'_, AppState>) -> Result<Option<auth::MonoProfile>, String> {
+    if let Some(profile) = auth::load_mono_profile().map_err(|e| e.to_string())? {
+        auth::mono_logout(&state.client, &profile.access_token).await;
+    }
+    auth::clear_mono_profile().map_err(|e| e.to_string())?;
+    Ok(None)
+}
+
+/// Загрузка экспортированной сборки (.mrpack) на storage через бэкенд Mono.
+#[tauri::command]
+async fn upload_pack_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    file_path: String,
+    name: String,
+    description: String,
+    version: String,
+    changelog: String,
+    min_ram_mb: Option<i64>,
+    boosty_blog: Option<String>,
+    meta: Option<serde_json::Value>,
+    icon_url: Option<String>,
+) -> Result<auth::MonoPackPublic, String> {
+    auth::mono_upload_pack(
+        &state.client,
+        &access_token,
+        &file_path,
+        &name,
+        &description,
+        &version,
+        &changelog,
+        min_ram_mb,
+        boosty_blog,
+        meta,
+        icon_url,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// Каталог сборок Mono (публичный).
+#[tauri::command]
+async fn pack_catalog_command(state: State<'_, AppState>) -> Result<Vec<auth::PackCatalog>, String> {
+    auth::mono_pack_catalog(&state.client)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Сборки текущего автора Mono.
+#[tauri::command]
+async fn pack_mine_command(
+    state: State<'_, AppState>,
+    access_token: String,
+) -> Result<Vec<auth::PackCatalog>, String> {
+    auth::mono_pack_mine(&state.client, &access_token)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Новости Mono (глобальные и по сборкам).
+#[tauri::command]
+async fn pack_news_command(state: State<'_, AppState>) -> Result<Vec<auth::PackNewsPublic>, String> {
+    auth::mono_pack_news(&state.client)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Деталь сборки Mono; пустой access_token — без авторизации.
+#[tauri::command]
+async fn pack_detail_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    id: String,
+) -> Result<auth::PackDetail, String> {
+    auth::mono_pack_detail(&state.client, &access_token, &id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Частичное обновление описания сборки.
+#[tauri::command]
+async fn pack_update_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    id: String,
+    body: serde_json::Value,
+) -> Result<auth::PackDetail, String> {
+    auth::mono_pack_update(&state.client, &access_token, &id, body)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Удаляет сборку с бэкенда Mono и storage.
+#[tauri::command]
+async fn pack_delete_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    id: String,
+) -> Result<(), String> {
+    auth::mono_pack_delete(&state.client, &access_token, &id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Загружает новую версию .mrpack для сборки.
+#[tauri::command]
+async fn pack_add_version_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    id: String,
+    file_path: String,
+    version: String,
+    changelog: String,
+) -> Result<auth::PackVersionPublic, String> {
+    auth::mono_pack_add_version(&state.client, &access_token, &id, &file_path, &version, &changelog)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Удаляет версию сборки.
+#[tauri::command]
+async fn pack_delete_version_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    id: String,
+    version_id: String,
+) -> Result<(), String> {
+    auth::mono_pack_delete_version(&state.client, &access_token, &id, &version_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Добавляет новость к сборке.
+#[tauri::command]
+async fn pack_add_news_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    id: String,
+    kind: String,
+    title: String,
+    body: String,
+) -> Result<auth::PackNewsPublic, String> {
+    auth::mono_pack_add_news(&state.client, &access_token, &id, &kind, &title, &body)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Удаляет новость сборки.
+#[tauri::command]
+async fn pack_delete_news_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    id: String,
+    news_id: String,
+) -> Result<(), String> {
+    auth::mono_pack_delete_news(&state.client, &access_token, &id, &news_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Оценивает сборку (value: 1 или -1).
+#[tauri::command]
+async fn pack_rate_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    id: String,
+    value: i64,
+) -> Result<serde_json::Value, String> {
+    auth::mono_pack_rate(&state.client, &access_token, &id, value)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Запуск игры.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)] // Tauri-сигнатура фиксированная.
@@ -3249,15 +3498,26 @@ fn skin_api_url_command() -> String {
 }
 
 /// Принимает токен Boosty от игрока: сохраняет и проверяет подписку на блог сборки.
+/// Опционально сохраняет пару для автопродления access-токена (окно входа Boosty).
 #[tauri::command]
 async fn set_boosty_command(
     state: State<'_, AppState>,
     pack_id: String,
     token: String,
+    refresh_token: Option<String>,
+    device_id: Option<String>,
+    token_expires_at: Option<u64>,
 ) -> Result<license::LicenseInfo, String> {
-    license::set_license(&state.client, &pack_id, &token)
-        .await
-        .map_err(|e| e.to_string())
+    license::set_license(
+        &state.client,
+        &pack_id,
+        &token,
+        refresh_token,
+        device_id,
+        token_expires_at,
+    )
+    .await
+    .map_err(|e| e.to_string())
 }
 
 /// Статус лицензии сборки (подписка Boosty) для панели в UI.
@@ -3275,6 +3535,127 @@ async fn license_status_command(
 #[tauri::command]
 fn clear_license_command(pack_id: String) -> Result<(), String> {
     license::clear_license(&pack_id).map_err(|e| e.to_string())
+}
+
+/// Сохраняет глобальную привязку аккаунта Boosty (на лаунчер целиком).
+/// Любая платная сборка без собственной записи использует её токены.
+#[tauri::command]
+fn set_global_boosty_command(
+    token: String,
+    refresh_token: Option<String>,
+    device_id: Option<String>,
+    token_expires_at: Option<u64>,
+) -> Result<(), String> {
+    license::set_global_license(&token, refresh_token, device_id, token_expires_at)
+        .map_err(|e| e.to_string())
+}
+
+/// Привязан ли глобальный аккаунт Boosty.
+#[tauri::command]
+fn global_boosty_linked_command() -> Result<bool, String> {
+    Ok(license::global_linked())
+}
+
+/// Удаляет глобальную привязку аккаунта Boosty.
+#[tauri::command]
+fn clear_global_boosty_command() -> Result<(), String> {
+    license::clear_global_license().map_err(|e| e.to_string())
+}
+
+/// Скрипт, внедряемый в окно входа Boosty: следит за авторизацией и, когда
+/// Boosty сохранит токены в localStorage, перенаправляет окно на
+/// `https://boosty.to/?__mono_auth=<encodeURIComponent(JSON)>`.
+/// Rust читает URL окна и забирает токены (без IPC с чужого домена).
+const BOOSTY_CAPTURE_JS: &str = r#"
+(() => {
+  try {
+    if (window.top !== window) return;
+    if (!location.origin.includes('boosty.to')) return;
+    if (sessionStorage.getItem('__mono_boosty_done')) return;
+    const tick = setInterval(() => {
+      try {
+        const raw = localStorage.getItem('auth');
+        if (!raw) return;
+        const a = JSON.parse(raw);
+        const access = a.accessToken || a.access_token || '';
+        const refresh = a.refreshToken || a.refresh_token || '';
+        const dev = localStorage.getItem('_clientId') || '';
+        if (!access) return;
+        let exp = a.expiresAt || a.expires_at || 0;
+        if (typeof exp === 'number' && exp > 1e12) exp = Math.floor(exp / 1000);
+        sessionStorage.setItem('__mono_boosty_done', '1');
+        clearInterval(tick);
+        const payload = JSON.stringify({ t: access, r: refresh, d: dev, e: exp });
+        location.replace('https://boosty.to/?__mono_auth=' + encodeURIComponent(payload));
+      } catch (e) {}
+    }, 700);
+  } catch (e) {}
+})();
+"#;
+
+/// Открывает окно входа Boosty (отдельный WebviewWindow с блогом пользователя).
+#[tauri::command]
+fn boosty_login_begin_command(app: AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("boosty") {
+        let _ = win.close();
+    }
+    let url: tauri::Url = "https://boosty.to/"
+        .parse()
+        .map_err(|e| format!("Некорректный URL Boosty: {e}"))?;
+    tauri::WebviewWindowBuilder::new(&app, "boosty", tauri::WebviewUrl::External(url))
+        .title("Вход в Boosty")
+        .inner_size(430.0, 700.0)
+        .resizable(true)
+        .initialization_script(BOOSTY_CAPTURE_JS)
+        .build()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Разбирает URL окна Boosty и извлекает захваченные токены (`__mono_auth`).
+fn parse_boosty_auth_url(url: &str) -> Option<license::BoostyAuth> {
+    let (_, query) = url.split_once('?')?;
+    for pair in query.split('&') {
+        let (key, value) = pair.split_once('=')?;
+        if key != "__mono_auth" {
+            continue;
+        }
+        let raw = pct_decode(value);
+        let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
+        let access = v.get("t").and_then(|x| x.as_str()).filter(|s| !s.is_empty())?;
+        let refresh = v.get("r").and_then(|x| x.as_str()).unwrap_or("");
+        let device = v.get("d").and_then(|x| x.as_str()).unwrap_or("");
+        let exp = v.get("e").and_then(|x| x.as_u64()).unwrap_or(0);
+        return Some(license::BoostyAuth {
+            access_token: access.to_string(),
+            refresh_token: refresh.to_string(),
+            device_id: device.to_string(),
+            token_expires_at: exp,
+        });
+    }
+    None
+}
+
+/// Опрос окна входа Boosty: вернул токены — забираем их и закрываем окно.
+#[tauri::command]
+fn boosty_poll_command(app: AppHandle) -> Result<Option<license::BoostyAuth>, String> {
+    let Some(win) = app.get_webview_window("boosty") else {
+        return Ok(None);
+    };
+    let url = win.url().map_err(|e| e.to_string())?;
+    if let Some(auth) = parse_boosty_auth_url(url.as_str()) {
+        let _ = win.close();
+        return Ok(Some(auth));
+    }
+    Ok(None)
+}
+
+/// Закрывает окно входа Boosty (отмена с фронтенда).
+#[tauri::command]
+fn boosty_login_cancel_command(app: AppHandle) {
+    if let Some(win) = app.get_webview_window("boosty") {
+        let _ = win.close();
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -3742,6 +4123,22 @@ pub fn run() {
             list_accounts_command,
             switch_account_command,
             remove_account_command,
+            mono_register_command,
+            mono_login_command,
+            mono_profile_command,
+            mono_logout_command,
+            upload_pack_command,
+            pack_catalog_command,
+            pack_mine_command,
+            pack_news_command,
+            pack_detail_command,
+            pack_update_command,
+            pack_delete_command,
+            pack_add_version_command,
+            pack_delete_version_command,
+            pack_add_news_command,
+            pack_delete_news_command,
+            pack_rate_command,
             launch_game_command,
             game::stop_game_command,
             ping_server_command,
@@ -3784,6 +4181,12 @@ pub fn run() {
             set_boosty_command,
             license_status_command,
             clear_license_command,
+            set_global_boosty_command,
+            global_boosty_linked_command,
+            clear_global_boosty_command,
+            boosty_login_begin_command,
+            boosty_poll_command,
+            boosty_login_cancel_command,
             modrinth_search_command,
             modrinth_tags_command,
             modrinth_project_versions_command,

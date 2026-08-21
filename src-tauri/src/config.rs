@@ -13,6 +13,9 @@ pub struct PackDef {
     /// Ник блога на Boosty: задан → сборка платная (подписка обязательна).
     #[serde(default, rename = "boostyBlog")]
     pub boosty_blog: Option<String>,
+    /// Допустимые тарифы подписки Boosty (названия уровней). Пусто/None — любой тариф.
+    #[serde(default, rename = "boostyTiers")]
+    pub boosty_tiers: Option<Vec<String>>,
     /// Минимальная оперативка (МБ) для запуска сборки: задан → лаунчер
     /// предупреждает и не даёт запустить при меньшем выделении.
     #[serde(default, rename = "minRam")]
@@ -33,6 +36,9 @@ pub struct UserPack {
     /// В сборки, добавленные по ссылке, попадает из pack.json издателя.
     #[serde(default, rename = "boostyBlog")]
     pub boosty_blog: Option<String>,
+    /// Допустимые тарифы подписки Boosty (названия уровней).
+    #[serde(default, rename = "boostyTiers")]
+    pub boosty_tiers: Option<Vec<String>>,
     /// Минимальная оперативка (МБ): попадает из pack.json при добавлении.
     #[serde(default, rename = "minRam")]
     pub min_ram_mb: Option<u32>,
@@ -212,6 +218,27 @@ pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
         }))
 }
 
+/// Допустимые тарифы Boosty для сборки (названия уровней), если заданы.
+pub fn boosty_tiers(pack_id: &str) -> Option<Vec<String>> {
+    let t = builtin_packs()
+        .into_iter()
+        .find(|p| p.id == pack_id)
+        .and_then(|p| p.boosty_tiers)
+        .or_else(|| {
+            user_packs()
+                .ok()
+                .and_then(|list| list.into_iter().find(|p| p.id == pack_id))
+                .and_then(|p| p.boosty_tiers)
+        });
+    t.map(|v| {
+        v.into_iter()
+            .map(|s| s.trim().to_lowercase())
+            .filter(|s| !s.is_empty())
+            .collect()
+    })
+    .filter(|v: &Vec<String>| !v.is_empty())
+}
+
 /// Пользовательское имя встроенной сборки (`packs/<id>/name.txt`), если задано.
 pub fn pack_name_override(pack_id: &str) -> Option<String> {
     let path = pack_dir(pack_id).ok()?.join("name.txt");
@@ -321,6 +348,7 @@ pub fn add_user_pack(
         boosty_blog: boosty_blog
             .map(|b| b.trim().to_string())
             .filter(|b| !b.is_empty()),
+        boosty_tiers: None,
         min_ram_mb,
     });
     save_user_packs(&list)
@@ -341,6 +369,28 @@ pub fn remove_user_pack(id: &str) -> Result<bool> {
         std::fs::remove_dir_all(&dir)?;
     }
     Ok(true)
+}
+
+/// Базовый URL бэкенда Mono (аккаунты, каталог, новости).
+/// Задаётся в порядке приоритета:
+/// 1) переменная окружения MONO_BACKEND_URL,
+/// 2) файл `<данные лаунчера>/backend-url` (одной строкой),
+/// 3) константа DEFAULT_BACKEND_URL.
+pub const DEFAULT_BACKEND_URL: &str = "http://2.27.200.74";
+
+/// Внешний URL бэкенда Mono (без хвостового слэша).
+pub fn backend_url() -> String {
+    let file = launcher_root()
+        .ok()
+        .and_then(|root| std::fs::read_to_string(root.join("backend-url")).ok());
+    let env = std::env::var("MONO_BACKEND_URL").ok();
+    for candidate in [file, env].into_iter().flatten() {
+        let t = candidate.trim().trim_end_matches('/').to_string();
+        if !t.is_empty() {
+            return t;
+        }
+    }
+    DEFAULT_BACKEND_URL.trim_end_matches('/').to_string()
 }
 
 /// Базовая папка всех данных лаунчера.

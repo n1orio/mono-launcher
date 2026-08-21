@@ -111,7 +111,7 @@ pub fn tracked_meta(
 /// Общий API-ключ CurseForge, встроенный в лаунчер (чтобы всем пользователям
 /// не нужно было вводить свой). Заполните своим значением вместо `CHANGE_ME`.
 /// Можно переопределить переменной окружения MONO_CURSEFORGE_KEY (напр. в CI).
-const CURSEFORGE_API_KEY: &str = "70e8212b-9a56-4713-8423-895b72bd7841";
+const CURSEFORGE_API_KEY: &str = "$2a$10$xSHIQILV.MP7ms3Rld9qn.IGY.UrQW996e9T2vWKgH6q.j6DXISlK";
 
 /// API-ключ CurseForge. Приоритет (сверху вниз):
 /// 1) переменная окружения MONO_CURSEFORGE_KEY,

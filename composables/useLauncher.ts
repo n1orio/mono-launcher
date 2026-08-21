@@ -54,8 +54,14 @@ import {
   stopGame,
   skinApiUrl,
   setBoosty,
+  setBoostyGlobal,
+  boostyGlobalLinked,
+  clearBoostyGlobal,
   licenseStatus,
   clearLicense,
+  boostyLoginBegin,
+  boostyPoll,
+  boostyLoginCancel,
   switchVersion,
   takePendingPackAdd,
   toggleGameFile,
@@ -64,6 +70,22 @@ import {
   listAccounts,
   switchAccount,
   removeAccount,
+  monoLogin,
+  monoRegister,
+  monoLogout,
+  monoProfile as monoProfileCmd,
+  packAddNews as packAddNewsCmd,
+  packAddVersion as packAddVersionCmd,
+  packCatalog as packCatalogCmd,
+  packDelete as packDeleteCmd,
+  packDeleteNews as packDeleteNewsCmd,
+  packDeleteVersion as packDeleteVersionCmd,
+  packDetail as packDetailCmd,
+  packMine as packMineCmd,
+  packNews as packNewsCmd,
+  packRate as packRateCmd,
+  packUpdate as packUpdateCmd,
+  uploadPack as uploadPackCmd,
   elyDeviceCode,
   elyPoll,
   packLocked as packLockedCmd,
@@ -77,6 +99,7 @@ import type {
   JavaInfo,
   LaunchLogEntry,
   LicenseInfo,
+  BoostyAuth,
   MsDeviceCodeInfo,
   NewsItem,
   CatalogEntry,
@@ -94,8 +117,15 @@ import type {
   VerifyResult,
   VersionsInfo,
   CrashAnalysis,
+  PackCatalog,
+  PackDetail,
+  PackNewsPublic,
+  PackVersionPublic,
+  UpdatePackRequest,
+  MonoProfile,
 } from "~/lib/types";
 import type { GameFolderKind, PackAddedPayload } from "~/lib/bridge";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useI18n } from "~/composables/useI18n";
 import { getCachedIcon, setCachedIcon } from "~/lib/iconCache";
 import {
@@ -167,7 +197,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const versions = ref<VersionsInfo | null>(null);
   const logEntries = ref<LaunchLogEntry[]>([]);
   const logRef = ref<HTMLElement | null>(null);
-  const tab = ref<"play" | "settings" | "news" | "catalog" | "dev" | "library">("play");
+  const tab = ref<"play" | "settings" | "news" | "catalog" | "dev" | "library" | "author">("play");
   /** Уровень темы: 0 = самая светлая, 1 = самая тёмная. */
   const themeLevel = ref<number>(1);
 
@@ -444,6 +474,46 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
   const deviceFlow = computed<MsDeviceCodeInfo | null>(() => msFlow.value ?? elyFlow.value);
   const accounts = ref<Accounts>({ active: null, list: [] });
   const accountBusy = ref(false);
+  const monoName = ref("");
+  const monoPass = ref("");
+  const monoBusy = ref(false);
+  const monoProfile = ref<MonoProfile | null>(null);
+
+  // ==== Панель автора (сборки на бэкенде Mono) ====
+  const authorPacks = ref<PackCatalog[]>([]);
+  const authorDetail = ref<PackDetail | null>(null);
+  const authorNews = ref<PackNewsPublic[]>([]);
+  const authorBusy = ref(false);
+  const authorSelected = ref<string | null>(null);
+  const authorVersions = ref<PackVersionPublic[]>([]);
+  const authorTab = ref<"overview" | "versions" | "news">("overview");
+
+  // ==== Каталог: деталь сборки ====
+  const catalogDetail = ref<PackDetail | null>(null);
+  const catalogDetailBusy = ref(false);
+  const catalogDetailTab = ref<"description" | "screenshots" | "versions" | "news">("description");
+
+  async function openCatalogDetail(entry: PackCatalog) {
+    if (!isTauri() || catalogDetailBusy.value) return;
+    catalogDetailBusy.value = true;
+    try {
+      const token = monoProfile.value?.access_token ?? "";
+      const d = await packDetailCmd(token, entry.id);
+      catalogDetail.value = d;
+      catalogDetailTab.value = "description";
+    } catch (e) {
+      notify(t("catalog.err", { e }), "error");
+    } finally {
+      catalogDetailBusy.value = false;
+    }
+  }
+
+  function closeCatalogDetail() {
+    catalogDetail.value = null;
+    catalogDetailTab.value = "description";
+  }
+  /** Тип добавляемой новости (post | update). */
+  const authorNewsKind = ref<"post" | "update">("post");
   const ISSUES_URL = "https://github.com/n1orio/mono-launcher/issues/new";
   const appUpdate = ref<{ version: string; notes: string } | null>(null);
   const appUpdating = ref(false);
@@ -481,6 +551,21 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
   const licenseKeyInput = ref("");
   const licenseBusy = ref(false);
   const licenseError = ref("");
+  /** Окно входа Boosty открыто (идёт опрос захвата токенов). */
+  const boostyAuthOpen = ref(false);
+  let boostyTimer: number | null = null;
+  /** Хендл окна входа Boosty (для отлова ручного закрытия). */
+  const boostyWinLabel = () => (isTauri() ? WebviewWindow.getByLabel("boosty") : null);
+  /** Статусы лицензий по сборкам (для панели в Настройках). */
+  const licenseByPack = ref<Record<string, LicenseInfo | null>>({});
+  /** Ид сборки, чья лицензия сейчас обрабатывается (для Настроек). */
+  const licenseBusyFor = ref<string | null>(null);
+  /** Сборка, для которой идёт текущий вход Boosty (если не активная). */
+  const boostyTargetPack = ref<string | null>(null);
+  /** Привязан ли глобальный аккаунт Boosty. */
+  const boostyGlobalLinkedState = ref(false);
+  /** Идёт ли вход в глобальный аккаунт Boosty (не для сборки). */
+  const boostyGlobalOpen = ref(false);
   const discordRp = ref(true);
   const warnCustomMods = ref(true);
   const news = ref<NewsItem[] | null>(null);
@@ -1118,6 +1203,24 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     }
   }
 
+  /** Каталог сборок Mono (все сборки, загруженные пользователями на бэкенд). */
+  const monoCatalog = ref<PackCatalog[]>([]);
+  const monoCatalogLoading = ref(false);
+  const monoCatalogError = ref("");
+
+  async function loadMonoCatalog() {
+    if (!isTauri()) return;
+    monoCatalogLoading.value = true;
+    monoCatalogError.value = "";
+    try {
+      monoCatalog.value = await packCatalogCmd();
+    } catch (e) {
+      monoCatalogError.value = String(e);
+    } finally {
+      monoCatalogLoading.value = false;
+    }
+  }
+
   /** «Добавить» из каталога: как по deep link, блог из записи каталога. */
   async function addFromCatalog(entry: CatalogEntry) {
     if (!isTauri() || addingPack.value || busy.value) return;
@@ -1198,6 +1301,8 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     refreshSkin();
     loadLicenseStatus();
     loadAccounts();
+    loadMonoProfile();
+    loadBoostyGlobal();
     const u = await checkForUpdates(packId.value).catch(() => null);
     if (u && u.has_update && u.latest_version) {
       updateInfo.value = {
@@ -1335,6 +1440,258 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
       licenseInfo.value = null;
       licenseKeyInput.value = "";
       licenseError.value = "";
+      notify(t("license.removed"), "success");
+    } catch (e) {
+      notify(String(e), "error");
+    } finally {
+      licenseBusy.value = false;
+    }
+  }
+
+  /** Статус лицензии конкретной сборки (для Настроек; без переключения активной). */
+  async function loadLicenseStatusFor(targetId: string) {
+    if (!isTauri() || !targetId) {
+      licenseByPack.value[targetId] = null;
+      return;
+    }
+    const blog = packs.value.find((p) => p.id === targetId)?.boostyBlog;
+    if (!blog) {
+      licenseByPack.value[targetId] = null;
+      return;
+    }
+    try {
+      licenseByPack.value[targetId] = await licenseStatus(targetId);
+    } catch {
+      licenseByPack.value[targetId] = null;
+    }
+  }
+
+  /** Статусы лицензий всех платных сборок разом (для панели Boosty в Настройках). */
+  function loadAllLicenses() {
+    packs.value.forEach((p) => {
+      if (p.boostyBlog) void loadLicenseStatusFor(p.id);
+    });
+  }
+
+  /** Принимает ручной токен Boosty для конкретной сборки. */
+  async function saveLicenseFor(targetId: string, token: string) {
+    if (!isTauri() || !targetId) return;
+    const tk = token.trim();
+    if (!tk) {
+      notify(t("license.errEmpty"), "info");
+      return;
+    }
+    licenseBusyFor.value = targetId;
+    try {
+      licenseByPack.value[targetId] = await setBoosty(targetId, tk);
+      licenseBusyFor.value = null;
+      notify(t("license.ok"), "success");
+    } catch (e) {
+      licenseBusyFor.value = null;
+      notify(t("license.errSave", { e }), "error");
+    }
+  }
+
+  /** Удаляет сохранённый токен Boosty конкретной сборки. */
+  async function removeLicenseFor(targetId: string) {
+    if (!isTauri() || !targetId) return;
+    licenseBusyFor.value = targetId;
+    try {
+      await clearLicense(targetId);
+      licenseByPack.value[targetId] = null;
+      licenseBusyFor.value = null;
+      notify(t("license.removed"), "success");
+    } catch (e) {
+      licenseBusyFor.value = null;
+      notify(String(e), "error");
+    }
+  }
+
+  /** Останавливает опрос окна входа Boosty. */
+  function stopBoostyPoll() {
+    if (boostyTimer !== null) {
+      window.clearInterval(boostyTimer);
+      boostyTimer = null;
+    }
+    boostyAuthOpen.value = false;
+  }
+
+  /** Применяет захваченные окном токены (с автопродлением) к сборке. */
+  async function applyBoostyAuth(auth: BoostyAuth) {
+    const targetId = boostyTargetPack.value ?? packId.value;
+    const busyActive = targetId === packId.value;
+    licenseBusy.value = busyActive;
+    licenseBusyFor.value = targetId;
+    try {
+      const info = await setBoosty(
+        targetId,
+        auth.accessToken,
+        auth.refreshToken,
+        auth.deviceId,
+        auth.tokenExpiresAt
+      );
+      if (boostyTargetPack.value) {
+        licenseByPack.value[targetId] = info;
+      }
+      if (targetId === packId.value) {
+        licenseInfo.value = info;
+      }
+      licenseKeyInput.value = "";
+      licenseError.value = "";
+      stopBoostyPoll();
+      boostyTargetPack.value = null;
+      notify(t("license.ok"), "success");
+    } catch (e) {
+      licenseError.value = String(e);
+      stopBoostyPoll();
+      boostyTargetPack.value = null;
+      notify(t("license.errSave", { e }), "error");
+    } finally {
+      licenseBusy.value = false;
+      licenseBusyFor.value = null;
+    }
+  }
+
+  /** Открывает окно входа Boosty и опрашивает его, пока игрок не войдёт. */
+  async function startBoostyLogin(targetId?: string) {
+    const id = targetId ?? packId.value;
+    if (!isTauri() || !id || licenseBusy.value) return;
+    if (boostyAuthOpen.value || licenseBusyFor.value) return;
+    boostyTargetPack.value = targetId ?? null;
+    try {
+      await boostyLoginCancel();
+      await boostyLoginBegin();
+      boostyAuthOpen.value = true;
+      boostyTimer = window.setInterval(async () => {
+        try {
+          const auth = await boostyPoll();
+          const win = await boostyWinLabel();
+          if (auth) {
+            void applyBoostyAuth(auth);
+          } else if (!win) {
+            // Окно закрыли крестиком — прекращаем опрос.
+            stopBoostyPoll();
+            boostyTargetPack.value = null;
+          }
+        } catch (e) {
+          stopBoostyPoll();
+          boostyTargetPack.value = null;
+          notify(String(e), "error");
+        }
+      }, 1500);
+    } catch (e) {
+      boostyAuthOpen.value = false;
+      boostyTargetPack.value = null;
+      notify(String(e), "error");
+    }
+  }
+
+  /** Отменяет вход через Boosty (закрывает окно). */
+  async function cancelBoostyLogin() {
+    stopBoostyPoll();
+    boostyTargetPack.value = null;
+    boostyGlobalOpen.value = false;
+    if (isTauri()) {
+      try {
+        await boostyLoginCancel();
+      } catch {
+        /* окно уже закрыто */
+      }
+    }
+  }
+
+  /** Обновляет признак «глобальный Boosty привязан». */
+  async function loadBoostyGlobal() {
+    if (!isTauri()) return;
+    try {
+      boostyGlobalLinkedState.value = await boostyGlobalLinked();
+    } catch {
+      boostyGlobalLinkedState.value = false;
+    }
+  }
+
+  /** Сохраняет глобальную привязку Boosty вручную (токеном из поля ввода). */
+  async function saveBoostyGlobal(token: string) {
+    if (!isTauri() || !token.trim() || boostyGlobalOpen.value) return;
+    licenseBusy.value = true;
+    try {
+      await setBoostyGlobal(token.trim());
+      boostyGlobalLinkedState.value = true;
+      licenseKeyInput.value = "";
+      notify(t("license.ok"), "success");
+    } catch (e) {
+      notify(t("license.errSave", { e }), "error");
+    } finally {
+      licenseBusy.value = false;
+    }
+  }
+
+  /** Применяет захваченные окном токены к глобальному аккаунту Boosty. */
+  async function applyBoostyGlobalAuth(auth: BoostyAuth) {
+    licenseBusy.value = true;
+    try {
+      await setBoostyGlobal(
+        auth.accessToken,
+        auth.refreshToken,
+        auth.deviceId,
+        auth.tokenExpiresAt
+      );
+      boostyGlobalLinkedState.value = true;
+      licenseKeyInput.value = "";
+      licenseError.value = "";
+      stopBoostyPoll();
+      boostyGlobalOpen.value = false;
+      notify(t("license.ok"), "success");
+    } catch (e) {
+      licenseError.value = String(e);
+      stopBoostyPoll();
+      boostyGlobalOpen.value = false;
+      notify(t("license.errSave", { e }), "error");
+    } finally {
+      licenseBusy.value = false;
+    }
+  }
+
+  /** Открывает окно входа Boosty для глобального аккаунта. */
+  async function startBoostyGlobalLogin() {
+    if (!isTauri() || licenseBusy.value) return;
+    if (boostyAuthOpen.value || boostyGlobalOpen.value) return;
+    boostyGlobalOpen.value = true;
+    boostyTargetPack.value = null;
+    try {
+      await boostyLoginCancel();
+      await boostyLoginBegin();
+      boostyAuthOpen.value = true;
+      boostyTimer = window.setInterval(async () => {
+        try {
+          const auth = await boostyPoll();
+          const win = await boostyWinLabel();
+          if (auth) {
+            void applyBoostyGlobalAuth(auth);
+          } else if (!win) {
+            stopBoostyPoll();
+            boostyGlobalOpen.value = false;
+          }
+        } catch (e) {
+          stopBoostyPoll();
+          boostyGlobalOpen.value = false;
+          notify(String(e), "error");
+        }
+      }, 1500);
+    } catch (e) {
+      boostyAuthOpen.value = false;
+      boostyGlobalOpen.value = false;
+      notify(String(e), "error");
+    }
+  }
+
+  /** Отвязывает глобальный аккаунт Boosty. */
+  async function unlinkBoostyGlobal() {
+    if (!isTauri() || licenseBusy.value) return;
+    licenseBusy.value = true;
+    try {
+      await clearBoostyGlobal();
+      boostyGlobalLinkedState.value = false;
       notify(t("license.removed"), "success");
     } catch (e) {
       notify(String(e), "error");
@@ -1635,7 +1992,11 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     tab,
     (t) => {
       if (t === "news") loadNews();
-      if (t === "catalog") loadCatalog();
+      if (t === "catalog") {
+        loadCatalog();
+        loadMonoCatalog();
+      }
+      if (t === "author") loadAuthorPacks();
     },
     { flush: "post" }
   );
@@ -1818,6 +2179,371 @@ notify(t("err.switch", { e }));
       accounts.value = await listAccounts();
     } catch {
       /* список аккаунтов — не критично */
+    }
+  }
+
+  /** Гидрация отдельного профиля Mono (mono.json, лежит поверх аккаунтов). */
+  async function loadMonoProfile() {
+    if (!isTauri()) return;
+    try {
+      monoProfile.value = await monoProfileCmd();
+    } catch {
+      monoProfile.value = null;
+    }
+  }
+
+  /** Вход в аккаунт Mono (собственный бэкенд лаунчера). */
+  async function handleMonoLogin() {
+    if (!isTauri() || monoBusy.value) return;
+    if (!monoName.value.trim() || !monoPass.value) {
+      notify(t("err.nickname"), "info");
+      return;
+    }
+    monoBusy.value = true;
+    try {
+      const s = await monoLogin(monoName.value.trim(), monoPass.value);
+      monoProfile.value = s;
+      monoPass.value = "";
+    } catch (e) {
+      notify(t("err.mono", { e }));
+    } finally {
+      monoBusy.value = false;
+    }
+  }
+
+  /** Регистрация аккаунта Mono. */
+  async function handleMonoRegister() {
+    if (!isTauri() || monoBusy.value) return;
+    if (!monoName.value.trim() || !monoPass.value) {
+      notify(t("err.nickname"), "info");
+      return;
+    }
+    monoBusy.value = true;
+    try {
+      const s = await monoRegister(monoName.value.trim(), monoPass.value);
+      monoProfile.value = s;
+      monoPass.value = "";
+    } catch (e) {
+      notify(t("err.mono", { e }));
+    } finally {
+      monoBusy.value = false;
+    }
+  }
+
+  /** Выход из профиля Mono (отзыв токена на сервере + удаление локально). */
+  async function handleMonoLogout() {
+    if (!isTauri() || monoBusy.value) return;
+    if (!confirm(t("accounts.confirmRemove"))) return;
+    monoBusy.value = true;
+    try {
+      const next = await monoLogout();
+      monoProfile.value = next;
+    } catch (e) {
+      notify(t("err.monoLogout", { e }));
+    } finally {
+      monoBusy.value = false;
+    }
+  }
+
+  /** Токен доступа профиля Mono (пустая строка, если не залогинен). */
+  function authorToken(): string {
+    return monoProfile.value?.access_token ?? "";
+  }
+
+  /** Глобальные новости панели автора (без редактора). */
+  async function loadAuthorNews() {
+    if (!isTauri()) return;
+    try {
+      authorNews.value = await packNewsCmd();
+    } catch (e) {
+      notify(t("author.error", { e }));
+    }
+  }
+
+  /** Список своих сборок + общие новости панели автора. */
+  async function loadAuthorPacks() {
+    if (!isTauri()) return;
+    const token = authorToken();
+    if (!token) {
+      authorPacks.value = [];
+      await loadAuthorNews();
+      return;
+    }
+    authorBusy.value = true;
+    try {
+      authorPacks.value = await packMineCmd(token);
+    } catch (e) {
+      notify(t("author.error", { e }));
+    } finally {
+      authorBusy.value = false;
+    }
+    await loadAuthorNews();
+  }
+
+  /** Открывает деталь сборки: мета + версии + новости сборки. */
+  async function openAuthorDetail(id: string) {
+    if (!isTauri() || authorBusy.value) return;
+    const token = authorToken();
+    if (!token) return;
+    authorBusy.value = true;
+    try {
+      const d = await packDetailCmd(token, id);
+      authorDetail.value = d;
+      authorSelected.value = id;
+      authorVersions.value = d.versions;
+      authorNews.value = [...d.news];
+      authorTab.value = "overview";
+    } catch (e) {
+      notify(t("author.error", { e }));
+    } finally {
+      authorBusy.value = false;
+    }
+  }
+
+  /** Возврат из детали сборки (снова общие новости автора). */
+  function closeAuthorDetail() {
+    authorDetail.value = null;
+    authorSelected.value = null;
+    authorVersions.value = [];
+    void loadAuthorNews();
+  }
+
+  /** Загружает выбранный .mrpack как новую версию текущей сборки. */
+  async function createAuthorVersion(filePath: string, version: string, changelog: string) {
+    if (!isTauri() || authorBusy.value) return;
+    const id = authorSelected.value;
+    const token = authorToken();
+    if (!id || !token) return;
+    if (!version.trim()) {
+      notify(t("author.versionTag"), "info");
+      return;
+    }
+    authorBusy.value = true;
+    try {
+      const v = await packAddVersionCmd(token, id, filePath, version.trim(), changelog);
+      authorVersions.value = [v, ...authorVersions.value];
+      notify(t("author.uploaded"), "success");
+    } catch (e) {
+      notify(t("author.error", { e }));
+    } finally {
+      authorBusy.value = false;
+    }
+  }
+
+  /** Загружает готовый .mrpack как НОВУЮ сборку автора (POST /packs/upload). */
+  /** Импорт готовой .mrpack на бэкенд Mono с настройкой сборки. */
+  async function importAuthorPack(
+    filePath: string,
+    name: string,
+    description: string,
+    version: string,
+    changelog: string,
+    config?: {
+      minRamMb?: number | null;
+      boostyBlog?: string | null;
+      meta?: Record<string, unknown> | null;
+      iconUrl?: string | null;
+    }
+  ): Promise<boolean> {
+    if (!isTauri() || authorBusy.value) return false;
+    const token = authorToken();
+    if (!token) {
+      notify(t("author.needLogin"), "info");
+      return false;
+    }
+    if (!name.trim()) {
+      notify(t("author.name"), "info");
+      return false;
+    }
+    authorBusy.value = true;
+    try {
+      const uploaded = await uploadPackCmd(
+        token,
+        filePath,
+        name.trim(),
+        description,
+        version,
+        changelog,
+        config?.minRamMb ?? null,
+        config?.boostyBlog ?? null,
+        config?.meta ?? null,
+        config?.iconUrl ?? null
+      );
+      notify(t("author.uploaded"), "success");
+      await loadAuthorPacks();
+      try {
+        await addPack(uploaded.url, uploaded.name, config?.boostyBlog ?? undefined);
+        await loadPacks();
+        refreshVersions();
+      } catch {
+        // Уже добавлена или url не подходит — это не ошибка публикации.
+      }
+      return true;
+    } catch (e) {
+      notify(t("author.error", { e }));
+      return false;
+    } finally {
+      authorBusy.value = false;
+    }
+  }
+
+  /** Удаляет версию текущей сборки. */
+  async function deleteAuthorVersion(versionId: string) {
+    if (!isTauri() || authorBusy.value) return;
+    const id = authorSelected.value;
+    const token = authorToken();
+    if (!id || !token) return;
+    if (!confirm(t("author.confirmDelete"))) return;
+    authorBusy.value = true;
+    try {
+      await packDeleteVersionCmd(token, id, versionId);
+      authorVersions.value = authorVersions.value.filter((v) => v.id !== versionId);
+    } catch (e) {
+      notify(t("author.error", { e }));
+    } finally {
+      authorBusy.value = false;
+    }
+  }
+
+  /** Добавляет новость к текущей сборке (тип берётся из authorNewsKind). */
+  async function addAuthorNews(title: string, body: string) {
+    if (!isTauri() || authorBusy.value) return;
+    const id = authorSelected.value;
+    const token = authorToken();
+    if (!id || !token) return;
+    if (!title.trim()) {
+      notify(t("author.titleField"), "info");
+      return;
+    }
+    authorBusy.value = true;
+    try {
+      const n = await packAddNewsCmd(token, id, authorNewsKind.value, title.trim(), body);
+      authorNews.value = [n, ...authorNews.value];
+      notify(t("author.uploaded"), "success");
+    } catch (e) {
+      notify(t("author.error", { e }));
+    } finally {
+      authorBusy.value = false;
+    }
+  }
+
+  /** Удаляет новость текущей сборки. */
+  async function deleteAuthorNews(newsId: string) {
+    if (!isTauri() || authorBusy.value) return;
+    const id = authorSelected.value;
+    const token = authorToken();
+    if (!id || !token) return;
+    if (!confirm(t("author.confirmDelete"))) return;
+    authorBusy.value = true;
+    try {
+      await packDeleteNewsCmd(token, id, newsId);
+      authorNews.value = authorNews.value.filter((n) => n.id !== newsId);
+    } catch (e) {
+      notify(t("author.error", { e }));
+    } finally {
+      authorBusy.value = false;
+    }
+  }
+
+  /** Частичное обновление меты текущей сборки; обновляет деталь и карточку в списке. */
+  async function updateAuthorMeta(patch: UpdatePackRequest) {
+    if (!isTauri() || authorBusy.value) return;
+    const id = authorSelected.value;
+    const token = authorToken();
+    if (!id || !token) return;
+    authorBusy.value = true;
+    try {
+      const d = await packUpdateCmd(token, id, patch);
+      authorDetail.value = d;
+      const idx = authorPacks.value.findIndex((p) => p.id === d.id);
+      if (idx >= 0) {
+        const cur = authorPacks.value[idx];
+        authorPacks.value = [
+          ...authorPacks.value.slice(0, idx),
+          {
+            ...cur,
+            name: d.name,
+            description: d.description,
+            author_user_id: d.author_user_id,
+            author_name: d.author_name,
+            icon_url: d.icon_url,
+            min_ram_mb: d.min_ram_mb,
+            boosty_blog: d.boosty_blog,
+            meta: d.meta,
+            url: d.url,
+            size: d.size,
+            likes: d.likes,
+            dislikes: d.dislikes,
+            created_at: d.created_at,
+          },
+          ...authorPacks.value.slice(idx + 1),
+        ];
+      }
+      notify(t("author.uploaded"), "success");
+    } catch (e) {
+      notify(t("author.error", { e }));
+    } finally {
+      authorBusy.value = false;
+    }
+  }
+
+  /** Удаляет текущую сборку целиком. */
+  async function deleteAuthorPack() {
+    if (!isTauri() || authorBusy.value) return;
+    const id = authorSelected.value;
+    const token = authorToken();
+    if (!id || !token) return;
+    if (!confirm(t("author.confirmDelete"))) return;
+    authorBusy.value = true;
+    try {
+      await packDeleteCmd(token, id);
+      authorPacks.value = authorPacks.value.filter((p) => p.id !== id);
+      authorDetail.value = null;
+      authorSelected.value = null;
+      authorVersions.value = [];
+      await loadAuthorNews();
+    } catch (e) {
+      notify(t("author.error", { e }));
+    } finally {
+      authorBusy.value = false;
+    }
+  }
+
+  /** Оценивает сборку (value: 1 или -1) и обновляет счётчики. */
+  async function ratePack(id: string, value: number) {
+    if (!isTauri()) return;
+    const token = authorToken();
+    if (!token) {
+      notify(t("author.needLogin"), "info");
+      return;
+    }
+    try {
+      const r = await packRateCmd(token, id, value);
+      const idx = authorPacks.value.findIndex((p) => p.id === id);
+      if (idx >= 0) {
+        const cur = authorPacks.value[idx];
+        authorPacks.value = [
+          ...authorPacks.value.slice(0, idx),
+          {
+            ...cur,
+            likes: typeof r.likes === "number" ? r.likes : cur.likes,
+            dislikes: typeof r.dislikes === "number" ? r.dislikes : cur.dislikes,
+            rating: typeof r.rating === "number" ? r.rating : cur.rating,
+          },
+          ...authorPacks.value.slice(idx + 1),
+        ];
+      }
+      if (authorDetail.value?.id === id) {
+        authorDetail.value = {
+          ...authorDetail.value,
+          likes: typeof r.likes === "number" ? r.likes : authorDetail.value.likes,
+          dislikes: typeof r.dislikes === "number" ? r.dislikes : authorDetail.value.dislikes,
+          my_rating: typeof r.myRating === "number" ? r.myRating : null,
+        };
+      }
+      notify(t("author.uploaded"), "success");
+    } catch (e) {
+      notify(t("author.error", { e }));
     }
   }
 
@@ -2031,6 +2757,38 @@ notify(t("err.switch", { e }));
     elyFlow,
     elyPolling,
     deviceFlow,
+    monoName,
+    monoPass,
+    monoBusy,
+    monoProfile,
+    handleMonoLogin,
+    handleMonoRegister,
+    handleMonoLogout,
+    authorPacks,
+    authorDetail,
+    authorNews,
+    authorBusy,
+    authorSelected,
+    authorVersions,
+    authorTab,
+    authorNewsKind,
+    loadAuthorNews,
+    loadAuthorPacks,
+    openAuthorDetail,
+    closeAuthorDetail,
+    createAuthorVersion,
+    importAuthorPack,
+    deleteAuthorVersion,
+    addAuthorNews,
+    deleteAuthorNews,
+    updateAuthorMeta,
+    deleteAuthorPack,
+    catalogDetail,
+    catalogDetailBusy,
+    catalogDetailTab,
+    openCatalogDetail,
+    closeCatalogDetail,
+    ratePack,
     accounts,
     accountBusy,
     loadAccounts,
@@ -2043,6 +2801,8 @@ notify(t("err.switch", { e }));
     handleCopyLog,
     handleOpenPackDir,
     selectPack,
+    addPack,
+    refreshVersions,
     skinUrl,
     localSkin,
     skinModel,
@@ -2058,6 +2818,23 @@ notify(t("err.switch", { e }));
     loadLicenseStatus,
     saveLicense,
     removeLicense,
+    boostyAuthOpen,
+    startBoostyLogin,
+    cancelBoostyLogin,
+    boostyTargetPack,
+    licenseByPack,
+    licenseBusyFor,
+    loadLicenseStatusFor,
+    loadAllLicenses,
+    saveLicenseFor,
+    removeLicenseFor,
+    boostyGlobalLinkedState,
+    boostyGlobalOpen,
+    loadBoostyGlobal,
+    saveBoostyGlobal,
+    applyBoostyGlobalAuth,
+    startBoostyGlobalLogin,
+    unlinkBoostyGlobal,
     notifications,
     notify,
     dismissNotification,
@@ -2078,6 +2855,10 @@ notify(t("err.switch", { e }));
     catalogError,
     loadCatalog,
     addFromCatalog,
+    monoCatalog,
+    monoCatalogLoading,
+    monoCatalogError,
+    loadMonoCatalog,
     appUpdate,
     appUpdating,
     appUpdateProgress,

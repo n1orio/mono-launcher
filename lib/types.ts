@@ -142,6 +142,100 @@ export interface AuthorPackConfig {
   theme?: AuthorTheme | null;
 }
 
+/** Отдельный профиль Mono (не игровой аккаунт — лежит поверх аккаунтов). */
+export interface MonoProfile {
+  username: string;
+  uuid: string;
+  access_token: string;
+}
+
+/** Сборка, загруженная на бэкенд Mono (и разложенная на storage-сервер). */
+export interface MonoPackPublic {
+  id: string;
+  file: string;
+  name: string;
+  description: string;
+  url: string;
+  size: number;
+  sha1: string;
+  sha512: string;
+}
+
+/** Запись в каталоге сборок Mono (GET /packs, GET /packs/mine). */
+export interface PackCatalog {
+  id: string;
+  name: string;
+  description: string;
+  author_user_id: string | null;
+  author_name: string | null;
+  icon_url: string | null;
+  min_ram_mb: number | null;
+  boosty_blog: string | null;
+  meta: Record<string, unknown> | null;
+  version: string | null;
+  url: string;
+  size: number;
+  versions_count: number;
+  likes: number;
+  dislikes: number;
+  rating: number;
+  created_at: string;
+}
+
+/** Публичная версия сборки Mono (GET /packs/{id}/versions). */
+export interface PackVersionPublic {
+  id: string;
+  version: string;
+  changelog: string;
+  file: string;
+  url: string;
+  size: number;
+  sha1: string;
+  sha512: string;
+  created_at: string;
+}
+
+/** Запись новостей Mono (глобальная или сборки). */
+export interface PackNewsPublic {
+  id: string;
+  pack_id: string | null;
+  kind: string;
+  title: string;
+  body: string;
+  created_at: string;
+}
+
+/** Деталь сборки Mono (GET /packs/{id}, PUT /packs/{id}). */
+export interface PackDetail {
+  id: string;
+  name: string;
+  description: string;
+  author_user_id: string | null;
+  author_name: string | null;
+  icon_url: string | null;
+  min_ram_mb: number | null;
+  boosty_blog: string | null;
+  meta: Record<string, unknown> | null;
+  url: string;
+  size: number;
+  likes: number;
+  dislikes: number;
+  created_at: string;
+  versions: PackVersionPublic[];
+  news: PackNewsPublic[];
+  my_rating: number | null;
+}
+
+/** Частичное обновление описания сборки (PUT /packs/{id}, COALESCE). */
+export interface UpdatePackRequest {
+  name?: string;
+  description?: string;
+  min_ram_mb?: number | null;
+  boosty_blog?: string | null;
+  icon_url?: string | null;
+  meta?: Record<string, unknown> | null;
+}
+
 /** Доступное обновление установленного из Modrinth файла. */
 export interface ModUpdate {
   fileName: string;
@@ -177,6 +271,18 @@ export interface LicenseInfo {
   expiresAt: number | null;
   /** До какого момента действует локальная льгота без сети (unix-секунды). */
   cachedUntil: number;
+  /** Название тарифа активной подписки (null — неизвестно/не подписан). */
+  tier: string | null;
+  /** Тарифы, требуемые сборке (пусто — подходит любой). */
+  requiredTiers: string[];
+}
+
+/** Токены входа Boosty, захваченные окном входа (для автопродления). */
+export interface BoostyAuth {
+  accessToken: string;
+  refreshToken: string;
+  deviceId: string;
+  tokenExpiresAt: number;
 }
 
 /** Версия Minecraft для выбора при создании своей сборки. */

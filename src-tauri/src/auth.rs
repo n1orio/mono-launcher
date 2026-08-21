@@ -32,6 +32,597 @@ pub fn login_offline(username: &str) -> Result<UserSession> {
     })
 }
 
+/// Профиль аккаунта Mono: отдельный слой поверх игровых аккаунтов.
+/// Не попадает ни в `session.json`, ни в `accounts.json` — живёт в `mono.json`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MonoProfile {
+    pub username: String,
+    pub uuid: String,
+    pub access_token: String,
+}
+
+fn mono_profile_file() -> Result<PathBuf> {
+    Ok(config::launcher_root()?.join("mono.json"))
+}
+
+/// Загружает сохранённый профиль Mono (None — не залогинен).
+pub fn load_mono_profile() -> Result<Option<MonoProfile>> {
+    let path = mono_profile_file()?;
+    if !path.is_file() {
+        return Ok(None);
+    }
+    let text = std::fs::read_to_string(&path).context("Не удалось прочитать профиль Mono")?;
+    Ok(serde_json::from_str(&text).ok())
+}
+
+fn save_mono_profile(profile: &MonoProfile) -> Result<()> {
+    let path = mono_profile_file()?;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&path, serde_json::to_string_pretty(profile)?)
+        .context("Не удалось сохранить профиль Mono")
+}
+
+/// Удаляет локальный профиль Mono.
+pub fn clear_mono_profile() -> Result<()> {
+    let path = mono_profile_file()?;
+    if path.is_file() {
+        std::fs::remove_file(&path)?;
+    }
+    Ok(())
+}
+
+/// Ответ бэкенда Mono при регистрации/входе.
+#[derive(Debug, Deserialize)]
+struct MonoAuthResp {
+    token: String,
+    user: MonoUser,
+}
+
+#[derive(Debug, Deserialize)]
+struct MonoUser {
+    id: String,
+    username: String,
+    #[serde(default, rename = "displayName")]
+    display_name: Option<String>,
+}
+
+/// Вход через аккаунт Mono (собственный бэкенд лаунчера):
+/// POST /auth/register | /auth/login, ожидаем `{ token, user: { id, username, displayName } }`.
+/// Возвращаем профиль Mono — отдельно от игровых аккаунтов.
+async fn mono_auth(
+    client: &reqwest::Client,
+    path: &str,
+    username: &str,
+    password: &str,
+) -> Result<MonoProfile> {
+    let username = username.trim();
+    if username.is_empty() {
+        return Err(anyhow!("Логин не может быть пустым"));
+    }
+    if password.is_empty() {
+        return Err(anyhow!("Пароль не может быть пустым"));
+    }
+    let base = crate::config::backend_url();
+    let url = format!("{base}/auth/{path}");
+    let resp = client
+        .post(&url)
+        .json(&json!({ "username": username, "password": password }))
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        // Бэкенд отдаёт `{ "error": "..." }`.
+        let msg = serde_json::from_str::<Value>(&text)
+            .ok()
+            .and_then(|v| v["error"].as_str().map(|s| s.to_string()))
+            .unwrap_or_else(|| text.clone());
+        let hint = match status.as_u16() {
+            401 | 403 => " (проверьте логин и пароль)",
+            404 => " (бэкенд Mono недоступен на этом адресе)",
+            _ => "",
+        };
+        return Err(anyhow!("Mono: {}{}", msg, hint));
+    }
+    let resp: MonoAuthResp = serde_json::from_str(&text).context("Некорректный ответ сервера Mono")?;
+    Ok(MonoProfile {
+        username: resp.user.display_name.unwrap_or(resp.user.username.clone()),
+        uuid: resp.user.id,
+        access_token: resp.token,
+    })
+}
+
+/// Регистрация аккаунта Mono. Сохраняет профиль отдельно от игровых аккаунтов.
+pub async fn mono_register(client: &reqwest::Client, username: &str, password: &str) -> Result<MonoProfile> {
+    let profile = mono_auth(client, "register", username, password).await?;
+    save_mono_profile(&profile)?;
+    Ok(profile)
+}
+
+/// Вход в аккаунт Mono. Сохраняет профиль отдельно от игровых аккаунтов.
+pub async fn mono_login(client: &reqwest::Client, username: &str, password: &str) -> Result<MonoProfile> {
+    let profile = mono_auth(client, "login", username, password).await?;
+    save_mono_profile(&profile)?;
+    Ok(profile)
+}
+
+/// Разлогин на сервере Mono (отзывает все токены пользователя). Ошибка не критична.
+pub async fn mono_logout(client: &reqwest::Client, access_token: &str) {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/auth/logout");
+    let _ = client
+        .post(&url)
+        .bearer_auth(access_token)
+        .send()
+        .await;
+}
+
+/// Сборка, вернувшаяся с бэкенда после загрузки на storage.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MonoPackPublic {
+    pub id: String,
+    pub file: String,
+    pub name: String,
+    pub description: String,
+    pub url: String,
+    pub size: i64,
+    pub sha1: String,
+    pub sha512: String,
+}
+
+/// Достаёт сообщение об ошибке из JSON-ответа бэкенда `{ "error": "..." }`.
+fn api_error(text: &str) -> String {
+    serde_json::from_str::<Value>(text)
+        .ok()
+        .and_then(|v| v["error"].as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| text.to_string())
+}
+
+/// Читает .mrpack в multipart-часть "file" (общий паттерн загрузки на бэкенд).
+async fn mrpack_part(file_path: &str) -> Result<reqwest::multipart::Part> {
+    let bytes = tokio::fs::read(file_path)
+        .await
+        .context("Не удалось прочитать файл сборки")?;
+    if bytes.is_empty() {
+        return Err(anyhow!("Файл сборки пуст"));
+    }
+    let file_name = std::path::Path::new(file_path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("pack.mrpack")
+        .to_string();
+    reqwest::multipart::Part::bytes(bytes)
+        .file_name(file_name)
+        .mime_str("application/octet-stream")
+        .context("Ошибка multipart")
+}
+
+/// Загружает .mrpack на бэкенд (POST /packs/upload, multipart),
+/// который проверит мат/длину и перешлёт файл на storage-сервер.
+pub async fn mono_upload_pack(
+    client: &reqwest::Client,
+    access_token: &str,
+    file_path: &str,
+    name: &str,
+    description: &str,
+    version: &str,
+    changelog: &str,
+    min_ram_mb: Option<i64>,
+    boosty_blog: Option<String>,
+    meta: Option<serde_json::Value>,
+    icon_url: Option<String>,
+) -> Result<MonoPackPublic> {
+    let mut form = reqwest::multipart::Form::new()
+        .text("name", name.to_string())
+        .text("description", description.to_string())
+        .part("file", mrpack_part(file_path).await?);
+    if !version.trim().is_empty() {
+        form = form.text("version", version.trim().to_string());
+    }
+    if !changelog.trim().is_empty() {
+        form = form.text("changelog", changelog.trim().to_string());
+    }
+    if let Some(mb) = min_ram_mb {
+        form = form.text("minRamMb", mb.to_string());
+    }
+    if let Some(blog) = boosty_blog.filter(|b| !b.trim().is_empty()) {
+        form = form.text("boostyBlog", blog.trim().to_string());
+    }
+    if let Some(m) = meta {
+        if !m.is_null() {
+            form = form.text("meta", serde_json::to_string(&m).unwrap_or_default());
+        }
+    }
+    if let Some(url) = icon_url.filter(|u| !u.trim().is_empty()) {
+        form = form.text("iconUrl", url.trim().to_string());
+    }
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/upload");
+    let resp = client
+        .post(&url)
+        .bearer_auth(access_token)
+        .multipart(form)
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(anyhow!("Mono: {}", api_error(&text)));
+    }
+    serde_json::from_str::<MonoPackPublic>(&text).context("Некорректный ответ сервера Mono")
+}
+
+/// Сборка в каталоге Mono (GET /packs, GET /packs/mine).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackCatalog {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub author_user_id: Option<String>,
+    #[serde(default)]
+    pub author_name: Option<String>,
+    #[serde(default)]
+    pub icon_url: Option<String>,
+    #[serde(default)]
+    pub min_ram_mb: Option<i64>,
+    #[serde(default)]
+    pub boosty_blog: Option<String>,
+    #[serde(default)]
+    pub meta: Option<Value>,
+    #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
+    pub url: String,
+    #[serde(default)]
+    pub size: i64,
+    #[serde(default)]
+    pub versions_count: i64,
+    #[serde(default)]
+    pub likes: i64,
+    #[serde(default)]
+    pub dislikes: i64,
+    #[serde(default)]
+    pub rating: f64,
+    #[serde(default)]
+    pub created_at: String,
+}
+
+/// Публичная версия сборки Mono (GET /packs/{id}/versions и ответы POST).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackVersionPublic {
+    pub id: String,
+    #[serde(default)]
+    pub version: String,
+    #[serde(default)]
+    pub changelog: String,
+    #[serde(default)]
+    pub file: String,
+    #[serde(default)]
+    pub url: String,
+    #[serde(default)]
+    pub size: i64,
+    #[serde(default)]
+    pub sha1: String,
+    #[serde(default)]
+    pub sha512: String,
+    #[serde(default)]
+    pub created_at: String,
+}
+
+/// Запись новостей над сборкой (или глобальных новостей) на бэкенде Mono.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackNewsPublic {
+    pub id: String,
+    #[serde(default)]
+    pub pack_id: Option<String>,
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub body: String,
+    #[serde(default)]
+    pub created_at: String,
+}
+
+/// Деталь сборки Mono (GET /packs/{id}, PUT /packs/{id}).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackDetail {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub author_user_id: Option<String>,
+    #[serde(default)]
+    pub author_name: Option<String>,
+    #[serde(default)]
+    pub icon_url: Option<String>,
+    #[serde(default)]
+    pub min_ram_mb: Option<i64>,
+    #[serde(default)]
+    pub boosty_blog: Option<String>,
+    #[serde(default)]
+    pub meta: Option<Value>,
+    #[serde(default)]
+    pub url: String,
+    #[serde(default)]
+    pub size: i64,
+    #[serde(default)]
+    pub likes: i64,
+    #[serde(default)]
+    pub dislikes: i64,
+    #[serde(default)]
+    pub created_at: String,
+    #[serde(default)]
+    pub versions: Vec<PackVersionPublic>,
+    #[serde(default)]
+    pub news: Vec<PackNewsPublic>,
+    #[serde(default)]
+    pub my_rating: Option<i64>,
+}
+
+/// Каталог сборок Mono (публичный).
+pub async fn mono_pack_catalog(client: &reqwest::Client) -> Result<Vec<PackCatalog>> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs");
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(anyhow!("Mono: {}", api_error(&text)));
+    }
+    serde_json::from_str::<Vec<PackCatalog>>(&text).context("Некорректный ответ сервера Mono")
+}
+
+/// Сборки, автором которых является текущий пользователь.
+pub async fn mono_pack_mine(
+    client: &reqwest::Client,
+    access_token: &str,
+) -> Result<Vec<PackCatalog>> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/mine");
+    let resp = client
+        .get(&url)
+        .bearer_auth(access_token)
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(anyhow!("Mono: {}", api_error(&text)));
+    }
+    serde_json::from_str::<Vec<PackCatalog>>(&text).context("Некорректный ответ сервера Mono")
+}
+
+/// Новости бэкенда Mono (глобальные и по сборкам, свежие сверху).
+pub async fn mono_pack_news(client: &reqwest::Client) -> Result<Vec<PackNewsPublic>> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/news");
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(anyhow!("Mono: {}", api_error(&text)));
+    }
+    serde_json::from_str::<Vec<PackNewsPublic>>(&text).context("Некорректный ответ сервера Mono")
+}
+
+/// Деталь сборки Mono; пустой access_token — без авторизации.
+pub async fn mono_pack_detail(
+    client: &reqwest::Client,
+    access_token: &str,
+    id: &str,
+) -> Result<PackDetail> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{id}");
+    let mut req = client.get(&url);
+    if !access_token.is_empty() {
+        req = req.bearer_auth(access_token);
+    }
+    let resp = req
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(anyhow!("Mono: {}", api_error(&text)));
+    }
+    serde_json::from_str::<PackDetail>(&text).context("Некорректный ответ сервера Mono")
+}
+
+/// Частичное обновление описания сборки (PUT /packs/{id}, COALESCE).
+pub async fn mono_pack_update(
+    client: &reqwest::Client,
+    access_token: &str,
+    id: &str,
+    body: Value,
+) -> Result<PackDetail> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{id}");
+    let resp = client
+        .put(&url)
+        .bearer_auth(access_token)
+        .json(&body)
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(anyhow!("Mono: {}", api_error(&text)));
+    }
+    serde_json::from_str::<PackDetail>(&text).context("Некорректный ответ сервера Mono")
+}
+
+/// Удаляет сборку с бэкенда и storage (DELETE /packs/{id}, 204).
+pub async fn mono_pack_delete(
+    client: &reqwest::Client,
+    access_token: &str,
+    id: &str,
+) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{id}");
+    let resp = client
+        .delete(&url)
+        .bearer_auth(access_token)
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    if status.is_success() {
+        return Ok(());
+    }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
+}
+
+/// Загружает новую версию .mrpack для сборки (multipart POST /packs/{id}/versions).
+pub async fn mono_pack_add_version(
+    client: &reqwest::Client,
+    access_token: &str,
+    id: &str,
+    file_path: &str,
+    version: &str,
+    changelog: &str,
+) -> Result<PackVersionPublic> {
+    let form = reqwest::multipart::Form::new()
+        .text("version", version.to_string())
+        .text("changelog", changelog.to_string())
+        .part("file", mrpack_part(file_path).await?);
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{id}/versions");
+    let resp = client
+        .post(&url)
+        .bearer_auth(access_token)
+        .multipart(form)
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(anyhow!("Mono: {}", api_error(&text)));
+    }
+    serde_json::from_str::<PackVersionPublic>(&text).context("Некорректный ответ сервера Mono")
+}
+
+/// Удаляет версию сборки (DELETE /packs/{id}/versions/{version_id}, 204).
+pub async fn mono_pack_delete_version(
+    client: &reqwest::Client,
+    access_token: &str,
+    id: &str,
+    version_id: &str,
+) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{id}/versions/{version_id}");
+    let resp = client
+        .delete(&url)
+        .bearer_auth(access_token)
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    if status.is_success() {
+        return Ok(());
+    }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
+}
+
+/// Добавляет новость к сборке (POST /packs/{id}/news).
+pub async fn mono_pack_add_news(
+    client: &reqwest::Client,
+    access_token: &str,
+    id: &str,
+    kind: &str,
+    title: &str,
+    body: &str,
+) -> Result<PackNewsPublic> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{id}/news");
+    let resp = client
+        .post(&url)
+        .bearer_auth(access_token)
+        .json(&json!({ "kind": kind, "title": title, "body": body }))
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(anyhow!("Mono: {}", api_error(&text)));
+    }
+    serde_json::from_str::<PackNewsPublic>(&text).context("Некорректный ответ сервера Mono")
+}
+
+/// Удаляет новость сборки (DELETE /packs/{id}/news/{news_id}, 204).
+pub async fn mono_pack_delete_news(
+    client: &reqwest::Client,
+    access_token: &str,
+    id: &str,
+    news_id: &str,
+) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{id}/news/{news_id}");
+    let resp = client
+        .delete(&url)
+        .bearer_auth(access_token)
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    if status.is_success() {
+        return Ok(());
+    }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
+}
+
+/// Оценивает сборку (POST /packs/{id}/rate), возвращает {likes, dislikes, rating, myRating}.
+pub async fn mono_pack_rate(
+    client: &reqwest::Client,
+    access_token: &str,
+    id: &str,
+    value: i64,
+) -> Result<Value> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{id}/rate");
+    let resp = client
+        .post(&url)
+        .bearer_auth(access_token)
+        .json(&json!({ "value": value }))
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(anyhow!("Mono: {}", api_error(&text)));
+    }
+    serde_json::from_str::<Value>(&text).context("Некорректный ответ сервера Mono")
+}
+
 #[derive(Debug, Deserialize)]
 struct MsCodeResp {
     device_code: String,
