@@ -3577,8 +3577,7 @@
                     </div>
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
 
             <!-- Скин -->
             <section class="rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-sm overflow-hidden">
