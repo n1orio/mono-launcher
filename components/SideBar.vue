@@ -1,6 +1,6 @@
 <template>
   <aside
-    class="relative flex shrink-0 flex-col bg-[var(--panel)]"
+    class="relative flex shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl shadow-black/40"
     :class="[sidebarDragging ? '' : 'transition-[width] duration-150', sidebarCollapsed ? 'items-center' : '']"
     :style="{ width: `${sidebarWidth}px` }"
   >
@@ -144,7 +144,7 @@
         class="flex items-center rounded-lg py-2.5 text-[13px] font-semibold transition-colors"
         :class="[
           sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-3 px-3.5',
-          tab === item.id ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
+          tab === item.id ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
         ]"
         :title="item.title"
         @click="tab = item.id"
@@ -223,7 +223,7 @@
 
     <!-- Ручка изменения ширины панели -->
     <div
-      class="absolute inset-y-0 -right-[3px] z-40 w-[6px] cursor-col-resize transition-colors hover:bg-[var(--accent)] active:bg-[var(--accent-strong)]"
+      class="absolute inset-y-0 right-0 z-40 w-[6px] cursor-col-resize transition-colors hover:bg-[var(--accent)] active:bg-[var(--accent-strong)]"
       @pointerdown="startSidebarDrag"
       @pointermove="onSidebarDrag"
       @pointerup="endSidebarDrag"

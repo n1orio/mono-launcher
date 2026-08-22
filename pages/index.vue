@@ -1,17 +1,17 @@
 <template>
     <!-- Уведомления (тосты) -->
     <ToastNotifications />
-  <div v-if="!isSearchWin && !isFileDetailWin" class="flex flex-col h-full w-full select-none overflow-hidden bg-[var(--panel)] text-[color:var(--tx)] font-sans">
+  <div v-if="!isSearchWin && !isFileDetailWin" class="flex flex-col h-full w-full select-none overflow-hidden bg-[var(--app-bg)] text-[color:var(--tx)] font-sans">
     <!-- ==== Кастомный Titlebar (macOS Style) ==== -->
     <TitleBar />
-    <div class="flex min-h-0 flex-1 w-full">
+    <div class="flex min-h-0 flex-1 w-full gap-2 px-2 pb-2">
     <!-- Карточка обновления лаунчера -->
     <AppUpdateCard />
     <!-- ==== Боковая панель ==== -->
     <SideBar />
 
     <!-- ==== Основной контент ==== -->
-    <main class="relative mx-auto h-full w-full flex-1 overflow-hidden rounded-tl-2xl border-l border-[var(--border)] bg-[var(--bg)]" style="max-width: 1500px">
+    <main class="relative mx-auto h-full w-full flex-1 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] shadow-2xl shadow-black/40" style="max-width: 1500px">
       <!-- Scalable main column: width = user-draggable (наплыва inner-контента),
            по умолчанию растягивается на всю доступную ширину. -->
       <div class="relative flex h-full w-full">
@@ -25,13 +25,15 @@
           <div class="flex min-h-0 flex-1 flex-col">
           <!-- Header сборки -->
           <div class="mb-6 shrink-0 border-b border-[var(--border)] pb-5">
-            <img
-              v-if="activeBanner && bannerOk"
-              :src="activeBanner"
-              :alt="activePack?.name ?? ''"
-              class="h-44 w-full rounded-xl border border-[var(--border)] object-cover"
-              @error="bannerOk = false"
-            />
+            <div v-if="activeBanner && bannerOk" class="relative mb-4 h-44 w-full overflow-hidden rounded-xl border border-[var(--border)]">
+              <img
+                :src="activeBanner"
+                :alt="activePack?.name ?? ''"
+                class="h-full w-full object-cover"
+                @error="bannerOk = false"
+              />
+              <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-[color-mix(in_srgb,var(--bg)_35%,transparent)] to-transparent"></div>
+            </div>
             <div class="flex flex-wrap items-end justify-between gap-x-4 gap-y-3" :class="activeBanner && bannerOk ? '-mt-7 px-4' : ''">
               <!-- Левая часть: иконка сборки + название + мета -->
               <div class="flex min-w-0 flex-1 items-end gap-4">
