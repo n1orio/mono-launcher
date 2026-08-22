@@ -826,5 +826,8 @@
   "pack.screenshots": "Скрыншоты",
   "pack.download": "Спампаваць",
   "pack.minRam": "Мін. RAM",
-  "common.notFound": "Нічога не знойдзена"
+  "common.notFound": "Нічога не знойдзена",
+  "settings.tabAccounts": "Акаўнты",
+  "settings.tabAppearance": "Афармленне",
+  "side.packs": "Збіркі"
 }

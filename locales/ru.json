@@ -19,7 +19,7 @@
   "side.offline": "Оффлайн профиль",
   "side.skin": "Скин",
   "side.installing": "Установка…",
-  "side.downloadPlay": "Cкачать и играть",
+  "side.downloadPlay": "Скачать и играть",
   "side.launching": "Запуск игры…",
   "side.play": "ИГРАТЬ",
   "side.inGame": "В ИГРЕ",
@@ -826,5 +826,8 @@
   "pack.screenshots": "Скриншоты",
   "pack.download": "Скачать",
   "pack.minRam": "Мин. RAM",
-  "common.notFound": "Ничего не найдено"
+  "common.notFound": "Ничего не найдено",
+  "settings.tabAccounts": "Аккаунты",
+  "settings.tabAppearance": "Оформление",
+  "side.packs": "Сборки"
 }

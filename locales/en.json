@@ -826,5 +826,8 @@
   "pack.screenshots": "Screenshots",
   "pack.download": "Download",
   "pack.minRam": "Min. RAM",
-  "common.notFound": "Nothing found"
+  "common.notFound": "Nothing found",
+  "settings.tabAccounts": "Accounts",
+  "settings.tabAppearance": "Appearance",
+  "side.packs": "Packs"
 }

@@ -3145,8 +3145,23 @@
             <div class="border-b border-[var(--border)] pb-3">
               <h1 class="text-xl font-bold tracking-tight text-[color:var(--tx-strong)]">{{ t("settings.title") }}</h1>
               <p class="text-xs text-[color:var(--tx-muted)]">{{ t("settings.subtitle") }}</p>
+              <div class="mt-3 flex gap-1">
+                <button
+                  v-for="st in ([['accounts', t('settings.tabAccounts')], ['appearance', t('settings.tabAppearance')]] as const)"
+                  :key="st[0]"
+                  type="button"
+                  class="relative px-3 pb-2 pt-1 text-xs font-semibold transition-colors"
+                  :class="settingsTab === st[0] ? 'text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+                  @click="settingsTab = st[0]"
+                >
+                  {{ st[1] }}
+                  <span v-if="settingsTab === st[0]" class="absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-full bg-[var(--accent)]"></span>
+                </button>
+              </div>
             </div>
 
+            <template v-if="settingsTab === 'accounts'">
+            <div class="space-y-4">
             <!-- Аккаунты: профиль Mono + игровые аккаунты (две колонки) -->
             <div class="grid gap-4 lg:grid-cols-2">
               <!-- Профиль Mono -->
@@ -3647,6 +3662,10 @@
               </div>
             </section>
 
+            </div>
+            </template>
+            <template v-else>
+            <div class="space-y-4">
             <!-- Тема -->
             <section class="rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-sm overflow-hidden">
               <div class="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
@@ -3703,6 +3722,8 @@
                 </p>
               </div>
             </section>
+            </div>
+            </template>
           </div>
           </div>
         </template>
@@ -8453,6 +8474,9 @@ async function removeAuthorShot(index: number) {
 // ---- Админ: inline-причина бана ----
 const adminBanArmed = ref<string | null>(null);
 const adminBanReason = ref("");
+
+// ---- Вкладки настроек: Аккаунты / Оформление ----
+const settingsTab = ref<"accounts" | "appearance">("accounts");
 
 const authorImportFile = ref("");
 const authorImportVersion = ref("");

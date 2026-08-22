@@ -826,5 +826,8 @@
   "pack.screenshots": "Screenshots",
   "pack.download": "Herunterladen",
   "pack.minRam": "Min. RAM",
-  "common.notFound": "Nichts gefunden"
+  "common.notFound": "Nichts gefunden",
+  "settings.tabAccounts": "Konten",
+  "settings.tabAppearance": "Darstellung",
+  "side.packs": "Modpacks"
 }
