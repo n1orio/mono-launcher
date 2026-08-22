@@ -24,9 +24,9 @@
     <!-- Список сборок (инстансов) -->
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div v-if="!sidebarCollapsed" class="flex shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
-        <span class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">
+        <span class="text-[11px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">
           {{ t("side.packRepo") }}
-          <span v-if="packs.length" class="ml-1 rounded-full bg-[var(--input)] px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-[color:var(--tx-muted)]">{{ packs.length }}</span>
+          <span v-if="packs.length" class="ml-1 rounded-full bg-[var(--input)] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-[color:var(--tx-muted)]">{{ packs.length }}</span>
         </span>
       </div>
 
@@ -67,7 +67,7 @@
             </div>
             <div class="min-w-0 flex-1">
               <p class="truncate text-xs font-semibold leading-tight" :class="p.id === packId ? 'text-[color:var(--tx-strong)]' : 'text-[color:var(--tx)]'">{{ p.name }}</p>
-              <p class="mt-0.5 truncate text-[10px] leading-tight text-[color:var(--tx-muted)]">
+              <p class="mt-0.5 truncate text-[11px] leading-tight text-[color:var(--tx-muted)]">
                 <span v-if="p.author" class="font-mono text-[var(--accent)]">@{{ p.author }}</span>
                 <span v-else>{{ p.kind === "local" ? t("side.createInstance") : "—" }}</span>
               </p>
@@ -97,7 +97,7 @@
               </button>
             </div>
           </div>
-          <p v-if="packs.length === 0" class="px-3 py-4 text-center text-[11px] leading-relaxed text-[color:var(--tx-muted)]">
+          <p v-if="packs.length === 0" class="px-3 py-4 text-center text-xs leading-relaxed text-[color:var(--tx-muted)]">
             {{ t("side.recentEmpty") }}
           </p>
         </template>
@@ -141,21 +141,21 @@
         :key="item.id"
         v-show="item.id !== 'admin' || isAdmin"
         type="button"
-        class="flex items-center rounded-lg py-2 text-xs font-medium transition-colors"
+        class="flex items-center rounded-lg py-2.5 text-[13px] font-semibold transition-colors"
         :class="[
-          sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2.5 px-3',
+          sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-3 px-3.5',
           tab === item.id ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
         ]"
         :title="item.title"
         @click="tab = item.id"
       >
-        <svg viewBox="0 0 16 16" class="shrink-0 fill-current" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'" v-html="item.icon"></svg>
+        <svg viewBox="0 0 16 16" class="shrink-0 fill-current" :class="sidebarCollapsed ? 'h-5 w-5' : 'h-[18px] w-[18px]'" v-html="item.icon"></svg>
         <span v-if="!sidebarCollapsed">{{ item.label }}</span>
       </button>
     </nav>
 
     <!-- Компактный статус -->
-    <div v-if="!sidebarCollapsed" class="flex items-center justify-between border-t border-[var(--border)] px-4 py-1.5 text-[10px] text-[color:var(--tx-muted)]">
+    <div v-if="!sidebarCollapsed" class="flex items-center justify-between border-t border-[var(--border)] px-4 py-1.5 text-[11px] text-[color:var(--tx-muted)]">
       <span class="inline-flex items-center gap-1.5">
         <span class="h-1.5 w-1.5 rounded-full" :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"></span>
         {{ status?.installed ? t("side.installed") : t("side.notInstalled") }}
@@ -167,10 +167,10 @@
 
     <!-- Глобальный прогресс установки/скачивания -->
     <div v-if="progress && busy" class="border-t border-[var(--border)] p-3 bg-[var(--panel-soft)]">
-      <div class="mb-1 flex items-center justify-between text-[11px] text-[color:var(--tx-muted)]">
+      <div class="mb-1 flex items-center justify-between text-xs text-[color:var(--tx-muted)]">
         <span class="truncate pr-2 font-medium text-[color:var(--tx)]">{{ phaseLabel(progress.phase) }}</span>
-        <span v-if="progress.fileTotal > 1" class="tabular-nums font-mono text-[10px]">{{ t("progress.files", { n: filesDone, m: progress.fileTotal }) }}</span>
-        <span v-else class="tabular-nums font-mono text-[10px]">{{ percent }}%</span>
+        <span v-if="progress.fileTotal > 1" class="tabular-nums font-mono text-[11px]">{{ t("progress.files", { n: filesDone, m: progress.fileTotal }) }}</span>
+        <span v-else class="tabular-nums font-mono text-[11px]">{{ percent }}%</span>
       </div>
       <div class="h-1.5 w-full overflow-hidden rounded-full bg-[var(--input)]">
         <div
@@ -178,7 +178,7 @@
           :style="{ width: `${percent}%` }"
         />
       </div>
-      <div class="mt-1 flex items-center justify-between text-[10px] text-[color:var(--tx-muted)]">
+      <div class="mt-1 flex items-center justify-between text-[11px] text-[color:var(--tx-muted)]">
         <span class="truncate max-w-[120px]">{{ progress.currentFile || t("side.preparing") }}</span>
         <span class="tabular-nums font-mono">{{ progress.speed > 0 ? `${formatBytes(progress.speed)}${t("units.perSec")}` : "" }}</span>
       </div>
@@ -202,7 +202,7 @@
         <div class="truncate text-xs font-medium text-[color:var(--tx)]">
           {{ session?.username ?? t("side.guest") }}
         </div>
-        <div class="truncate text-[10px] text-[color:var(--tx-muted)]">
+        <div class="truncate text-[11px] text-[color:var(--tx-muted)]">
           {{ session ? session.user_type : t("side.offline") }}
         </div>
       </div>
@@ -221,7 +221,7 @@
     </div>
 
     <!-- Версия и перевод лаунчера -->
-    <div v-if="!sidebarCollapsed" class="flex items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-[9px] text-[var(--tx-muted)]">
+    <div v-if="!sidebarCollapsed" class="flex items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-[10px] text-[var(--tx-muted)]">
       <span class="min-w-0 truncate">
         {{ t("lang.byAuthor") }}
         <span class="font-semibold" :class="activeLocaleAuthor ? 'text-[color:var(--tx)]' : ''">{{ activeLocaleAuthor || "—" }}</span>

@@ -29,7 +29,7 @@
           <button
             v-if="n.reportable"
             type="button"
-            class="flex items-center gap-1 rounded border border-[#f85149]/40 bg-[#f85149]/10 px-2 py-0.5 text-[10px] font-semibold text-[#f85149] transition-colors hover:bg-[#f85149]/20"
+            class="flex items-center gap-1 rounded border border-[#f85149]/40 bg-[#f85149]/10 px-2 py-0.5 text-[11px] font-semibold text-[#f85149] transition-colors hover:bg-[#f85149]/20"
             :title="t('toast.report')"
             @click="reportError(n.text)"
           >

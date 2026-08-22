@@ -13,10 +13,10 @@
           <div class="text-xs font-semibold text-[color:var(--tx-strong)]">
             {{ t("appUpdate.title") }}
           </div>
-          <div class="mt-0.5 truncate text-[11px] text-[color:var(--tx-muted)]">
+          <div class="mt-0.5 truncate text-xs text-[color:var(--tx-muted)]">
             {{ t("appUpdate.version", { v: appUpdate.version }) }}
           </div>
-          <p v-if="appUpdate.notes" class="mt-1 max-h-12 overflow-hidden text-[11px] leading-snug text-[color:var(--tx)]">
+          <p v-if="appUpdate.notes" class="mt-1 max-h-12 overflow-hidden text-xs leading-snug text-[color:var(--tx)]">
             {{ appUpdate.notes.slice(0, 180) }}{{ appUpdate.notes.length > 180 ? "…" : "" }}
           </p>
           <button
@@ -34,9 +34,9 @@
       v-if="appUpdating"
       class="fixed bottom-4 right-4 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[var(--panel)] p-3.5 shadow-lg shadow-black/40"
     >
-      <div class="mb-1.5 flex items-center justify-between text-[11px]">
+      <div class="mb-1.5 flex items-center justify-between text-xs">
         <span class="font-medium text-[color:var(--tx)]">{{ t("appUpdate.progress") }}</span>
-        <span class="tabular-nums font-mono text-[10px] text-[color:var(--tx-muted)]">
+        <span class="tabular-nums font-mono text-[11px] text-[color:var(--tx-muted)]">
           {{ appUpdateProgress ?? 0 }}%
         </span>
       </div>
@@ -46,7 +46,7 @@
           :style="{ width: `${appUpdateProgress ?? 0}%` }"
         />
       </div>
-      <div class="mt-1.5 text-[10px] text-[color:var(--tx-muted)]">
+      <div class="mt-1.5 text-[11px] text-[color:var(--tx-muted)]">
         {{ t("appUpdate.restart") }}
       </div>
     </div>
