@@ -23,8 +23,11 @@
 
     <!-- Список сборок (инстансов) -->
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div v-if="!sidebarCollapsed" class="flex shrink-0 items-center justify-between px-4 pb-1 pt-3">
-        <span class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("side.packRepo") }}</span>
+      <div v-if="!sidebarCollapsed" class="flex shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
+        <span class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">
+          {{ t("side.packRepo") }}
+          <span v-if="packs.length" class="ml-1 rounded-full bg-[var(--input)] px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-[color:var(--tx-muted)]">{{ packs.length }}</span>
+        </span>
       </div>
 
       <nav class="min-h-0 flex-1 overflow-y-auto px-2" :class="sidebarCollapsed ? 'pt-2' : 'pb-2'" style="scrollbar-width: thin">
@@ -32,58 +35,69 @@
           <div
             v-for="p in packs"
             :key="p.id"
-            class="group relative flex cursor-pointer items-center gap-2.5 rounded-xl border px-2.5 py-2 transition-colors"
+            class="group relative mb-1 flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition-all duration-150"
             :class="p.id === packId
-              ? 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]'
-              : 'border-transparent hover:bg-[var(--input-50)]'"
+              ? 'border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_14%,transparent)] to-transparent shadow-sm'
+              : 'border-transparent hover:border-[var(--border)] hover:bg-[var(--input-50)]'"
             @click="openPackTab(p.id)"
           >
             <span
               v-if="p.id === packId"
-              class="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--accent)]"
+              class="absolute -left-2 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-[var(--accent)]"
             ></span>
-            <img
-              v-if="p.icon"
-              :src="convertFileSrc(p.icon)"
-              alt=""
-              class="h-9 w-9 shrink-0 rounded-lg border border-[var(--border)] object-cover"
-            />
-            <div
-              v-else
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--input)] text-xs font-bold text-[var(--accent)]"
-            >
-              {{ p.name?.[0]?.toUpperCase() ?? "?" }}
+            <div class="relative shrink-0">
+              <img
+                v-if="p.icon"
+                :src="convertFileSrc(p.icon)"
+                alt=""
+                class="h-11 w-11 rounded-xl border border-[var(--border)] object-cover shadow-sm"
+              />
+              <div
+                v-else
+                class="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--input)] text-sm font-bold text-[var(--accent)]"
+              >
+                {{ p.name?.[0]?.toUpperCase() ?? "?" }}
+              </div>
+              <span
+                v-if="p.id === packId"
+                class="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[var(--panel)]"
+                :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"
+                :title="status?.installed ? t('side.installed') : t('side.notInstalled')"
+              ></span>
             </div>
             <div class="min-w-0 flex-1">
-              <p class="truncate text-[13px] font-medium leading-tight" :class="p.id === packId ? 'text-[color:var(--tx-strong)]' : 'text-[color:var(--tx)]'">{{ p.name }}</p>
-              <p v-if="p.author" class="truncate font-mono text-[10px] leading-tight text-[var(--accent)]">@{{ p.author }}</p>
+              <p class="truncate text-[13px] font-semibold leading-tight" :class="p.id === packId ? 'text-[color:var(--tx-strong)]' : 'text-[color:var(--tx)]'">{{ p.name }}</p>
+              <p class="mt-0.5 truncate text-[10px] leading-tight text-[color:var(--tx-muted)]">
+                <span v-if="p.author" class="font-mono text-[var(--accent)]">@{{ p.author }}</span>
+                <span v-else>{{ p.kind === "local" ? t("side.createInstance") : "—" }}</span>
+              </p>
             </div>
 
             <!-- Действия строки: появляются при наведении -->
-            <div class="absolute right-1.5 flex items-center gap-0.5 rounded-lg bg-[var(--panel)] py-0.5 pl-2 opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
+            <div class="absolute right-2 flex items-center gap-1 rounded-xl bg-[var(--panel)]/95 py-0.5 pl-3 pr-1 opacity-0 shadow-lg backdrop-blur-sm transition-opacity group-hover:opacity-100">
               <button
                 type="button"
-                class="flex h-7 w-7 items-center justify-center rounded-md bg-[#238636] text-white transition-colors hover:bg-[#2ea043] disabled:opacity-50"
+                class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#238636] text-white shadow-sm transition-all hover:scale-105 hover:bg-[#2ea043] disabled:opacity-50 disabled:hover:scale-100"
                 :title="t('side.play')"
                 :disabled="busy || gameRunning"
                 @click.stop="playFromSidebar(p.id)"
               >
-                <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
+                <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
               </button>
               <button
                 type="button"
-                class="flex h-7 w-7 items-center justify-center rounded-md transition-colors disabled:opacity-50"
-                :class="removeArmed === p.id ? 'text-[#f85149]' : 'text-[color:var(--tx-muted)] hover:text-[#f85149]'"
+                class="flex h-8 w-8 items-center justify-center rounded-lg transition-colors disabled:opacity-50"
+                :class="removeArmed === p.id ? 'bg-[#f85149]/15 text-[#f85149]' : 'text-[color:var(--tx-muted)] hover:bg-[#f85149]/10 hover:text-[#f85149]'"
                 :title="removeArmed === p.id ? t('dev.removeConfirm') : t('dev.remove')"
                 :disabled="busy || removingPack === p.id"
                 @click.stop="handleRemovePack(p.id)"
               >
-                <svg v-if="removingPack === p.id" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Zm3.36 2.14a.75.75 0 0 1 0 1.06 4 4 0 1 1-6.72 0 .75.75 0 0 1 1.06-1.06 2.5 2.5 0 1 0 4.6 0 .75.75 0 0 1 1.06-1.06Z"/></svg>
-                <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M6 1.75a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75V2h3.5a.75.75 0 0 1 0 1.5h-.38l-.89 10.055A1.75 1.75 0 0 1 10.495 15H5.505a1.75 1.75 0 0 1-1.735-1.445L2.88 3.5H2.5a.75.75 0 0 1 0-1.5H6v-.25ZM4.416 3.5l.864 9.9A.25.25 0 0 0 5.525 13.5h4.95a.25.25 0 0 0 .245-.22l.864-9.78H4.416Z"/></svg>
+                <svg v-if="removingPack === p.id" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Zm3.36 2.14a.75.75 0 0 1 0 1.06 4 4 0 1 1-6.72 0 .75.75 0 0 1 1.06-1.06 2.5 2.5 0 1 0 4.6 0 .75.75 0 0 1 1.06-1.06Z"/></svg>
+                <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M6 1.75a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75V2h3.5a.75.75 0 0 1 0 1.5h-.38l-.89 10.055A1.75 1.75 0 0 1 10.495 15H5.505a1.75 1.75 0 0 1-1.735-1.445L2.88 3.5H2.5a.75.75 0 0 1 0-1.5H6v-.25ZM4.416 3.5l.864 9.9A.25.25 0 0 0 5.525 13.5h4.95a.25.25 0 0 0 .245-.22l.864-9.78H4.416Z"/></svg>
               </button>
             </div>
           </div>
-          <p v-if="packs.length === 0" class="px-3 py-3 text-[11px] leading-relaxed text-[color:var(--tx-muted)]">
+          <p v-if="packs.length === 0" class="px-3 py-4 text-center text-[11px] leading-relaxed text-[color:var(--tx-muted)]">
             {{ t("side.recentEmpty") }}
           </p>
         </template>
@@ -94,8 +108,8 @@
             v-for="p in packs"
             :key="p.id"
             type="button"
-            class="mb-1 flex w-full items-center justify-center rounded-lg p-1 transition-colors"
-            :class="p.id === packId ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]' : 'hover:bg-[var(--input-50)]'"
+            class="relative mb-1.5 flex w-full items-center justify-center rounded-xl p-1 transition-colors"
+            :class="p.id === packId ? 'bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]' : 'hover:bg-[var(--input-50)]'"
             :title="p.name"
             @click="openPackTab(p.id)"
           >
@@ -103,14 +117,18 @@
               v-if="p.icon"
               :src="convertFileSrc(p.icon)"
               alt=""
-              class="h-8 w-8 rounded-lg border border-[var(--border)] object-cover"
+              class="h-9 w-9 rounded-lg border border-[var(--border)] object-cover"
             />
             <div
               v-else
-              class="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--input)] text-[11px] font-bold text-[var(--accent)]"
+              class="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--input)] text-xs font-bold text-[var(--accent)]"
             >
               {{ p.name?.[0]?.toUpperCase() ?? "?" }}
             </div>
+            <span
+              v-if="p.id === packId"
+              class="absolute -right-1 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-[var(--accent)]"
+            ></span>
           </button>
         </template>
       </nav>
@@ -202,44 +220,6 @@
       </button>
     </div>
 
-    <!-- Главное действие (Кнопка запуска) — только во вкладке сборки -->
-    <div v-if="tab === 'play'" class="p-3 border-t border-[var(--border)] bg-[var(--panel)]">
-      <button
-        type="button"
-        class="flex items-center justify-center rounded-lg py-2.5 text-sm font-bold tracking-wide text-white shadow-sm transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
-        :class="[
-          sidebarCollapsed ? 'px-1.5' : 'w-full px-4',
-          status?.installed
-            ? gameRunning
-              ? 'bg-[#b91c1c] hover:bg-[#dc2626] focus-visible:outline-[#dc2626]'
-              : 'bg-[#238636] hover:bg-[#2ea043] focus-visible:outline-[#2ea043]'
-            : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)] focus-visible:outline-[var(--accent-hover)]',
-        ]"
-        :title="status?.installed ? (gameRunning ? t('side.stopGame') : t('side.play')) : t('side.downloadPlay')"
-        :disabled="busy"
-        @click="status?.installed ? (gameRunning ? handleStop() : handlePlay()) : handleInstall()"
-      >
-        <template v-if="!sidebarCollapsed">
-          <template v-if="!status?.installed">
-            {{ busy ? t("side.installing") : t("side.downloadPlay") }}
-          </template>
-          <template v-else>
-            {{ busy ? t("side.launching") : gameRunning ? t("side.stopGame") : t("side.play") }}
-          </template>
-        </template>
-        <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current">
-          <path
-            v-if="gameRunning"
-            d="M3.5 3.5h9v9h-9z"
-          />
-          <path
-            v-else
-            d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"
-          />
-        </svg>
-      </button>
-    </div>
-
     <!-- Версия и перевод лаунчера -->
     <div v-if="!sidebarCollapsed" class="flex items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-[9px] text-[var(--tx-muted)]">
       <span class="min-w-0 truncate">
@@ -283,7 +263,6 @@ const {
   filesDone,
   handleInstall,
   handlePlay,
-  handleStop,
   selectPack,
   openExternal,
   skinUrl,
