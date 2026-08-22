@@ -1976,14 +1976,106 @@ fn get_game_file_icons_command(
     Ok(files::file_icons(&pack.id, &folder, &names))
 }
 
-/// Лента новостей: заглушка (в будущем — из бэкенда Mono).
+/// Лента новостей: релизы лаунчера (GitHub) + новости бэкенда Mono, свежие сверху.
+/// Локализованный ченджлог релиза лежит в его ассете `latest.json`
+/// (`notes_localized[locale]`); фолбэк — тело релиза.
 #[tauri::command]
 async fn get_news_command(
     _app: AppHandle,
-    _state: State<'_, AppState>,
-    _locale: String,
+    state: State<'_, AppState>,
+    locale: String,
 ) -> Result<Vec<NewsItem>, String> {
-    Ok(Vec::new())
+    let client = &state.client;
+    let mut items: Vec<NewsItem> = Vec::new();
+
+    // 1) Релизы лаунчера с GitHub.
+    const GH_RELEASES: &str =
+        "https://api.github.com/repos/n1orio/mono-launcher/releases?per_page=5";
+    if let Ok(resp) = client
+        .get(GH_RELEASES)
+        .header("User-Agent", "MonoLauncher")
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+    {
+        if let Ok(releases) = resp.json::<Vec<serde_json::Value>>().await {
+            for r in releases {
+                let tag = r["tag_name"].as_str().unwrap_or_default().to_string();
+                if tag.is_empty() {
+                    continue;
+                }
+                let mut body = r["body"].as_str().unwrap_or_default().to_string();
+                if let Some(assets) = r["assets"].as_array() {
+                    let manifest_url = assets
+                        .iter()
+                        .find(|a| a["name"].as_str() == Some("latest.json"))
+                        .and_then(|a| a["browser_download_url"].as_str());
+                    if let Some(mu) = manifest_url {
+                        if let Ok(m) = client
+                            .get(mu)
+                            .header("User-Agent", "MonoLauncher")
+                            .send()
+                            .await
+                        {
+                            if let Ok(man) = m.json::<serde_json::Value>().await {
+                                if let Some(loc) = man["notes_localized"][locale.as_str()].as_str()
+                                {
+                                    body = loc.to_string();
+                                } else if let Some(n) = man["notes"].as_str() {
+                                    body = n.to_string();
+                                }
+                            }
+                        }
+                    }
+                }
+                let version = tag.trim_start_matches("launcher-v");
+                let title = r["name"]
+                    .as_str()
+                    .map(str::to_string)
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or_else(|| format!("MonoLauncher {version}"));
+                items.push(NewsItem {
+                    kind: "update".into(),
+                    pack_id: "launcher".into(),
+                    pack_name: "Mono Launcher".into(),
+                    title,
+                    body,
+                    url: r["html_url"].as_str().unwrap_or_default().to_string(),
+                    tag: Some(tag),
+                    category: None,
+                    date: r["published_at"].as_str().map(str::to_string),
+                });
+            }
+        }
+    }
+
+    // 2) Новости бэкенда Mono (общие + по сборкам); имя сборки — из каталога.
+    let catalog = auth::mono_pack_catalog(client).await.unwrap_or_default();
+    if let Ok(news) = auth::mono_pack_news(client).await {
+        for n in news {
+            let pack_id = n.pack_id.clone().unwrap_or_default();
+            let pack_name = catalog
+                .iter()
+                .find(|p| p.id == pack_id)
+                .map(|p| p.name.clone())
+                .unwrap_or_else(|| "Mono".into());
+            items.push(NewsItem {
+                kind: if n.kind == "update" { "update" } else { "post" }.into(),
+                pack_id,
+                pack_name,
+                title: n.title,
+                body: n.body,
+                url: String::new(),
+                tag: None,
+                category: None,
+                date: Some(n.created_at),
+            });
+        }
+    }
+
+    // Свежие сверху; записи без даты — в конец.
+    items.sort_by(|a, b| b.date.cmp(&a.date));
+    Ok(items)
 }
 
 /// Переключает активную версию сборки (по тегу GitHub или versionId).

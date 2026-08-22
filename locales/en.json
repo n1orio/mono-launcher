@@ -32,6 +32,7 @@
   "side.dragSize": "Drag the edge to resize. Double-click to reset.",
   "theme.light": "Light theme",
   "theme.dark": "Dark theme",
+  "theme.switch": "Switch theme",
   "dev.title": "Packs & documentation",
   "dev.subtitle": "Any developer can connect their pack: you just need a GitHub repository whose releases contain a .mrpack file.",
   "dev.addTitle": "Add a pack",
@@ -829,5 +830,6 @@
   "common.notFound": "Nothing found",
   "settings.tabAccounts": "Accounts",
   "settings.tabAppearance": "Appearance",
-  "side.packs": "Packs"
+  "side.packs": "Packs",
+  "common.close": "Close"
 }

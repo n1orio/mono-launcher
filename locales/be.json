@@ -32,6 +32,7 @@
   "side.dragSize": "Пацягніце за край, каб змяніць шырыню. Падвойны клік — скід.",
   "theme.light": "Светлая тэма",
   "theme.dark": "Цёмная тэма",
+  "theme.switch": "Пераключыць тэму",
   "dev.title": "Зборкі і дакументацыя",
   "dev.subtitle": "Любы распрацоўшчык можа падключыць сваю зборку: дастаткова GitHub-рэпазіторыя з рэлізамі, у якіх ляжыць файл .mrpack.",
   "dev.addTitle": "Дадаць зборку",
@@ -829,5 +830,6 @@
   "common.notFound": "Нічога не знойдзена",
   "settings.tabAccounts": "Акаўнты",
   "settings.tabAppearance": "Афармленне",
-  "side.packs": "Збіркі"
+  "side.packs": "Збіркі",
+  "common.close": "Закрыць"
 }

@@ -11,14 +11,9 @@
     <SideBar />
 
     <!-- ==== Основной контент ==== -->
-    <main class="relative mx-auto h-full w-full flex-1 overflow-hidden rounded-tl-2xl border-l border-[var(--border)] bg-[var(--bg)]" style="max-width: 1500px">
-      <!-- Scalable main column: width = user-draggable (наплыва inner-контента),
-           по умолчанию растягивается на всю доступную ширину. -->
+    <main class="relative h-full w-full flex-1 overflow-hidden rounded-tl-2xl border-l border-[var(--border)] bg-[var(--bg)]">
       <div class="relative flex h-full w-full">
-        <div
-          class="relative h-full min-w-0 flex-1 overflow-hidden"
-          :style="mainWidth > 0 ? `max-width:${mainWidth}px` : ''"
-        >
+        <div class="relative h-full min-w-0 flex-1 overflow-hidden">
         <div class="mx-auto flex h-full w-full flex-col px-4 py-6 sm:px-6 md:px-8">
         <!-- ======= Вкладка: Релизы ======= -->
         <template v-if="tab === 'play'">
@@ -5136,45 +5131,58 @@
           : 'max-h-[85vh] w-[720px] max-w-[92vw] rounded-xl border border-[var(--border)] shadow-2xl'"
       >
         <div
-          class="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--input-50)] px-3 py-2.5"
+          class="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3"
           :class="isSearchWin ? '' : 'cursor-move'"
           @pointerdown="dragSearchWin"
         >
-          <div class="flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--bg)] p-0.5">
+          <div class="flex min-w-0 items-center gap-2.5">
+            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--input)]">
+              <svg viewBox="0 0 16 16" class="h-4 w-4 fill-[var(--accent)]"><path d="M10.68 1.997a5.5 5.5 0 0 1 4.553 8.573l.783 2.802a.5.5 0 0 1-.62.619l-2.775-.783A5.5 5.5 0 1 1 10.68 1.997ZM6.5 7A.75.75 0 0 0 6.5 8.5h4A.75.75 0 0 0 10.5 7h-4Zm0 3a.75.75 0 0 0 0 1.5h2.75a.75.75 0 0 0 0-1.5H6.5Z"/></svg>
+            </div>
+            <div class="min-w-0">
+              <h3 class="truncate text-[15px] font-bold tracking-tight text-[color:var(--tx-strong)]">
+                {{ searchTitle }}
+              </h3>
+              <p class="truncate text-[11px] leading-tight text-[color:var(--tx-muted)]">
+                {{ searchService === "modrinth" ? t("mods.serviceModrinth") : t("mods.serviceCurseforge") }}
+              </p>
+            </div>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <div class="flex shrink-0 items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] p-0.5">
+              <button
+                type="button"
+                class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors"
+                :class="searchService === 'modrinth'
+                  ? 'bg-[var(--input)] text-[color:var(--tx-strong)] shadow-sm'
+                  : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+                @click="switchSearchService('modrinth')"
+              >
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 shrink-0" :title="t('mods.serviceModrinth')"><path fill="#00AF5C" d="M12.252.004a11.78 11.768 0 0 0-8.92 3.73 11 10.999 0 0 0-2.17 3.11 11.37 11.359 0 0 0-1.16 5.169c0 1.42.17 2.5.6 3.77.24.759.77 1.899 1.17 2.529a12.3 12.298 0 0 0 8.85 5.639c.44.05 2.54.07 2.76.02.2-.04.22.1-.26-1.7l-.36-1.37-1.01-.06a8.5 8.489 0 0 1-5.18-1.8 5.34 5.34 0 0 1-1.3-1.26c0-.05.34-.28.74-.5a37.572 37.545 0 0 1 2.88-1.629c.03 0 .5.45 1.06.98l1 .97 2.07-.43 2.06-.43 1.47-1.47c.8-.8 1.48-1.5 1.48-1.52 0-.09-.42-1.63-.46-1.7-.04-.06-.2-.03-1.02.18-.53.13-1.2.3-1.45.4l-.48.15-.53.53-.53.53-.93.1-.93.07-.52-.5a2.7 2.7 0 0 1-.96-1.7l-.13-.6.43-.57c.68-.9.68-.9 1.46-1.1.4-.1.65-.2.83-.33.13-.099.65-.579 1.14-1.069l.9-.9-.7-.7-.7-.7-1.95.54c-1.07.3-1.96.53-1.97.53-.03 0-2.23 2.48-2.63 2.97l-.29.35.28 1.03c.16.56.3 1.16.31 1.34l.03.3-.34.23c-.37.23-2.22 1.3-2.84 1.63-.36.2-.37.2-.44.1-.08-.1-.23-.6-.32-1.03-.18-.86-.17-2.75.02-3.73a8.84 8.839 0 0 1 7.9-6.93c.43-.03.77-.08.78-.1.06-.17.5-2.999.47-3.039-.01-.02-.1-.02-.2-.03Zm3.68.67c-.2 0-.3.1-.37.38-.06.23-.46 2.42-.46 2.52 0 .04.1.11.22.16a8.51 8.499 0 0 1 2.99 2 8.38 8.379 0 0 1 2.16 3.449 6.9 6.9 0 0 1 .4 2.8c0 1.07 0 1.27-.1 1.73a9.37 9.369 0 0 1-1.76 3.769c-.32.4-.98 1.06-1.37 1.38-.38.32-1.54 1.1-1.7 1.14-.1.03-.1.06-.07.26.03.18.64 2.56.7 2.78l.06.06a12.07 12.058 0 0 0 7.27-9.4c.13-.77.13-2.58 0-3.4a11.96 11.948 0 0 0-5.73-8.578c-.7-.42-2.05-1.06-2.25-1.06Z"/></svg>
+                {{ t("mods.serviceModrinth") }}
+              </button>
+              <button
+                v-if="modSearchKind !== 'datapack'"
+                type="button"
+                class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors"
+                :class="searchService === 'curseforge'
+                  ? 'bg-[var(--input)] text-[color:var(--tx-strong)] shadow-sm'
+                  : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+                @click="switchSearchService('curseforge')"
+              >
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 shrink-0" :title="t('mods.serviceCurseforge')"><path fill="#F16436" d="M18.326 9.2145S23.2261 8.4418 24 6.1882h-7.5066V4.4H0l2.0318 2.3576V9.173s5.1267-.2665 7.1098 1.2372c2.7146 2.516-3.053 5.917-3.053 5.917L5.0995 19.6c1.5465-1.4726 4.494-3.3775 9.8983-3.2857-2.0565.65-4.1245 1.6651-5.7344 3.2857h10.9248l-1.0288-3.2726s-7.918-4.6688-.8336-7.1127z"/></svg>
+                {{ t("mods.serviceCurseforge") }}
+              </button>
+            </div>
             <button
               type="button"
-              class="flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold transition-colors"
-              :class="searchService === 'modrinth'
-                ? 'bg-[var(--accent)] ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--panel)]'
-                : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
-              @click="switchSearchService('modrinth')"
+              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
+              :title="t('common.close')"
+              @click="closeSearch"
             >
-              <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 shrink-0" :title="t('mods.serviceModrinth')"><path fill="#00AF5C" d="M12.252.004a11.78 11.768 0 0 0-8.92 3.73 11 10.999 0 0 0-2.17 3.11 11.37 11.359 0 0 0-1.16 5.169c0 1.42.17 2.5.6 3.77.24.759.77 1.899 1.17 2.529a12.3 12.298 0 0 0 8.85 5.639c.44.05 2.54.07 2.76.02.2-.04.22.1-.26-1.7l-.36-1.37-1.01-.06a8.5 8.489 0 0 1-5.18-1.8 5.34 5.34 0 0 1-1.3-1.26c0-.05.34-.28.74-.5a37.572 37.545 0 0 1 2.88-1.629c.03 0 .5.45 1.06.98l1 .97 2.07-.43 2.06-.43 1.47-1.47c.8-.8 1.48-1.5 1.48-1.52 0-.09-.42-1.63-.46-1.7-.04-.06-.2-.03-1.02.18-.53.13-1.2.3-1.45.4l-.48.15-.53.53-.53.53-.93.1-.93.07-.52-.5a2.7 2.7 0 0 1-.96-1.7l-.13-.6.43-.57c.68-.9.68-.9 1.46-1.1.4-.1.65-.2.83-.33.13-.099.65-.579 1.14-1.069l.9-.9-.7-.7-.7-.7-1.95.54c-1.07.3-1.96.53-1.97.53-.03 0-2.23 2.48-2.63 2.97l-.29.35.28 1.03c.16.56.3 1.16.31 1.34l.03.3-.34.23c-.37.23-2.22 1.3-2.84 1.63-.36.2-.37.2-.44.1-.08-.1-.23-.6-.32-1.03-.18-.86-.17-2.75.02-3.73a8.84 8.839 0 0 1 7.9-6.93c.43-.03.77-.08.78-.1.06-.17.5-2.999.47-3.039-.01-.02-.1-.02-.2-.03Zm3.68.67c-.2 0-.3.1-.37.38-.06.23-.46 2.42-.46 2.52 0 .04.1.11.22.16a8.51 8.499 0 0 1 2.99 2 8.38 8.379 0 0 1 2.16 3.449 6.9 6.9 0 0 1 .4 2.8c0 1.07 0 1.27-.1 1.73a9.37 9.369 0 0 1-1.76 3.769c-.32.4-.98 1.06-1.37 1.38-.38.32-1.54 1.1-1.7 1.14-.1.03-.1.06-.07.26.03.18.64 2.56.7 2.78l.06.06a12.07 12.058 0 0 0 7.27-9.4c.13-.77.13-2.58 0-3.4a11.96 11.948 0 0 0-5.73-8.578c-.7-.42-2.05-1.06-2.25-1.06Z"/></svg>
-              {{ t("mods.serviceModrinth") }}
-            </button>
-            <button
-              v-if="modSearchKind !== 'datapack'"
-              type="button"
-              class="flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold transition-colors"
-              :class="searchService === 'curseforge'
-                ? 'bg-[var(--accent)] ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--panel)]'
-                : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
-              @click="switchSearchService('curseforge')"
-            >
-              <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 shrink-0" :title="t('mods.serviceCurseforge')"><path fill="#F16436" d="M18.326 9.2145S23.2261 8.4418 24 6.1882h-7.5066V4.4H0l2.0318 2.3576V9.173s5.1267-.2665 7.1098 1.2372c2.7146 2.516-3.053 5.917-3.053 5.917L5.0995 19.6c1.5465-1.4726 4.494-3.3775 9.8983-3.2857-2.0565.65-4.1245 1.6651-5.7344 3.2857h10.9248l-1.0288-3.2726s-7.918-4.6688-.8336-7.1127z"/></svg>
-              {{ t("mods.serviceCurseforge") }}
+              <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
             </button>
           </div>
-          <h3 class="min-w-0 flex-1 truncate text-sm font-semibold text-[color:var(--tx-strong)]">
-            {{ searchTitle }}
-          </h3>
-          <button
-            type="button"
-            class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
-            @click="closeSearch"
-          >
-            <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
-          </button>
         </div>
         <div v-if="searchService === 'curseforge' && !curseKeyOk" class="border-b border-[var(--border)] px-4 py-2.5">
           <p class="text-xs text-[color:var(--tx-muted)]">{{ t("curse.noKey") }}</p>
@@ -9192,10 +9200,13 @@ async function copyServerIp(srv: { ip: string; port: number | null }) {
   }
 }
 
-const sidebarWidth = ref(readSidebarWidth());
-const sidebarDragging = ref(false);
 const SIDEBAR_COLLAPSE = 260;
 const SIDEBAR_ICON = 68;
+// Шире ~340px контент строк (иконка + короткая подпись) не заполняет панель —
+// справа остаётся пустота. Дизайн рассчитан на ~272px.
+const SIDEBAR_MAX = 340;
+const sidebarWidth = ref(readSidebarWidth());
+const sidebarDragging = ref(false);
 const sidebarCollapsed = computed(() => sidebarWidth.value < SIDEBAR_COLLAPSE);
 
 /** Масштаб плиток «Библиотеки» (1–4), сохраняется в localStorage. */
@@ -9286,51 +9297,17 @@ function libOpenSettings() {
   if (p) openPackTab(p.id);
 }
 
-/** Пользовательская ширина основного контента (0 = авто, растягивается). */
-const mainWidth = ref(readMainWidth());
-let mainDrag = { active: false, left: 0, max: 0 };
-
 /** Вкладка правой панели (глобальные разделы). */
 const rightTab = ref<"settings" | "dev" | "news" | "catalog">("settings");
 
-function readMainWidth(): number {
-  const saved = parseInt(localStorage.getItem("mono.mainWidth") ?? "", 10);
-  return Number.isFinite(saved) ? Math.max(0, saved) : 0;
-}
-
-function startMainDrag(e: PointerEvent) {
-  const row = (e.currentTarget as HTMLElement).parentElement;
-  if (!row) return;
-  const r = row.getBoundingClientRect();
-  mainDrag = { active: true, left: r.left, max: r.right - 10 };
-  mainWidth.value = Math.max(420, Math.min(mainDrag.max, e.clientX - r.left));
-  (e.target as HTMLElement).setPointerCapture(e.pointerId);
-}
-
-function onMainDrag(e: PointerEvent) {
-  if (!mainDrag.active) return;
-  mainWidth.value = Math.max(420, Math.min(mainDrag.max, e.clientX - mainDrag.left));
-}
-
-function endMainDrag(e: PointerEvent) {
-  if (!mainDrag.active) return;
-  mainDrag.active = false;
-  try {
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-  } catch {
-    /* ignore */
-  }
-  if (mainWidth.value > 0) localStorage.setItem("mono.mainWidth", String(mainWidth.value));
-}
-
-function resetMainWidth() {
-  mainWidth.value = 0;
-  localStorage.setItem("mono.mainWidth", "0");
-}
-
 function readSidebarWidth(): number {
   const saved = parseInt(localStorage.getItem("mono.sidebarWidth") ?? "", 10);
-  return Number.isFinite(saved) ? Math.min(420, Math.max(SIDEBAR_ICON, saved)) : 272;
+  if (!Number.isFinite(saved)) return 272;
+  // Мёртвая зона (иконки < ширина < порог сворачивания) даёт «свёрнутый» вид
+  // на широкой панели — пустота по бокам. Снапим к ближайшему осмысленному.
+  if (saved <= SIDEBAR_ICON) return SIDEBAR_ICON;
+  if (saved < SIDEBAR_COLLAPSE) return SIDEBAR_COLLAPSE;
+  return Math.min(SIDEBAR_MAX, saved);
 }
 
 function startSidebarDrag(e: PointerEvent) {
@@ -9340,7 +9317,7 @@ function startSidebarDrag(e: PointerEvent) {
 
 function onSidebarDrag(e: PointerEvent) {
   if (!sidebarDragging.value) return;
-  let w = Math.min(420, Math.max(SIDEBAR_ICON, e.clientX));
+  let w = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_ICON, e.clientX));
   if (w < SIDEBAR_COLLAPSE) w = SIDEBAR_ICON;
   sidebarWidth.value = w;
 }
@@ -9674,11 +9651,6 @@ provide(LauncherCtxKey, {
   startSidebarDrag,
   onSidebarDrag,
   endSidebarDrag,
-  mainWidth,
-  startMainDrag,
-  onMainDrag,
-  endMainDrag,
-  resetMainWidth,
   createPackOpen,
   customModsOpen,
   openEditVersion,
