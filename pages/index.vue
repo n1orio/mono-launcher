@@ -29,117 +29,154 @@
               v-if="activeBanner && bannerOk"
               :src="activeBanner"
               :alt="activePack?.name ?? ''"
-              class="mb-4 h-36 w-full rounded-lg border border-[var(--border)] object-cover"
+              class="h-44 w-full rounded-xl border border-[var(--border)] object-cover"
               @error="bannerOk = false"
             />
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <svg viewBox="0 0 16 16" class="h-5 w-5 fill-[var(--tx-muted)]">
-                  <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-1 1v.878A2.25 2.25 0 1 1 2 13.378V2.5Z"/>
-                </svg>
-<h1 class="text-2xl font-bold tracking-tight text-[color:var(--tx-strong)]">
-                  {{ activePack?.name ?? t("pack.none") }}
-                </h1>
-                                <span
-                  class="ml-3 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border shadow-sm"
-                  :class="status?.installed
-                    ? 'border-[#238636]/40 bg-[#238636]/10 text-[#3fb950]'
-                    : 'border-[var(--border)] bg-[var(--input)] text-[color:var(--tx-muted)]'"
-                >
-                  {{ status?.installed ? t("pack.installed") : t("pack.notInstalled") }}
-                </span>
-                <span
-                  v-if="activePack?.minRam"
-                  class="ml-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold"
-                  :class="(ram * 1024) < activePack.minRam
-                    ? 'border-[#f0883e]/50 bg-[#f0883e]/10 text-[#f0883e]'
-                    : 'border-[var(--border)] bg-[var(--input)] text-[color:var(--tx-muted)]'"
-                  :title="t('pack.minRamTitle', { min: activePack.minRam / 1024 })"
-                >
-                  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
-                    <path d="M1 3.75C1 2.784 1.784 2 2.75 2h10.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 13.25 11H10v1.25h.75a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5H6V11H2.75A1.75 1.75 0 0 1 1 9.25v-5.5Zm1.5 0v5.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25H2.75a.25.25 0 0 0-.25.25ZM4 4.5a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 4.5Zm0 3a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 7.5Z"/>
+            <div class="flex flex-wrap items-end justify-between gap-x-4 gap-y-3" :class="activeBanner && bannerOk ? '-mt-10 px-4' : ''">
+              <!-- Левая часть: иконка сборки + название + мета -->
+              <div class="flex min-w-0 flex-1 items-end gap-4">
+                <img
+                  v-if="activePack?.icon"
+                  :src="convertFileSrc(activePack.icon)"
+                  :alt="activePack.name"
+                  class="h-20 w-20 shrink-0 rounded-2xl border border-[var(--border)] bg-[var(--panel)] object-cover shadow-lg"
+                  @error="(e: any) => (e.target.style.display = 'none')"
+                />
+                <div v-else class="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--panel)] shadow-lg">
+                  <svg viewBox="0 0 16 16" class="h-8 w-8 fill-[var(--tx-muted)]">
+                    <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-1 1v.878A2.25 2.25 0 1 1 2 13.378V2.5Z"/>
                   </svg>
-                  ≥ {{ activePack.minRam / 1024 }} {{ t("units.gb") }}
-                </span>
-                <span
-                  v-if="status && status.playtime_seconds > 0"
-                  class="ml-2 inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--input)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--tx-muted)]"
-                  :title="t('pack.playtimeTitle', { time: formatPlaytime(status.playtime_seconds) })"
-                >
-                  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
-                    <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0Zm0 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM7.25 3.5a.75.75 0 0 1 .75.75V7.8l2.58 1.55a.75.75 0 1 1-.77 1.28L7.18 9.1a.75.75 0 0 1-.43-.68V4.25a.75.75 0 0 1 .75-.75Z"/>
-                  </svg>
-                  {{ formatPlaytimeShort(status.playtime_seconds) }}
-                </span>
-                <span
-                  v-else-if="status && status.installed"
-                  class="ml-2 inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--border)] bg-[var(--panel-soft)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--tx-muted)]"
-                  :title="t('pack.notPlayedTitle')"
-                >
-                  {{ t("pack.notPlayed") }}
-                </span>
-                <button
-                  type="button"
-                  class="ml-1 flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
-                  :title="t('pack.openDir')"
-                  @click="handleOpenPackDir"
-                >
-                  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
-                    <path d="M.513 1.513A1.75 1.75 0 0 1 1.75 1h3.5c.55 0 1.07.26 1.4.7l.9 1.2a.25.25 0 0 0 .2.1H13a1 1 0 0 1 1 1v.5H2.75a.75.75 0 0 0 0 1.5h11.978a1 1 0 0 1 .994 1.117L15 13.25A1.75 1.75 0 0 1 13.25 15H1.75A1.75 1.75 0 0 1 0 13.25V2.75c0-.464.184-.91.513-1.237Z"/>
-                  </svg>
-                  {{ t("pack.folder") }}
-                </button>
-                <template v-if="activePack?.kind === 'local' && status?.installed">
-                  <div ref="exportMenuRef" class="relative ml-1">
-                    <button
-                      type="button"
-                      class="flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
-                      :title="t('pack.exportTitle')"
-                      :disabled="exportBusy"
-                      @click="exportMenuOpen = !exportMenuOpen"
+                </div>
+                <div class="min-w-0 pb-1">
+                  <h1 class="truncate text-3xl font-bold leading-tight tracking-tight text-[color:var(--tx-strong)]">
+                    {{ activePack?.name ?? t("pack.none") }}
+                  </h1>
+                  <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span
+                      class="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border shadow-sm"
+                      :class="status?.installed
+                        ? 'border-[#238636]/40 bg-[#238636]/10 text-[#3fb950]'
+                        : 'border-[var(--border)] bg-[var(--input)] text-[color:var(--tx-muted)]'"
+                    >
+                      {{ status?.installed ? t("pack.installed") : t("pack.notInstalled") }}
+                    </span>
+                    <span
+                      v-if="activePack?.minRam"
+                      class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                      :class="(ram * 1024) < activePack.minRam
+                        ? 'border-[#f0883e]/50 bg-[#f0883e]/10 text-[#f0883e]'
+                        : 'border-[var(--border)] bg-[var(--input)] text-[color:var(--tx-muted)]'"
+                      :title="t('pack.minRamTitle', { min: activePack.minRam / 1024 })"
                     >
                       <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
-                        <path d="M7.97.72a.75.75 0 0 1 1.06 0l3 3a.75.75 0 1 1-1.06 1.06L9 2.81v6.94a.75.75 0 0 1-1.5 0V2.81L5.53 4.78a.75.75 0 0 1-1.06-1.06l3-3Z"/>
-                        <path d="M2.5 13.25a.75.75 0 0 1 .75.75c0 .138.112.25.25.25h9a.25.25 0 0 0 .25-.25.75.75 0 0 1 1.5 0 1.75 1.75 0 0 1-1.75 1.75h-9A1.75 1.75 0 0 1 1.75 14a.75.75 0 0 1 .75-.75Z"/>
+                        <path d="M1 3.75C1 2.784 1.784 2 2.75 2h10.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 13.25 11H10v1.25h.75a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5H6V11H2.75A1.75 1.75 0 0 1 1 9.25v-5.5Zm1.5 0v5.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25H2.75a.25.25 0 0 0-.25.25ZM4 4.5a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 4.5Zm0 3a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 7.5Z"/>
                       </svg>
-                      <span>{{ t("pack.exportBtn") }}</span>
-                      <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current opacity-60"><path d="m4.22 6 3.72 3.72a.75.75 0 0 0 1.06 0L12.72 6l-1.06-1.06L8 8.09 5.28 4.94 4.22 6Z"/></svg>
-                    </button>
-                    <div
-                      v-if="exportMenuOpen"
-                      class="absolute right-0 top-[calc(100%+4px)] z-50 flex w-44 flex-col overflow-hidden rounded-md border border-[var(--border)] bg-[var(--panel)] p-1 shadow-xl"
+                      ≥ {{ activePack.minRam / 1024 }} {{ t("units.gb") }}
+                    </span>
+                    <span
+                      v-if="status && status.playtime_seconds > 0"
+                      class="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--input)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--tx-muted)]"
+                      :title="t('pack.playtimeTitle', { time: formatPlaytime(status.playtime_seconds) })"
                     >
-                      <button
-                        type="button"
-                        class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
-                        :disabled="exportBusy"
-                        @click="exportMenuOpen = false; openExport('mrpack')"
-                      >
-                        <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current opacity-70"><path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/><path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/></svg>
-                        .mrpack
-                      </button>
-                      <button
-                        type="button"
-                        class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
-                        :disabled="exportBusy"
-                        @click="exportMenuOpen = false; openAuthorExport()"
-                      >
-                        <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current opacity-70"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v5.5h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5h-5.5a.75.75 0 0 1 0-1.5h5.5v-5.5Z"/></svg>
-                        {{ t("pack.exportAuthorShort") }}
-                      </button>
-                      <button
-                        type="button"
-                        class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
-                        :disabled="exportBusy"
-                        @click="exportMenuOpen = false; openExport('curseforge')"
-                      >
-                        <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current opacity-70"><path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/><path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/></svg>
-                        CurseForge
-</button>
- </div>
-          </div>
+                      <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+                        <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0Zm0 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM7.25 3.5a.75.75 0 0 1 .75.75V7.8l2.58 1.55a.75.75 0 1 1-.77 1.28L7.18 9.1a.75.75 0 0 1-.43-.68V4.25a.75.75 0 0 1 .75-.75Z"/>
+                      </svg>
+                      {{ formatPlaytimeShort(status.playtime_seconds) }}
+                    </span>
+                    <span
+                      v-else-if="status && status.installed"
+                      class="inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--border)] bg-[var(--panel-soft)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--tx-muted)]"
+                      :title="t('pack.notPlayedTitle')"
+                    >
+                      {{ t("pack.notPlayed") }}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-        </template>
+              <!-- Правая часть: главное действие + вторичные кнопки -->
+              <div class="flex shrink-0 flex-col items-end gap-2 pb-1">
+                <button
+                  type="button"
+                  class="flex items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold tracking-wide text-white shadow-md transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+                  :class="status?.installed
+                    ? gameRunning
+                      ? 'bg-[#b91c1c] hover:bg-[#dc2626]'
+                      : 'bg-[#238636] hover:bg-[#2ea043]'
+                    : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)]'"
+                  :disabled="busy"
+                  @click="status?.installed ? (gameRunning ? handleStop() : handlePlay()) : handleInstall()"
+                >
+                  <svg v-if="busy" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+                  <svg v-else-if="status?.installed && !gameRunning" viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
+                  <svg v-else-if="gameRunning" viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.5 3.5h9v9h-9z"/></svg>
+                  <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"/><path d="M7.97 2.72a.75.75 0 0 1 1.06 0l3 3a.75.75 0 1 1-1.06 1.06l-1.72-1.72v6.69a.75.75 0 0 1-1.5 0v-6.69L6.03 6.78a.75.75 0 0 1-1.06-1.06l3-3Z"/></svg>
+                  <template v-if="!status?.installed">{{ busy ? t("side.installing") : t("side.downloadPlay") }}</template>
+                  <template v-else>{{ busy ? t("side.launching") : gameRunning ? t("side.stopGame") : t("side.play") }}</template>
+                </button>
+                <div class="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    class="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+                    :title="t('pack.openDir')"
+                    @click="handleOpenPackDir"
+                  >
+                    <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+                      <path d="M.513 1.513A1.75 1.75 0 0 1 1.75 1h3.5c.55 0 1.07.26 1.4.7l.9 1.2a.25.25 0 0 0 .2.1H13a1 1 0 0 1 1 1v.5H2.75a.75.75 0 0 0 0 1.5h11.978a1 1 0 0 1 .994 1.117L15 13.25A1.75 1.75 0 0 1 13.25 15H1.75A1.75 1.75 0 0 1 0 13.25V2.75c0-.464.184-.91.513-1.237Z"/>
+                    </svg>
+                    {{ t("pack.folder") }}
+                  </button>
+                  <template v-if="activePack?.kind === 'local' && status?.installed">
+                    <div ref="exportMenuRef" class="relative">
+                      <button
+                        type="button"
+                        class="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+                        :title="t('pack.exportTitle')"
+                        :disabled="exportBusy"
+                        @click="exportMenuOpen = !exportMenuOpen"
+                      >
+                        <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current">
+                          <path d="M7.97.72a.75.75 0 0 1 1.06 0l3 3a.75.75 0 1 1-1.06 1.06L9 2.81v6.94a.75.75 0 0 1-1.5 0V2.81L5.53 4.78a.75.75 0 0 1-1.06-1.06l3-3Z"/>
+                          <path d="M2.5 13.25a.75.75 0 0 1 .75.75c0 .138.112.25.25.25h9a.25.25 0 0 0 .25-.25.75.75 0 0 1 1.5 0 1.75 1.75 0 0 1-1.75 1.75h-9A1.75 1.75 0 0 1 1.75 14a.75.75 0 0 1 .75-.75Z"/>
+                        </svg>
+                        <span>{{ t("pack.exportBtn") }}</span>
+                        <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current opacity-60"><path d="m4.22 6 3.72 3.72a.75.75 0 0 0 1.06 0L12.72 6l-1.06-1.06L8 8.09 5.28 4.94 4.22 6Z"/></svg>
+                      </button>
+                      <div
+                        v-if="exportMenuOpen"
+                        class="absolute right-0 top-[calc(100%+4px)] z-50 flex w-44 flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)] p-1 shadow-xl"
+                      >
+                        <button
+                          type="button"
+                          class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                          :disabled="exportBusy"
+                          @click="exportMenuOpen = false; openExport('mrpack')"
+                        >
+                          <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current opacity-70"><path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/><path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/></svg>
+                          .mrpack
+                        </button>
+                        <button
+                          type="button"
+                          class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                          :disabled="exportBusy"
+                          @click="exportMenuOpen = false; openAuthorExport()"
+                        >
+                          <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current opacity-70"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v5.5h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5h-5.5a.75.75 0 0 1 0-1.5h5.5v-5.5Z"/></svg>
+                          {{ t("pack.exportAuthorShort") }}
+                        </button>
+                        <button
+                          type="button"
+                          class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                          :disabled="exportBusy"
+                          @click="exportMenuOpen = false; openExport('curseforge')"
+                        >
+                          <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current opacity-70"><path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/><path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/></svg>
+                          CurseForge
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
               </div>
             </div>
 
@@ -369,19 +406,20 @@
           </div>
 
           <!-- Сабтабы: релизы / моды / ресурспаки / шейдеры / миры / консоль -->
-          <div class="mb-5 flex shrink-0 flex-wrap items-center justify-start gap-1.5 border-b border-[var(--border)] pb-3">
+          <div class="mb-5 flex shrink-0 flex-wrap items-center gap-1 border-b border-[var(--border)]">
             <button
               v-for="st in playSubTabsVisible"
               :key="st.kind"
               type="button"
-              class="relative flex items-center justify-center rounded-full border border-transparent px-5 py-1.5 pl-8 text-[11px] font-medium transition-all"
+              class="relative flex items-center gap-2 px-3.5 pb-2.5 pt-1 text-xs font-semibold transition-colors"
               :class="playSubTab === st.kind
-                ? 'bg-[var(--tx-strong)] text-[color:var(--panel)] shadow-sm'
-                : 'bg-[var(--input)] text-[color:var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)] border-[var(--border)]'"
+                ? 'text-[var(--accent)]'
+                : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
               @click="playSubTab = st.kind"
             >
-              <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-2.5 h-3.5 w-3.5 shrink-0 fill-current" v-html="st.icon"></svg>
+              <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current" v-html="st.icon"></svg>
               <span>{{ t("sub." + st.kind) }}</span>
+              <span v-if="playSubTab === st.kind" class="absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-full bg-[var(--accent)]"></span>
             </button>
           </div>
 
@@ -1660,7 +1698,7 @@
           <div class="flex min-h-0 flex-1 flex-col">
             <div class="mb-5 flex shrink-0 items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
               <div>
-                <h2 class="text-lg font-semibold text-[color:var(--tx-strong)]">{{ t("catalog.title") }}</h2>
+                <h2 class="text-xl font-bold tracking-tight text-[color:var(--tx-strong)]">{{ t("catalog.title") }}</h2>
                 <p class="mt-1 text-xs text-[color:var(--tx-muted)]">{{ t("catalog.subtitle") }}</p>
               </div>
               <div class="flex shrink-0 items-center gap-2">
@@ -1711,7 +1749,7 @@
                     </button>
                     <div class="flex items-center gap-2 min-w-0">
                       <img v-if="catalogDetail.icon_url" :src="catalogDetail.icon_url" class="h-8 w-8 shrink-0 rounded object-cover" />
-                      <h3 class="truncate text-sm font-bold text-[color:var(--tx-strong)]">{{ catalogDetail.name }}</h3>
+                      <h3 class="truncate text-base font-bold text-[color:var(--tx-strong)]">{{ catalogDetail.name }}</h3>
                       <span v-if="catalogDetail.versions?.length" class="shrink-0 rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 text-[10px] font-mono text-[color:var(--accent)]">v{{ catalogDetail.versions[0].version }}</span>
                     </div>
                     <div class="ml-auto flex items-center gap-2 shrink-0">
@@ -1769,31 +1807,36 @@
 
                   <template v-else>
                     <!-- Detail tabs -->
-                    <div class="mb-3 flex gap-1 rounded-md border border-[var(--border)] bg-[var(--input)] p-0.5">
+                    <div class="mb-4 flex gap-1 overflow-x-auto border-b border-[var(--border)]">
                       <button type="button" @click="catalogDetailTab = 'description'"
-                        class="flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors"
-                        :class="catalogDetailTab === 'description' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[var(--tx)]'">
+                        class="relative shrink-0 px-3.5 pb-2.5 pt-1 text-xs font-semibold transition-colors"
+                        :class="catalogDetailTab === 'description' ? 'text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'">
                         {{ t('pack.description') }}
+                        <span v-if="catalogDetailTab === 'description'" class="absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-full bg-[var(--accent)]"></span>
                       </button>
                       <button v-if="(catalogDetail.meta as any)?.screenshots?.length" type="button" @click="catalogDetailTab = 'screenshots'"
-                        class="flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors"
-                        :class="catalogDetailTab === 'screenshots' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[var(--tx)]'">
+                        class="relative shrink-0 px-3.5 pb-2.5 pt-1 text-xs font-semibold transition-colors"
+                        :class="catalogDetailTab === 'screenshots' ? 'text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'">
                         {{ t('pack.screenshots') }} ({{ ((catalogDetail.meta as any)?.screenshots ?? []).length }})
+                        <span v-if="catalogDetailTab === 'screenshots'" class="absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-full bg-[var(--accent)]"></span>
                       </button>
                       <button v-if="catalogDetail.versions?.length" type="button" @click="catalogDetailTab = 'versions'"
-                        class="flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors"
-                        :class="catalogDetailTab === 'versions' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[var(--tx)]'">
+                        class="relative shrink-0 px-3.5 pb-2.5 pt-1 text-xs font-semibold transition-colors"
+                        :class="catalogDetailTab === 'versions' ? 'text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'">
                         {{ t('pack.versions') }} ({{ catalogDetail.versions.length }})
+                        <span v-if="catalogDetailTab === 'versions'" class="absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-full bg-[var(--accent)]"></span>
                       </button>
                       <button v-if="catalogDetail.news?.length" type="button" @click="catalogDetailTab = 'news'"
-                        class="flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors"
-                        :class="catalogDetailTab === 'news' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[var(--tx)]'">
-                        {{ t('pack.news') || 'Новости' }} ({{ catalogDetail.news.length }})
+                        class="relative shrink-0 px-3.5 pb-2.5 pt-1 text-xs font-semibold transition-colors"
+                        :class="catalogDetailTab === 'news' ? 'text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'">
+                        {{ t('pack.news') }} ({{ catalogDetail.news.length }})
+                        <span v-if="catalogDetailTab === 'news'" class="absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-full bg-[var(--accent)]"></span>
                       </button>
                       <button type="button" @click="catalogDetailTab = 'comments'"
-                        class="flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors"
-                        :class="catalogDetailTab === 'comments' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[var(--tx)]'">
+                        class="relative shrink-0 px-3.5 pb-2.5 pt-1 text-xs font-semibold transition-colors"
+                        :class="catalogDetailTab === 'comments' ? 'text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'">
                         {{ t('comments.tab') }} ({{ catalogCommentCount }})
+                        <span v-if="catalogDetailTab === 'comments'" class="absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-full bg-[var(--accent)]"></span>
                       </button>
                     </div>
 
@@ -2022,21 +2065,22 @@
               <div v-else-if="monoCatalog.length === 0" class="rounded-md border border-[var(--border)] bg-[var(--panel)] p-8 text-center text-xs text-[color:var(--tx-muted)]">
                 {{ t("catalog.emptyMono") }}
               </div>
-              <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <article
                   v-for="entry in monoCatalog"
                   :key="entry.id"
-                  class="flex cursor-pointer flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                  class="flex cursor-pointer flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-sm transition-all hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-md"
                   @click="openCatalogDetail(entry)"
                 >
-                  <div class="flex flex-1 flex-col p-4">
+                  <div class="flex flex-1 flex-col p-5">
                   <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
-                      <div class="flex items-center gap-1.5">
-                        <img v-if="entry.icon_url" :src="entry.icon_url" :alt="entry.name" loading="lazy" @error="(e: any) => (e.target.style.display = 'none')" class="h-6 w-6 shrink-0 rounded object-cover" />
-                        <h3 class="truncate text-sm font-semibold text-[color:var(--tx-strong)] transition-colors">{{ entry.name }}</h3>
+                      <div class="flex items-center gap-2.5">
+                        <img v-if="entry.icon_url" :src="entry.icon_url" :alt="entry.name" loading="lazy" @error="(e: any) => (e.target.style.display = 'none')" class="h-10 w-10 shrink-0 rounded-lg border border-[var(--border)] object-cover" />
+                        <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--input)] text-sm font-bold text-[var(--accent)]">{{ entry.name?.[0]?.toUpperCase() }}</div>
+                        <h3 class="truncate text-[15px] font-semibold text-[color:var(--tx-strong)]">{{ entry.name }}</h3>
                       </div>
-                      <div v-if="entry.author_name" class="mt-0.5 font-mono text-[11px] text-[color:var(--tx-muted)]">
+                      <div v-if="entry.author_name" class="mt-1 font-mono text-xs text-[color:var(--tx-muted)]">
                         @{{ entry.author_name }}
                       </div>
                     </div>
@@ -2059,27 +2103,27 @@
                       </span>
                     </div>
                   </div>
-                  <p v-if="entry.description" class="mt-2 min-h-0 flex-1 text-xs leading-relaxed text-[color:var(--tx-muted)]">
+                  <p v-if="entry.description" class="mt-3 min-h-0 flex-1 text-[13px] leading-relaxed text-[color:var(--tx-muted)] line-clamp-3">
                     {{ entry.description }}
                   </p>
-                  <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
-                    <span v-if="entry.version" class="rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 text-[10px] text-[color:var(--tx-muted)]">
+                  <div class="mt-3 flex flex-wrap items-center gap-1.5">
+                    <span v-if="entry.version" class="rounded-full border border-[var(--border)] bg-[var(--input-50)] px-2 py-0.5 text-[11px] text-[color:var(--tx-muted)]">
                       v{{ entry.version }}
                     </span>
-                    <span v-if="entry.size" class="rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 text-[10px] text-[color:var(--tx-muted)]">
+                    <span v-if="entry.size" class="rounded-full border border-[var(--border)] bg-[var(--input-50)] px-2 py-0.5 text-[11px] text-[color:var(--tx-muted)]">
                       {{ formatBytes(entry.size) }}
                     </span>
-                    <span v-if="entry.rating" class="inline-flex items-center gap-1 rounded border border-[var(--border)] bg-[var(--input-50)] px-1.5 py-0.5 text-[10px] text-[color:var(--tx-muted)]">
+                    <span v-if="entry.rating" class="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--input-50)] px-2 py-0.5 text-[11px] text-[color:var(--tx-muted)]">
                       <svg viewBox="0 0 16 16" class="h-3 w-3 fill-[var(--accent)]"><path d="M8 1.3 9.9 5l4 .56-2.9 2.8.7 4L8 10.38 4.3 12.36l.7-4L2.1 5.56 6.1 5 8 1.3Z"/></svg>
                       {{ entry.rating }}
                       <template v-if="entry.likes + entry.dislikes">({{ entry.likes }}👍/{{ entry.dislikes }}👎)</template>
                     </span>
                   </div>
-                  <div class="mt-3.5 flex items-center gap-2 border-t border-[var(--border)] pt-3">
+                  <div class="mt-4 flex items-center gap-2 border-t border-[var(--border)] pt-3.5">
                     <button
                       type="button"
                       v-if="!isMonoPackAdded(entry)"
-                      class="flex-1 rounded-md border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
+                      class="flex-1 rounded-lg border border-[color-mix(in_srgb,var(--accent-deep)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
                       :disabled="addingPack"
                       @click.stop="addMonoPack(entry)"
                     >
@@ -2088,14 +2132,14 @@
                     <button
                       type="button"
                       v-else
-                      class="flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                      class="flex-1 rounded-lg border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-xs font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
                       @click.stop="openMonoPack(entry)"
                     >
                       {{ t("catalog.open") }}
                     </button>
                     <button
                       type="button"
-                      class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-xs font-medium text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]"
+                      class="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-xs font-medium text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]"
                       :title="t('catalog.detailsHint')"
                       @click.stop="openCatalogDetail(entry)"
                     >
@@ -2108,7 +2152,7 @@
                     </button>
                     <button
                       type="button"
-                      class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-xs text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]"
+                      class="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--input)] px-2.5 py-2 text-xs text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]"
                       :title="entry.url"
                       @click.stop="openExternal(entry.url)"
                     >
