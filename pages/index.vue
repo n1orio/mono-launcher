@@ -3145,37 +3145,37 @@
               <p class="text-xs text-[color:var(--tx-muted)]">{{ t("settings.subtitle") }}</p>
             </div>
 
-            <!-- Учётная запись -->
-            <section class="rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-sm overflow-hidden">
-              <div class="border-b border-[var(--border)] px-4 py-3">
-                <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.account") }}</h3>
-              </div>
-              <div class="p-4 space-y-3">
-                <!-- Профиль Mono — отдельный, поверх всех игровых аккаунтов -->
-                <div class="rounded-md border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_12%,transparent)] to-transparent p-3 space-y-2">
-                  <div class="flex items-center gap-2">
-                    <span
-                      class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--accent)_60%,transparent)] bg-[var(--input)] font-mono text-xs font-bold text-[var(--accent)]"
-                    >
-                      {{ monoProfile?.username?.[0]?.toUpperCase() ?? "M" }}
-                    </span>
-                    <div class="min-w-0 flex-1">
-                      <p class="text-xs font-semibold text-[var(--accent)]">{{ t("settings.monoTitle") }}</p>
-                      <p class="text-[11px] leading-tight text-[color:var(--tx-muted)]">{{ t("settings.monoNote") }}</p>
-                    </div>
+            <!-- Аккаунты: профиль Mono + игровые аккаунты (две колонки) -->
+            <div class="grid gap-4 lg:grid-cols-2">
+              <!-- Профиль Mono -->
+              <section class="rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-sm overflow-hidden">
+                <div class="border-b border-[var(--border)] px-4 py-3 flex items-center gap-2.5">
+                  <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)]">
+                    <svg viewBox="0 0 24 24" class="h-4 w-4 fill-[color:var(--panel)]"><path d="M3 8.4 8.4 3h7.2L21 8.4v7.2L15.6 21H8.4L3 15.6V8.4Zm2 1.3v4.6L8.3 19H9.7l2.5-6.2L14.7 19h1.4L19 14.3V9.7L15.7 5H9.9L5 9.7Z"/></svg>
+                  </span>
+                  <div class="min-w-0">
+                    <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.monoTitle") }}</h3>
+                    <p class="text-[11px] leading-tight text-[color:var(--tx-muted)]">{{ t("settings.monoNote") }}</p>
                   </div>
+                </div>
 
+                <div class="p-4 space-y-3">
                   <template v-if="monoProfile">
-                    <p class="flex items-center gap-1.5 text-xs font-medium text-[color:var(--tx-strong)]">
-                      {{ monoProfile.username }}
-                      <svg class="h-3.5 w-3.5 fill-[#3fb950]" viewBox="0 0 16 16">
-                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm-1.31-4.21 4.55-4.55-1.06-1.06-3.49 3.49-1.42-1.42-1.06 1.06 2.48 2.48Z"/>
-                      </svg>
-                    </p>
-                    <div class="flex gap-2">
+                    <div class="flex items-center gap-3">
+                      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[var(--input)] font-mono text-sm font-bold text-[var(--accent)]">
+                        {{ monoProfile.username?.[0]?.toUpperCase() ?? "M" }}
+                      </span>
+                      <p class="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold text-[color:var(--tx-strong)]">
+                        {{ monoProfile.username }}
+                        <svg class="h-4 w-4 shrink-0 fill-[#3fb950]" viewBox="0 0 16 16">
+                          <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm-1.31-4.21 4.55-4.55-1.06-1.06-3.49 3.49-1.42-1.42-1.06 1.06 2.48 2.48Z"/>
+                        </svg>
+                      </p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        class="flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                        class="flex-1 rounded-lg border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
                         :disabled="profileBusy"
                         @click="openProfileView(monoProfile.uuid)"
                       >
@@ -3183,7 +3183,7 @@
                       </button>
                       <button
                         type="button"
-                        class="flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                        class="flex-1 rounded-lg border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
                         :disabled="monoAuthBusy"
                         :title="t('auth2.confirmHint')"
                         @click="handleMonoConfirmEmail"
@@ -3193,30 +3193,31 @@
                     </div>
                     <button
                       type="button"
-                      class="w-full rounded-md border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] py-1.5 text-xs font-medium text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
+                      class="w-full rounded-lg border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] py-2 text-xs font-semibold text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
                       :disabled="busy || monoBusy"
                       @click="handleMonoLogout"
                     >
                       {{ monoBusy ? t("settings.monoWait") : t("accounts.signOut") }}
                     </button>
                   </template>
+
                   <template v-else>
                     <input
                       v-model="monoName"
                       :placeholder="t('settings.monoUsername')"
-                      class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
+                      class="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
                     />
                     <input
                       v-model="monoPass"
                       type="password"
                       :placeholder="t('settings.monoPassword')"
                       @keydown.enter="handleMonoLogin"
-                      class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
+                      class="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
                     />
                     <div class="flex gap-2">
                       <button
                         type="button"
-                        class="flex-1 rounded-md border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] py-1.5 text-xs font-medium text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
+                        class="flex-1 rounded-lg border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] py-2 text-xs font-semibold text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
                         :disabled="busy || monoBusy"
                         @click="handleMonoLogin"
                       >
@@ -3224,7 +3225,7 @@
                       </button>
                       <button
                         type="button"
-                        class="flex-1 rounded-md border border-[var(--border)] bg-[var(--input)] py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                        class="flex-1 rounded-lg border border-[var(--border)] bg-[var(--input)] py-2 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
                         :disabled="busy || monoBusy"
                         @click="handleMonoRegister"
                       >
@@ -3233,25 +3234,25 @@
                     </div>
                     <button
                       type="button"
-                      class="w-full text-right text-[11px] font-medium text-[var(--accent)] hover:underline"
+                      class="w-full text-center text-[11px] font-medium text-[var(--accent)] hover:underline"
                       @click="monoForgotOpen = !monoForgotOpen"
                     >
                       {{ t("auth2.forgot") }}
                     </button>
 
                     <!-- Восстановление пароля: письмо + сброс по токену из письма -->
-                    <div v-if="monoForgotOpen" class="space-y-2 rounded-md border border-[var(--border)] bg-[var(--bg)] p-2.5">
+                    <div v-if="monoForgotOpen" class="space-y-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3">
                       <div class="flex items-center gap-2">
                         <input
                           v-model="monoForgotEmail"
                           type="email"
                           :placeholder="t('auth2.emailPh')"
-                          class="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
+                          class="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
                           @keydown.enter="handleMonoForgot"
                         />
                         <button
                           type="button"
-                          class="shrink-0 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                          class="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
                           :disabled="monoAuthBusy"
                           @click="handleMonoForgot"
                         >
@@ -3265,18 +3266,18 @@
                           v-model="monoResetToken"
                           type="text"
                           :placeholder="t('auth2.tokenPh')"
-                          class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1.5 font-mono text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
+                          class="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1.5 font-mono text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
                         />
                         <input
                           v-model="monoResetPass"
                           type="password"
                           :placeholder="t('auth2.newPassPh')"
-                          class="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
+                          class="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1.5 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
                           @keydown.enter="handleMonoReset"
                         />
                         <button
                           type="button"
-                          class="w-full rounded-md border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] py-1.5 text-xs font-medium text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
+                          class="w-full rounded-lg border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] py-1.5 text-xs font-semibold text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
                           :disabled="monoAuthBusy"
                           @click="handleMonoReset"
                         >
@@ -3287,52 +3288,48 @@
                     </div>
                   </template>
                 </div>
+              </section>
 
-                <!-- Игровые аккаунты -->
-                <div class="flex items-center gap-2 pt-1">
-                  <div class="border-t border-[var(--border)] w-full"></div>
-                  <span class="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("settings.gameAccounts") }}</span>
-                  <div class="border-t border-[var(--border)] w-full"></div>
+              <!-- Игровые аккаунты -->
+              <section class="rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-sm overflow-hidden">
+                <div class="border-b border-[var(--border)] px-4 py-3">
+                  <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.gameAccounts") }}</h3>
                 </div>
+                <div class="p-4 space-y-3">
+                  <div class="flex gap-2">
+                    <input
+                      v-model="username"
+                      :placeholder="t('settings.nickname')"
+                      class="flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      class="rounded-lg border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                      :disabled="busy"
+                      @click="handleOffline"
+                    >
+                      {{ t("settings.save") }}
+                    </button>
+                  </div>
 
-                <div class="flex gap-2">
-                  <input
-                    v-model="username"
-                    :placeholder="t('settings.nickname')"
-                    class="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:border-[var(--accent)] focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    class="rounded-md border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
-                    :disabled="busy"
-                    @click="handleOffline"
-                  >
-                    {{ t("settings.save") }}
-                  </button>
-                </div>
-
-                <div class="relative flex items-center justify-center my-2">
-                  <div class="border-t border-[var(--border)] w-full"></div>
-                  <span class="bg-[var(--panel)] px-2 text-[11px] uppercase text-[color:var(--tx-muted)] absolute">{{ t("settings.or") }}</span>
-                </div>
-
-                <button
-                  type="button"
-                  class="w-full rounded-md border border-[var(--border)] bg-[var(--input)] py-1.5 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
-                  :disabled="busy || msPolling || elyPolling"
-                  @click="handleMicrosoft"
-                >
-                  {{ msPolling ? t("settings.msWait") : t("settings.msSignin") }}
-                </button>
-
-                <button
-                  type="button"
-                  class="w-full rounded-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] py-1.5 text-xs font-medium text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] disabled:opacity-50"
-                  :disabled="busy || msPolling || elyPolling"
-                  @click="handleEly"
-                >
-                  {{ elyPolling ? t("settings.elyWait") : t("settings.elySignin") }}
-                </button>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      class="rounded-lg border border-[var(--border)] bg-[var(--input)] py-2 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
+                      :disabled="busy || msPolling || elyPolling"
+                      @click="handleMicrosoft"
+                    >
+                      {{ msPolling ? t("settings.msWait") : t("settings.msSignin") }}
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded-lg border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] py-2 text-xs font-medium text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] disabled:opacity-50"
+                      :disabled="busy || msPolling || elyPolling"
+                      @click="handleEly"
+                    >
+                      {{ elyPolling ? t("settings.elyWait") : t("settings.elySignin") }}
+                    </button>
+                  </div>
 
                 <!-- Device code flow: показать код и ссылку -->
                 <div
@@ -3372,7 +3369,7 @@
                 </div>
 
                 <!-- Список сохранённых аккаунтов -->
-                <div v-if="accounts.list.length" class="mt-4 space-y-1.5 border-t border-[var(--border)] pt-3">
+                <div v-if="accounts.list.length" class="space-y-1.5 border-t border-[var(--border)] pt-3">
                   <div
                     v-for="a in accounts.list"
                     :key="a.id"
@@ -3418,17 +3415,19 @@
                     </button>
                   </div>
                 </div>
+                </div>
+              </section>
+            </div>
 
-                <!-- Boosty: платные сборки -->
-                <div class="space-y-1.5 border-t border-[var(--border)] pt-3">
-                  <div class="flex items-center justify-between">
-                    <span class="flex items-center gap-1.5 text-xs font-semibold text-[color:var(--tx-strong)]">
-                      <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-[var(--accent)]" preserveAspectRatio="none">
-                        <path d="M8 1C3.9 1 .7 4.3.7 8.4h3.1L1.6 15l7.2-7.2H6.3C6.3 5.3 7.2 2.9 9.6 2.4 11.9 2 13.7 3.6 13.7 5.8c0 .4-.1.9-.1 1.3.9.5 1.5 1.4 1.7 2.5.1-.6.2-1.2.2-1.8 0-3.8-3.2-6.8-7.5-6.8Z" transform="translate(0 -1)"/>
-                      </svg>
-                      {{ t("settings.boosty") }}
-                    </span>
-                  </div>
+            <!-- Boosty: платные сборки -->
+            <section class="rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-sm overflow-hidden">
+              <div class="border-b border-[var(--border)] px-4 py-3 flex items-center gap-2">
+                <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--accent)]" preserveAspectRatio="none">
+                  <path d="M8 1C3.9 1 .7 4.3.7 8.4h3.1L1.6 15l7.2-7.2H6.3C6.3 5.3 7.2 2.9 9.6 2.4 11.9 2 13.7 3.6 13.7 5.8c0 .4-.1.9-.1 1.3.9.5 1.5 1.4 1.7 2.5.1-.6.2-1.2.2-1.8 0-3.8-3.2-6.8-7.5-6.8Z" transform="translate(0 -1)"/>
+                </svg>
+                <h3 class="text-xs font-semibold text-[color:var(--tx-strong)]">{{ t("settings.boosty") }}</h3>
+              </div>
+              <div class="space-y-3 p-4">
                   <p class="text-xs leading-snug text-[color:var(--tx-muted)]">{{ t("settings.boostyNote") }}</p>
                   <!-- Глобальный аккаунт Boosty: работает даже без платных сборок -->
                   <div class="rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2">

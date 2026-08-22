@@ -154,15 +154,6 @@
       </button>
     </nav>
 
-    <!-- Компактный статус -->
-    <div v-if="!sidebarCollapsed" class="flex items-center justify-between border-t border-[var(--border)] px-4 py-1.5 text-[11px] text-[color:var(--tx-muted)]">
-      <span class="inline-flex items-center gap-1.5">
-        <span class="h-1.5 w-1.5 rounded-full" :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"></span>
-        {{ status?.installed ? t("side.installed") : t("side.notInstalled") }}
-      </span>
-      <span class="font-mono">{{ ram }} {{ t("units.gb") }}</span>
-    </div>
-
     <div class="flex-1" />
 
     <!-- Глобальный прогресс установки/скачивания -->
@@ -193,27 +184,27 @@
     </div>
 
     <!-- Учётная запись -->
-    <div class="flex items-center gap-2.5 border-t border-[var(--border)] p-3 bg-[var(--bg-30)]" :class="sidebarCollapsed ? 'justify-center p-2' : ''">
-      <div class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--input)] font-mono text-xs font-bold text-[color:var(--tx-strong)]">
+    <div class="flex items-center gap-2.5 border-t border-[var(--border)] p-3" :class="sidebarCollapsed ? 'justify-center p-2' : ''">
+      <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--input)] font-mono text-sm font-bold text-[color:var(--tx-strong)]">
         <img v-if="skinUrl" :src="skinUrl" :alt="t('side.skin')" class="h-full w-full object-cover" />
         <template v-else>{{ session?.username?.[0]?.toUpperCase() ?? "?" }}</template>
       </div>
       <div v-if="!sidebarCollapsed" class="min-w-0 flex-1">
-        <div class="truncate text-xs font-medium text-[color:var(--tx)]">
+        <div class="truncate text-[13px] font-semibold leading-tight text-[color:var(--tx)]">
           {{ session?.username ?? t("side.guest") }}
         </div>
-        <div class="truncate text-[11px] text-[color:var(--tx-muted)]">
+        <div class="truncate text-[11px] leading-tight text-[color:var(--tx-muted)]">
           {{ session ? session.user_type : t("side.offline") }}
         </div>
       </div>
       <button
         v-if="!sidebarCollapsed"
         type="button"
-        class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx-strong)]"
+        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx-strong)]"
         :title="t('nav.settings')"
         @click="tab = 'settings'"
       >
-        <svg viewBox="0 0 24 24" class="h-4 w-4 fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" class="h-[18px] w-[18px] fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
         </svg>
@@ -227,7 +218,7 @@
         <span class="font-semibold" :class="activeLocaleAuthor ? 'text-[color:var(--tx)]' : ''">{{ activeLocaleAuthor || "—" }}</span>
         <template v-if="activeLocaleVersion"> · v{{ activeLocaleVersion }}</template>
       </span>
-      <span class="shrink-0 tabular-nums">{{ t("lang.launcherVer") }} v{{ launcherVer || "?" }}</span>
+      <span class="shrink-0 tabular-nums font-mono">{{ ram }} {{ t("units.gb") }} · v{{ launcherVer || "?" }}</span>
     </div>
 
     <!-- Ручка изменения ширины панели -->
