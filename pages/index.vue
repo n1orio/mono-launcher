@@ -1,17 +1,17 @@
 <template>
     <!-- Уведомления (тосты) -->
     <ToastNotifications />
-  <div v-if="!isSearchWin && !isFileDetailWin" class="flex flex-col h-full w-full select-none overflow-hidden bg-[var(--app-bg)] text-[color:var(--tx)] font-sans">
+  <div v-if="!isSearchWin && !isFileDetailWin" class="flex flex-col h-full w-full select-none overflow-hidden bg-[var(--panel)] text-[color:var(--tx)] font-sans">
     <!-- ==== Кастомный Titlebar (macOS Style) ==== -->
     <TitleBar />
-    <div class="flex min-h-0 flex-1 w-full gap-2 px-2 pb-2">
+    <div class="flex min-h-0 flex-1 w-full">
     <!-- Карточка обновления лаунчера -->
     <AppUpdateCard />
     <!-- ==== Боковая панель ==== -->
     <SideBar />
 
     <!-- ==== Основной контент ==== -->
-    <main class="relative mx-auto h-full w-full flex-1 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] shadow-2xl shadow-black/40" style="max-width: 1500px">
+    <main class="relative mx-auto h-full w-full flex-1 overflow-hidden rounded-tl-2xl border-l border-[var(--border)] bg-[var(--bg)]" style="max-width: 1500px">
       <!-- Scalable main column: width = user-draggable (наплыва inner-контента),
            по умолчанию растягивается на всю доступную ширину. -->
       <div class="relative flex h-full w-full">

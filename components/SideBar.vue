@@ -1,6 +1,6 @@
 <template>
   <aside
-    class="relative flex shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl shadow-black/40"
+    class="relative flex shrink-0 flex-col bg-[var(--panel)]"
     :class="[sidebarDragging ? '' : 'transition-[width] duration-150', sidebarCollapsed ? 'items-center' : '']"
     :style="{ width: `${sidebarWidth}px` }"
   >
@@ -223,7 +223,7 @@
 
     <!-- Ручка изменения ширины панели -->
     <div
-      class="absolute inset-y-0 right-0 z-40 w-[6px] cursor-col-resize transition-colors hover:bg-[var(--accent)] active:bg-[var(--accent-strong)]"
+      class="absolute inset-y-0 -right-[3px] z-40 w-[6px] cursor-col-resize transition-colors hover:bg-[var(--accent)] active:bg-[var(--accent-strong)]"
       @pointerdown="startSidebarDrag"
       @pointermove="onSidebarDrag"
       @pointerup="endSidebarDrag"
