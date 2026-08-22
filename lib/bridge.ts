@@ -3,7 +3,6 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   Accounts,
   AppStatus,
-  CatalogEntry,
   CurseCategory,
   CurseFile,
   CurseInstallResult,
@@ -26,7 +25,6 @@ import type {
   NewsItem,
   PackDescriptor,
   PackInfo,
-  PackRepoContent,
   SavedServer,
   SavedServersList,
   ScreenshotList,
@@ -484,19 +482,6 @@ export function onNewsChunk(cb: (items: NewsItem[]) => void): Promise<UnlistenFn
   return listen<NewsItem[]>("news-chunk", (event) => cb(event.payload));
 }
 
-export function packRepoContent(packId: string): Promise<PackRepoContent> {
-  return invoke("pack_repo_content_command", { packId });
-}
-
-export function fetchCatalog(): Promise<CatalogEntry[]> {
-  return invoke("fetch_catalog_command");
-}
-
-/** Обновляет встроенные сборки из `builtin-packs.json` репозитория лаунчера. */
-export function refreshBuiltinPacks(): Promise<void> {
-  return invoke("refresh_builtin_packs_command");
-}
-
 export type GameFolderKind = "mods" | "resourcepacks" | "shaderpacks" | "saves";
 
 export function listGameFiles(
@@ -873,4 +858,187 @@ export function packRate(
   value: number
 ): Promise<{ likes: number; dislikes: number; rating: number; myRating: number | null }> {
   return invoke("pack_rate_command", { accessToken, id, value });
+}
+
+// ==== Комментарии ====
+
+import type {
+  CommentPublic,
+  CommentWithReplies,
+  ProfilePublic,
+  ProfileDetail,
+  ScanResult,
+  CollaboratorPublic,
+  AdminUser,
+  AdminPack,
+} from "./types";
+
+export function monoListComments(packId: string): Promise<CommentWithReplies[]> {
+  return invoke("mono_list_comments_command", { packId });
+}
+
+export function monoCreateComment(
+  accessToken: string,
+  packId: string,
+  body: string,
+  parentId?: string
+): Promise<CommentPublic> {
+  return invoke("mono_create_comment_command", { accessToken, packId, body, parentId: parentId ?? null });
+}
+
+export function monoUpdateComment(
+  accessToken: string,
+  packId: string,
+  commentId: string,
+  body: string
+): Promise<CommentPublic> {
+  return invoke("mono_update_comment_command", { accessToken, packId, commentId, body });
+}
+
+export function monoDeleteComment(
+  accessToken: string,
+  packId: string,
+  commentId: string
+): Promise<void> {
+  return invoke("mono_delete_comment_command", { accessToken, packId, commentId });
+}
+
+export function monoRateComment(
+  accessToken: string,
+  packId: string,
+  commentId: string,
+  value: number
+): Promise<{ likes: number; dislikes: number; myRating: number | null }> {
+  return invoke("mono_rate_comment_command", { accessToken, packId, commentId, value });
+}
+
+// ==== Профили ====
+
+export function monoGetProfile(userId: string): Promise<ProfilePublic> {
+  return invoke("mono_get_profile_command", { userId });
+}
+
+export function monoGetProfileFull(userId: string): Promise<ProfileDetail> {
+  return invoke("mono_get_profile_full_command", { userId });
+}
+
+export function monoUpdateProfile(
+  accessToken: string,
+  bio?: string,
+  avatarUrl?: string
+): Promise<ProfilePublic> {
+  return invoke("mono_update_profile_command", { accessToken, bio: bio ?? null, avatarUrl: avatarUrl ?? null });
+}
+
+// ==== Сканер модов ====
+
+export function monoScanMod(accessToken: string, filePath: string): Promise<ScanResult> {
+  return invoke("mono_scan_mod_command", { accessToken, filePath });
+}
+
+export function monoCheckHash(sha256: string): Promise<ScanResult> {
+  return invoke("mono_check_hash_command", { sha256 });
+}
+
+// ==== Соавторы ====
+
+export function monoListCollaborators(
+  accessToken: string,
+  packId: string
+): Promise<CollaboratorPublic[]> {
+  return invoke("mono_list_collaborators_command", { accessToken, packId });
+}
+
+export function monoAddCollaborator(
+  accessToken: string,
+  packId: string,
+  username: string,
+  permEditMeta: boolean,
+  permManageVersions: boolean,
+  permManageNews: boolean
+): Promise<CollaboratorPublic> {
+  return invoke("mono_add_collaborator_command", {
+    accessToken, packId, username,
+    permEditMeta, permManageVersions, permManageNews,
+  });
+}
+
+export function monoUpdateCollaborator(
+  accessToken: string,
+  packId: string,
+  collabId: string,
+  permEditMeta?: boolean,
+  permManageVersions?: boolean,
+  permManageNews?: boolean
+): Promise<CollaboratorPublic> {
+  return invoke("mono_update_collaborator_command", {
+    accessToken, packId, collabId,
+    permEditMeta: permEditMeta ?? null,
+    permManageVersions: permManageVersions ?? null,
+    permManageNews: permManageNews ?? null,
+  });
+}
+
+export function monoRemoveCollaborator(
+  accessToken: string,
+  packId: string,
+  collabId: string
+): Promise<void> {
+  return invoke("mono_remove_collaborator_command", { accessToken, packId, collabId });
+}
+
+// ==== Админ ====
+
+export function monoAdminListUsers(accessToken: string): Promise<AdminUser[]> {
+  return invoke("mono_admin_list_users_command", { accessToken });
+}
+
+export function monoAdminListPacks(accessToken: string): Promise<AdminPack[]> {
+  return invoke("mono_admin_list_packs_command", { accessToken });
+}
+
+export function monoAdminBanUser(
+  accessToken: string,
+  userId: string,
+  reason?: string
+): Promise<void> {
+  return invoke("mono_admin_ban_user_command", { accessToken, userId, reason: reason ?? null });
+}
+
+export function monoAdminUnbanUser(accessToken: string, userId: string): Promise<void> {
+  return invoke("mono_admin_unban_user_command", { accessToken, userId });
+}
+
+export function monoAdminDeleteUser(accessToken: string, userId: string): Promise<void> {
+  return invoke("mono_admin_delete_user_command", { accessToken, userId });
+}
+
+export function monoAdminDeletePack(accessToken: string, packId: string): Promise<void> {
+  return invoke("mono_admin_delete_pack_command", { accessToken, packId });
+}
+
+export function monoAdminDeleteComment(accessToken: string, commentId: string): Promise<void> {
+  return invoke("mono_admin_delete_comment_command", { accessToken, commentId });
+}
+
+export function monoAdminSetRole(
+  accessToken: string,
+  userId: string,
+  role: string
+): Promise<void> {
+  return invoke("mono_admin_set_role_command", { accessToken, userId, role });
+}
+
+// ==== Auth v2 ====
+
+export function monoForgotPassword(email: string): Promise<void> {
+  return invoke("mono_forgot_password_command", { email });
+}
+
+export function monoResetPassword(token: string, password: string): Promise<void> {
+  return invoke("mono_reset_password_command", { token, password });
+}
+
+export function monoConfirmEmail(accessToken: string): Promise<void> {
+  return invoke("mono_confirm_email_command", { accessToken });
 }

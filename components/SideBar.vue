@@ -197,6 +197,22 @@
         <span v-if="!sidebarCollapsed">{{ t("nav.author") }}</span>
       </button>
       <button
+        v-if="isAdmin"
+        type="button"
+        class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
+        :class="[
+          sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-2 px-3',
+          tab === 'admin' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
+        ]"
+        :title="t('nav.admin')"
+        @click="tab = 'admin'"
+      >
+        <svg viewBox="0 0 16 16" class="shrink-0 fill-current" :class="sidebarCollapsed ? 'h-[18px] w-[18px]' : 'h-4 w-4'">
+          <path d="M8 1.5 9.3 4.4l3.2.35-2.4 2.15.7 3.1L8 8.55l-2.8 1.45.7-3.1L3.5 4.75l3.2-.35ZM2.5 11.5a.75.75 0 0 1 .75-.75h2a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1-.75-.75Zm7.5 0a.75.75 0 0 1 .75-.75h2a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1-.75-.75ZM4.25 13.75a.75.75 0 0 0 0 1.5h7.5a.75.75 0 0 0 0-1.5Z"/>
+        </svg>
+        <span v-if="!sidebarCollapsed">{{ t("nav.admin") }}</span>
+      </button>
+      <button
         type="button"
         class="flex items-center rounded-md py-1.5 text-xs font-medium transition-colors"
         :class="[
@@ -366,6 +382,7 @@ const {
   removeArmed,
   openPackTab,
   handleRemovePack,
+  isAdmin,
 } = useLauncherCtx();
 const { t } = useI18n();
 

@@ -8,7 +8,6 @@ import {
   clearLaunchLog,
   clearLocalSkin,
   ensureJava,
-  fetchCatalog,
   getGameFileIcons,
   getLaunchLog,
   getLocalSkin,
@@ -25,7 +24,6 @@ import {
   listPacks,
   listSavedServers,
   recentPacks,
-  refreshBuiltinPacks,
   listScreenshots,
   analyzeDuplicates,
   deleteGameFiles,
@@ -44,7 +42,6 @@ import {
   openExternal,
   openGameFolder,
   openPackDir,
-  packRepoContent,
   removePack,
   setJavaPath,
   setDiscordRp,
@@ -90,6 +87,30 @@ import {
   elyPoll,
   packLocked as packLockedCmd,
   setPackLocked as setPackLockedCmd,
+  monoListComments as monoListCommentsCmd,
+  monoCreateComment as monoCreateCommentCmd,
+  monoUpdateComment as monoUpdateCommentCmd,
+  monoDeleteComment as monoDeleteCommentCmd,
+  monoRateComment as monoRateCommentCmd,
+  monoGetProfileFull as monoGetProfileFullCmd,
+  monoUpdateProfile as monoUpdateProfileCmd,
+  monoScanMod as monoScanModCmd,
+  monoCheckHash as monoCheckHashCmd,
+  monoListCollaborators as monoListCollaboratorsCmd,
+  monoAddCollaborator as monoAddCollaboratorCmd,
+  monoUpdateCollaborator as monoUpdateCollaboratorCmd,
+  monoRemoveCollaborator as monoRemoveCollaboratorCmd,
+  monoAdminListUsers as monoAdminListUsersCmd,
+  monoAdminListPacks as monoAdminListPacksCmd,
+  monoAdminBanUser as monoAdminBanUserCmd,
+  monoAdminUnbanUser as monoAdminUnbanUserCmd,
+  monoAdminDeleteUser as monoAdminDeleteUserCmd,
+  monoAdminDeletePack as monoAdminDeletePackCmd,
+  monoAdminDeleteComment as monoAdminDeleteCommentCmd,
+  monoAdminSetRole as monoAdminSetRoleCmd,
+  monoForgotPassword as monoForgotPasswordCmd,
+  monoResetPassword as monoResetPasswordCmd,
+  monoConfirmEmail as monoConfirmEmailCmd,
 } from "~/lib/bridge";
 import type {
   AppStatus,
@@ -102,10 +123,7 @@ import type {
   BoostyAuth,
   MsDeviceCodeInfo,
   NewsItem,
-  CatalogEntry,
   PackDescriptor,
-  PackRepoContent,
-  PackServer,
   SavedServer,
   ScreenshotInfo,
   DuplicatesResult,
@@ -123,6 +141,13 @@ import type {
   PackVersionPublic,
   UpdatePackRequest,
   MonoProfile,
+  CommentPublic,
+  CommentWithReplies,
+  ProfileDetail,
+  ScanResult,
+  CollaboratorPublic,
+  AdminUser,
+  AdminPack,
 } from "~/lib/types";
 import type { GameFolderKind, PackAddedPayload } from "~/lib/bridge";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -197,7 +222,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const versions = ref<VersionsInfo | null>(null);
   const logEntries = ref<LaunchLogEntry[]>([]);
   const logRef = ref<HTMLElement | null>(null);
-  const tab = ref<"play" | "settings" | "news" | "catalog" | "dev" | "library" | "author">("play");
+  const tab = ref<"play" | "settings" | "news" | "catalog" | "dev" | "library" | "author" | "admin">("play");
   /** Уровень темы: 0 = самая светлая, 1 = самая тёмная. */
   const themeLevel = ref<number>(1);
 
@@ -486,12 +511,133 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
   const authorBusy = ref(false);
   const authorSelected = ref<string | null>(null);
   const authorVersions = ref<PackVersionPublic[]>([]);
-  const authorTab = ref<"overview" | "versions" | "news">("overview");
+  const authorTab = ref<"overview" | "versions" | "news" | "collabs" | "comments">("overview");
 
   // ==== Каталог: деталь сборки ====
   const catalogDetail = ref<PackDetail | null>(null);
   const catalogDetailBusy = ref(false);
-  const catalogDetailTab = ref<"description" | "screenshots" | "versions" | "news">("description");
+  const catalogDetailTab = ref<"description" | "screenshots" | "versions" | "news" | "comments">("description");
+
+  /** Комментарии сборки из каталога (дерево: 1 уровень ответов). */
+  const catalogComments = ref<CommentWithReplies[]>([]);
+  const catalogCommentsBusy = ref(false);
+
+  const catalogCommentCount = computed(
+    () => catalogComments.value.reduce((n, c) => n + 1 + (c.replies?.length ?? 0), 0)
+  );
+
+  /** Патчит комментарий в дереве (корни + ответы) иммутабельно. */
+  function patchCommentTree(
+    list: CommentWithReplies[],
+    commentId: string,
+    patch: Partial<CommentPublic>
+  ): CommentWithReplies[] {
+    return list.map((c) => {
+      if (c.id === commentId) return { ...c, ...patch };
+      if (c.replies?.length) {
+        return { ...c, replies: patchCommentTree(c.replies, commentId, patch) };
+      }
+      return c;
+    });
+  }
+
+  /** Удаляет комментарий из дерева (корни + ответы). */
+  function dropCommentTree(list: CommentWithReplies[], commentId: string): CommentWithReplies[] {
+    return list
+      .filter((c) => c.id !== commentId)
+      .map((c) => (c.replies?.length ? { ...c, replies: dropCommentTree(c.replies, commentId) } : c));
+  }
+
+  async function loadCatalogComments(packId: string) {
+    if (!isTauri() || !packId) return;
+    catalogCommentsBusy.value = true;
+    try {
+      catalogComments.value = await monoListCommentsCmd(packId);
+    } catch (e) {
+      notify(t("comments.errLoad", { e }));
+    } finally {
+      catalogCommentsBusy.value = false;
+    }
+  }
+
+  /** Публикация комментария/ответа; обновляет дерево на месте. */
+  async function sendCatalogComment(packId: string, body: string, parentId?: string) {
+    if (!isTauri()) return;
+    const token = authorToken();
+    if (!token) {
+      notify(t("author.needLogin"), "info");
+      return;
+    }
+    if (!body.trim()) return;
+    catalogCommentsBusy.value = true;
+    try {
+      const created = await monoCreateCommentCmd(token, packId, body.trim(), parentId);
+      if (parentId) {
+        catalogComments.value = catalogComments.value.map((c) =>
+          c.id === parentId
+            ? { ...c, replies: [...(c.replies ?? []), { ...created, replies: [] }] }
+            : c
+        );
+      } else {
+        catalogComments.value = [...catalogComments.value, { ...created, replies: [] }];
+      }
+    } catch (e) {
+      notify(t("comments.errSend", { e }));
+    } finally {
+      catalogCommentsBusy.value = false;
+    }
+  }
+
+  async function editCatalogComment(packId: string, commentId: string, body: string) {
+    if (!isTauri()) return;
+    const token = authorToken();
+    if (!token || !body.trim()) return;
+    catalogCommentsBusy.value = true;
+    try {
+      const updated = await monoUpdateCommentCmd(token, packId, commentId, body.trim());
+      catalogComments.value = patchCommentTree(catalogComments.value, commentId, updated);
+    } catch (e) {
+      notify(t("comments.errSend", { e }));
+    } finally {
+      catalogCommentsBusy.value = false;
+    }
+  }
+
+  async function removeCatalogComment(packId: string, commentId: string) {
+    if (!isTauri()) return;
+    const token = authorToken();
+    if (!token) return;
+    if (!confirm(t("author.confirmDelete"))) return;
+    catalogCommentsBusy.value = true;
+    try {
+      await monoDeleteCommentCmd(token, packId, commentId);
+      catalogComments.value = dropCommentTree(catalogComments.value, commentId);
+    } catch (e) {
+      notify(t("comments.errSend", { e }));
+    } finally {
+      catalogCommentsBusy.value = false;
+    }
+  }
+
+  /** Лайк/дизлайк комментария (value: 1 или -1; повтор = снятие на бэкенде). */
+  async function rateCatalogComment(packId: string, commentId: string, value: number) {
+    if (!isTauri()) return;
+    const token = authorToken();
+    if (!token) {
+      notify(t("author.needLogin"), "info");
+      return;
+    }
+    try {
+      const r = await monoRateCommentCmd(token, packId, commentId, value);
+      catalogComments.value = patchCommentTree(catalogComments.value, commentId, {
+        likes: r.likes,
+        dislikes: r.dislikes,
+        myRating: r.myRating,
+      });
+    } catch (e) {
+      notify(t("comments.errSend", { e }));
+    }
+  }
 
   async function openCatalogDetail(entry: PackCatalog) {
     if (!isTauri() || catalogDetailBusy.value) return;
@@ -501,6 +647,8 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
       const d = await packDetailCmd(token, entry.id);
       catalogDetail.value = d;
       catalogDetailTab.value = "description";
+      catalogComments.value = [];
+      void loadCatalogComments(d.id);
     } catch (e) {
       notify(t("catalog.err", { e }), "error");
     } finally {
@@ -511,6 +659,7 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
   function closeCatalogDetail() {
     catalogDetail.value = null;
     catalogDetailTab.value = "description";
+    catalogComments.value = [];
   }
   /** Тип добавляемой новости (post | update). */
   const authorNewsKind = ref<"post" | "update">("post");
@@ -583,10 +732,6 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
   const fileSearch = ref("");
   const fileToggling = ref<Set<string>>(new Set());
   const selectedFiles = ref<Record<string, { folder: GameFolderKind; entry: GameFileEntry }>>({});
-  // Контент репозитория сборки: звёзды, скриншоты, сервера.
-  const repoContent = ref<Record<string, PackRepoContent>>({});
-  const repoContentLoading = ref<Record<string, boolean>>({});
-
   function fileEntryKey(folder: GameFolderKind, entry: GameFileEntry): string {
     return `${folder}/${entry.name}`;
   }
@@ -916,15 +1061,6 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     }
   }
 
-  /** Ссылка на GitHub-репозиторий сборки по её URL, "" если это не github-сборка. */
-  function packRepoUrl(url: string): string {
-    const rest = (url || "").replace(/^https?:\/\/github\.com\//, "");
-    const [owner, repo] = rest.split("/");
-    if (!owner || !repo || owner === "USER" || repo === "REPO") return "";
-    return `https://github.com/${owner}/${repo}`;
-  }
-
-  /** Открывает форму GitHub Issues репозитория сборки с предзаполненным окружением. */
   const bugReportOpen = ref(false);
   const bugBody = ref("");
   const bugLog = ref("");
@@ -981,12 +1117,11 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
   /** «Сообщить о баге»: собираем отчёт и показываем превью (скопировать / открыть Issues). */
   async function reportPackBug() {
     const pack = activePack.value;
-    const repo = packRepoUrl(pack?.url ?? "");
-    if (!pack || !repo) {
+    if (!pack) {
       notify(t("reportPack.noRepo"));
       return;
     }
-    bugRepo.value = repo;
+    bugRepo.value = ISSUES_URL;
     bugLog.value = "";
     bugCopied.value = false;
     if (isTauri()) {
@@ -1022,7 +1157,7 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
 
   function openBugReportIssue() {
     const title = t("reportPack.title", { name: activePack.value?.name ?? "?" });
-    const url = `${bugRepo.value}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(bugBody.value)}`;
+    const url = `${bugRepo.value}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(bugBody.value)}`;
     if (isTauri()) {
       openExternal(url).catch(() => window.open(url, "_blank"));
     } else {
@@ -1185,24 +1320,6 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     }
   }
 
-  /** Каталог сборок (catalog.json репозитория лаунчера). */
-  const catalog = ref<CatalogEntry[]>([]);
-  const catalogLoading = ref(false);
-  const catalogError = ref("");
-
-  async function loadCatalog() {
-    if (!isTauri()) return;
-    catalogLoading.value = true;
-    catalogError.value = "";
-    try {
-      catalog.value = await fetchCatalog();
-    } catch (e) {
-      catalogError.value = String(e);
-    } finally {
-      catalogLoading.value = false;
-    }
-  }
-
   /** Каталог сборок Mono (все сборки, загруженные пользователями на бэкенд). */
   const monoCatalog = ref<PackCatalog[]>([]);
   const monoCatalogLoading = ref(false);
@@ -1218,26 +1335,6 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
       monoCatalogError.value = String(e);
     } finally {
       monoCatalogLoading.value = false;
-    }
-  }
-
-  /** «Добавить» из каталога: как по deep link, блог из записи каталога. */
-  async function addFromCatalog(entry: CatalogEntry) {
-    if (!isTauri() || addingPack.value || busy.value) return;
-    addingPack.value = true;
-    try {
-      const added = await addPack(entry.url, entry.name, entry.boostyBlog ?? undefined);
-      await loadPacks();
-      await load();
-      refreshVersions();
-      if (packId.value !== added.id) {
-        await selectPack(added.id);
-      }
-      notify(t("catalog.added", { name: added.name }), "success");
-    } catch (e) {
-      notify(t("dev.errAdd", { e }), "error");
-    } finally {
-      addingPack.value = false;
     }
   }
 
@@ -1775,21 +1872,6 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
       .catch(() => {});
   }
 
-  /** Загружает контент репозитория сборки (звёзды/скриншоты/сервера), один раз. */
-  async function loadPackRepoContent(id: string) {
-    if (!isTauri() || !id || repoContentLoading.value[id]) return;
-    if (repoContent.value[id]) return;
-    repoContentLoading.value = { ...repoContentLoading.value, [id]: true };
-    try {
-      const c = await packRepoContent(id);
-      repoContent.value = { ...repoContent.value, [id]: c };
-    } catch {
-      // Не критично: без звёзд/скриншотов лаунчер работает.
-    } finally {
-      repoContentLoading.value = { ...repoContentLoading.value, [id]: false };
-    }
-  }
-
   /** Скриншоты установленной версии (папка screenshots) и сервера игрока (servers.dat). */
   const packScreenshots = ref<ScreenshotInfo[]>([]);
   const packScreenshotsInstalled = ref(false);
@@ -1872,12 +1954,6 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
       await loadPacks();
     } catch {
       packId.value = "untold-legends";
-    }
-    try {
-      await refreshBuiltinPacks();
-      await loadPacks();
-    } catch {
-      // Нет сети — остаёмся на прошлом (кэшированном) списке встроенных сборок.
     }
     await load();
     refreshVersions();
@@ -1993,10 +2069,23 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     (t) => {
       if (t === "news") loadNews();
       if (t === "catalog") {
-        loadCatalog();
         loadMonoCatalog();
       }
       if (t === "author") loadAuthorPacks();
+      if (t === "admin" && isAdmin.value) loadAdminData();
+    },
+    { flush: "post" }
+  );
+
+  // Смена профиля Mono → перепроверяем админ-права (вкладка «Админ»).
+  watch(
+    monoProfile,
+    (p, old) => {
+      if (p?.uuid === old?.uuid && p?.access_token === old?.access_token) return;
+      isAdmin.value = false;
+      adminUsers.value = [];
+      adminPacks.value = [];
+      if (p) void detectAdmin();
     },
     { flush: "post" }
   );
@@ -2280,7 +2369,7 @@ notify(t("err.switch", { e }));
     await loadAuthorNews();
   }
 
-  /** Открывает деталь сборки: мета + версии + новости сборки. */
+  /** Открывает деталь сборки: мета + версии + новости + соавторы. */
   async function openAuthorDetail(id: string) {
     if (!isTauri() || authorBusy.value) return;
     const token = authorToken();
@@ -2293,6 +2382,10 @@ notify(t("err.switch", { e }));
       authorVersions.value = d.versions;
       authorNews.value = [...d.news];
       authorTab.value = "overview";
+      authorCollaborators.value = [];
+      void loadCollaborators(id);
+      catalogComments.value = [];
+      void loadCatalogComments(id);
     } catch (e) {
       notify(t("author.error", { e }));
     } finally {
@@ -2305,6 +2398,8 @@ notify(t("err.switch", { e }));
     authorDetail.value = null;
     authorSelected.value = null;
     authorVersions.value = [];
+    authorCollaborators.value = [];
+    catalogComments.value = [];
     void loadAuthorNews();
   }
 
@@ -2541,9 +2636,400 @@ notify(t("err.switch", { e }));
           my_rating: typeof r.myRating === "number" ? r.myRating : null,
         };
       }
+      if (catalogDetail.value?.id === id) {
+        catalogDetail.value = {
+          ...catalogDetail.value,
+          likes: typeof r.likes === "number" ? r.likes : catalogDetail.value.likes,
+          dislikes: typeof r.dislikes === "number" ? r.dislikes : catalogDetail.value.dislikes,
+          my_rating: typeof r.myRating === "number" ? r.myRating : null,
+        };
+      }
+      const cIdx = monoCatalog.value.findIndex((p) => p.id === id);
+      if (cIdx >= 0) {
+        const cur = monoCatalog.value[cIdx];
+        monoCatalog.value = [
+          ...monoCatalog.value.slice(0, cIdx),
+          {
+            ...cur,
+            likes: typeof r.likes === "number" ? r.likes : cur.likes,
+            dislikes: typeof r.dislikes === "number" ? r.dislikes : cur.dislikes,
+          },
+          ...monoCatalog.value.slice(cIdx + 1),
+        ];
+      }
       notify(t("author.uploaded"), "success");
     } catch (e) {
       notify(t("author.error", { e }));
+    }
+  }
+
+  // ==== Профиль пользователя (bio + сборки + комментарии) ====
+  const profileView = ref<ProfileDetail | null>(null);
+  const profileBusy = ref(false);
+
+  /** Профиль свой? (для редактирования bio). */
+  const profileIsOwn = computed(() => !!profileView.value && profileView.value.profile.user.id === monoProfile.value?.uuid);
+
+  async function openProfileView(userId: string) {
+    if (!isTauri() || profileBusy.value || !userId) return;
+    profileBusy.value = true;
+    try {
+      profileView.value = await monoGetProfileFullCmd(userId);
+    } catch (e) {
+      notify(t("profile.errLoad", { e }));
+    } finally {
+      profileBusy.value = false;
+    }
+  }
+
+  function closeProfileView() {
+    profileView.value = null;
+  }
+
+  /** Сохраняет bio (и опционально аватар) своего профиля. */
+  async function saveMyProfile(bio: string, avatarUrl?: string) {
+    if (!isTauri()) return;
+    const token = authorToken();
+    if (!token) return;
+    profileBusy.value = true;
+    try {
+      const p = await monoUpdateProfileCmd(token, bio, avatarUrl);
+      if (profileView.value) {
+        profileView.value = { ...profileView.value, profile: { ...profileView.value.profile, bio: p.bio, avatarUrl: p.avatarUrl } };
+      }
+      notify(t("author.uploaded"), "success");
+    } catch (e) {
+      notify(t("author.error", { e }));
+    } finally {
+      profileBusy.value = false;
+    }
+  }
+
+  // ==== Сканер модов ====
+  const scanResult = ref<ScanResult | null>(null);
+  const scanBusy = ref(false);
+
+  /** Сканирует .jar на бэкенде (нужен вход в Mono). */
+  async function scanModFile(filePath: string) {
+    if (!isTauri() || scanBusy.value) return;
+    const token = authorToken();
+    if (!token) {
+      notify(t("author.needLogin"), "info");
+      return;
+    }
+    scanBusy.value = true;
+    scanResult.value = null;
+    try {
+      scanResult.value = await monoScanModCmd(token, filePath);
+    } catch (e) {
+      notify(t("scanner.err", { e }));
+    } finally {
+      scanBusy.value = false;
+    }
+  }
+
+  /** Проверка мода по SHA-256 (без авторизации, из кэша бэкенда). */
+  async function scanByHash(sha256: string) {
+    if (!isTauri() || scanBusy.value) return;
+    if (sha256.trim().length !== 64) {
+      notify(t("scanner.errHash"), "info");
+      return;
+    }
+    scanBusy.value = true;
+    scanResult.value = null;
+    try {
+      scanResult.value = await monoCheckHashCmd(sha256.trim().toLowerCase());
+    } catch (e) {
+      notify(t("scanner.err", { e }));
+    } finally {
+      scanBusy.value = false;
+    }
+  }
+
+  // ==== Соавторы (панель автора) ====
+  const authorCollaborators = ref<CollaboratorPublic[]>([]);
+  const collabBusy = ref(false);
+
+  async function loadCollaborators(packId: string) {
+    if (!isTauri() || !packId) return;
+    const token = authorToken();
+    if (!token) return;
+    try {
+      authorCollaborators.value = await monoListCollaboratorsCmd(token, packId);
+    } catch (e) {
+      authorCollaborators.value = [];
+      notify(t("author.error", { e }));
+    }
+  }
+
+  /** Добавляет соавтора с гранулярными правами. */
+  async function addCollaborator(
+    packId: string,
+    username: string,
+    permEditMeta: boolean,
+    permManageVersions: boolean,
+    permManageNews: boolean
+  ) {
+    if (!isTauri() || collabBusy.value) return;
+    const token = authorToken();
+    if (!packId || !token) return;
+    if (!username.trim()) {
+      notify(t("err.nickname"), "info");
+      return;
+    }
+    collabBusy.value = true;
+    try {
+      const c = await monoAddCollaboratorCmd(token, packId, username.trim(), permEditMeta, permManageVersions, permManageNews);
+      authorCollaborators.value = [...authorCollaborators.value, c];
+      notify(t("author.uploaded"), "success");
+    } catch (e) {
+      notify(t("author.error", { e }));
+    } finally {
+      collabBusy.value = false;
+    }
+  }
+
+  /** Меняет права соавтора (иммутабельно + на бэкенде). */
+  async function updateCollaborator(
+    packId: string,
+    collabId: string,
+    perms: { permEditMeta?: boolean; permManageVersions?: boolean; permManageNews?: boolean }
+  ) {
+    if (!isTauri() || collabBusy.value) return;
+    const token = authorToken();
+    if (!token) return;
+    collabBusy.value = true;
+    try {
+      const c = await monoUpdateCollaboratorCmd(
+        token,
+        packId,
+        collabId,
+        perms.permEditMeta,
+        perms.permManageVersions,
+        perms.permManageNews
+      );
+      authorCollaborators.value = authorCollaborators.value.map((x) => (x.id === collabId ? c : x));
+    } catch (e) {
+      notify(t("author.error", { e }));
+    } finally {
+      collabBusy.value = false;
+    }
+  }
+
+  async function removeCollaborator(packId: string, collabId: string) {
+    if (!isTauri() || collabBusy.value) return;
+    const token = authorToken();
+    if (!token) return;
+    if (!confirm(t("author.confirmDelete"))) return;
+    collabBusy.value = true;
+    try {
+      await monoRemoveCollaboratorCmd(token, packId, collabId);
+      authorCollaborators.value = authorCollaborators.value.filter((c) => c.id !== collabId);
+    } catch (e) {
+      notify(t("author.error", { e }));
+    } finally {
+      collabBusy.value = false;
+    }
+  }
+
+  // ==== Админ-панель ====
+  const isAdmin = ref(false);
+  const adminUsers = ref<AdminUser[]>([]);
+  const adminPacks = ref<AdminPack[]>([]);
+  const adminBusy = ref(false);
+
+  /** Пробует админ-запрос: 403 → не админ (вкладка не показывается). */
+  async function detectAdmin() {
+    if (!isTauri() || !monoProfile.value) {
+      isAdmin.value = false;
+      return;
+    }
+    try {
+      adminUsers.value = await monoAdminListUsersCmd(monoProfile.value.access_token);
+      isAdmin.value = true;
+    } catch {
+      isAdmin.value = false;
+      adminUsers.value = [];
+      adminPacks.value = [];
+    }
+  }
+
+  async function loadAdminData() {
+    if (!isTauri() || !isAdmin.value) return;
+    const token = authorToken();
+    if (!token) return;
+    adminBusy.value = true;
+    try {
+      [adminUsers.value, adminPacks.value] = await Promise.all([
+        monoAdminListUsersCmd(token),
+        monoAdminListPacksCmd(token),
+      ]);
+    } catch (e) {
+      notify(t("admin.errLoad", { e }));
+    } finally {
+      adminBusy.value = false;
+    }
+  }
+
+  async function adminBanUser(userId: string, reason: string) {
+    if (!isTauri() || adminBusy.value) return;
+    const token = authorToken();
+    if (!token) return;
+    adminBusy.value = true;
+    try {
+      await monoAdminBanUserCmd(token, userId, reason.trim() || undefined);
+      adminUsers.value = adminUsers.value.map((u) => (u.id === userId ? { ...u, banned: true, banReason: reason.trim() || u.banReason } : u));
+    } catch (e) {
+      notify(t("admin.errAction", { e }));
+    } finally {
+      adminBusy.value = false;
+    }
+  }
+
+  async function adminUnbanUser(userId: string) {
+    if (!isTauri() || adminBusy.value) return;
+    const token = authorToken();
+    if (!token) return;
+    adminBusy.value = true;
+    try {
+      await monoAdminUnbanUserCmd(token, userId);
+      adminUsers.value = adminUsers.value.map((u) => (u.id === userId ? { ...u, banned: false, banReason: null } : u));
+    } catch (e) {
+      notify(t("admin.errAction", { e }));
+    } finally {
+      adminBusy.value = false;
+    }
+  }
+
+  async function adminDeleteUser(userId: string) {
+    if (!isTauri() || adminBusy.value) return;
+    const token = authorToken();
+    if (!token) return;
+    if (!confirm(t("author.confirmDelete"))) return;
+    adminBusy.value = true;
+    try {
+      await monoAdminDeleteUserCmd(token, userId);
+      adminUsers.value = adminUsers.value.filter((u) => u.id !== userId);
+    } catch (e) {
+      notify(t("admin.errAction", { e }));
+    } finally {
+      adminBusy.value = false;
+    }
+  }
+
+  /** Смена роли (user | admin). */
+  async function adminSetRole(userId: string, role: string) {
+    if (!isTauri() || adminBusy.value) return;
+    const token = authorToken();
+    if (!token) return;
+    adminBusy.value = true;
+    try {
+      await monoAdminSetRoleCmd(token, userId, role);
+      adminUsers.value = adminUsers.value.map((u) => (u.id === userId ? { ...u, role } : u));
+    } catch (e) {
+      notify(t("admin.errAction", { e }));
+    } finally {
+      adminBusy.value = false;
+    }
+  }
+
+  async function adminDeletePack(packId: string) {
+    if (!isTauri() || adminBusy.value) return;
+    const token = authorToken();
+    if (!token) return;
+    if (!confirm(t("author.confirmDelete"))) return;
+    adminBusy.value = true;
+    try {
+      await monoAdminDeletePackCmd(token, packId);
+      adminPacks.value = adminPacks.value.filter((p) => p.id !== packId);
+      void loadMonoCatalog();
+    } catch (e) {
+      notify(t("admin.errAction", { e }));
+    } finally {
+      adminBusy.value = false;
+    }
+  }
+
+  /** Админ удаляет комментарий (из вью профиля). */
+  async function adminDeleteComment(commentId: string) {
+    if (!isTauri() || adminBusy.value || !isAdmin.value) return;
+    const token = authorToken();
+    if (!token) return;
+    if (!confirm(t("author.confirmDelete"))) return;
+    adminBusy.value = true;
+    try {
+      await monoAdminDeleteCommentCmd(token, commentId);
+      if (profileView.value) {
+        profileView.value = {
+          ...profileView.value,
+          comments: profileView.value.comments.filter((c) => c.id !== commentId),
+        };
+      }
+    } catch (e) {
+      notify(t("admin.errAction", { e }));
+    } finally {
+      adminBusy.value = false;
+    }
+  }
+
+  // ==== Auth v2: восстановление пароля / подтверждение email ====
+  const monoForgotOpen = ref(false);
+  const monoForgotEmail = ref("");
+  const monoForgotSent = ref(false);
+  const monoResetToken = ref("");
+  const monoResetPass = ref("");
+  const monoResetDone = ref(false);
+  const monoAuthBusy = ref(false);
+
+  async function handleMonoForgot() {
+    if (!isTauri() || monoAuthBusy.value) return;
+    if (!monoForgotEmail.value.trim()) {
+      notify(t("auth2.errEmail"), "info");
+      return;
+    }
+    monoAuthBusy.value = true;
+    try {
+      await monoForgotPasswordCmd(monoForgotEmail.value.trim());
+      monoForgotSent.value = true;
+      notify(t("auth2.forgotSent"), "success");
+    } catch (e) {
+      notify(t("auth2.err", { e }));
+    } finally {
+      monoAuthBusy.value = false;
+    }
+  }
+
+  async function handleMonoReset() {
+    if (!isTauri() || monoAuthBusy.value) return;
+    if (!monoResetToken.value.trim() || monoResetPass.value.length < 6) {
+      notify(t("auth2.errResetFields"), "info");
+      return;
+    }
+    monoAuthBusy.value = true;
+    try {
+      await monoResetPasswordCmd(monoResetToken.value.trim(), monoResetPass.value);
+      monoResetDone.value = true;
+      notify(t("auth2.resetDone"), "success");
+    } catch (e) {
+      notify(t("auth2.err", { e }));
+    } finally {
+      monoAuthBusy.value = false;
+    }
+  }
+
+  /** Запрашивает письмо для подтверждения email текущего профиля. */
+  async function handleMonoConfirmEmail() {
+    if (!isTauri() || monoAuthBusy.value) return;
+    const token = authorToken();
+    if (!token) return;
+    monoAuthBusy.value = true;
+    try {
+      await monoConfirmEmailCmd(token);
+      notify(t("auth2.confirmSent"), "success");
+    } catch (e) {
+      notify(t("auth2.err", { e }));
+    } finally {
+      monoAuthBusy.value = false;
     }
   }
 
@@ -2629,7 +3115,7 @@ notify(t("err.switch", { e }));
   }
 
   /** «Играть на сервере»: запуск с --server/--port из карточки сервера. */
-  function playOnServer(srv: PackServer) {
+  function playOnServer(srv: { ip: string; port: number | null }) {
     return runGame(srv.port ? `${srv.ip}:${srv.port}` : srv.ip);
   }
 
@@ -2789,6 +3275,51 @@ notify(t("err.switch", { e }));
     openCatalogDetail,
     closeCatalogDetail,
     ratePack,
+    catalogComments,
+    catalogCommentsBusy,
+    catalogCommentCount,
+    loadCatalogComments,
+    sendCatalogComment,
+    editCatalogComment,
+    removeCatalogComment,
+    rateCatalogComment,
+    profileView,
+    profileBusy,
+    profileIsOwn,
+    openProfileView,
+    closeProfileView,
+    saveMyProfile,
+    scanResult,
+    scanBusy,
+    scanModFile,
+    scanByHash,
+    authorCollaborators,
+    collabBusy,
+    loadCollaborators,
+    addCollaborator,
+    updateCollaborator,
+    removeCollaborator,
+    isAdmin,
+    adminUsers,
+    adminPacks,
+    adminBusy,
+    loadAdminData,
+    adminBanUser,
+    adminUnbanUser,
+    adminDeleteUser,
+    adminSetRole,
+    adminDeletePack,
+    adminDeleteComment,
+    monoForgotOpen,
+    monoForgotEmail,
+    monoForgotSent,
+    monoResetToken,
+    monoResetPass,
+    monoResetDone,
+    monoAuthBusy,
+    handleMonoForgot,
+    handleMonoReset,
+    handleMonoConfirmEmail,
     accounts,
     accountBusy,
     loadAccounts,
@@ -2850,11 +3381,6 @@ notify(t("err.switch", { e }));
     closeBugReport,
     copyBugReport,
     openBugReportIssue,
-    catalog,
-    catalogLoading,
-    catalogError,
-    loadCatalog,
-    addFromCatalog,
     monoCatalog,
     monoCatalogLoading,
     monoCatalogError,
@@ -2885,9 +3411,6 @@ notify(t("err.switch", { e }));
     newsSources,
     filteredNews,
     playSubTab,
-    repoContent,
-    repoContentLoading,
-    loadPackRepoContent,
   packScreenshots,
   packScreenshotsInstalled,
   screenshotsLoading,

@@ -83,11 +83,6 @@ pub struct PackDescriptor {
     pub banner: Option<String>,
 }
 
-/// Имя владельца репозитория из URL сборки (github.com/OWNER/...).
-fn repo_author(url: &str) -> Option<String> {
-    parse_github_repo_from_url(url).map(|(owner, _)| owner)
-}
-
 #[derive(Debug, Serialize)]
 pub struct UpdateInfo {
     pub current_version: Option<String>,
@@ -95,22 +90,9 @@ pub struct UpdateInfo {
     pub has_update: bool,
 }
 
-/// Релиз сборки на GitHub.
-#[derive(Debug, Clone, Serialize)]
-pub struct GhVersion {
-    pub tag: String,
-    pub name: String,
-    pub url: String,
-    pub prerelease: bool,
-    pub published_at: Option<String>,
-    pub body: String,
-    pub assets: Vec<String>,
-}
-
 /// Всё, что нужно фронтенду для выбора версии.
 #[derive(Debug, Serialize)]
 pub struct VersionsInfo {
-    pub github: Vec<GhVersion>,
     pub installed: Vec<mrpack::InstalledVersion>,
     pub active: Option<String>,
 }
@@ -130,85 +112,6 @@ pub struct NewsItem {
     pub date: Option<String>,
 }
 
-/// Сервер сборки из `servers.json` в корне репозитория.
-#[derive(Debug, Clone, serde::Serialize, Default)]
-pub struct PackServer {
-    pub name: String,
-    pub ip: String,
-    pub port: Option<u16>,
-    pub desc: Option<String>,
-}
-
-/// Соцсеть сборки из `socials.json` в корне репозитория.
-/// `color` — цвет кнопки в формате `#rrggbb` (необязательно, иначе акцент темы).
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct PackSocial {
-    pub name: String,
-    pub url: String,
-    pub color: Option<String>,
-}
-
-/// Тема лаунчера из `theme.json` в корне репозитория сборки (все поля — hex-цвета `#rrggbb`).
-#[derive(Debug, Clone, serde::Serialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct PackTheme {
-    pub bg: Option<String>,
-    pub panel: Option<String>,
-    pub input: Option<String>,
-    pub border: Option<String>,
-    pub tx: Option<String>,
-    pub tx_strong: Option<String>,
-    pub tx_muted: Option<String>,
-    pub accent: Option<String>,
-    pub accent_strong: Option<String>,
-    pub accent_hover: Option<String>,
-    pub accent_deep: Option<String>,
-}
-
-/// Контент репозитория сборки: звёзды GitHub + сервера + соцсети + тема.
-#[derive(Debug, Clone, serde::Serialize, Default)]
-pub struct PackRepoContent {
-    pub stars: Option<i64>,
-    pub servers: Vec<PackServer>,
-    pub socials: Vec<PackSocial>,
-    pub theme: Option<PackTheme>,
-    /// URL баннера сборки (banner.png в корне репозитория, raw.githubusercontent).
-    pub banner: Option<String>,
-}
-
-/// Запись каталога сборок: курируемый список авторов в `catalog.json`
-/// корня репозитория лаунчера (fetch по raw.githubusercontent, без API квоты).
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct CatalogEntry {
-    pub name: String,
-    /// URL репозитория GitHub сборки (или прямая ссылка на .mrpack).
-    pub url: String,
-    #[serde(default)]
-    pub description: Option<String>,
-    #[serde(default)]
-    pub author: Option<String>,
-    /// Ник блога Boosty: задан → сборка платная (подписка обязательна).
-    #[serde(default, rename = "boostyBlog")]
-    pub boosty_blog: Option<String>,
-    /// Минимальная оперативка (МБ).
-    #[serde(default, rename = "minRam")]
-    pub min_ram_mb: Option<u32>,
-    #[serde(default)]
-    pub tags: Vec<String>,
-    /// Оценка сборки (0.0–5.0) — выводится звёздами и участвует в сортировке.
-    #[serde(default, rename = "rating")]
-    pub rating: Option<f32>,
-    /// Число оценок (показывается рядом с рейтингом).
-    #[serde(default, rename = "ratingCount")]
-    pub rating_count: Option<u64>,
-    /// Признак спонсорской сборки: такие всегда идут в начало каталога.
-    #[serde(default)]
-    pub sponsored: bool,
-}
-
-/// Источник каталога сборок (raw-файл в корне репозитория лаунчера).
-const CATALOG_URL: &str = "https://raw.githubusercontent.com/n1orio/mono-launcher/main/catalog.json";
-
 /// Информация о системе для ползунка RAM.
 #[derive(Debug, Serialize)]
 pub struct SystemInfo {
@@ -224,293 +127,6 @@ fn resolve_pack(pack_id: Option<String>) -> Result<PackInfo, String> {
         .ok_or_else(|| format!("Сборка не найдена: {id}"))
 }
 
-/// Тег релиза (или versionId) активной установленной версии — основа для сравнения
-/// с релизами GitHub и отображения в UI.
-fn active_installed_tag(pack_id: &str) -> Option<String> {
-    let active = config::active_version(pack_id)
-        .ok()
-        .filter(|v| !v.is_empty())?;
-    mrpack::installed_details(pack_id)
-        .into_iter()
-        .find(|v| v.version_id == active)
-        .map(|v| v.source_tag.clone().unwrap_or_else(|| v.version_id.clone()))
-}
-
-/// Извлекает owner/repo из URL сборки, чтобы опрашивать GitHub API.
-fn parse_github_repo(pack: &PackInfo) -> Option<(String, String)> {
-    parse_github_repo_from_url(&pack.url)
-}
-
-/// Извлекает owner/repo из произвольной github-ссылки.
-pub(crate) fn parse_github_repo_from_url(url: &str) -> Option<(String, String)> {
-    let rest = url
-        .trim_start_matches("https://github.com/")
-        .trim_start_matches("http://github.com/");
-    let mut parts = rest.split('/');
-    let owner = parts.next()?;
-    let repo = parts.next()?.split('/').next()?;
-    if owner == "USER" || repo == "REPO" || owner.is_empty() || repo.is_empty() {
-        return None;
-    }
-    Some((owner.to_string(), repo.to_string()))
-}
-
-/// Имя `.mrpack` файла из URL сборки.
-fn mrpack_file_name(pack: &PackInfo) -> Option<String> {
-    std::path::Path::new(&pack.url)
-        .file_name()
-        .map(|f| f.to_string_lossy().to_string())
-}
-
-/// URL скачивания `.mrpack` для конкретного тега релиза.
-fn mrpack_url_for_tag(pack: &PackInfo, tag: &str) -> String {
-    let file = mrpack_file_name(pack).unwrap_or_else(|| "modpack.mrpack".into());
-    let Some((owner, repo)) = parse_github_repo(pack) else {
-        return pack.url.clone();
-    };
-    format!("https://github.com/{owner}/{repo}/releases/download/{tag}/{file}")
-}
-
-/// Идентификатор сборки из репозитория GitHub (например n1orio/My-Pack -> n1orio-my-pack).
-fn pack_id_from_repo(owner: &str, repo: &str) -> String {
-    let slug = |s: &str| {
-        s.chars()
-            .map(|c| {
-                if c.is_ascii_alphanumeric() {
-                    c.to_ascii_lowercase()
-                } else {
-                    '-'
-                }
-            })
-            .collect::<String>()
-    };
-    format!("{}-{}", slug(owner), slug(repo))
-}
-
-const API_HIT_TTL: Duration = Duration::from_secs(15 * 60);
-const API_FAIL_RETRY: Duration = Duration::from_secs(60);
-
-/// Кэш GitHub API: успешные ответы живут 15 минут, ошибки (в т.ч. rate limit)
-/// не дают долбить API чаще раза в минуту.
-struct ApiCache {
-    releases: HashMap<String, (Instant, Vec<GhVersion>)>,
-    discussions: HashMap<String, (Instant, Vec<NewsItem>)>,
-    meta: HashMap<String, (Instant, PackRepoContent)>,
-    catalog: Option<(Instant, Vec<CatalogEntry>)>,
-    failures: HashMap<String, Instant>,
-}
-
-static API_CACHE: OnceLock<std::sync::Mutex<ApiCache>> = OnceLock::new();
-
-fn api_cache() -> &'static std::sync::Mutex<ApiCache> {
-    API_CACHE.get_or_init(|| {
-        std::sync::Mutex::new(ApiCache {
-            releases: HashMap::new(),
-            discussions: HashMap::new(),
-            meta: HashMap::new(),
-            catalog: None,
-            failures: HashMap::new(),
-        })
-    })
-}
-
-fn repo_key(pack: &PackInfo) -> Option<String> {
-    parse_github_repo(pack).map(|(o, r)| format!("{o}/{r}"))
-}
-
-/// `fetch_releases` с кэшем: повторные запросы в течение TTL не ходят в сеть,
-/// а при сбое (403 rate limit, нет сети) повторная попытка — не раньше чем через минуту.
-async fn fetch_releases_cached(client: &reqwest::Client, pack: &PackInfo) -> Vec<GhVersion> {
-    let Some(key) = repo_key(pack) else {
-        return Vec::new();
-    };
-    {
-        let cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
-        if let Some((at, v)) = cache.releases.get(&key) {
-            if at.elapsed() < API_HIT_TTL {
-                return v.clone();
-            }
-        } else if let Some(at) = cache.failures.get(&key) {
-            if at.elapsed() < API_FAIL_RETRY {
-                return Vec::new();
-            }
-        }
-    }
-    let fetched = fetch_releases(client, pack).await;
-    let mut cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
-    if fetched.is_empty() {
-        cache.failures.insert(key, Instant::now());
-    } else {
-        cache
-            .releases
-            .insert(key.clone(), (Instant::now(), fetched.clone()));
-        cache.failures.remove(&key);
-    }
-    fetched
-}
-
-/// `fetch_discussions` с тем же кэшем, что и релизы.
-async fn fetch_discussions_cached(
-    client: &reqwest::Client,
-    owner: &str,
-    repo: &str,
-    kind: &str,
-    pack_id: &str,
-    pack_name: &str,
-) -> Vec<NewsItem> {
-    let key = format!("disc/{owner}/{repo}");
-    {
-        let cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
-        if let Some((at, v)) = cache.discussions.get(&key) {
-            if at.elapsed() < API_HIT_TTL {
-                return v.clone();
-            }
-        } else if let Some(at) = cache.failures.get(&key) {
-            if at.elapsed() < API_FAIL_RETRY {
-                return Vec::new();
-            }
-        }
-    }
-    let fetched = fetch_discussions(client, owner, repo, kind, pack_id, pack_name).await;
-    let mut cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
-    if fetched.is_empty() {
-        cache.failures.insert(key, Instant::now());
-    } else {
-        cache
-            .discussions
-            .insert(key.clone(), (Instant::now(), fetched.clone()));
-        cache.failures.remove(&key);
-    }
-    fetched
-}
-
-/// Релизы сборки с GitHub (URL = прямая ссылка на `.mrpack`).
-async fn fetch_releases(client: &reqwest::Client, pack: &PackInfo) -> Vec<GhVersion> {
-    let Some((owner, repo)) = parse_github_repo(pack) else {
-        return Vec::new();
-    };
-    let mut out = fetch_repo_releases(client, &owner, &repo).await;
-    for v in &mut out {
-        v.url = mrpack_url_for_tag(pack, &v.tag);
-    }
-    out
-}
-
-/// Релизы произвольного GitHub-репозитория (URL = страница релиза).
-async fn fetch_repo_releases(client: &reqwest::Client, owner: &str, repo: &str) -> Vec<GhVersion> {
-    let url = format!("https://api.github.com/repos/{owner}/{repo}/releases");
-    let Some(json) = http_cache::cached_json(client, &url).await else {
-        return Vec::new();
-    };
-    let Some(arr) = json.as_array() else {
-        return Vec::new();
-    };
-    let mut out = Vec::new();
-    for rel in arr {
-        if rel["draft"].as_bool().unwrap_or(false) {
-            continue;
-        }
-        let tag = rel["tag_name"].as_str().unwrap_or("").to_string();
-        if tag.is_empty() {
-            continue;
-        }
-        let name = rel["name"].as_str().unwrap_or(&tag).to_string();
-        let assets = rel["assets"]
-            .as_array()
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|a| a["name"].as_str().map(|s| s.to_string()))
-                    .collect()
-            })
-            .unwrap_or_default();
-        out.push(GhVersion {
-            url: format!("https://github.com/{owner}/{repo}/releases/tag/{tag}"),
-            tag,
-            name,
-            prerelease: rel["prerelease"].as_bool().unwrap_or(false),
-            published_at: rel["published_at"].as_str().map(|s| s.to_string()),
-            body: rel["body"].as_str().unwrap_or("").to_string(),
-            assets,
-        });
-    }
-    out
-}
-
-/// Релизы лаунчера (новости обновлений) с кэшем, как у сборок.
-async fn fetch_launcher_releases_cached(client: &reqwest::Client) -> Vec<GhVersion> {
-    let key = "rel/launcher".to_string();
-    {
-        let cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
-        if let Some((at, v)) = cache.releases.get(&key) {
-            if at.elapsed() < API_HIT_TTL {
-                return v.clone();
-            }
-        } else if let Some(at) = cache.failures.get(&key) {
-            if at.elapsed() < API_FAIL_RETRY {
-                return Vec::new();
-            }
-        }
-    }
-    let fetched = fetch_repo_releases(client, NEWS_REPO.0, NEWS_REPO.1).await;
-    let mut cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
-    if fetched.is_empty() {
-        cache.failures.insert(key, Instant::now());
-    } else {
-        cache
-            .releases
-            .insert(key.clone(), (Instant::now(), fetched.clone()));
-        cache.failures.remove(&key);
-    }
-    fetched
-}
-
-/// Hub-репозиторий с глобальными постами/новостями (GitHub Discussions).
-/// Посты также считываются из репозиториев каждой сборки.
-const NEWS_REPO: (&str, &str) = ("n1orio", "mono-launcher");
-
-/// Манифест обновления лаунчера (latest.json). Используется, помимо апдейтера,
-/// как источник локализованных нот новостей (`notes_localized[locale]`).
-const LAUNCHER_MANIFEST_URL: &str =
-    "https://github.com/n1orio/mono-launcher/releases/latest/download/latest.json";
-
-/// Посты (обсуждения) из репозитория. Discussions должны быть включены,
-/// иначе репозиторий просто не даёт постов — не ошибка.
-async fn fetch_discussions(
-    client: &reqwest::Client,
-    owner: &str,
-    repo: &str,
-    kind: &str,
-    pack_id: &str,
-    pack_name: &str,
-) -> Vec<NewsItem> {
-    let url = format!("https://api.github.com/repos/{owner}/{repo}/discussions?per_page=100");
-    let Some(json) = http_cache::cached_json(client, &url).await else {
-        return Vec::new();
-    };
-    let Some(arr) = json.as_array() else {
-        return Vec::new();
-    };
-    arr.iter()
-        .filter_map(|d| {
-            let title = d["title"].as_str().unwrap_or("").trim().to_string();
-            if title.is_empty() {
-                return None;
-            }
-            Some(NewsItem {
-                kind: kind.into(),
-                pack_id: pack_id.to_string(),
-                pack_name: pack_name.to_string(),
-                title,
-                body: d["body"].as_str().unwrap_or("").to_string(),
-                url: d["html_url"].as_str().unwrap_or("").to_string(),
-                tag: None,
-                category: d["category"]["name"].as_str().map(|s| s.to_string()),
-                date: d["created_at"].as_str().map(|s| s.to_string()),
-            })
-        })
-        .collect()
-}
-
 /// Список сборок: встроенные + добавленные пользователем.
 #[tauri::command]
 fn list_packs() -> Result<Vec<PackDescriptor>, String> {
@@ -518,222 +134,71 @@ fn list_packs() -> Result<Vec<PackDescriptor>, String> {
         .map(|packs| {
             packs
                 .into_iter()
-                .map(|p| {
-                    let author = repo_author(&p.url);
-                    PackDescriptor {
-                        id: p.id,
-                        name: p.name,
-                        url: p.url,
-                        builtin: p.builtin,
-                        kind: p.kind.clone(),
-                        author,
-                        boosty_blog: p.boosty_blog.clone(),
-                        min_ram_mb: p.min_ram_mb,
-                        icon: p.icon,
-                        banner: p.banner,
-                    }
+                .map(|p| PackDescriptor {
+                    id: p.id,
+                    name: p.name,
+                    url: p.url,
+                    builtin: p.builtin,
+                    kind: p.kind,
+                    author: None,
+                    boosty_blog: p.boosty_blog,
+                    min_ram_mb: p.min_ram_mb,
+                    icon: p.icon,
+                    banner: p.banner,
                 })
                 .collect()
         })
         .map_err(|e| e.to_string())
 }
 
-/// Добавляет сборку по URL репозитория GitHub (или прямой ссылке на `.mrpack`).
-/// Проверяет, что репозиторий существует и в его релизах есть `.mrpack` и `pack.json`.
-/// `blog` (из deep link) — ник блога на Boosty; если не задан, читается из pack.json.
-/// `minRam` читается из pack.json (МБ).
+/// Добавляет сборку по прямой ссылке на `.mrpack`.
+/// `blog` (из deep link) — ник блога на Boosty.
 async fn add_pack_impl(
-    client: &reqwest::Client,
+    _client: &reqwest::Client,
     url: &str,
     name: Option<&str>,
     blog: Option<&str>,
 ) -> Result<PackDescriptor, String> {
     let url = url.trim().to_string();
     if url.is_empty() {
-        return Err(
-            "URL должен быть ссылкой на GitHub (например https://github.com/USER/REPO).".into(),
-        );
+        return Err("URL не может быть пустым.".into());
     }
-    // Прямая ссылка на .mrpack (сборка, опубликованная на бэкенд Mono/storage):
-    // без GitHub API — добавляем как обычную удалённую сборку.
-    if !url.contains("github.com/") {
-        if !url.to_ascii_lowercase().ends_with(".mrpack") {
-            return Err("URL должен быть ссылкой на GitHub или прямой ссылкой на .mrpack".into());
-        }
-        for existing in config::all_packs().map_err(|e| e.to_string())? {
-            if existing.url == url {
-                return Err(format!("Сборка «{}» уже добавлена", existing.name));
-            }
-        }
-        let file_stem = url
-            .rsplit('/')
-            .next()
-            .unwrap_or("pack")
-            .trim_end_matches(".mrpack")
-            .to_string();
-        let pack_id = if file_stem.is_empty() {
-            "pack".to_string()
-        } else {
-            file_stem
-        };
-        let pack_name = name
-            .map(str::trim)
-            .filter(|n| !n.is_empty())
-            .map(String::from)
-            .unwrap_or_else(|| url.clone());
-        let blog = blog.map(str::trim).filter(|b| !b.is_empty()).map(String::from);
-        config::add_user_pack(&pack_id, &pack_name, &url, "remote", blog.as_deref(), None)
-            .map_err(|e| e.to_string())?;
-        return Ok(PackDescriptor {
-            id: pack_id,
-            name: pack_name,
-            url,
-            builtin: false,
-            kind: "remote".into(),
-            author: None,
-            boosty_blog: blog,
-            min_ram_mb: None,
-            icon: None,
-            banner: None,
-        });
+    if !url.to_ascii_lowercase().ends_with(".mrpack") {
+        return Err("URL должен быть прямой ссылкой на .mrpack".into());
     }
-    let (owner, repo) = parse_github_repo_from_url(&url)
-        .ok_or("Не удалось разобрать владельца/репозиторий из URL")?;
-
-    // Запрещаем дубликаты по тому же репозиторию (встроенные и пользовательские).
     for existing in config::all_packs().map_err(|e| e.to_string())? {
-        if let Some((o, r)) = parse_github_repo(&existing) {
-            if o == owner && r == repo {
-                return Err(format!("Сборка «{}» уже добавлена", existing.name));
-            }
+        if existing.url == url {
+            return Err(format!("Сборка «{}» уже добавлена", existing.name));
         }
     }
-
-    // Проверяем формат: в релизах должен быть файл .mrpack и рядом с ним JSON
-    // с метаданными сборки (pack.json). Это контракт «сборки этого лаунчера».
-    let probe = PackInfo {
-        id: pack_id_from_repo(&owner, &repo),
-        name: repo.clone(),
-        url: format!("https://github.com/{owner}/{repo}/releases/latest/download/modpack.mrpack"),
-        builtin: false,
-        kind: "remote".into(),
-        boosty_blog: blog.map(String::from),
-        min_ram_mb: None,
-        icon: None,
-        banner: None,
-    };
-    let releases = fetch_releases(client, &probe).await;
-    let mrpack_release = releases.iter().find(|r| {
-        r.assets
-            .iter()
-            .any(|a| a.to_ascii_lowercase().ends_with(".mrpack"))
-    });
-    let Some(release) = mrpack_release else {
-        return Err(
-            "В релизах репозитория нет файла .mrpack — сборка не соответствует формату. \
-             Загрузите .mrpack в GitHub Releases (создайте релиз с этим файлом) и повторите."
-                .into(),
-        );
-    };
-    let json_asset = release
-        .assets
-        .iter()
-        .find(|a| a.to_ascii_lowercase().ends_with(".json"))
-        .cloned();
-    let Some(json_asset) = json_asset else {
-        return Err(
-            "В релизе с .mrpack нет файла pack.json с описанием сборки. \
-             Загрузите его в тот же релиз (см. пример в разделе «Разработчикам»)."
-                .into(),
-        );
-    };
-
-    // Ссылку на .mrpack берём из URL пользователя, если она ведёт на файл,
-    // иначе строим её от актуального релиза с .mrpack.
-    let mrpack_url = if url.to_ascii_lowercase().ends_with(".mrpack") {
-        url.clone()
-    } else {
-        let asset = release
-            .assets
-            .iter()
-            .find(|a| a.to_ascii_lowercase().ends_with(".mrpack"))
-            .unwrap();
-        format!(
-            "https://github.com/{owner}/{repo}/releases/download/{}/{asset}",
-            release.tag
-        )
-    };
-
-    // Метаданные из pack.json: имя сборки, ник блога на Boosty (платность)
-    // и минимальная оперативка (minRam, в МБ).
-    let user_name = name.map(str::trim).filter(|n| !n.is_empty());
-    let mut json_name: Option<String> = None;
-    let mut json_blog: Option<String> = None;
-    let mut json_min_ram: Option<u32> = None;
-    {
-        let json_url = format!(
-            "https://github.com/{owner}/{repo}/releases/download/{}/{}",
-            release.tag, json_asset
-        );
-        if let Ok(resp) = client
-            .get(&json_url)
-            .header("User-Agent", "mono-launcher")
-            .send()
-            .await
-        {
-            if let Ok(json) = resp.json::<serde_json::Value>().await {
-                if user_name.is_none() {
-                    if let Some(n) = json["name"].as_str() {
-                        json_name = Some(n.trim().to_string());
-                    }
-                }
-                if let Some(b) = json["boostyBlog"]
-                    .as_str()
-                    .or_else(|| json["boosty_blog"].as_str())
-                {
-                    json_blog = Some(b.trim().to_string());
-                }
-                if let Some(ram) = json["minRam"].as_u64().or_else(|| json["min_ram"].as_u64()) {
-                    json_min_ram = Some(ram.clamp(256, 65536) as u32);
-                }
-            }
-        }
-    }
-
-    let id = pack_id_from_repo(&owner, &repo);
-    let pack_name = user_name
-        .map(String::from)
-        .or(json_name)
-        .unwrap_or(repo)
-        .trim()
+    let file_stem = url
+        .rsplit('/')
+        .next()
+        .unwrap_or("pack")
+        .trim_end_matches(".mrpack")
         .to_string();
-    // Блог: параметр deep link → pack.json издателя. Минимальная оперативка — pack.json.
-    let boosty_blog = blog
+    let pack_id = if file_stem.is_empty() {
+        "pack".to_string()
+    } else {
+        file_stem
+    };
+    let pack_name = name
         .map(str::trim)
-        .filter(|b| !b.is_empty())
+        .filter(|n| !n.is_empty())
         .map(String::from)
-        .or(json_blog);
-    config::add_user_pack(
-        &id,
-        &pack_name,
-        &mrpack_url,
-        "remote",
-        boosty_blog.as_deref(),
-        json_min_ram,
-    )
-    .map_err(|e| e.to_string())?;
-    // GitHub-сборки добавляются уже заблокированными (управляемыми): пользователь
-    // может их отвязать, чтобы самому менять файлы.
-    let _ = config::set_pack_locked(&id, true);
+        .unwrap_or_else(|| pack_id.clone());
+    let blog = blog.map(str::trim).filter(|b| !b.is_empty()).map(String::from);
+    config::add_user_pack(&pack_id, &pack_name, &url, "remote", blog.as_deref(), None)
+        .map_err(|e| e.to_string())?;
     Ok(PackDescriptor {
-        id,
+        id: pack_id,
         name: pack_name,
-        url: mrpack_url,
+        url,
         builtin: false,
         kind: "remote".into(),
-        author: Some(owner),
-        boosty_blog,
-        min_ram_mb: json_min_ram,
+        author: None,
+        boosty_blog: blog,
+        min_ram_mb: None,
         icon: None,
         banner: None,
     })
@@ -1559,7 +1024,6 @@ fn recent_packs_command() -> Vec<String> {
 }
 
 /// Скачивает иконку сборки в `packs/<id>/icon.png` (если её ещё нет):
-/// — авторские сборки (GitHub): `icon.png` из корня репозитория автора;
 /// — сборки с Modrinth (`mrn-<id>`): иконка проекта;
 /// — сборки с CurseForge (`cf-<id>`): логотип проекта.
 /// Возвращает, нашлась ли иконка.
@@ -1568,7 +1032,7 @@ async fn fetch_pack_icon_command(
     state: State<'_, AppState>,
     pack_id: String,
 ) -> Result<bool, String> {
-    let pack = config::find_pack(&pack_id)
+    let _pack = config::find_pack(&pack_id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Сборка не найдена".to_string())?;
     let dest = config::pack_dir(&pack_id)
@@ -1576,20 +1040,6 @@ async fn fetch_pack_icon_command(
         .join("icon.png");
     if dest.exists() {
         return Ok(true);
-    }
-    if let Some((owner, repo)) = parse_github_repo(&pack) {
-        let url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/icon.png");
-        if let Ok(resp) = state.client.get(&url).send().await {
-            if resp.status().is_success() {
-                let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
-                if let Some(parent) = dest.parent() {
-                    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-                }
-                std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
-                return Ok(true);
-            }
-        }
-        return Ok(false);
     }
     let icon_url = if let Some(pid) = pack_id.strip_prefix("mrn-") {
         modrinth::project_by_id(&state.client, pid)
@@ -2248,26 +1698,25 @@ async fn ensure_pack_from_link(
     name: Option<&str>,
     blog: Option<&str>,
 ) -> Result<(PackDescriptor, bool), String> {
-    let (owner, repo) = parse_github_repo_from_url(pack_url)
-        .ok_or("Не удалось разобрать владельца/репозиторий из URL")?;
-    let id = pack_id_from_repo(&owner, &repo);
-    if let Some(existing) = config::find_pack(&id).map_err(|e| e.to_string())? {
-        let author = repo_author(&existing.url);
-        return Ok((
-            PackDescriptor {
-                id: existing.id,
-                name: existing.name,
-                url: existing.url,
-                builtin: existing.builtin,
-                kind: existing.kind,
-                author,
-                boosty_blog: existing.boosty_blog.clone(),
-                min_ram_mb: existing.min_ram_mb,
-                icon: existing.icon,
-                banner: existing.banner,
-            },
-            true,
-        ));
+    // Check if already added by URL
+    for existing in config::all_packs().map_err(|e| e.to_string())? {
+        if existing.url == pack_url {
+            return Ok((
+                PackDescriptor {
+                    id: existing.id,
+                    name: existing.name,
+                    url: existing.url,
+                    builtin: existing.builtin,
+                    kind: existing.kind,
+                    author: None,
+                    boosty_blog: existing.boosty_blog.clone(),
+                    min_ram_mb: existing.min_ram_mb,
+                    icon: existing.icon,
+                    banner: existing.banner,
+                },
+                true,
+            ));
+        }
     }
     add_pack_impl(client, pack_url, name, blog)
         .await
@@ -2440,7 +1889,7 @@ mod tests {
 /// Все версии сборки: релизы GitHub + установленные + активная.
 #[tauri::command]
 async fn list_versions(
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
     pack_id: Option<String>,
 ) -> Result<VersionsInfo, String> {
     let pack = resolve_pack(pack_id)?;
@@ -2448,9 +1897,7 @@ async fn list_versions(
     let active = config::active_version(&pack.id)
         .ok()
         .filter(|v| !v.is_empty());
-    let github = fetch_releases_cached(&state.client, &pack).await;
     Ok(VersionsInfo {
-        github,
         installed,
         active,
     })
@@ -2529,406 +1976,14 @@ fn get_game_file_icons_command(
     Ok(files::file_icons(&pack.id, &folder, &names))
 }
 
-/// Лента новостей: релизы и обновления лаунчера, релизы (обновления) + посты
-/// всех сборок, свежие сверху.
+/// Лента новостей: заглушка (в будущем — из бэкенда Mono).
 #[tauri::command]
 async fn get_news_command(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    locale: String,
+    _app: AppHandle,
+    _state: State<'_, AppState>,
+    _locale: String,
 ) -> Result<Vec<NewsItem>, String> {
-    // Локализованные ноты берём из latest.json (манифест обновления): ключ
-    // `notes_localized[locale]`, фолбэк — английский, затем тело релиза.
-    let mut notes_localized: HashMap<String, String> = HashMap::new();
-    let mut latest_launcher_ver: Option<String> = None;
-    if let Some(m) = http_cache::cached_json(&state.client, LAUNCHER_MANIFEST_URL).await {
-        latest_launcher_ver = m
-            .get("version")
-            .and_then(|v| v.as_str())
-            .map(String::from);
-        if let Some(map) = m.get("notes_localized").and_then(|x| x.as_object()) {
-            for (k, v) in map {
-                if let Some(s) = v.as_str() {
-                    if !s.is_empty() {
-                        notes_localized.insert(k.clone(), s.to_string());
-                    }
-                }
-            }
-        }
-    }
-
-    let mut items: Vec<NewsItem> = Vec::new();
-    // Обновления лаунчера (релизы из GitHub Releases) — грузим первыми,
-    // обычно это самые свежие новости.
-    for rel in fetch_launcher_releases_cached(&state.client).await {
-        // Локализуем только самый свежий релиз (у остальных нот в манифесте нет).
-        let is_latest = latest_launcher_ver
-            .as_deref()
-            .map(|v| rel.tag == format!("launcher-v{v}"))
-            .unwrap_or(false);
-        let body = if is_latest {
-            notes_localized
-                .get(&locale)
-                .or_else(|| notes_localized.get("en"))
-                .cloned()
-                .unwrap_or_else(|| rel.body.clone())
-        } else {
-            rel.body.clone()
-        };
-        items.push(NewsItem {
-            kind: "update".into(),
-            pack_id: "launcher".into(),
-            pack_name: "Mono Launcher".into(),
-            title: rel.name,
-            body,
-            url: rel.url,
-            tag: Some(rel.tag),
-            category: None,
-            date: rel.published_at,
-        });
-    }
-    emit_news_chunk(&app, &items);
-    // Глобальные посты лаунчера.
-    items.extend(
-        fetch_discussions_cached(
-            &state.client,
-            NEWS_REPO.0,
-            NEWS_REPO.1,
-            "post",
-            "launcher",
-            "Mono Launcher",
-        )
-        .await,
-    );
-    emit_news_chunk(&app, &items);
-    for pack in config::all_packs().map_err(|e| e.to_string())? {
-        for rel in fetch_releases_cached(&state.client, &pack).await {
-            items.push(NewsItem {
-                kind: "update".into(),
-                pack_id: pack.id.to_string(),
-                pack_name: pack.name.to_string(),
-                title: rel.name,
-                body: rel.body,
-                url: rel.url,
-                tag: Some(rel.tag),
-                category: None,
-                date: rel.published_at,
-            });
-        }
-        // Посты из репозитория сборки (если там включены Discussions).
-        if let Some((owner, repo)) = parse_github_repo(&pack) {
-            items.extend(
-                fetch_discussions_cached(
-                    &state.client,
-                    &owner,
-                    &repo,
-                    "post",
-                    &pack.id,
-                    &pack.name,
-                )
-                .await,
-            );
-        }
-        emit_news_chunk(&app, &items);
-    }
-    sort_news(&mut items);
-    Ok(items)
-}
-
-/// Свежие сверху (без даты — вниз).
-fn sort_news(items: &mut [NewsItem]) {
-    items.sort_by(|a, b| match (&b.date, &a.date) {
-        (Some(x), Some(y)) => x.cmp(y),
-        (Some(_), None) => std::cmp::Ordering::Greater,
-        (None, Some(_)) => std::cmp::Ordering::Less,
-        (None, None) => std::cmp::Ordering::Equal,
-    });
-}
-
-/// Отправляет фронтенду текущий накопленный список новостей (потоковая загрузка):
-/// UI показывает новости по мере их подгрузки, свежие сверху.
-fn emit_news_chunk(app: &AppHandle, items: &[NewsItem]) {
-    let mut sorted = items.to_vec();
-    sort_news(&mut sorted);
-    let _ = app.emit("news-chunk", sorted);
-}
-
-/// Контент репозитория сборки: звёзды GitHub + скриншоты (screenshots.json)
-/// + сервера (servers.json). Raw-файлы не тратят лимиты GitHub API.
-async fn fetch_pack_repo_content(
-    client: &reqwest::Client,
-    owner: &str,
-    repo: &str,
-) -> PackRepoContent {
-    let mut out = PackRepoContent::default();
-
-    // Звёзды: один API-вызов на репозиторий (кэшируется + ETag).
-    let meta_url = format!("https://api.github.com/repos/{owner}/{repo}");
-    if let Some(v) = http_cache::cached_json(client, &meta_url).await {
-        out.stars = v["stargazers_count"].as_i64();
-    }
-
-    // Сервера: манифест списка серверов.
-    let srv_url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/servers.json");
-    if let Some(v) = http_cache::cached_json(client, &srv_url).await {
-        if let Some(arr) = v.as_array() {
-            for item in arr {
-                let name = item
-                    .get("name")
-                    .and_then(|x| x.as_str())
-                    .map(String::from)
-                    .unwrap_or_default();
-                let ip = item
-                    .get("ip")
-                    .and_then(|x| x.as_str())
-                    .map(String::from)
-                    .unwrap_or_default();
-                if name.is_empty() || ip.is_empty() {
-                    continue;
-                }
-                out.servers.push(PackServer {
-                    name,
-                    ip,
-                    port: item.get("port").and_then(|x| x.as_u64()).map(|p| p as u16),
-                    desc: item.get("desc").and_then(|x| x.as_str()).map(String::from),
-                });
-            }
-        }
-    }
-
-    // Соцсети: объект `{ "name": "url" }` или массив `["url", {"name": "url", "color": "#rrggbb"}]`.
-    let soc_url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/socials.json");
-    if let Some(v) = http_cache::cached_json(client, &soc_url).await {
-        let mut push = |name: String, url: String, color: Option<String>| {
-            let name = normalize_social_name(&name, &url);
-            let color = color.filter(|c| is_hex_color(c));
-            if !name.is_empty() && url.starts_with("https://") && out.socials.len() < 8 {
-                out.socials.push(PackSocial { name, url, color });
-            }
-        };
-        match v {
-            serde_json::Value::Object(map) => {
-                for (name, u) in map {
-                    if let Some(url) = u.as_str() {
-                        push(name, url.to_string(), None);
-                    }
-                }
-            }
-            serde_json::Value::Array(arr) => {
-                for item in arr {
-                    match item {
-                        serde_json::Value::String(url) => push(String::new(), url, None),
-                        serde_json::Value::Object(o) => {
-                            let name = o
-                                .get("name")
-                                .and_then(|x| x.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            let url = o.get("url").and_then(|x| x.as_str()).map(String::from);
-                            let color = o.get("color").and_then(|x| x.as_str()).map(String::from);
-                            if let Some(url) = url {
-                                push(name, url, color);
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    // Тема лаунчера: необязательный theme.json с hex-цветами.
-    let theme_url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/theme.json");
-    if let Some(v) = http_cache::cached_json(client, &theme_url).await {
-        let mut theme = PackTheme::default();
-        let mut has_any = false;
-        let fields: [(&str, &mut Option<String>); 11] = [
-                    ("bg", &mut theme.bg),
-                    ("panel", &mut theme.panel),
-                    ("input", &mut theme.input),
-                    ("border", &mut theme.border),
-                    ("tx", &mut theme.tx),
-                    ("txStrong", &mut theme.tx_strong),
-                    ("txMuted", &mut theme.tx_muted),
-                    ("accent", &mut theme.accent),
-                    ("accentStrong", &mut theme.accent_strong),
-                    ("accentHover", &mut theme.accent_hover),
-                    ("accentDeep", &mut theme.accent_deep),
-                ];
-                for (key, slot) in fields {
-                    let Some(raw) = v.get(key).and_then(|x| x.as_str()) else {
-                        continue;
-                    };
-                    if raw.len() == 7
-                    && raw.starts_with('#')
-                    && raw[1..].chars().all(|c| c.is_ascii_hexdigit())
-                {
-                    *slot = Some(raw.to_string());
-                    has_any = true;
-                }
-            }
-            if has_any {
-                out.theme = Some(theme);
-            }
-        }
-
-    // Баннер сборки: необязательный banner.png в корне репозитория.
-    let banner_url = format!("https://raw.githubusercontent.com/{owner}/{repo}/HEAD/banner.png");
-    if http_cache::cached_get(client, &banner_url, &[]).await.is_some() {
-        out.banner = Some(banner_url);
-    }
-    out
-}
-
-/// Валидный hex-цвет `#rrggbb` (как в theme.json).
-fn is_hex_color(raw: &str) -> bool {
-    raw.len() == 7
-        && raw.starts_with('#')
-        && raw[1..].chars().all(|c| c.is_ascii_hexdigit())
-}
-
-/// Выводит имя соцсети из её имени или домена ссылки.
-fn normalize_social_name(name: &str, url: &str) -> String {
-    let trimmed = name.trim().to_lowercase();
-    if !trimmed.is_empty() {
-        return trimmed;
-    }
-    let host = url
-        .trim_start_matches("https://")
-        .trim_start_matches("http://")
-        .split('/')
-        .next()
-        .unwrap_or("");
-    let host = host.to_lowercase();
-    let known = [
-        ("discord.gg", "discord"),
-        ("discord.com", "discord"),
-        ("t.me", "telegram"),
-        ("telegram.me", "telegram"),
-        ("vk.com", "vk"),
-        ("youtube.com", "youtube"),
-        ("youtu.be", "youtube"),
-        ("twitch.tv", "twitch"),
-        ("x.com", "x"),
-        ("twitter.com", "x"),
-        ("github.com", "github"),
-        ("boosty.to", "boosty"),
-        ("patreon.com", "patreon"),
-        ("tiktok.com", "tiktok"),
-    ];
-    for (host_pat, social) in known {
-        if host == host_pat || host.ends_with(&format!(".{host_pat}")) {
-            return social.to_string();
-        }
-    }
-    "link".to_string()
-}
-
-/// `fetch_pack_repo_content` с кэшем (15 минут).
-async fn fetch_pack_repo_content_cached(
-    client: &reqwest::Client,
-    owner: &str,
-    repo: &str,
-) -> PackRepoContent {
-    let key = format!("meta/{owner}/{repo}");
-    {
-        let cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
-        if let Some((at, v)) = cache.meta.get(&key) {
-            if at.elapsed() < API_HIT_TTL {
-                return v.clone();
-            }
-        }
-    }
-    let fetched = fetch_pack_repo_content(client, owner, repo).await;
-    let mut cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
-    cache.meta.insert(key, (Instant::now(), fetched.clone()));
-    fetched
-}
-
-/// Каталог сборок из `catalog.json` репозитория лаунчера, с кэшем 15 минут.
-async fn fetch_catalog_cached(client: &reqwest::Client) -> Vec<CatalogEntry> {
-    {
-        let cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
-        if let Some((at, v)) = &cache.catalog {
-            if at.elapsed() < API_HIT_TTL {
-                return v.clone();
-            }
-        } else if let Some(at) = cache.failures.get("catalog") {
-            if at.elapsed() < API_FAIL_RETRY {
-                return Vec::new();
-            }
-        }
-    }
-    let mut entries: Vec<CatalogEntry> = Vec::new();
-    if let Some(bytes) = http_cache::cached_get(client, CATALOG_URL, &[]).await {
-        if let Ok(list) = serde_json::from_slice::<Vec<CatalogEntry>>(&bytes) {
-            entries = list
-                .into_iter()
-                .filter(|e| !e.name.trim().is_empty() && !e.url.trim().is_empty())
-                .map(|mut e| {
-                    e.min_ram_mb = e.min_ram_mb.map(|r| r.clamp(256, 65536));
-                    e.rating = e.rating.map(|r| r.clamp(0.0, 5.0));
-                    e
-                })
-                .collect();
-            // Спонсорские — вверх; дальше по убыванию рейтинга; затем по имени.
-            entries.sort_by(|a, b| {
-                b.sponsored
-                    .cmp(&a.sponsored)
-                    .then_with(|| b.rating.unwrap_or(0.0).total_cmp(&a.rating.unwrap_or(0.0)))
-                    .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
-            });
-        }
-    }
-    let mut cache = api_cache().lock().unwrap_or_else(|e| e.into_inner());
-    if entries.is_empty() {
-        cache.failures.insert("catalog".to_string(), Instant::now());
-    } else {
-        cache.catalog = Some((Instant::now(), entries.clone()));
-        cache.failures.remove("catalog");
-    }
-    entries
-}
-
-/// Каталог сборок для вкладки «Каталог» (список от авторов, курируется в этом репозитории).
-#[tauri::command]
-async fn fetch_catalog_command(state: State<'_, AppState>) -> Result<Vec<CatalogEntry>, String> {
-    Ok(fetch_catalog_cached(&state.client).await)
-}
-
-/// URL списка встроенных сборок в репозитории лаунчера (без квоты GitHub API).
-const BUILTIN_PACKS_URL: &str =
-    "https://raw.githubusercontent.com/n1orio/mono-launcher/main/builtin-packs.json";
-
-/// Обновляет встроенные сборки из `builtin-packs.json` репозитория и кэширует
-/// локально. Ошибки не фатальны: при отсутствии сети используется прошлый кэш.
-async fn refresh_builtin_packs(client: &reqwest::Client) {
-    if let Some(bytes) = http_cache::cached_get(client, BUILTIN_PACKS_URL, &[]).await {
-        if let Ok(list) = serde_json::from_slice::<Vec<crate::config::PackDef>>(&bytes) {
-            let _ = crate::config::save_builtin_packs(&list);
-        }
-    }
-}
-
-/// Команда обновления встроенных сборок (вызывается при старте и по требованию).
-#[tauri::command]
-async fn refresh_builtin_packs_command(state: State<'_, AppState>) -> Result<(), String> {
-    refresh_builtin_packs(&state.client).await;
-    Ok(())
-}
-
-/// Скриншоты и сервера текущей сборки (из её GitHub-репозитория).
-#[tauri::command]
-async fn pack_repo_content_command(
-    state: State<'_, AppState>,
-    pack_id: Option<String>,
-) -> Result<PackRepoContent, String> {
-    let pack = resolve_pack(pack_id)?;
-    let Some((owner, repo)) = parse_github_repo(&pack) else {
-        return Ok(PackRepoContent::default());
-    };
-    Ok(fetch_pack_repo_content_cached(&state.client, &owner, &repo).await)
+    Ok(Vec::new())
 }
 
 /// Переключает активную версию сборки (по тегу GitHub или versionId).
@@ -2965,34 +2020,34 @@ fn system_info() -> Result<SystemInfo, String> {
     })
 }
 
-/// Проверяет наличие новой версии `.mrpack` на GitHub Releases.
+/// Проверяет наличие новой версии `.mrpack`.
 #[tauri::command]
 async fn check_for_updates(
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
     pack_id: Option<String>,
 ) -> Result<UpdateInfo, String> {
     let pack = resolve_pack(pack_id)?;
-    let current = active_installed_tag(&pack.id);
-    let releases = fetch_releases_cached(&state.client, &pack).await;
-    let latest = releases.first().map(|r| r.tag.clone());
+    let installed = mrpack::installed_details(&pack.id);
+    let active = config::active_version(&pack.id)
+        .ok()
+        .filter(|v| !v.is_empty());
+    let current = installed.iter()
+        .find(|v| Some(&v.version_id) == active.as_ref())
+        .map(|v| v.version_id.clone());
     Ok(UpdateInfo {
-        current_version: current.clone(),
-        has_update: match (&current, &latest) {
-            (Some(c), Some(l)) => l != c,
-            _ => false,
-        },
-        latest_version: latest,
+        current_version: current,
+        latest_version: None,
+        has_update: false,
     })
 }
 
 /// Полное скачивание и установка сборки.
-/// Если tag указан — ставится конкретный релиз, иначе latest.
 #[tauri::command]
 async fn install_mrpack(
     app: AppHandle,
     state: State<'_, AppState>,
     pack_id: Option<String>,
-    tag: Option<String>,
+    _tag: Option<String>,
 ) -> Result<mrpack::PackInfo, String> {
     let pack = resolve_pack(pack_id)?;
     // Гейт лицензии: платные сборки требуют активную подписку Boosty.
@@ -3004,26 +2059,9 @@ async fn install_mrpack(
         .timeout(Duration::from_secs(600))
         .build()
         .map_err(|e| e.to_string())?;
-    let (url, install_tag) = match &tag {
-        Some(t) => (mrpack_url_for_tag(&pack, t), Some(t.clone())),
-        // latest в GitHub не перенаправляет на пререлизы, поэтому берём
-        // самый свежий релиз из API (включая пререлизы). А tag записываем
-        // в маркер установки — иначе лаунчер будет вечно «обнаруживать обновление».
-        None => match fetch_releases_cached(&client, &pack)
-            .await
-            .into_iter()
-            .next()
-        {
-            Some(r) => (r.url, Some(r.tag)),
-            None => (pack.url.to_string(), None),
-        },
-    };
-    let installed = mrpack::install_mrpack(app, &client, &pack.id, &url, install_tag.as_deref())
+    let installed = mrpack::install_mrpack(app, &client, &pack.id, &pack.url, None)
         .await
         .map_err(|e| e.to_string())?;
-    // Сборки, скачиваемые из удалённого источника (GitHub/Modrinth/CurseForge) —
-    // управляемые по умолчанию: правки файлов заблокированы, пока пользователь
-    // не «отвяжет» сборку. Локальные сборки не трогаем.
     if pack.kind == "remote" {
         let _ = config::set_pack_locked(&pack.id, true);
     }
@@ -3039,7 +2077,17 @@ async fn get_status(pack_id: Option<String>) -> Result<AppStatus, String> {
         active_version: config::active_version(&pack.id)
             .ok()
             .filter(|v| !v.is_empty()),
-        active_source_tag: active_installed_tag(&pack.id),
+        active_source_tag: {
+            let active = config::active_version(&pack.id)
+                .ok()
+                .filter(|v| !v.is_empty());
+            active.as_ref().and_then(|a| {
+                mrpack::installed_details(&pack.id)
+                    .into_iter()
+                    .find(|v| v.version_id == *a)
+                    .map(|v| v.source_tag.clone().unwrap_or_else(|| v.version_id.clone()))
+            })
+        },
         installed_versions: mrpack::installed_versions(&pack.id),
         discord_rp_enabled: config::discord_rp_enabled(),
         warn_custom_mods: config::warn_custom_mods_enabled(),
@@ -3409,6 +2457,310 @@ async fn pack_rate_command(
     value: i64,
 ) -> Result<serde_json::Value, String> {
     auth::mono_pack_rate(&state.client, &access_token, &id, value)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ==== Комментарии ====
+
+#[tauri::command]
+async fn mono_list_comments_command(
+    state: State<'_, AppState>,
+    pack_id: String,
+) -> Result<Vec<auth::CommentWithReplies>, String> {
+    auth::mono_list_comments(&state.client, &pack_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_create_comment_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    pack_id: String,
+    body: String,
+    parent_id: Option<String>,
+) -> Result<auth::CommentPublic, String> {
+    auth::mono_create_comment(&state.client, &access_token, &pack_id, &body, parent_id.as_deref())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_update_comment_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    pack_id: String,
+    comment_id: String,
+    body: String,
+) -> Result<auth::CommentPublic, String> {
+    auth::mono_update_comment(&state.client, &access_token, &pack_id, &comment_id, &body)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_delete_comment_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    pack_id: String,
+    comment_id: String,
+) -> Result<(), String> {
+    auth::mono_delete_comment(&state.client, &access_token, &pack_id, &comment_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_rate_comment_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    pack_id: String,
+    comment_id: String,
+    value: i64,
+) -> Result<serde_json::Value, String> {
+    auth::mono_rate_comment(&state.client, &access_token, &pack_id, &comment_id, value)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ==== Профили ====
+
+#[tauri::command]
+async fn mono_get_profile_command(
+    state: State<'_, AppState>,
+    user_id: String,
+) -> Result<auth::ProfilePublic, String> {
+    auth::mono_get_profile(&state.client, &user_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_get_profile_full_command(
+    state: State<'_, AppState>,
+    user_id: String,
+) -> Result<auth::ProfileDetail, String> {
+    auth::mono_get_profile_full(&state.client, &user_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_update_profile_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    bio: Option<String>,
+    avatar_url: Option<String>,
+) -> Result<auth::ProfilePublic, String> {
+    auth::mono_update_profile(&state.client, &access_token, bio.as_deref(), avatar_url.as_deref())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ==== Сканер модов ====
+
+#[tauri::command]
+async fn mono_scan_mod_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    file_path: String,
+) -> Result<auth::ScanResult, String> {
+    auth::mono_scan_mod(&state.client, &access_token, &file_path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_check_hash_command(
+    state: State<'_, AppState>,
+    sha256: String,
+) -> Result<auth::ScanResult, String> {
+    auth::mono_check_hash(&state.client, &sha256)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ==== Соавторы ====
+
+#[tauri::command]
+async fn mono_list_collaborators_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    pack_id: String,
+) -> Result<Vec<auth::CollaboratorPublic>, String> {
+    auth::mono_list_collaborators(&state.client, &access_token, &pack_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_add_collaborator_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    pack_id: String,
+    username: String,
+    perm_edit_meta: bool,
+    perm_manage_versions: bool,
+    perm_manage_news: bool,
+) -> Result<auth::CollaboratorPublic, String> {
+    auth::mono_add_collaborator(
+        &state.client, &access_token, &pack_id, &username,
+        perm_edit_meta, perm_manage_versions, perm_manage_news,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_update_collaborator_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    pack_id: String,
+    collab_id: String,
+    perm_edit_meta: Option<bool>,
+    perm_manage_versions: Option<bool>,
+    perm_manage_news: Option<bool>,
+) -> Result<auth::CollaboratorPublic, String> {
+    auth::mono_update_collaborator(
+        &state.client, &access_token, &pack_id, &collab_id,
+        perm_edit_meta, perm_manage_versions, perm_manage_news,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_remove_collaborator_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    pack_id: String,
+    collab_id: String,
+) -> Result<(), String> {
+    auth::mono_remove_collaborator(&state.client, &access_token, &pack_id, &collab_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ==== Админ ====
+
+#[tauri::command]
+async fn mono_admin_list_users_command(
+    state: State<'_, AppState>,
+    access_token: String,
+) -> Result<Vec<auth::AdminUser>, String> {
+    auth::mono_admin_list_users(&state.client, &access_token)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_admin_list_packs_command(
+    state: State<'_, AppState>,
+    access_token: String,
+) -> Result<Vec<auth::AdminPack>, String> {
+    auth::mono_admin_list_packs(&state.client, &access_token)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_admin_ban_user_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    user_id: String,
+    reason: Option<String>,
+) -> Result<(), String> {
+    auth::mono_admin_ban_user(&state.client, &access_token, &user_id, reason.as_deref())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_admin_unban_user_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    user_id: String,
+) -> Result<(), String> {
+    auth::mono_admin_unban_user(&state.client, &access_token, &user_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_admin_delete_user_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    user_id: String,
+) -> Result<(), String> {
+    auth::mono_admin_delete_user(&state.client, &access_token, &user_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_admin_delete_pack_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    pack_id: String,
+) -> Result<(), String> {
+    auth::mono_admin_delete_pack(&state.client, &access_token, &pack_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_admin_delete_comment_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    comment_id: String,
+) -> Result<(), String> {
+    auth::mono_admin_delete_comment(&state.client, &access_token, &comment_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_admin_set_role_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    user_id: String,
+    role: String,
+) -> Result<(), String> {
+    auth::mono_admin_set_role(&state.client, &access_token, &user_id, &role)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ==== Auth v2 ====
+
+#[tauri::command]
+async fn mono_forgot_password_command(
+    state: State<'_, AppState>,
+    email: String,
+) -> Result<(), String> {
+    auth::mono_forgot_password(&state.client, &email)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_reset_password_command(
+    state: State<'_, AppState>,
+    token: String,
+    password: String,
+) -> Result<(), String> {
+    auth::mono_reset_password(&state.client, &token, &password)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_confirm_email_command(
+    state: State<'_, AppState>,
+    access_token: String,
+) -> Result<(), String> {
+    auth::mono_confirm_email(&state.client, &access_token)
         .await
         .map_err(|e| e.to_string())
 }
@@ -4089,11 +3441,6 @@ pub fn run() {
         .setup(|app| {
             #[cfg(desktop)]
             register_deep_link_handlers(app.handle());
-            // Подтягиваем свежие встроенные сборки из репозитория (не блокируя старт).
-            let client = app.state::<AppState>().client.clone();
-            tauri::async_runtime::spawn(async move {
-                refresh_builtin_packs(&client).await;
-            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -4175,9 +3522,6 @@ pub fn run() {
             delete_game_files_command,
             get_game_file_icon_command,
             get_game_file_icons_command,
-            pack_repo_content_command,
-            fetch_catalog_command,
-            refresh_builtin_packs_command,
             set_boosty_command,
             license_status_command,
             clear_license_command,
@@ -4210,6 +3554,31 @@ pub fn run() {
             export_pack_command,
             export_list_command,
             export_author_pack_command,
+            mono_list_comments_command,
+            mono_create_comment_command,
+            mono_update_comment_command,
+            mono_delete_comment_command,
+            mono_rate_comment_command,
+            mono_get_profile_command,
+            mono_get_profile_full_command,
+            mono_update_profile_command,
+            mono_scan_mod_command,
+            mono_check_hash_command,
+            mono_list_collaborators_command,
+            mono_add_collaborator_command,
+            mono_update_collaborator_command,
+            mono_remove_collaborator_command,
+            mono_admin_list_users_command,
+            mono_admin_list_packs_command,
+            mono_admin_ban_user_command,
+            mono_admin_unban_user_command,
+            mono_admin_delete_user_command,
+            mono_admin_delete_pack_command,
+            mono_admin_delete_comment_command,
+            mono_admin_set_role_command,
+            mono_forgot_password_command,
+            mono_reset_password_command,
+            mono_confirm_email_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

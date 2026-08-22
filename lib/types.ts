@@ -244,23 +244,6 @@ export interface ModUpdate {
   newVersion: ModrinthVersion;
 }
 
-/** Запись каталога сборок (catalog.json в репозитории лаунчера). */
-export interface CatalogEntry {
-  name: string;
-  url: string;
-  description: string | null;
-  author: string | null;
-  boostyBlog: string | null;
-  minRam: number | null;
-  tags: string[];
-  /** Оценка сборки (0.0–5.0). */
-  rating: number | null;
-  /** Число оценок. */
-  ratingCount: number | null;
-  /** Спонсорская сборка — всегда в начале каталога. */
-  sponsored: boolean;
-}
-
 /** Статус лицензии сборки (привязка Boosty). */
 export interface LicenseInfo {
   /** Ник блога издателя, на который проверялась подписка. */
@@ -355,16 +338,6 @@ export interface DownloadProgress {
   bytes_per_sec: number;
 }
 
-export interface GhVersion {
-  tag: string;
-  name: string;
-  url: string;
-  prerelease: boolean;
-  published_at: string | null;
-  body: string;
-  assets: string[];
-}
-
 export interface InstalledVersion {
   version_id: string;
   name: string;
@@ -373,7 +346,6 @@ export interface InstalledVersion {
 }
 
 export interface VersionsInfo {
-  github: GhVersion[];
   installed: InstalledVersion[];
   active: string | null;
 }
@@ -512,14 +484,6 @@ export interface GameFileIcon {
   data: string | null;
 }
 
-/** Сервер сборки из servers.json в репозитории. */
-export interface PackServer {
-  name: string;
-  ip: string;
-  port: number | null;
-  desc: string | null;
-}
-
 /** Сервер из servers.dat игрока (camelCase из Rust). */
 export interface SavedServer {
   name: string;
@@ -582,39 +546,6 @@ export interface ServerStatus {
   latencyMs: number | null;
 }
 
-/** Соцсеть сборки из socials.json в корне репозитория. */
-export interface PackSocial {
-  name: string;
-  url: string;
-  /** Цвет кнопки (#rrggbb) — задаётся автором в socials.json; иначе акцент темы. */
-  color: string | null;
-}
-
-/** Тема лаунчера из theme.json сборки (все поля — hex-цвета `#rrggbb`). */
-export interface PackTheme {
-  bg?: string | null;
-  panel?: string | null;
-  input?: string | null;
-  border?: string | null;
-  tx?: string | null;
-  txStrong?: string | null;
-  txMuted?: string | null;
-  accent?: string | null;
-  accentStrong?: string | null;
-  accentHover?: string | null;
-  accentDeep?: string | null;
-}
-
-/** Контент репозитория сборки: звёзды, сервера, соцсети. */
-export interface PackRepoContent {
-  stars: number | null;
-  servers: PackServer[];
-  socials: PackSocial[];
-  theme: PackTheme | null;
-  /** URL баннера сборки (banner.png в корне репозитория) или null. */
-  banner: string | null;
-}
-
 /** Сохранённый аккаунт (несколько аккаунтов, accounts.json). */
 export interface AccountEntry {
   id: string;
@@ -651,4 +582,115 @@ export interface CrashAnalysis {
   description: string;
   javaHint: number | null;
   suspected: SuspectedMod[];
+}
+
+// ==== Комментарии ====
+
+export interface MonoUserPublic {
+  id: string;
+  username: string;
+  displayName: string | null;
+}
+
+export interface CommentPublic {
+  id: string;
+  packId: string;
+  userId: string;
+  user: MonoUserPublic;
+  parentId: string | null;
+  body: string;
+  likes: number;
+  dislikes: number;
+  myRating: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommentWithReplies extends CommentPublic {
+  replies: CommentWithReplies[];
+}
+
+// ==== Профили ====
+
+export interface ProfilePublic {
+  user: MonoUserPublic;
+  bio: string;
+  avatarUrl: string | null;
+  packsCount: number;
+  commentsCount: number;
+  joinedAt: string;
+}
+
+export interface UserPackSummary {
+  id: string;
+  name: string;
+  description: string;
+  iconUrl: string | null;
+  version: string | null;
+  likes: number;
+  dislikes: number;
+  versionsCount: number;
+  createdAt: string;
+}
+
+export interface UserCommentSummary {
+  id: string;
+  packId: string;
+  packName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface ProfileDetail {
+  profile: ProfilePublic;
+  packs: UserPackSummary[];
+  comments: UserCommentSummary[];
+}
+
+// ==== Сканер модов ====
+
+export interface ScanResult {
+  id: string;
+  fileName: string;
+  sha256: string;
+  safe: boolean;
+  scanResult: string;
+  dangerousClasses: string | null;
+  cached: boolean;
+}
+
+// ==== Соавторы ====
+
+export interface CollaboratorPublic {
+  id: string;
+  user: MonoUserPublic;
+  permEditMeta: boolean;
+  permManageVersions: boolean;
+  permManageNews: boolean;
+}
+
+// ==== Админ ====
+
+export interface AdminUser {
+  id: string;
+  username: string;
+  displayName: string | null;
+  email: string | null;
+  emailConfirmed: boolean;
+  role: string;
+  banned: boolean;
+  banReason: string | null;
+  createdAt: string;
+}
+
+export interface AdminPack {
+  id: string;
+  name: string;
+  description: string;
+  authorUserId: string | null;
+  authorName: string | null;
+  likes: number;
+  dislikes: number;
+  versionsCount: number;
+  createdAt: string;
 }

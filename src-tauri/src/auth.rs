@@ -257,6 +257,7 @@ pub async fn mono_upload_pack(
 }
 
 /// Сборка в каталоге Mono (GET /packs, GET /packs/mine).
+/// Сериализуется в TS в camelCase; alias принимает snake_case бэкенда.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackCatalog {
@@ -264,15 +265,15 @@ pub struct PackCatalog {
     pub name: String,
     #[serde(default)]
     pub description: String,
-    #[serde(default)]
+    #[serde(default, alias = "author_user_id")]
     pub author_user_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "author_name")]
     pub author_name: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "icon_url")]
     pub icon_url: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "min_ram_mb")]
     pub min_ram_mb: Option<i64>,
-    #[serde(default)]
+    #[serde(default, alias = "boosty_blog")]
     pub boosty_blog: Option<String>,
     #[serde(default)]
     pub meta: Option<Value>,
@@ -282,7 +283,7 @@ pub struct PackCatalog {
     pub url: String,
     #[serde(default)]
     pub size: i64,
-    #[serde(default)]
+    #[serde(default, alias = "versions_count")]
     pub versions_count: i64,
     #[serde(default)]
     pub likes: i64,
@@ -290,7 +291,7 @@ pub struct PackCatalog {
     pub dislikes: i64,
     #[serde(default)]
     pub rating: f64,
-    #[serde(default)]
+    #[serde(default, alias = "created_at")]
     pub created_at: String,
 }
 
@@ -313,7 +314,7 @@ pub struct PackVersionPublic {
     pub sha1: String,
     #[serde(default)]
     pub sha512: String,
-    #[serde(default)]
+    #[serde(default, alias = "created_at")]
     pub created_at: String,
 }
 
@@ -322,7 +323,7 @@ pub struct PackVersionPublic {
 #[serde(rename_all = "camelCase")]
 pub struct PackNewsPublic {
     pub id: String,
-    #[serde(default)]
+    #[serde(default, alias = "pack_id")]
     pub pack_id: Option<String>,
     #[serde(default)]
     pub kind: String,
@@ -330,7 +331,7 @@ pub struct PackNewsPublic {
     pub title: String,
     #[serde(default)]
     pub body: String,
-    #[serde(default)]
+    #[serde(default, alias = "created_at")]
     pub created_at: String,
 }
 
@@ -342,15 +343,15 @@ pub struct PackDetail {
     pub name: String,
     #[serde(default)]
     pub description: String,
-    #[serde(default)]
+    #[serde(default, alias = "author_user_id")]
     pub author_user_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "author_name")]
     pub author_name: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "icon_url")]
     pub icon_url: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "min_ram_mb")]
     pub min_ram_mb: Option<i64>,
-    #[serde(default)]
+    #[serde(default, alias = "boosty_blog")]
     pub boosty_blog: Option<String>,
     #[serde(default)]
     pub meta: Option<Value>,
@@ -362,13 +363,13 @@ pub struct PackDetail {
     pub likes: i64,
     #[serde(default)]
     pub dislikes: i64,
-    #[serde(default)]
+    #[serde(default, alias = "created_at")]
     pub created_at: String,
     #[serde(default)]
     pub versions: Vec<PackVersionPublic>,
     #[serde(default)]
     pub news: Vec<PackNewsPublic>,
-    #[serde(default)]
+    #[serde(default, alias = "my_rating")]
     pub my_rating: Option<i64>,
 }
 
@@ -621,6 +622,453 @@ pub async fn mono_pack_rate(
         return Err(anyhow!("Mono: {}", api_error(&text)));
     }
     serde_json::from_str::<Value>(&text).context("Некорректный ответ сервера Mono")
+}
+
+// ==== Комментарии ====
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonoUserPublic {
+    pub id: String,
+    pub username: String,
+    #[serde(default, alias = "display_name")]
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommentPublic {
+    pub id: String,
+    #[serde(alias = "pack_id")]
+    pub pack_id: String,
+    #[serde(alias = "user_id")]
+    pub user_id: String,
+    pub user: MonoUserPublic,
+    #[serde(alias = "parent_id")]
+    pub parent_id: Option<String>,
+    pub body: String,
+    pub likes: i64,
+    pub dislikes: i64,
+    #[serde(alias = "my_rating")]
+    pub my_rating: Option<i64>,
+    #[serde(alias = "created_at")]
+    pub created_at: String,
+    #[serde(alias = "updated_at")]
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommentWithReplies {
+    #[serde(flatten)]
+    pub comment: CommentPublic,
+    pub replies: Vec<CommentWithReplies>,
+}
+
+pub async fn mono_list_comments(client: &reqwest::Client, pack_id: &str) -> Result<Vec<CommentWithReplies>> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{pack_id}/comments");
+    let resp = client.get(&url).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+pub async fn mono_create_comment(
+    client: &reqwest::Client, access_token: &str, pack_id: &str, body: &str, parent_id: Option<&str>,
+) -> Result<CommentPublic> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{pack_id}/comments");
+    let mut payload = json!({ "body": body });
+    if let Some(pid) = parent_id { payload["parent_id"] = json!(pid); }
+    let resp = client.post(&url).bearer_auth(access_token).json(&payload).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+pub async fn mono_update_comment(
+    client: &reqwest::Client, access_token: &str, pack_id: &str, comment_id: &str, body: &str,
+) -> Result<CommentPublic> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{pack_id}/comments/{comment_id}");
+    let resp = client.put(&url).bearer_auth(access_token).json(&json!({ "body": body })).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+pub async fn mono_delete_comment(
+    client: &reqwest::Client, access_token: &str, pack_id: &str, comment_id: &str,
+) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{pack_id}/comments/{comment_id}");
+    let resp = client.delete(&url).bearer_auth(access_token).send().await.context("Не удалось связаться с сервером Mono")?;
+    if resp.status().is_success() { return Ok(()); }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
+}
+
+pub async fn mono_rate_comment(
+    client: &reqwest::Client, access_token: &str, pack_id: &str, comment_id: &str, value: i64,
+) -> Result<Value> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{pack_id}/comments/{comment_id}/rate");
+    let resp = client.post(&url).bearer_auth(access_token).json(&json!({ "value": value })).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+// ==== Профили ====
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfilePublic {
+    pub user: MonoUserPublic,
+    pub bio: String,
+    #[serde(default, alias = "avatar_url")]
+    pub avatar_url: Option<String>,
+    #[serde(default, alias = "packs_count")]
+    pub packs_count: i64,
+    #[serde(default, alias = "comments_count")]
+    pub comments_count: i64,
+    #[serde(default, alias = "joined_at")]
+    pub joined_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserPackSummary {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    #[serde(default, alias = "icon_url")]
+    pub icon_url: Option<String>,
+    pub version: Option<String>,
+    pub likes: i64,
+    pub dislikes: i64,
+    #[serde(default, alias = "versions_count")]
+    pub versions_count: i64,
+    #[serde(alias = "created_at")]
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserCommentSummary {
+    pub id: String,
+    #[serde(alias = "pack_id")]
+    pub pack_id: String,
+    #[serde(alias = "pack_name")]
+    pub pack_name: String,
+    pub body: String,
+    #[serde(alias = "created_at")]
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileDetail {
+    pub profile: ProfilePublic,
+    pub packs: Vec<UserPackSummary>,
+    pub comments: Vec<UserCommentSummary>,
+}
+
+pub async fn mono_get_profile(client: &reqwest::Client, user_id: &str) -> Result<ProfilePublic> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/profiles/{user_id}");
+    let resp = client.get(&url).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+pub async fn mono_get_profile_full(client: &reqwest::Client, user_id: &str) -> Result<ProfileDetail> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/profiles/{user_id}/full");
+    let resp = client.get(&url).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+pub async fn mono_update_profile(
+    client: &reqwest::Client, access_token: &str, bio: Option<&str>, avatar_url: Option<&str>,
+) -> Result<ProfilePublic> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/profiles/me");
+    let mut payload = json!({});
+    if let Some(b) = bio { payload["bio"] = json!(b); }
+    if let Some(a) = avatar_url { payload["avatar_url"] = json!(a); }
+    let resp = client.put(&url).bearer_auth(access_token).json(&payload).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+// ==== Сканер модов ====
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScanResult {
+    pub id: String,
+    #[serde(alias = "file_name")]
+    pub file_name: String,
+    pub sha256: String,
+    pub safe: bool,
+    #[serde(alias = "scan_result")]
+    pub scan_result: String,
+    #[serde(alias = "dangerous_classes")]
+    pub dangerous_classes: Option<String>,
+    pub cached: bool,
+}
+
+pub async fn mono_scan_mod(
+    client: &reqwest::Client, access_token: &str, file_path: &str,
+) -> Result<ScanResult> {
+    let form = reqwest::multipart::Form::new()
+        .part("file", mrpack_part(file_path).await?);
+    let base = crate::config::backend_url();
+    let url = format!("{base}/scanner/scan");
+    let resp = client.post(&url).bearer_auth(access_token).multipart(form).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+pub async fn mono_check_hash(client: &reqwest::Client, sha256: &str) -> Result<ScanResult> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/scanner/check");
+    let resp = client.post(&url).json(&json!({ "sha256": sha256 })).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+// ==== Соавторы ====
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollaboratorPublic {
+    pub id: String,
+    pub user: MonoUserPublic,
+    #[serde(alias = "perm_edit_meta")]
+    pub perm_edit_meta: bool,
+    #[serde(alias = "perm_manage_versions")]
+    pub perm_manage_versions: bool,
+    #[serde(alias = "perm_manage_news")]
+    pub perm_manage_news: bool,
+}
+
+pub async fn mono_list_collaborators(
+    client: &reqwest::Client, access_token: &str, pack_id: &str,
+) -> Result<Vec<CollaboratorPublic>> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{pack_id}/collaborators");
+    let mut req = client.get(&url);
+    if !access_token.is_empty() { req = req.bearer_auth(access_token); }
+    let resp = req.send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+pub async fn mono_add_collaborator(
+    client: &reqwest::Client, access_token: &str, pack_id: &str,
+    username: &str, perm_edit_meta: bool, perm_manage_versions: bool, perm_manage_news: bool,
+) -> Result<CollaboratorPublic> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{pack_id}/collaborators");
+    let resp = client.post(&url).bearer_auth(access_token).json(&json!({
+        "username": username,
+        "perm_edit_meta": perm_edit_meta,
+        "perm_manage_versions": perm_manage_versions,
+        "perm_manage_news": perm_manage_news,
+    })).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+pub async fn mono_update_collaborator(
+    client: &reqwest::Client, access_token: &str, pack_id: &str, collab_id: &str,
+    perm_edit_meta: Option<bool>, perm_manage_versions: Option<bool>, perm_manage_news: Option<bool>,
+) -> Result<CollaboratorPublic> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{pack_id}/collaborators/{collab_id}");
+    let mut payload = json!({});
+    if let Some(v) = perm_edit_meta { payload["perm_edit_meta"] = json!(v); }
+    if let Some(v) = perm_manage_versions { payload["perm_manage_versions"] = json!(v); }
+    if let Some(v) = perm_manage_news { payload["perm_manage_news"] = json!(v); }
+    let resp = client.put(&url).bearer_auth(access_token).json(&payload).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+pub async fn mono_remove_collaborator(
+    client: &reqwest::Client, access_token: &str, pack_id: &str, collab_id: &str,
+) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{pack_id}/collaborators/{collab_id}");
+    let resp = client.delete(&url).bearer_auth(access_token).send().await.context("Не удалось связаться с сервером Mono")?;
+    if resp.status().is_success() { return Ok(()); }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
+}
+
+// ==== Админ ====
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdminUser {
+    pub id: String,
+    pub username: String,
+    #[serde(default, alias = "display_name")]
+    pub display_name: Option<String>,
+    pub email: Option<String>,
+    #[serde(default, alias = "email_confirmed")]
+    pub email_confirmed: bool,
+    pub role: String,
+    pub banned: bool,
+    #[serde(default, alias = "ban_reason")]
+    pub ban_reason: Option<String>,
+    #[serde(default, alias = "created_at")]
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdminPack {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    #[serde(default, alias = "author_user_id")]
+    pub author_user_id: Option<String>,
+    #[serde(default, alias = "author_name")]
+    pub author_name: Option<String>,
+    pub likes: i64,
+    pub dislikes: i64,
+    #[serde(default, alias = "versions_count")]
+    pub versions_count: i64,
+    #[serde(default, alias = "created_at")]
+    pub created_at: String,
+}
+
+pub async fn mono_admin_list_users(client: &reqwest::Client, access_token: &str) -> Result<Vec<AdminUser>> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/admin/users");
+    let resp = client.get(&url).bearer_auth(access_token).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+pub async fn mono_admin_list_packs(client: &reqwest::Client, access_token: &str) -> Result<Vec<AdminPack>> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/admin/packs");
+    let resp = client.get(&url).bearer_auth(access_token).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+pub async fn mono_admin_ban_user(client: &reqwest::Client, access_token: &str, user_id: &str, reason: Option<&str>) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/admin/users/{user_id}/ban");
+    let resp = client.put(&url).bearer_auth(access_token).json(&json!({ "reason": reason })).send().await.context("Не удалось связаться с сервером Mono")?;
+    if resp.status().is_success() { return Ok(()); }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
+}
+
+pub async fn mono_admin_unban_user(client: &reqwest::Client, access_token: &str, user_id: &str) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/admin/users/{user_id}/unban");
+    let resp = client.put(&url).bearer_auth(access_token).send().await.context("Не удалось связаться с сервером Mono")?;
+    if resp.status().is_success() { return Ok(()); }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
+}
+
+pub async fn mono_admin_delete_user(client: &reqwest::Client, access_token: &str, user_id: &str) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/admin/users/{user_id}");
+    let resp = client.delete(&url).bearer_auth(access_token).send().await.context("Не удалось связаться с сервером Mono")?;
+    if resp.status().is_success() { return Ok(()); }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
+}
+
+pub async fn mono_admin_delete_pack(client: &reqwest::Client, access_token: &str, pack_id: &str) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/admin/packs/{pack_id}");
+    let resp = client.delete(&url).bearer_auth(access_token).send().await.context("Не удалось связаться с сервером Mono")?;
+    if resp.status().is_success() { return Ok(()); }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
+}
+
+pub async fn mono_admin_delete_comment(client: &reqwest::Client, access_token: &str, comment_id: &str) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/admin/comments/{comment_id}");
+    let resp = client.delete(&url).bearer_auth(access_token).send().await.context("Не удалось связаться с сервером Mono")?;
+    if resp.status().is_success() { return Ok(()); }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
+}
+
+pub async fn mono_admin_set_role(client: &reqwest::Client, access_token: &str, user_id: &str, role: &str) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/admin/users/{user_id}/role");
+    let resp = client.put(&url).bearer_auth(access_token).json(&json!({ "role": role })).send().await.context("Не удалось связаться с сервером Mono")?;
+    if resp.status().is_success() { return Ok(()); }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
+}
+
+// ==== Auth v2 ====
+
+pub async fn mono_forgot_password(client: &reqwest::Client, email: &str) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/auth/forgot-password");
+    let resp = client.post(&url).json(&json!({ "email": email })).send().await.context("Не удалось связаться с сервером Mono")?;
+    if resp.status().is_success() { return Ok(()); }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
+}
+
+pub async fn mono_reset_password(client: &reqwest::Client, token: &str, password: &str) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/auth/reset-password");
+    let resp = client.post(&url).json(&json!({ "token": token, "password": password })).send().await.context("Не удалось связаться с сервером Mono")?;
+    if resp.status().is_success() { return Ok(()); }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
+}
+
+pub async fn mono_confirm_email(client: &reqwest::Client, access_token: &str) -> Result<()> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/auth/confirm");
+    let resp = client.post(&url).bearer_auth(access_token).send().await.context("Не удалось связаться с сервером Mono")?;
+    if resp.status().is_success() { return Ok(()); }
+    let text = resp.text().await.unwrap_or_default();
+    Err(anyhow!("Mono: {}", api_error(&text)))
 }
 
 #[derive(Debug, Deserialize)]
@@ -1209,4 +1657,46 @@ pub fn remove_account(id: &str) -> Result<Option<UserSession>> {
     }
     save_accounts(&accounts)?;
     Ok(None)
+}
+
+#[cfg(test)]
+mod mono_api_tests {
+    use super::*;
+
+    /// Бэкенд отдаёт snake_case; лаунчер должен парсить это и наружу в TS отдавать camelCase.
+    #[test]
+    fn comments_parse_backend_snake_case() {
+        let json = r#"[{"id":"a","pack_id":"p","user_id":"u","user":{"id":"u","username":"niorio","display_name":null},"parent_id":null,"body":"hi","likes":1,"dislikes":0,"my_rating":null,"created_at":"2026-08-22T12:24:22.969131Z","updated_at":"2026-08-22T12:24:22.969131Z","replies":[]}]"#;
+        let list: Vec<CommentWithReplies> = serde_json::from_str(json).unwrap();
+        assert_eq!(list[0].comment.pack_id, "p");
+        assert_eq!(list[0].comment.user.username, "niorio");
+        let out = serde_json::to_value(&list).unwrap();
+        assert!(out[0].get("packId").is_some(), "TS ждёт camelCase");
+        assert!(out[0].get("pack_id").is_none());
+        assert!(out[0].get("replies").is_some());
+    }
+
+    #[test]
+    fn catalog_parses_backend_snake_case() {
+        let json = r#"{"id":"1","name":"n","author_user_id":"u1","author_name":"niorio","icon_url":null,"min_ram_mb":2048,"boosty_blog":null,"versions_count":2,"created_at":"x","url":"u","rating":1.5}"#;
+        let p: PackCatalog = serde_json::from_str(json).unwrap();
+        assert_eq!(p.author_name.as_deref(), Some("niorio"));
+        assert_eq!(p.min_ram_mb, Some(2048));
+        assert_eq!(p.versions_count, 2);
+    }
+
+    #[test]
+    fn detail_and_admin_parse_backend_snake_case() {
+        let d: PackDetail = serde_json::from_str(
+            r#"{"id":"1","name":"n","my_rating":1,"boosty_blog":"b","icon_url":"i","created_at":"c"}"#,
+        ).unwrap();
+        assert_eq!(d.my_rating, Some(1));
+        assert_eq!(d.boosty_blog.as_deref(), Some("b"));
+        let u: AdminUser = serde_json::from_str(
+            r#"{"id":"1","username":"n","display_name":null,"email":null,"email_confirmed":false,"role":"admin","banned":false,"ban_reason":null,"created_at":"c"}"#,
+        ).unwrap();
+        assert_eq!(u.role, "admin");
+        let out = serde_json::to_value(&u).unwrap();
+        assert!(out.get("emailConfirmed").is_some(), "TS ждёт camelCase");
+    }
 }

@@ -4,31 +4,13 @@ use anyhow::Result;
 use dirs::data_dir;
 use serde::{Deserialize, Serialize};
 
-/// Описание сборки: id используется в путях и командах IPC.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PackDef {
-    pub id: String,
-    pub name: String,
-    pub url: String,
-    /// Ник блога на Boosty: задан → сборка платная (подписка обязательна).
-    #[serde(default, rename = "boostyBlog")]
-    pub boosty_blog: Option<String>,
-    /// Допустимые тарифы подписки Boosty (названия уровней). Пусто/None — любой тариф.
-    #[serde(default, rename = "boostyTiers")]
-    pub boosty_tiers: Option<Vec<String>>,
-    /// Минимальная оперативка (МБ) для запуска сборки: задан → лаунчер
-    /// предупреждает и не даёт запустить при меньшем выделении.
-    #[serde(default, rename = "minRam")]
-    pub min_ram_mb: Option<u32>,
-}
-
 /// Пользовательская сборка из реестра `packs.json`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserPack {
     pub id: String,
     pub name: String,
     pub url: String,
-    /// "remote" — сборка из GitHub Releases (.mrpack), "local" — своя сборка
+    /// "remote" — удалённая сборка (.mrpack), "local" — своя сборка
     /// (создана в лаунчере или скачана с Modrinth).
     #[serde(default = "default_kind")]
     pub kind: String,
@@ -48,7 +30,7 @@ fn default_kind() -> String {
     "remote".into()
 }
 
-/// Единое описание сборки — встроенной или добавленной пользователем.
+/// Единое описание сборки.
 #[derive(Debug, Clone)]
 pub struct PackInfo {
     pub id: String,
@@ -59,7 +41,7 @@ pub struct PackInfo {
     pub kind: String,
     /// Ник блога на Boosty: задан → сборка платная (подписка обязательна).
     pub boosty_blog: Option<String>,
-    /// Минимальная оперативка (МБ), см. `PackDef::min_ram_mb`.
+    /// Минимальная оперативка (МБ), см. `UserPack::min_ram_mb`.
     pub min_ram_mb: Option<u32>,
     /// Локальная иконка сборки (путь к `packs/<id>/icon.png`), если есть.
     pub icon: Option<String>,
@@ -67,43 +49,11 @@ pub struct PackInfo {
     pub banner: Option<String>,
 }
 
-/// Файл, из которого читаются встроенные сборки. Обновляется из `builtin-packs.json`
-/// репозитория лаунчера при старте/по команде — так сборки меняются без пересборки.
-fn builtin_packs_file() -> Result<PathBuf> {
-    Ok(launcher_root()?.join("builtin-packs.json"))
-}
-
-/// Встроенные сборки из локального файла (обновляется из репозитория).
-/// Если файла нет или он битый — возвращаем пустой список: лаунчер сам
-/// подтянет актуальный список из `builtin-packs.json` репозитория.
-pub fn builtin_packs() -> Vec<PackDef> {
-    let Ok(path) = builtin_packs_file() else {
-        return Vec::new();
-    };
-    let Ok(raw) = std::fs::read_to_string(path) else {
-        return Vec::new();
-    };
-    serde_json::from_str::<Vec<PackDef>>(&raw).unwrap_or_default()
-}
-
-/// Сохраняет список встроенных сборок (из `builtin-packs.json` репозитория),
-/// чтобы следующие запуски читали его без сети.
-pub fn save_builtin_packs(list: &[PackDef]) -> Result<()> {
-    let file = builtin_packs_file()?;
-    if let Some(parent) = file.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let tmp = file.with_extension("json.tmp");
-    std::fs::write(&tmp, serde_json::to_string_pretty(list)?)?;
-    std::fs::rename(&tmp, &file)?;
-    Ok(())
-}
-
-/// Первая встроенная сборка как дефолтная (иначе пустая строка).
+/// Первая пользовательская сборка как дефолтная (иначе пустая строка).
 pub fn default_pack_id() -> String {
-    builtin_packs()
-        .first()
-        .map(|p| p.id.clone())
+    user_packs()
+        .ok()
+        .and_then(|list| list.into_iter().next().map(|p| p.id))
         .unwrap_or_default()
 }
 
@@ -149,55 +99,30 @@ fn save_user_packs(list: &[UserPack]) -> Result<()> {
     Ok(())
 }
 
-/// Все сборки: встроенные + пользовательские.
+/// Все сборки пользователя.
 pub fn all_packs() -> Result<Vec<PackInfo>> {
-    let mut out = builtin_packs()
+    Ok(user_packs()?
         .into_iter()
-        .map(|p| PackInfo {
-            id: p.id.clone(),
-            name: pack_name(&p.id, &p.name),
-            url: p.url,
-            builtin: true,
-            kind: "remote".into(),
-            boosty_blog: p.boosty_blog,
-            min_ram_mb: p.min_ram_mb,
-            icon: pack_icon_path(&p.id),
-            banner: pack_banner_path(&p.id),
+        .map(|p| {
+            let icon = pack_icon_path(&p.id);
+            let banner = pack_banner_path(&p.id);
+            PackInfo {
+                id: p.id,
+                name: p.name,
+                url: p.url,
+                builtin: false,
+                kind: p.kind,
+                boosty_blog: p.boosty_blog,
+                min_ram_mb: p.min_ram_mb,
+                icon,
+                banner,
+            }
         })
-        .collect::<Vec<_>>();
-    for p in user_packs()? {
-        let icon = pack_icon_path(&p.id);
-        let banner = pack_banner_path(&p.id);
-        out.push(PackInfo {
-            id: p.id,
-            name: p.name,
-            url: p.url,
-            builtin: false,
-            kind: p.kind,
-            boosty_blog: p.boosty_blog,
-            min_ram_mb: p.min_ram_mb,
-            icon,
-            banner,
-        });
-    }
-    Ok(out)
+        .collect())
 }
 
-/// Ищет сборку (сначала встроенную, потом пользовательскую).
+/// Ищет сборку пользователя по id.
 pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
-    if let Some(p) = builtin_packs().into_iter().find(|p| p.id == id) {
-        return Ok(Some(PackInfo {
-            id: p.id.clone(),
-            name: pack_name(&p.id, &p.name),
-            url: p.url,
-            builtin: true,
-            kind: "remote".into(),
-            boosty_blog: p.boosty_blog,
-            min_ram_mb: p.min_ram_mb,
-            icon: pack_icon_path(&p.id),
-            banner: pack_banner_path(&p.id),
-        }));
-    }
     Ok(user_packs()?
         .into_iter()
         .find(|p| p.id == id)
@@ -220,16 +145,10 @@ pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
 
 /// Допустимые тарифы Boosty для сборки (названия уровней), если заданы.
 pub fn boosty_tiers(pack_id: &str) -> Option<Vec<String>> {
-    let t = builtin_packs()
-        .into_iter()
-        .find(|p| p.id == pack_id)
-        .and_then(|p| p.boosty_tiers)
-        .or_else(|| {
-            user_packs()
-                .ok()
-                .and_then(|list| list.into_iter().find(|p| p.id == pack_id))
-                .and_then(|p| p.boosty_tiers)
-        });
+    let t = user_packs()
+        .ok()
+        .and_then(|list| list.into_iter().find(|p| p.id == pack_id))
+        .and_then(|p| p.boosty_tiers);
     t.map(|v| {
         v.into_iter()
             .map(|s| s.trim().to_lowercase())
@@ -239,38 +158,11 @@ pub fn boosty_tiers(pack_id: &str) -> Option<Vec<String>> {
     .filter(|v: &Vec<String>| !v.is_empty())
 }
 
-/// Пользовательское имя встроенной сборки (`packs/<id>/name.txt`), если задано.
-pub fn pack_name_override(pack_id: &str) -> Option<String> {
-    let path = pack_dir(pack_id).ok()?.join("name.txt");
-    let raw = std::fs::read_to_string(path).ok()?;
-    let t = raw.trim();
-    if t.is_empty() {
-        None
-    } else {
-        Some(t.to_string())
-    }
-}
-
-/// Имя сборки с учётом пользовательского переопределения (только для встроенных).
-fn pack_name(pack_id: &str, default: &str) -> String {
-    pack_name_override(pack_id).unwrap_or_else(|| default.to_string())
-}
-
-/// Устанавливает новое название сборки:
-/// — встроенная: переопределение в `packs/<id>/name.txt`;
-/// — пользовательская: обновляет `name` в `packs.json`.
+/// Устанавливает новое название сборки.
 pub fn set_pack_name(pack_id: &str, name: &str) -> Result<()> {
     let name = name.trim();
     if name.is_empty() {
         return Err(anyhow::anyhow!("Название не может быть пустым"));
-    }
-    if builtin_packs().iter().any(|p| p.id == pack_id) {
-        let path = pack_dir(pack_id)?.join("name.txt");
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        std::fs::write(&path, name)?;
-        return Ok(());
     }
     let mut list = user_packs()?;
     let mut found = false;
