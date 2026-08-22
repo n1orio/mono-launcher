@@ -813,15 +813,22 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     openExternal(`https://www.curseforge.com/search/mods?q=${q}`);
   }
 
-  async function loadGameFiles(folder: GameFolderKind, force = false) {
+  async function loadGameFiles(folder: GameFolderKind, force = false, withIcons = true) {
     if (!isTauri() || !packId.value) return;
     if (!force && gameFiles.value[folder]) return;
     try {
       const list = await listGameFiles(packId.value, folder);
       gameFiles.value = { ...gameFiles.value, [folder]: list };
-      preloadIcons(folder, list);
+      if (withIcons) preloadIcons(folder, list);
     } catch (e) {
       notify(t("err.folderLoad", { e }));
+    }
+  }
+
+  /** Лёгкая предзагрузка списков папок (без иконок) — для счётчиков в сабтабах. */
+  function preloadFolderCounts() {
+    for (const f of ["mods", "resourcepacks", "shaderpacks", "saves"] as GameFolderKind[]) {
+      void loadGameFiles(f, false, false);
     }
   }
 
@@ -2110,6 +2117,7 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
       selectedFiles.value = {};
       fileSearch.value = "";
       loadPackLocked(id);
+      preloadFolderCounts();
       // Кэш сброшен — сразу перечитаем файлы активной папки новой сборки,
       // иначе экран «Моды/Миры/...» останется пустым до переключения сабтаба.
       if (

@@ -32,18 +32,18 @@
               class="h-44 w-full rounded-xl border border-[var(--border)] object-cover"
               @error="bannerOk = false"
             />
-            <div class="flex flex-wrap items-end justify-between gap-x-4 gap-y-3" :class="activeBanner && bannerOk ? '-mt-10 px-4' : ''">
+            <div class="flex flex-wrap items-end justify-between gap-x-4 gap-y-3" :class="activeBanner && bannerOk ? '-mt-7 px-4' : ''">
               <!-- Левая часть: иконка сборки + название + мета -->
               <div class="flex min-w-0 flex-1 items-end gap-4">
                 <img
                   v-if="activePack?.icon"
                   :src="convertFileSrc(activePack.icon)"
                   :alt="activePack.name"
-                  class="h-20 w-20 shrink-0 rounded-2xl border border-[var(--border)] bg-[var(--panel)] object-cover shadow-lg"
+                  class="h-[60px] w-[60px] shrink-0 rounded-xl border border-[var(--border)] bg-[var(--panel)] object-cover shadow-lg"
                   @error="(e: any) => (e.target.style.display = 'none')"
                 />
-                <div v-else class="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--panel)] shadow-lg">
-                  <svg viewBox="0 0 16 16" class="h-8 w-8 fill-[var(--tx-muted)]">
+                <div v-else class="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-lg">
+                  <svg viewBox="0 0 16 16" class="h-6 w-6 fill-[var(--tx-muted)]">
                     <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-1 1v.878A2.25 2.25 0 1 1 2 13.378V2.5Z"/>
                   </svg>
                 </div>
@@ -406,21 +406,27 @@
           </div>
 
           <!-- Сабтабы: релизы / моды / ресурспаки / шейдеры / миры / консоль -->
-          <div class="mb-5 flex shrink-0 flex-wrap items-center gap-1 border-b border-[var(--border)]">
-            <button
-              v-for="st in playSubTabsVisible"
-              :key="st.kind"
-              type="button"
-              class="relative flex items-center gap-2 px-3.5 pb-2.5 pt-1 text-xs font-semibold transition-colors"
-              :class="playSubTab === st.kind
-                ? 'text-[var(--accent)]'
-                : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
-              @click="playSubTab = st.kind"
-            >
-              <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current" v-html="st.icon"></svg>
-              <span>{{ t("sub." + st.kind) }}</span>
-              <span v-if="playSubTab === st.kind" class="absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-full bg-[var(--accent)]"></span>
-            </button>
+          <div class="mb-5 flex shrink-0 items-center gap-1 overflow-x-auto border-b border-[var(--border)]" style="scrollbar-width: thin">
+            <template v-for="st in playSubTabsVisible" :key="st.kind">
+              <span v-if="st.kind === 'screenshots'" class="mx-1.5 my-2 h-5 w-px shrink-0 bg-[var(--border)]"></span>
+              <button
+                type="button"
+                class="relative flex shrink-0 items-center gap-1.5 px-3 pb-2.5 pt-1 text-xs font-semibold transition-colors"
+                :class="playSubTab === st.kind
+                  ? 'text-[var(--accent)]'
+                  : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+                @click="playSubTab = st.kind"
+              >
+                <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current" v-html="st.icon"></svg>
+                <span>{{ t("sub." + st.kind) }}</span>
+                <span
+                  v-if="subTabCount(st.kind) > 0"
+                  class="rounded-full bg-[var(--input)] px-1.5 py-px text-[9px] font-bold tabular-nums"
+                  :class="playSubTab === st.kind ? 'text-[var(--accent)]' : 'text-[color:var(--tx-muted)]'"
+                >{{ subTabCount(st.kind) }}</span>
+                <span v-if="playSubTab === st.kind" class="absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-full bg-[var(--accent)]"></span>
+              </button>
+            </template>
           </div>
 
           <!-- Список установленных версий -->
@@ -2076,8 +2082,8 @@
                   <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
                       <div class="flex items-center gap-2.5">
-                        <img v-if="entry.icon_url" :src="entry.icon_url" :alt="entry.name" loading="lazy" @error="(e: any) => (e.target.style.display = 'none')" class="h-10 w-10 shrink-0 rounded-lg border border-[var(--border)] object-cover" />
-                        <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--input)] text-sm font-bold text-[var(--accent)]">{{ entry.name?.[0]?.toUpperCase() }}</div>
+                        <img v-if="entry.icon_url" :src="entry.icon_url" :alt="entry.name" loading="lazy" @error="(e: any) => (e.target.style.display = 'none')" class="h-9 w-9 shrink-0 rounded-lg border border-[var(--border)] object-cover" />
+                        <div v-else class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--input)] text-xs font-bold text-[var(--accent)]">{{ entry.name?.[0]?.toUpperCase() }}</div>
                         <h3 class="truncate text-[15px] font-semibold text-[color:var(--tx-strong)]">{{ entry.name }}</h3>
                       </div>
                       <div v-if="entry.author_name" class="mt-1 font-mono text-xs text-[color:var(--tx-muted)]">
@@ -6357,13 +6363,24 @@ const playSubTabs = [
   { kind: "mods" as const, icon: ICON_PACKAGE },
   { kind: "resourcepacks" as const, icon: ICON_PAINT },
   { kind: "shaderpacks" as const, icon: ICON_SUN },
-  { kind: "duplicates" as const, icon: ICON_DUP },
   { kind: "saves" as const, icon: ICON_FOLDER },
+  { kind: "duplicates" as const, icon: ICON_DUP },
   { kind: "screenshots" as const, icon: ICON_IMAGE },
   { kind: "servers" as const, icon: ICON_SERVER },
   { kind: "console" as const, icon: ICON_TERMINAL },
   { kind: "settings" as const, icon: ICON_GEAR },
 ];
+
+/** Счётчик для бейджа сабтаба (файлы папок / версии). */
+function subTabCount(kind: string): number {
+  if (kind === "mods" || kind === "resourcepacks" || kind === "shaderpacks" || kind === "saves") {
+    return (gameFiles.value[kind as GameFolderKind] ?? []).filter((f) => f.kind === "file").length;
+  }
+  if (kind === "releases") {
+    return versions.value?.installed.length ?? 0;
+  }
+  return 0;
+}
 
 /** Релизы GitHub есть только у авторских сборок (kind "remote" = GitHub-репозиторий). */
 const playSubTabsVisible = computed(() =>

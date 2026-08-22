@@ -35,7 +35,7 @@
           <div
             v-for="p in packs"
             :key="p.id"
-            class="group relative mb-1 flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition-all duration-150"
+            class="group relative mb-0.5 flex cursor-pointer items-center gap-2.5 rounded-lg border px-2.5 py-1.5 transition-all duration-150"
             :class="p.id === packId
               ? 'border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_14%,transparent)] to-transparent shadow-sm'
               : 'border-transparent hover:border-[var(--border)] hover:bg-[var(--input-50)]'"
@@ -43,30 +43,30 @@
           >
             <span
               v-if="p.id === packId"
-              class="absolute -left-2 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-[var(--accent)]"
+              class="absolute -left-2 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--accent)]"
             ></span>
             <div class="relative shrink-0">
               <img
                 v-if="p.icon"
                 :src="convertFileSrc(p.icon)"
                 alt=""
-                class="h-11 w-11 rounded-xl border border-[var(--border)] object-cover shadow-sm"
+                class="h-9 w-9 rounded-lg border border-[var(--border)] object-cover"
               />
               <div
                 v-else
-                class="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--input)] text-sm font-bold text-[var(--accent)]"
+                class="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--input)] text-xs font-bold text-[var(--accent)]"
               >
                 {{ p.name?.[0]?.toUpperCase() ?? "?" }}
               </div>
               <span
                 v-if="p.id === packId"
-                class="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[var(--panel)]"
+                class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[var(--panel)]"
                 :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"
                 :title="status?.installed ? t('side.installed') : t('side.notInstalled')"
               ></span>
             </div>
             <div class="min-w-0 flex-1">
-              <p class="truncate text-[13px] font-semibold leading-tight" :class="p.id === packId ? 'text-[color:var(--tx-strong)]' : 'text-[color:var(--tx)]'">{{ p.name }}</p>
+              <p class="truncate text-xs font-semibold leading-tight" :class="p.id === packId ? 'text-[color:var(--tx-strong)]' : 'text-[color:var(--tx)]'">{{ p.name }}</p>
               <p class="mt-0.5 truncate text-[10px] leading-tight text-[color:var(--tx-muted)]">
                 <span v-if="p.author" class="font-mono text-[var(--accent)]">@{{ p.author }}</span>
                 <span v-else>{{ p.kind === "local" ? t("side.createInstance") : "—" }}</span>
@@ -74,26 +74,26 @@
             </div>
 
             <!-- Действия строки: появляются при наведении -->
-            <div class="absolute right-2 flex items-center gap-1 rounded-xl bg-[var(--panel)]/95 py-0.5 pl-3 pr-1 opacity-0 shadow-lg backdrop-blur-sm transition-opacity group-hover:opacity-100">
+            <div class="absolute right-1.5 flex items-center gap-0.5 rounded-lg bg-[var(--panel)]/95 py-0.5 pl-2.5 pr-0.5 opacity-0 shadow-lg backdrop-blur-sm transition-opacity group-hover:opacity-100">
               <button
                 type="button"
-                class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#238636] text-white shadow-sm transition-all hover:scale-105 hover:bg-[#2ea043] disabled:opacity-50 disabled:hover:scale-100"
+                class="flex h-7 w-7 items-center justify-center rounded-md bg-[#238636] text-white shadow-sm transition-all hover:scale-105 hover:bg-[#2ea043] disabled:opacity-50 disabled:hover:scale-100"
                 :title="t('side.play')"
                 :disabled="busy || gameRunning"
                 @click.stop="playFromSidebar(p.id)"
               >
-                <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
+                <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
               </button>
               <button
                 type="button"
-                class="flex h-8 w-8 items-center justify-center rounded-lg transition-colors disabled:opacity-50"
+                class="flex h-7 w-7 items-center justify-center rounded-md transition-colors disabled:opacity-50"
                 :class="removeArmed === p.id ? 'bg-[#f85149]/15 text-[#f85149]' : 'text-[color:var(--tx-muted)] hover:bg-[#f85149]/10 hover:text-[#f85149]'"
                 :title="removeArmed === p.id ? t('dev.removeConfirm') : t('dev.remove')"
                 :disabled="busy || removingPack === p.id"
                 @click.stop="handleRemovePack(p.id)"
               >
-                <svg v-if="removingPack === p.id" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Zm3.36 2.14a.75.75 0 0 1 0 1.06 4 4 0 1 1-6.72 0 .75.75 0 0 1 1.06-1.06 2.5 2.5 0 1 0 4.6 0 .75.75 0 0 1 1.06-1.06Z"/></svg>
-                <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M6 1.75a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75V2h3.5a.75.75 0 0 1 0 1.5h-.38l-.89 10.055A1.75 1.75 0 0 1 10.495 15H5.505a1.75 1.75 0 0 1-1.735-1.445L2.88 3.5H2.5a.75.75 0 0 1 0-1.5H6v-.25ZM4.416 3.5l.864 9.9A.25.25 0 0 0 5.525 13.5h4.95a.25.25 0 0 0 .245-.22l.864-9.78H4.416Z"/></svg>
+                <svg v-if="removingPack === p.id" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Zm3.36 2.14a.75.75 0 0 1 0 1.06 4 4 0 1 1-6.72 0 .75.75 0 0 1 1.06-1.06 2.5 2.5 0 1 0 4.6 0 .75.75 0 0 1 1.06-1.06Z"/></svg>
+                <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M6 1.75a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75V2h3.5a.75.75 0 0 1 0 1.5h-.38l-.89 10.055A1.75 1.75 0 0 1 10.495 15H5.505a1.75 1.75 0 0 1-1.735-1.445L2.88 3.5H2.5a.75.75 0 0 1 0-1.5H6v-.25ZM4.416 3.5l.864 9.9A.25.25 0 0 0 5.525 13.5h4.95a.25.25 0 0 0 .245-.22l.864-9.78H4.416Z"/></svg>
               </button>
             </div>
           </div>
