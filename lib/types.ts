@@ -694,3 +694,19 @@ export interface AdminPack {
   versionsCount: number;
   createdAt: string;
 }
+
+export interface AdminComment {
+  id: string;
+  packId: string;
+  packName: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface AdminCreateUser {
+  username: string;
+  password: string;
+  email: string | null;
+  role: string | null;
+}

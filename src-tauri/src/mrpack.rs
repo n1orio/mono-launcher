@@ -181,6 +181,14 @@ pub async fn download_mrpack(
     fs::create_dir_all(&dest_dir)?;
     let path = config::mrpack_file_path(pack_id)?;
 
+    // Локальный .mrpack (drag&drop файла): просто копируем в кэш.
+    if let Some(src) = url.strip_prefix("file://") {
+        tokio::fs::copy(src, &path)
+            .await
+            .context("Не удалось скопировать локальный .mrpack")?;
+        return Ok(path);
+    }
+
     let mut last_err: Option<anyhow::Error> = None;
     for attempt in 0..3 {
         match download_mrpack_once(app, client, url, &path).await {

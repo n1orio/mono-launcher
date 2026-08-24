@@ -217,6 +217,34 @@ async fn add_pack_command(
     add_pack_impl(&state.client, &url, name.as_deref(), blog.as_deref()).await
 }
 
+/// Добавляет сборку из локального .mrpack (drag&drop файла в окно).
+/// Файл копируется в кэш при первой установке через file://-схему.
+#[tauri::command]
+async fn add_pack_file_command(
+    state: State<'_, AppState>,
+    path: String,
+    name: Option<String>,
+) -> Result<PackDescriptor, String> {
+    use std::path::PathBuf;
+    let _guard = add_pack_lock().lock().await;
+    let p = PathBuf::from(path.trim());
+    if !p.is_file() {
+        return Err("Файл не найден".into());
+    }
+    if p.extension().and_then(|e| e.to_str()) != Some("mrpack") {
+        return Err("Нужен файл .mrpack".into());
+    }
+    let abs = p.canonicalize().map_err(|e| e.to_string())?;
+    #[cfg(windows)]
+    let url = format!(
+        "file:///{}",
+        abs.display().to_string().replace('\\', "/")
+    );
+    #[cfg(not(windows))]
+    let url = format!("file://{}", abs.display());
+    add_pack_impl(&state.client, &url, name.as_deref(), None).await
+}
+
 /// Удаляет пользовательскую сборку (вместе с локальными данными).
 #[tauri::command]
 fn remove_pack_command(pack_id: String) -> Result<(), String> {
@@ -2512,6 +2540,33 @@ async fn pack_delete_version_command(
         .map_err(|e| e.to_string())
 }
 
+/// Загружает скриншот сборки на storage (возвращает обновлённую meta).
+#[tauri::command]
+async fn pack_upload_screenshot_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    id: String,
+    file_path: String,
+    caption: String,
+) -> Result<serde_json::Value, String> {
+    auth::mono_pack_upload_screenshot(&state.client, &access_token, &id, &file_path, &caption)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Удаляет скриншот сборки по индексу (возвращает обновлённую meta).
+#[tauri::command]
+async fn pack_delete_screenshot_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    id: String,
+    index: usize,
+) -> Result<serde_json::Value, String> {
+    auth::mono_pack_delete_screenshot(&state.client, &access_token, &id, index)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Добавляет новость к сборке.
 #[tauri::command]
 async fn pack_add_news_command(
@@ -2752,6 +2807,27 @@ async fn mono_admin_list_packs_command(
     access_token: String,
 ) -> Result<Vec<auth::AdminPack>, String> {
     auth::mono_admin_list_packs(&state.client, &access_token)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_admin_list_comments_command(
+    state: State<'_, AppState>,
+    access_token: String,
+) -> Result<Vec<auth::AdminComment>, String> {
+    auth::mono_admin_list_comments(&state.client, &access_token)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn mono_admin_create_user_command(
+    state: State<'_, AppState>,
+    access_token: String,
+    payload: auth::AdminCreateUser,
+) -> Result<auth::AdminUser, String> {
+    auth::mono_admin_create_user(&state.client, &access_token, &payload)
         .await
         .map_err(|e| e.to_string())
 }
@@ -3464,6 +3540,36 @@ fn set_discord_rp_command(enabled: bool) -> Result<(), String> {
     config::set_discord_rp_enabled(enabled).map_err(|e| e.to_string())
 }
 
+/// Флаг «крестик сворачивает в трей» (читается в on_window_event).
+fn close_to_tray_flag() -> &'static std::sync::atomic::AtomicBool {
+    static FLAG: std::sync::OnceLock<std::sync::atomic::AtomicBool> = std::sync::OnceLock::new();
+    FLAG.get_or_init(|| std::sync::atomic::AtomicBool::new(false))
+}
+
+/// Включает/выключает сворачивание в трей при закрытии окна.
+#[tauri::command]
+fn set_close_to_tray_command(enabled: bool) {
+    close_to_tray_flag().store(enabled, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Автозапуск лаунчера вместе с системой (tauri-plugin-autostart).
+#[tauri::command]
+fn autostart_set_command(app: AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let manager = app.autolaunch();
+    if enabled {
+        manager.enable().map_err(|e| e.to_string())
+    } else {
+        manager.disable().map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+fn autostart_get_command(app: AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
 /// Включает/выключает плашку предупреждения о кастомных модах (warn-custom-mods.txt).
 #[tauri::command]
 fn set_warn_custom_mods_command(enabled: bool) -> Result<(), String> {
@@ -3522,6 +3628,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         // Single-instance должен быть первым: ловит deep link аргументы
         // запущенного экземпляра на Linux/Windows.
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
@@ -3530,15 +3640,72 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_deep_link::init())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if close_to_tray_flag().load(std::sync::atomic::Ordering::Relaxed) {
+                    // Сворачиваем в трей вместо выхода.
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
+            }
+        })
         .setup(|app| {
             #[cfg(desktop)]
             register_deep_link_handlers(app.handle());
+
+            // Трей: показать окно / выйти.
+            #[cfg(desktop)]
+            {
+                use tauri::menu::{Menu, MenuItem};
+                use tauri::tray::TrayIconBuilder;
+
+                let show = MenuItem::with_id(app, "show", "Показать Mono", true, None::<&str>)?;
+                let quit = MenuItem::with_id(app, "quit", "Выход", true, None::<&str>)?;
+                let menu = Menu::with_items(app, &[&show, &quit])?;
+                let _tray = TrayIconBuilder::with_id("main-tray")
+                    .icon(app.default_window_icon().cloned().unwrap())
+                    .tooltip("Mono Launcher")
+                    .menu(&menu)
+                    .show_menu_on_left_click(false)
+                    .on_menu_event(|app, event| match event.id.as_ref() {
+                        "show" => {
+                            if let Some(win) = app.get_webview_window("main") {
+                                let _ = win.show();
+                                let _ = win.unminimize();
+                                let _ = win.set_focus();
+                            }
+                        }
+                        "quit" => app.exit(0),
+                        _ => {}
+                    })
+                    .on_tray_icon_event(|tray, event| {
+                        if let tauri::tray::TrayIconEvent::Click { button, .. } = event {
+                            if button == tauri::tray::MouseButton::Left {
+                                if let Some(win) =
+                                    tray.app_handle().get_webview_window("main")
+                                {
+                                    if win.is_visible().unwrap_or(false) {
+                                        let _ = win.set_focus();
+                                    } else {
+                                        let _ = win.show();
+                                        let _ = win.set_focus();
+                                    }
+                                }
+                            }
+                        }
+                    })
+                    .build(app)?;
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             list_packs,
             add_pack_command,
+            add_pack_file_command,
             remove_pack_command,
+            set_close_to_tray_command,
+            autostart_set_command,
+            autostart_get_command,
             take_pending_pack_add,
             check_for_updates,
             list_versions,
@@ -3575,6 +3742,8 @@ pub fn run() {
             pack_delete_command,
             pack_add_version_command,
             pack_delete_version_command,
+            pack_upload_screenshot_command,
+            pack_delete_screenshot_command,
             pack_add_news_command,
             pack_delete_news_command,
             pack_rate_command,
@@ -3662,6 +3831,8 @@ pub fn run() {
             mono_remove_collaborator_command,
             mono_admin_list_users_command,
             mono_admin_list_packs_command,
+            mono_admin_list_comments_command,
+            mono_admin_create_user_command,
             mono_admin_ban_user_command,
             mono_admin_unban_user_command,
             mono_admin_delete_user_command,

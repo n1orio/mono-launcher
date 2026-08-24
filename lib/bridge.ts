@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   Accounts,
   AppStatus,
@@ -64,6 +64,22 @@ export function addPack(url: string, name?: string, blog?: string): Promise<Pack
   return invoke("add_pack_command", { url, name: name ?? null, blog: blog ?? null });
 }
 
+export function addPackFile(path: string, name?: string): Promise<PackDescriptor> {
+  return invoke("add_pack_file_command", { path, name: name ?? null });
+}
+
+export function setCloseToTray(enabled: boolean): Promise<void> {
+  return invoke("set_close_to_tray_command", { enabled });
+}
+
+export function autostartSet(enabled: boolean): Promise<void> {
+  return invoke("autostart_set_command", { enabled });
+}
+
+export function autostartGet(): Promise<boolean> {
+  return invoke("autostart_get_command");
+}
+
 export function removePack(packId: string): Promise<void> {
   return invoke("remove_pack_command", { packId });
 }
@@ -85,6 +101,16 @@ export function onPackAdded(
 /** Список файлов сборки изменился (установка/удаление файла) — обновить UI. */
 export function onModsChanged(cb: () => void): Promise<UnlistenFn> {
   return listen("mods-changed", () => cb());
+}
+
+/** Уровень темы изменился в другом окне — применить локально. */
+export function onThemeChanged(cb: (level: number) => void): Promise<UnlistenFn> {
+  return listen<{ level: number }>("theme-changed", (event) => cb(event.payload.level));
+}
+
+/** Рассылает уровень темы всем окнам (в т.ч. текущему — применяется идемпотентно). */
+export function emitThemeChanged(level: number): void {
+  void emit("theme-changed", { level });
 }
 
 /** Результат добавления по deep link, если фронтенд стартовал позже события. */
@@ -821,6 +847,25 @@ export function packDeleteVersion(
   });
 }
 
+/** Загружает скриншот сборки на storage (возвращает обновлённую meta). */
+export function packUploadScreenshot(
+  accessToken: string,
+  id: string,
+  filePath: string,
+  caption?: string
+): Promise<Record<string, unknown>> {
+  return invoke("pack_upload_screenshot_command", { accessToken, id, filePath, caption: caption ?? "" });
+}
+
+/** Удаляет скриншот сборки по индексу (возвращает обновлённую meta). */
+export function packDeleteScreenshot(
+  accessToken: string,
+  id: string,
+  index: number
+): Promise<Record<string, unknown>> {
+  return invoke("pack_delete_screenshot_command", { accessToken, id, index });
+}
+
 /** Добавляет новость к сборке. */
 export function packAddNews(
   accessToken: string,
@@ -871,6 +916,8 @@ import type {
   CollaboratorPublic,
   AdminUser,
   AdminPack,
+  AdminComment,
+  AdminCreateUser,
 } from "./types";
 
 export function monoListComments(packId: string): Promise<CommentWithReplies[]> {
@@ -995,6 +1042,17 @@ export function monoAdminListUsers(accessToken: string): Promise<AdminUser[]> {
 
 export function monoAdminListPacks(accessToken: string): Promise<AdminPack[]> {
   return invoke("mono_admin_list_packs_command", { accessToken });
+}
+
+export function monoAdminListComments(accessToken: string): Promise<AdminComment[]> {
+  return invoke("mono_admin_list_comments_command", { accessToken });
+}
+
+export function monoAdminCreateUser(
+  accessToken: string,
+  payload: AdminCreateUser
+): Promise<AdminUser> {
+  return invoke("mono_admin_create_user_command", { accessToken, payload });
 }
 
 export function monoAdminBanUser(

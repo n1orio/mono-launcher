@@ -528,6 +528,86 @@ pub async fn mono_pack_add_version(
     serde_json::from_str::<PackVersionPublic>(&text).context("Некорректный ответ сервера Mono")
 }
 
+/// Загружает скриншот сборки (multipart POST /packs/{id}/screenshots).
+/// Бэкенд кладёт файл на storage и дописывает URL в meta.screenshots[].
+pub async fn mono_pack_upload_screenshot(
+    client: &reqwest::Client,
+    access_token: &str,
+    id: &str,
+    file_path: &str,
+    caption: &str,
+) -> Result<Value> {
+    let bytes = tokio::fs::read(file_path)
+        .await
+        .context("Не удалось прочитать файл скриншота")?;
+    if bytes.is_empty() {
+        return Err(anyhow!("Файл скриншота пуст"));
+    }
+    let ext = std::path::Path::new(file_path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("png")
+        .to_lowercase();
+    let mime = match ext.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        _ => "application/octet-stream",
+    };
+    let file_name = std::path::Path::new(file_path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("screenshot.png")
+        .to_string();
+    let part = reqwest::multipart::Part::bytes(bytes)
+        .file_name(file_name)
+        .mime_str(mime)
+        .context("Ошибка multipart")?;
+    let mut form = reqwest::multipart::Form::new().part("file", part);
+    if !caption.trim().is_empty() {
+        form = form.text("caption", caption.trim().to_string());
+    }
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{id}/screenshots");
+    let resp = client
+        .post(&url)
+        .bearer_auth(access_token)
+        .multipart(form)
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(anyhow!("Mono: {}", api_error(&text)));
+    }
+    serde_json::from_str::<Value>(&text).context("Некорректный ответ сервера Mono")
+}
+
+/// Удаляет скриншот по индексу (DELETE /packs/{id}/screenshots/{index}).
+pub async fn mono_pack_delete_screenshot(
+    client: &reqwest::Client,
+    access_token: &str,
+    id: &str,
+    index: usize,
+) -> Result<Value> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{id}/screenshots/{index}");
+    let resp = client
+        .delete(&url)
+        .bearer_auth(access_token)
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(anyhow!("Mono: {}", api_error(&text)));
+    }
+    serde_json::from_str::<Value>(&text).context("Некорректный ответ сервера Mono")
+}
+
 /// Удаляет версию сборки (DELETE /packs/{id}/versions/{version_id}, 204).
 pub async fn mono_pack_delete_version(
     client: &reqwest::Client,
@@ -1699,4 +1779,52 @@ mod mono_api_tests {
         let out = serde_json::to_value(&u).unwrap();
         assert!(out.get("emailConfirmed").is_some(), "TS ждёт camelCase");
     }
+}
+
+/// Комментарий в админ-ленте модерации.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdminComment {
+    pub id: String,
+    #[serde(default, alias = "pack_id")]
+    pub pack_id: String,
+    #[serde(default, alias = "pack_name")]
+    pub pack_name: String,
+    #[serde(default, alias = "author_name")]
+    pub author_name: String,
+    pub body: String,
+    #[serde(default, alias = "created_at")]
+    pub created_at: String,
+}
+
+/// Payload создания пользователя админом.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdminCreateUser {
+    pub username: String,
+    pub password: String,
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub role: Option<String>,
+}
+
+pub async fn mono_admin_list_comments(client: &reqwest::Client, access_token: &str) -> Result<Vec<AdminComment>> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/admin/comments");
+    let resp = client.get(&url).bearer_auth(access_token).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
+}
+
+pub async fn mono_admin_create_user(client: &reqwest::Client, access_token: &str, payload: &AdminCreateUser) -> Result<AdminUser> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/admin/users");
+    let resp = client.post(&url).bearer_auth(access_token).json(payload).send().await.context("Не удалось связаться с сервером Mono")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() { return Err(anyhow!("Mono: {}", api_error(&text))); }
+    serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
 }

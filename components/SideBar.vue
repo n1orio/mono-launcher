@@ -1,269 +1,271 @@
 <template>
   <aside
-    class="relative flex shrink-0 flex-col bg-[var(--panel)]"
-    :class="[sidebarDragging ? '' : 'transition-[width] duration-150', sidebarCollapsed ? 'items-center' : '']"
-    :style="{ width: `${sidebarWidth}px` }"
+  class="relative flex shrink-0 flex-col bg-[var(--panel)]"
+  :class="[sidebarDragging ? '' : 'transition-[width] duration-150', sidebarCollapsed ? 'items-center' : '']"
+  :style="{ width: `${sidebarWidth}px` }"
   >
-    <!-- Шапка: лого + добавление сборки -->
-    <div class="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2.5" :class="sidebarCollapsed ? 'justify-center' : ''">
-      <svg viewBox="0 0 512 512" class="h-7 w-7 shrink-0 rounded-lg">
-        <rect width="512" height="512" rx="120" fill="#2f81f7"/>
-        <path d="M152 352 V172 L256 284 L360 172 V352" fill="none" stroke="#ffffff" stroke-width="58" stroke-linecap="square" stroke-linejoin="miter"/>
-      </svg>
-      <span v-if="!sidebarCollapsed" class="min-w-0 flex-1 truncate text-sm font-bold tracking-tight text-[color:var(--tx-strong)]">Mono</span>
-      <button
-        v-if="!sidebarCollapsed"
-        type="button"
-        class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--input)] text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--accent)]"
-        :title="t('side.createInstance')"
-        @click="createPackOpen = true"
-      >
-        <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M8 0a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2H9v6a1 1 0 1 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1Z"/></svg>
-      </button>
-    </div>
+  <!-- Шапка: лого + добавление сборки -->
+  <div class="flex items-center gap-2 border-b border-[var(--border)]  px-3 py-2.5" :class="sidebarCollapsed ? 'justify-center' : ''">
+  <svg viewBox="0 0 512 512" class="h-7 w-7 shrink-0 rounded-lg">
+  <rect width="512" height="512" rx="120" fill="#2f81f7"/>
+  <path d="M152 352 V172 L256 284 L360 172 V352" fill="none" stroke="#ffffff" stroke-width="58" stroke-linecap="square" stroke-linejoin="miter"/>
+  </svg>
+  <span v-if="!sidebarCollapsed" class="min-w-0 flex-1 truncate text-sm font-bold tracking-tight text-[color:var(--tx-strong)]">Mono</span>
+  <button
+  v-if="!sidebarCollapsed"
+  type="button"
+  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--input)] text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--accent)]"
+  :title="t('side.createInstance')"
+  @click="createPackOpen = true"
+  >
+  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M8 0a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2H9v6a1 1 0 1 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1Z"/></svg>
+  </button>
+  </div>
 
-    <!-- Список сборок (инстансов) -->
-    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div v-if="!sidebarCollapsed" class="flex shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
-        <span class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">
-          {{ t("side.packs") }}
-          <span v-if="packs.length" class="ml-1 rounded-full bg-[var(--input)] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-[color:var(--tx-muted)]">{{ packs.length }}</span>
-        </span>
-      </div>
+  <!-- Список сборок (инстансов) -->
+  <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+  <div v-if="!sidebarCollapsed" class="flex shrink-0 items-center justify-between px-4 pb-1.5 pt-3">
+  <span class="text-[11px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">
+  {{ t("side.packs") }}
+  <span v-if="packs.length" class="ml-1 rounded-full bg-[var(--input)] px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-[color:var(--tx-muted)]">{{ packs.length }}</span>
+  </span>
+  </div>
 
-      <nav class="min-h-0 flex-1 overflow-y-auto px-2" :class="sidebarCollapsed ? 'pt-2' : 'pb-2'" style="scrollbar-width: thin">
-        <template v-if="!sidebarCollapsed">
-          <div
-            v-for="p in packs"
-            :key="p.id"
-            class="group relative mb-0.5 flex cursor-pointer items-center gap-2.5 rounded-lg border px-2.5 py-1.5 transition-all duration-150"
-            :class="p.id === packId
-              ? 'border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_14%,transparent)] to-transparent shadow-sm'
-              : 'border-transparent hover:border-[var(--border)] hover:bg-[var(--input-50)]'"
-            @click="openPackTab(p.id)"
-          >
-            <span
-              v-if="p.id === packId"
-              class="absolute -left-2 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--accent)]"
-            ></span>
-            <div class="relative shrink-0">
-              <img
-                v-if="p.icon"
-                :src="convertFileSrc(p.icon)"
-                alt=""
-                class="h-9 w-9 rounded-lg border border-[var(--border)] object-cover"
-              />
-              <div
-                v-else
-                class="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--input)] text-xs font-bold text-[var(--accent)]"
-              >
-                {{ p.name?.[0]?.toUpperCase() ?? "?" }}
-              </div>
-              <span
-                v-if="p.id === packId"
-                class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[var(--panel)]"
-                :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"
-                :title="status?.installed ? t('side.installed') : t('side.notInstalled')"
-              ></span>
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-xs font-semibold leading-tight" :class="p.id === packId ? 'text-[color:var(--tx-strong)]' : 'text-[color:var(--tx)]'">{{ p.name }}</p>
-              <p class="mt-0.5 truncate text-[11px] leading-tight text-[color:var(--tx-muted)]">
-                <span v-if="p.author" class="font-mono text-[var(--accent)]">@{{ p.author }}</span>
-                <span v-else>{{ p.kind === "local" ? t("side.createInstance") : "—" }}</span>
-              </p>
-            </div>
+  <nav class="min-h-0 flex-1 overflow-y-auto px-2" :class="sidebarCollapsed ? 'pt-2' : 'pb-2'" style="scrollbar-width: thin">
+  <template v-if="!sidebarCollapsed">
+  <div
+  v-for="p in packs"
+  :key="p.id"
+  class="group relative mb-0.5 flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition-all duration-150"
+  :class="p.id === packId
+  ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]'
+  : 'hover:bg-[var(--input-50)]'"
+  @click="openPackTab(p.id)"
+  >
+  <span
+  v-if="p.id === packId"
+  class="absolute -left-2 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--accent)]"
+  ></span>
+  <div class="relative shrink-0">
+  <img
+  v-if="p.icon"
+  :src="convertFileSrc(p.icon)"
+  alt=""
+  class="h-9 w-9 rounded-lg object-cover"
+  />
+  <div
+  v-else
+  class="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--input)] text-[13px] font-bold text-[var(--accent)]"
+  >
+  {{ p.name?.[0]?.toUpperCase() ?? "?" }}
+  </div>
+  <span
+  v-if="p.id === packId"
+  class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[var(--panel)] "
+  :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"
+  :title="status?.installed ? t('side.installed') : t('side.notInstalled')"
+  ></span>
+  </div>
+  <div class="min-w-0 flex-1">
+  <p class="truncate text-[13px] font-semibold leading-tight" :class="p.id === packId ? 'text-[color:var(--tx-strong)]' : 'text-[color:var(--tx)]'">{{ p.name }}</p>
+  <p class="mt-0.5 truncate text-xs leading-tight text-[color:var(--tx-muted)]">
+  <span v-if="p.author" class="font-mono text-[var(--accent)]">@{{ p.author }}</span>
+  <span v-else>{{ p.kind === "local" ? t("side.createInstance") : "—" }}</span>
+  </p>
+  </div>
 
-            <!-- Действия строки: появляются при наведении -->
-            <div class="absolute right-1.5 flex items-center gap-0.5 rounded-lg bg-[var(--panel)]/95 py-0.5 pl-2.5 pr-0.5 opacity-0 shadow-lg backdrop-blur-sm transition-opacity group-hover:opacity-100">
-              <button
-                type="button"
-                class="flex h-7 w-7 items-center justify-center rounded-md bg-[#238636] text-white shadow-sm transition-all hover:scale-105 hover:bg-[#2ea043] disabled:opacity-50 disabled:hover:scale-100"
-                :title="t('side.play')"
-                :disabled="busy || gameRunning"
-                @click.stop="playFromSidebar(p.id)"
-              >
-                <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
-              </button>
-              <button
-                type="button"
-                class="flex h-7 w-7 items-center justify-center rounded-md transition-colors disabled:opacity-50"
-                :class="removeArmed === p.id ? 'bg-[#f85149]/15 text-[#f85149]' : 'text-[color:var(--tx-muted)] hover:bg-[#f85149]/10 hover:text-[#f85149]'"
-                :title="removeArmed === p.id ? t('dev.removeConfirm') : t('dev.remove')"
-                :disabled="busy || removingPack === p.id"
-                @click.stop="handleRemovePack(p.id)"
-              >
-                <svg v-if="removingPack === p.id" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Zm3.36 2.14a.75.75 0 0 1 0 1.06 4 4 0 1 1-6.72 0 .75.75 0 0 1 1.06-1.06 2.5 2.5 0 1 0 4.6 0 .75.75 0 0 1 1.06-1.06Z"/></svg>
-                <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M6 1.75a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75V2h3.5a.75.75 0 0 1 0 1.5h-.38l-.89 10.055A1.75 1.75 0 0 1 10.495 15H5.505a1.75 1.75 0 0 1-1.735-1.445L2.88 3.5H2.5a.75.75 0 0 1 0-1.5H6v-.25ZM4.416 3.5l.864 9.9A.25.25 0 0 0 5.525 13.5h4.95a.25.25 0 0 0 .245-.22l.864-9.78H4.416Z"/></svg>
-              </button>
-            </div>
-          </div>
-          <p v-if="packs.length === 0" class="px-3 py-4 text-center text-xs leading-relaxed text-[color:var(--tx-muted)]">
-            {{ t("side.recentEmpty") }}
-          </p>
-        </template>
+  <!-- Действия строки: появляются при наведении -->
+  <div class="absolute right-1.5 flex items-center gap-0.5 rounded-lg bg-[var(--panel)]/95 py-0.5 pl-2.5 pr-0.5 opacity-0 shadow-lg backdrop-blur-sm transition-opacity group-hover:opacity-100">
+  <button
+  type="button"
+  class="flex h-7 w-7 items-center justify-center rounded-md bg-[#238636] text-white shadow-sm transition-all hover:scale-105 hover:bg-[#2ea043] disabled:opacity-50 disabled:hover:scale-100"
+  :title="t('side.play')"
+  :disabled="busy || gameRunning"
+  @click.stop="playFromSidebar(p.id)"
+  >
+  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
+  </button>
+  <button
+  type="button"
+  class="flex h-7 w-7 items-center justify-center rounded-md transition-colors disabled:opacity-50"
+  :class="removeArmed === p.id ? 'bg-[#f85149]/15 text-[#f85149]' : 'text-[color:var(--tx-muted)] hover:bg-[#f85149]/10 hover:text-[#f85149]'"
+  :title="removeArmed === p.id ? t('dev.removeConfirm') : t('dev.remove')"
+  :disabled="busy || removingPack === p.id"
+  @click.stop="handleRemovePack(p.id)"
+  >
+  <svg v-if="removingPack === p.id" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Zm3.36 2.14a.75.75 0 0 1 0 1.06 4 4 0 1 1-6.72 0 .75.75 0 0 1 1.06-1.06 2.5 2.5 0 1 0 4.6 0 .75.75 0 0 1 1.06-1.06Z"/></svg>
+  <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M6 1.75a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75V2h3.5a.75.75 0 0 1 0 1.5h-.38l-.89 10.055A1.75 1.75 0 0 1 10.495 15H5.505a1.75 1.75 0 0 1-1.735-1.445L2.88 3.5H2.5a.75.75 0 0 1 0-1.5H6v-.25ZM4.416 3.5l.864 9.9A.25.25 0 0 0 5.525 13.5h4.95a.25.25 0 0 0 .245-.22l.864-9.78H4.416Z"/></svg>
+  </button>
+  </div>
+  </div>
+  <p v-if="packs.length === 0" class="px-3 py-4 text-center text-[13px] leading-relaxed text-[color:var(--tx-muted)]">
+  {{ t("side.recentEmpty") }}
+  </p>
+  </template>
 
-        <!-- Свернутый режим: только иконки -->
-        <template v-else>
-          <button
-            v-for="p in packs"
-            :key="p.id"
-            type="button"
-            class="relative mb-1.5 flex w-full items-center justify-center rounded-xl p-1 transition-colors"
-            :class="p.id === packId ? 'bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]' : 'hover:bg-[var(--input-50)]'"
-            :title="p.name"
-            @click="openPackTab(p.id)"
-          >
-            <img
-              v-if="p.icon"
-              :src="convertFileSrc(p.icon)"
-              alt=""
-              class="h-9 w-9 rounded-lg border border-[var(--border)] object-cover"
-            />
-            <div
-              v-else
-              class="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--input)] text-xs font-bold text-[var(--accent)]"
-            >
-              {{ p.name?.[0]?.toUpperCase() ?? "?" }}
-            </div>
-            <span
-              v-if="p.id === packId"
-              class="absolute -right-1 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-[var(--accent)]"
-            ></span>
-          </button>
-        </template>
-      </nav>
-    </div>
+  <!-- Свернутый режим: только иконки -->
+  <template v-else>
+  <button
+  v-for="p in packs"
+  :key="p.id"
+  type="button"
+  class="relative mb-1.5 flex w-full items-center justify-center rounded-xl p-1 transition-colors"
+  :class="p.id === packId ? 'bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]' : 'hover:bg-[var(--input-50)]'"
+  :title="p.name"
+  @click="openPackTab(p.id)"
+  >
+  <img
+  v-if="p.icon"
+  :src="convertFileSrc(p.icon)"
+  alt=""
+  class="h-10 w-10 rounded-lg object-cover"
+  />
+  <div
+  v-else
+  class="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--input)] text-sm font-bold text-[var(--accent)]"
+  >
+  {{ p.name?.[0]?.toUpperCase() ?? "?" }}
+  </div>
+  <span
+  v-if="p.id === packId"
+  class="absolute -right-1 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-[var(--accent)]"
+  ></span>
+  </button>
+  </template>
+  </nav>
+  </div>
 
-    <!-- Навигация -->
-    <nav class="flex flex-col gap-0.5 border-t border-[var(--border)] p-2">
-      <button
-        v-for="item in navItems"
-        :key="item.id"
-        v-show="item.id !== 'admin' || isAdmin"
-        type="button"
-        class="flex items-center rounded-lg py-2.5 text-[13px] font-semibold transition-colors"
+  <!-- Навигация -->
+  <nav class="flex flex-col gap-0.5 border-t border-[var(--border)]  p-2">
+  <button
+  v-for="item in navItems"
+  :key="item.id"
+  v-show="item.id !== 'admin' || isAdmin"
+  type="button"
+        class="flex items-center rounded-full transition-colors"
         :class="[
-          sidebarCollapsed ? 'justify-center px-1.5' : 'justify-start gap-3 px-3.5',
-          tab === item.id ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
-        ]"
-        :title="item.title"
-        @click="tab = item.id"
-      >
-        <svg viewBox="0 0 16 16" class="shrink-0 fill-current" :class="sidebarCollapsed ? 'h-5 w-5' : 'h-[18px] w-[18px]'" v-html="item.icon"></svg>
-        <span v-if="!sidebarCollapsed">{{ item.label }}</span>
-      </button>
-    </nav>
+          sidebarCollapsed ? 'h-11 w-11 shrink-0 justify-center' : 'w-full gap-3 px-3.5 py-2.5 text-sm font-semibold',
+  tab === item.id
+  ? 'bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)]'
+  : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]',
+  ]"
+  :title="item.title"
+  @click="tab = item.id"
+  >
+  <svg viewBox="0 0 16 16" class="shrink-0 fill-current" :class="sidebarCollapsed ? 'h-[22px] w-[22px]' : 'h-[18px] w-[18px]'" v-html="item.icon"></svg>
+  <span v-if="!sidebarCollapsed">{{ item.label }}</span>
+  </button>
+  </nav>
 
-    <div class="flex-1" />
+  <div class="flex-1" />
 
-    <!-- Глобальный прогресс установки/скачивания -->
-    <div v-if="progress && busy" class="border-t border-[var(--border)] p-3 bg-[var(--panel-soft)]">
-      <div class="mb-1 flex items-center justify-between text-xs text-[color:var(--tx-muted)]">
-        <span class="truncate pr-2 font-medium text-[color:var(--tx)]">{{ phaseLabel(progress.phase) }}</span>
-        <span v-if="progress.fileTotal > 1" class="tabular-nums font-mono text-[11px]">{{ t("progress.files", { n: filesDone, m: progress.fileTotal }) }}</span>
-        <span v-else class="tabular-nums font-mono text-[11px]">{{ percent }}%</span>
-      </div>
-      <div class="h-1.5 w-full overflow-hidden rounded-full bg-[var(--input)]">
-        <div
-          class="h-full bg-[#2f81f7] transition-all duration-200"
-          :style="{ width: `${percent}%` }"
-        />
-      </div>
-      <div class="mt-1 flex items-center justify-between text-[11px] text-[color:var(--tx-muted)]">
-        <span class="truncate max-w-[120px]">{{ progress.currentFile || t("side.preparing") }}</span>
-        <span class="tabular-nums font-mono">{{ progress.speed > 0 ? `${formatBytes(progress.speed)}${t("units.perSec")}` : "" }}</span>
-      </div>
-      <div v-if="progress.fileTotal > 1 && filePercent > 0" class="mt-1">
-        <div class="h-1 w-full overflow-hidden rounded-full bg-[var(--input)]">
-          <div
-            class="h-full bg-[color-mix(in_srgb,var(--accent)_60%,transparent)]"
-            :style="{ width: `${filePercent}%` }"
-          />
-        </div>
-      </div>
-    </div>
+  <!-- Глобальный прогресс установки/скачивания -->
+  <div v-if="progress && busy" class="border-t border-[var(--border)]  p-3 bg-[var(--panel-soft)]">
+  <div class="mb-1 flex items-center justify-between text-[13px] text-[color:var(--tx-muted)]">
+  <span class="truncate pr-2 font-medium text-[color:var(--tx)]">{{ phaseLabel(progress.phase) }}</span>
+  <span v-if="progress.fileTotal > 1" class="tabular-nums font-mono text-xs">{{ t("progress.files", { n: filesDone, m: progress.fileTotal }) }}</span>
+  <span v-else class="tabular-nums font-mono text-xs">{{ percent }}%</span>
+  </div>
+  <div class="h-1.5 w-full overflow-hidden rounded-full bg-[var(--input)]">
+  <div
+  class="h-full bg-[#2f81f7] transition-all duration-200"
+  :style="{ width: `${percent}%` }"
+  />
+  </div>
+  <div class="mt-1 flex items-center justify-between text-xs text-[color:var(--tx-muted)]">
+  <span class="truncate max-w-[120px]">{{ progress.currentFile || t("side.preparing") }}</span>
+  <span class="tabular-nums font-mono">{{ progress.speed > 0 ? `${formatBytes(progress.speed)}${t("units.perSec")}` : "" }}</span>
+  </div>
+  <div v-if="progress.fileTotal > 1 && filePercent > 0" class="mt-1">
+  <div class="h-1 w-full overflow-hidden rounded-full bg-[var(--input)]">
+  <div
+  class="h-full bg-[color-mix(in_srgb,var(--accent)_60%,transparent)]"
+  :style="{ width: `${filePercent}%` }"
+  />
+  </div>
+  </div>
+  </div>
 
-    <!-- Учётная запись -->
-    <div
-      class="flex items-center gap-2.5 border-t border-[var(--border)] p-3"
-      :class="sidebarCollapsed ? 'flex-col gap-2 p-2' : ''"
-    >
-      <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--input)] font-mono text-sm font-bold text-[color:var(--tx-strong)]">
-        <img v-if="skinUrl" :src="skinUrl" :alt="t('side.skin')" class="h-full w-full object-cover" />
-        <template v-else>{{ session?.username?.[0]?.toUpperCase() ?? "?" }}</template>
-      </div>
-      <div v-if="!sidebarCollapsed" class="min-w-0 flex-1">
-        <div class="truncate text-[13px] font-semibold leading-tight text-[color:var(--tx)]">
-          {{ session?.username ?? t("side.guest") }}
-        </div>
-        <div class="truncate text-[11px] leading-tight text-[color:var(--tx-muted)]">
-          {{ session ? session.user_type : t("side.offline") }}
-        </div>
-      </div>
-      <div class="flex shrink-0 items-center gap-1.5">
-        <button
-          v-if="sidebarCollapsed"
-          type="button"
-          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx-strong)]"
-          :title="t('theme.switch')"
-          @click="toggleTheme()"
-        >
-          <!-- Тёмная тема активна → показываем солнце (переключить на светлую) -->
-          <svg v-if="themeLevel >= 0.5" viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8ZM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0Zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13ZM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 1 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06Zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061ZM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8ZM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8Zm10.657-5.657a.75.75 0 0 1 0 1.06l-1.061 1.061a.75.75 0 1 1-1.06-1.06l1.06-1.061a.75.75 0 0 1 1.06 0ZM4.464 11.536a.75.75 0 0 1 0 1.06l-1.06 1.061a.75.75 0 0 1-1.061-1.06l1.06-1.061a.75.75 0 0 1 1.061 0Z"/></svg>
-          <svg v-else viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M9.598 1.591a.749.749 0 0 1 .785-.175 7.001 7.001 0 1 1-8.967 8.967.75.75 0 0 1 .961-.96 5.5 5.5 0 0 0 7.046-7.046.75.75 0 0 1 .175-.786Zm1.616 1.945a7 7 0 0 1-7.678 7.678 5.499 5.499 0 1 0 7.678-7.678Z"/></svg>
-        </button>
-        <button
-          v-if="!sidebarCollapsed"
-          type="button"
-          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx-strong)]"
-          :title="t('nav.settings')"
-          @click="tab = 'settings'"
-        >
-          <svg viewBox="0 0 24 24" class="h-[18px] w-[18px] fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
-          </svg>
-        </button>
-      </div>
-    </div>
+  <!-- Учётная запись -->
+  <div
+  class="flex items-center gap-2.5 border-t border-[var(--border)]  p-3"
+  :class="sidebarCollapsed ? 'flex-col gap-2 p-2' : ''"
+  >
+  <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--input)] font-mono text-sm font-bold text-[color:var(--tx-strong)]">
+  <img v-if="skinUrl" :src="skinUrl" :alt="t('side.skin')" class="h-full w-full object-cover" />
+  <template v-else>{{ session?.username?.[0]?.toUpperCase() ?? "?" }}</template>
+  </div>
+  <div v-if="!sidebarCollapsed" class="min-w-0 flex-1">
+  <div class="truncate text-sm font-semibold leading-tight text-[color:var(--tx)]">
+  {{ session?.username ?? t("side.guest") }}
+  </div>
+  <div class="truncate text-xs leading-tight text-[color:var(--tx-muted)]">
+  {{ session ? session.user_type : t("side.offline") }}
+  </div>
+  </div>
+  <div class="flex shrink-0 items-center gap-1.5">
+  <button
+  v-if="sidebarCollapsed"
+  type="button"
+  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx-strong)]"
+  :title="t('theme.switch')"
+  @click="toggleTheme()"
+  >
+  <!-- Тёмная тема активна → показываем солнце (переключить на светлую) -->
+  <svg v-if="themeLevel >= 0.5" viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8ZM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0Zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13ZM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 1 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06Zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061ZM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8ZM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8Zm10.657-5.657a.75.75 0 0 1 0 1.06l-1.061 1.061a.75.75 0 1 1-1.06-1.06l1.06-1.061a.75.75 0 0 1 1.06 0ZM4.464 11.536a.75.75 0 0 1 0 1.06l-1.06 1.061a.75.75 0 0 1-1.061-1.06l1.06-1.061a.75.75 0 0 1 1.061 0Z"/></svg>
+  <svg v-else viewBox="0 0 16 16" class="h-5 w-5 fill-current"><path d="M9.598 1.591a.749.749 0 0 1 .785-.175 7.001 7.001 0 1 1-8.967 8.967.75.75 0 0 1 .961-.96 5.5 5.5 0 0 0 7.046-7.046.75.75 0 0 1 .175-.786Zm1.616 1.945a7 7 0 0 1-7.678 7.678 5.499 5.499 0 1 0 7.678-7.678Z"/></svg>
+  </button>
+  <button
+  v-if="!sidebarCollapsed"
+  type="button"
+  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx-strong)]"
+  :title="t('nav.settings')"
+  @click="tab = 'settings'"
+  >
+  <svg viewBox="0 0 24 24" class="h-5 w-5 fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="3"></circle>
+  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+  </svg>
+  </button>
+  </div>
+  </div>
 
-    <!-- Ползунок темы: плавная смена цветов (0 = светлая, 1 = тёмная) -->
-    <div v-if="!sidebarCollapsed" class="border-t border-[var(--border)] px-4 py-2.5">
-      <div class="flex items-center gap-2.5" :title="t('theme.switch')">
-        <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-[var(--tx-muted)]"><path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8ZM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0Zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13ZM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 1 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06Zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061ZM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8ZM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8Zm10.657-5.657a.75.75 0 0 1 0 1.06l-1.061 1.061a.75.75 0 1 1-1.06-1.06l1.06-1.061a.75.75 0 0 1 1.06 0ZM4.464 11.536a.75.75 0 0 1 0 1.06l-1.06 1.061a.75.75 0 0 1-1.061-1.06l1.06-1.061a.75.75 0 0 1 1.061 0Z"/></svg>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          :value="themeLevel"
-          :disabled="packThemeActive"
-          class="h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-lg bg-[var(--input)] accent-[var(--accent-deep)] disabled:opacity-50"
-          @input="setThemeLevel(Number(($event.target as HTMLInputElement).value))"
-        >
-        <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 shrink-0 fill-[var(--tx-muted)]"><path d="M9.598 1.591a.749.749 0 0 1 .785-.175 7.001 7.001 0 1 1-8.967 8.967.75.75 0 0 1 .961-.96 5.5 5.5 0 0 0 7.046-7.046.75.75 0 0 1 .175-.786Zm1.616 1.945a7 7 0 0 1-7.678 7.678 5.499 5.499 0 1 0 7.678-7.678Z"/></svg>
-      </div>
-      <p v-if="packThemeActive" class="mt-1.5 text-[10px] leading-tight text-[var(--accent)]">{{ t("theme.disabled") }}</p>
-    </div>
+  <!-- Ползунок темы: плавная смена цветов (0 = светлая, 1 = тёмная) -->
+  <div v-if="!sidebarCollapsed" class="border-t border-[var(--border)]  px-4 py-2.5">
+  <div class="flex items-center gap-2.5" :title="t('theme.switch')">
+  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)]"><path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8ZM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0Zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13ZM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 1 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06Zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061ZM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8ZM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8Zm10.657-5.657a.75.75 0 0 1 0 1.06l-1.061 1.061a.75.75 0 1 1-1.06-1.06l1.06-1.061a.75.75 0 0 1 1.06 0ZM4.464 11.536a.75.75 0 0 1 0 1.06l-1.06 1.061a.75.75 0 0 1-1.061-1.06l1.06-1.061a.75.75 0 0 1 1.061 0Z"/></svg>
+  <input
+  type="range"
+  min="0"
+  max="1"
+  step="0.01"
+  :value="themeLevel"
+  :disabled="packThemeActive"
+  class="h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-lg bg-[var(--input)] accent-[var(--accent-deep)] disabled:opacity-50"
+  @input="setThemeLevel(Number(($event.target as HTMLInputElement).value))"
+  >
+  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)]"><path d="M9.598 1.591a.749.749 0 0 1 .785-.175 7.001 7.001 0 1 1-8.967 8.967.75.75 0 0 1 .961-.96 5.5 5.5 0 0 0 7.046-7.046.75.75 0 0 1 .175-.786Zm1.616 1.945a7 7 0 0 1-7.678 7.678 5.499 5.499 0 1 0 7.678-7.678Z"/></svg>
+  </div>
+  <p v-if="packThemeActive" class="mt-1.5 text-[11px] leading-tight text-[var(--accent)]">{{ t("theme.disabled") }}</p>
+  </div>
 
-    <!-- Версия и перевод лаунчера -->
-    <div v-if="!sidebarCollapsed" class="flex items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-[10px] text-[var(--tx-muted)]">
-      <span class="min-w-0 truncate">
-        {{ t("lang.byAuthor") }}
-        <span class="font-semibold" :class="activeLocaleAuthor ? 'text-[color:var(--tx)]' : ''">{{ activeLocaleAuthor || "—" }}</span>
-        <template v-if="activeLocaleVersion"> · v{{ activeLocaleVersion }}</template>
-      </span>
-      <span class="shrink-0 tabular-nums font-mono">{{ ram }} {{ t("units.gb") }} · v{{ launcherVer || "?" }}</span>
-    </div>
+  <!-- Версия и перевод лаунчера -->
+  <div v-if="!sidebarCollapsed" class="flex items-center justify-between gap-2 border-t border-[var(--border)]  bg-[var(--panel)] px-3 py-2 text-[11px] text-[var(--tx-muted)]">
+  <span class="min-w-0 truncate">
+  {{ t("lang.byAuthor") }}
+  <span class="font-semibold" :class="activeLocaleAuthor ? 'text-[color:var(--tx)]' : ''">{{ activeLocaleAuthor || "—" }}</span>
+  <template v-if="activeLocaleVersion"> · v{{ activeLocaleVersion }}</template>
+  </span>
+  <span class="shrink-0 tabular-nums font-mono">{{ ram }} {{ t("units.gb") }} · v{{ launcherVer || "?" }}</span>
+  </div>
 
-    <!-- Ручка изменения ширины панели -->
-    <div
-      class="absolute inset-y-0 -right-[3px] z-40 w-[6px] cursor-col-resize transition-colors hover:bg-[var(--accent)] active:bg-[var(--accent-strong)]"
-      @pointerdown="startSidebarDrag"
-      @pointermove="onSidebarDrag"
-      @pointerup="endSidebarDrag"
-    ></div>
+  <!-- Ручка изменения ширины панели -->
+  <div
+  class="absolute inset-y-0 -right-[3px] z-40 w-[6px] cursor-col-resize transition-colors hover:bg-[var(--accent)] active:bg-[var(--accent-strong)]"
+  @pointerdown="startSidebarDrag"
+  @pointermove="onSidebarDrag"
+  @pointerup="endSidebarDrag"
+  ></div>
   </aside>
 </template>
 
@@ -325,9 +327,9 @@ async function playFromSidebar(id: string) {
   if (id !== packId.value) await selectPack(id);
   tab.value = "play";
   if (status.value?.installed) {
-    await handlePlay();
+  await handlePlay();
   } else {
-    await handleInstall();
+  await handleInstall();
   }
 }
 
@@ -336,7 +338,7 @@ const NAV_ICONS: Record<string, string> = {
   news: '<path d="M1.5 3.25A2.25 2.25 0 0 1 3.75 1h8.5A2.25 2.25 0 0 1 14.5 3.25v9.5A2.25 2.25 0 0 1 12.25 15H3.75a2.25 2.25 0 0 1-2.25-2.25v-9.5Zm1.5 0v9.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-9.5a.75.75 0 0 0-.75-.75h-8.5a.75.75 0 0 0-.75.75ZM4 5.5A.75.75 0 0 1 4.75 4.75h1.5a.75.75 0 0 1 0 1.5h-1.5A.75.75 0 0 1 4 5.5Zm3.75 0a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5H8.5a.75.75 0 0 1-.75-.75ZM4 8.5a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5A.75.75 0 0 1 4 8.5Zm3.75 0a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5H8.5a.75.75 0 0 1-.75-.75Zm-3.75 3a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1-.75-.75Z"/>',
   catalog: '<path d="M1.75 2A1.75 1.75 0 0 0 0 3.75v3.5C0 8.216.784 9 1.75 9h3.5A1.75 1.75 0 0 0 7 7.25v-3.5A1.75 1.75 0 0 0 5.25 2h-3.5Zm0 1.5h3.5c.138 0 .25.112.25.25v3.5c0 .138-.112.25-.25.25h-3.5a.25.25 0 0 1-.25-.25v-3.5c0-.138.112-.25.25-.25ZM10.75 2A1.75 1.75 0 0 0 9 3.75v3.5c0 .966.784 1.75 1.75 1.75h3.5A1.75 1.75 0 0 0 16 7.25v-3.5A1.75 1.75 0 0 0 14.25 2h-3.5Zm0 1.5h3.5c.138 0 .25.112.25.25v3.5c0 .138-.112.25-.25.25h-3.5a.25.25 0 0 1-.25-.25v-3.5c0-.138.112-.25.25-.25ZM1.75 10A1.75 1.75 0 0 0 0 11.75v.5C0 13.216.784 14 1.75 14h3.5A1.75 1.75 0 0 0 7 12.25v-.5A1.75 1.75 0 0 0 5.25 10h-3.5Zm0 1.5h3.5c.138 0 .25.112.25.25v.5c0 .138-.112.25-.25.25h-3.5a.25.25 0 0 1-.25-.25v-.5c0-.138.112-.25.25-.25ZM10.75 10A1.75 1.75 0 0 0 9 11.75v.5c0 .966.784 1.75 1.75 1.75h3.5A1.75 1.75 0 0 0 16 12.25v-.5A1.75 1.75 0 0 0 14.25 10h-3.5Zm0 1.5h3.5c.138 0 .25.112.25.25v.5c0 .138-.112.25-.25.25h-3.5a.25.25 0 0 1-.25-.25v-.5c0-.138.112-.25.25-.25Z"/>',
   library: '<path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.744 3.744 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.846V7.06h7.745V2.5h-3.496a2.249 2.249 0 0 0-2.24 2.236l-.009.11Zm-.001 7.003a3.752 3.752 0 0 1 2.003-.575H14.5v-9h-3.495a2.249 2.249 0 0 0-2.24 2.236l-.009.111-.001 5.228Z"/>',
-  settings: '<path d="M8 0a8 8 0 0 1 .8 15.96l-.4-1.98A6 6 0 1 0 2.7 6.5L1 5.6A8 8 0 0 1 8 0Zm0 3.5a4.5 4.5 0 0 1 4.47 4H15A7 7 0 0 0 1.2 7.9l1.9.62A4.5 4.5 0 0 1 8 3.5ZM6.2 6.2 9.8 9.8A2.5 2.5 0 1 0 6.2 6.2Z"/>',
+  settings: '<path d="M8 0a8.2 8.2 0 0 1 .701.031C9.444.095 9.99.645 10.16 1.29l.288 1.107c.018.066.079.158.212.224.231.114.454.243.668.386.123.082.233.09.299.071l1.103-.303c.644-.176 1.392.021 1.82.63.27.385.506.792.704 1.218.315.675.111 1.422-.364 1.891l-.814.806c-.049.048-.098.147-.088.294.016.257.016.515 0 .772-.01.147.038.246.088.294l.814.806c.475.469.679 1.216.364 1.891a7.977 7.977 0 0 1-.704 1.217c-.428.61-1.176.807-1.82.63l-1.102-.302c-.067-.019-.177-.011-.3.071a5.909 5.909 0 0 1-.668.386c-.133.066-.194.158-.211.224l-.29 1.106c-.168.646-.715 1.196-1.458 1.26a8.006 8.006 0 0 1-1.402 0c-.743-.064-1.289-.614-1.458-1.26l-.289-1.106c-.018-.066-.079-.158-.212-.224a5.738 5.738 0 0 1-.668-.386c-.123-.082-.233-.09-.299-.071l-1.103.303c-.644.176-1.392-.021-1.82-.63a8.12 8.12 0 0 1-.704-1.218c-.315-.675-.111-1.422.363-1.891l.815-.806c.05-.048.098-.147.088-.294a6.214 6.214 0 0 1 0-.772c.01-.147-.038-.246-.088-.294l-.815-.806C.635 6.045.431 5.298.746 4.623a7.92 7.92 0 0 1 .704-1.217c.428-.61 1.176-.807 1.82-.63l1.102.302c.067.019.177.011.3-.071.214-.143.437-.272.668-.386.133-.066.194-.158.211-.224l.29-1.106C6.009.645 6.556.095 7.299.03 7.53.01 7.764 0 8 0Zm-.571 1.525c-.036.003-.108.036-.137.146l-.289 1.105c-.147.561-.549.967-.998 1.189-.173.086-.34.183-.5.29-.417.278-.97.423-1.529.27l-1.103-.303c-.109-.03-.175.016-.195.045-.22.312-.412.644-.573.99-.014.031-.021.11.059.19l.815.806c.411.406.562.957.53 1.456a4.709 4.709 0 0 0 0 .582c.032.499-.119 1.05-.53 1.456l-.815.806c-.081.08-.073.159-.059.19.162.346.353.677.573.989.02.03.085.076.195.046l1.102-.303c.56-.153 1.113-.008 1.53.27.161.107.328.204.501.29.447.222.85.629.997 1.189l.289 1.105c.029.109.101.143.137.146a6.6 6.6 0 0 0 1.142 0c.036-.003.108-.037.137-.146l.289-1.105c.147-.561.549-.967.998-1.189.173-.086.34-.183.5-.29.417-.278.97-.423 1.529-.27l1.103.303c.109.029.175-.016.195-.045.22-.313.411-.644.573-.99.014-.031.021-.11-.059-.19l-.815-.806c-.411-.406-.562-.957-.53-1.456a4.709 4.709 0 0 0 0-.582c-.032-.499.119-1.05.53-1.456l.815-.806c.081-.08.073-.159.059-.19a6.464 6.464 0 0 0-.573-.989c-.02-.03-.085-.076-.195-.046l-1.102.303c-.56.153-1.113.008-1.53-.27a4.44 4.44 0 0 0-.501-.29c-.447-.222-.85-.629-.997-1.189l-.289-1.105c-.029-.11-.101-.143-.137-.146a6.6 6.6 0 0 0-1.142 0ZM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM9 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/>',
   author: '<path d="M8 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM2 13.25C2 10.75 4.46 9.25 8 9.25s6 1.5 6 4V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-.75Z"/>',
   admin: '<path d="M8 1.5 9.3 4.4l3.2.35-2.4 2.15.7 3.1L8 8.55l-2.8 1.45.7-3.1L3.5 4.75l3.2-.35ZM2.5 11.5a.75.75 0 0 1 .75-.75h2a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1-.75-.75Zm7.5 0a.75.75 0 0 1 .75-.75h2a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1-.75-.75ZM4.25 13.75a.75.75 0 0 0 0 1.5h7.5a.75.75 0 0 0 0-1.5Z"/>',
   dev: '<path d="M2 1.75C2 .784 2.784 0 3.75 0h8.5C13.216 0 14 .784 14 1.75v12.5A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.69 1.884a.75.75 0 0 1 .79.075l4.244 3.253a.75.75 0 0 1 0 1.13L4.48 11.345a.75.75 0 0 1-.79.075.75.75 0 0 1-.388-.67v-6.5a.75.75 0 0 1 .388-.547ZM10.5 8.75h3a.75.75 0 0 0 0-1.5h-3a.75.75 0 0 0 0 1.5Z"/>',

@@ -36,6 +36,8 @@ import {
   onGameExited,
   onLaunchLog,
   onModsChanged,
+  onThemeChanged,
+  emitThemeChanged,
   onNewsChunk,
   onPackAdded,
   onPlaytimeUpdated,
@@ -77,6 +79,8 @@ import {
   packDelete as packDeleteCmd,
   packDeleteNews as packDeleteNewsCmd,
   packDeleteVersion as packDeleteVersionCmd,
+  packUploadScreenshot as packUploadScreenshotCmd,
+  packDeleteScreenshot as packDeleteScreenshotCmd,
   packDetail as packDetailCmd,
   packMine as packMineCmd,
   packNews as packNewsCmd,
@@ -422,6 +426,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     }
     if (persist && typeof localStorage !== "undefined") {
       localStorage.setItem(THEME_KEY, String(clamped));
+      emitThemeChanged(clamped);
     }
   }
 
@@ -455,6 +460,7 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
   }
 
   let themeRaf: number | null = null;
+  let themePersistTimer: ReturnType<typeof setTimeout> | null = null;
   let themePendingLevel = 1;
   /** Применяет уровень темы не чаще одного раза за кадр обработчика (rAF-троттлинг).
        Пересчёт ~30 CSS-переменных на каждое событие `input` вызывает лаги у слайдера. */
@@ -472,6 +478,11 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     killThemeFade();
     suppressTransitions();
     applyThemeLevelThrottled(level);
+    if (themePersistTimer) clearTimeout(themePersistTimer);
+    themePersistTimer = setTimeout(() => {
+      themePersistTimer = null;
+      applyThemeLevel(themePendingLevel, true);
+    }, 400);
   }
 
   {
@@ -1202,6 +1213,7 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
   let unlistenPlaytimeSync: (() => void) | undefined;
   let unlistenModsChangedSync: (() => void) | undefined;
   let unlistenGameExitedSync: (() => void) | undefined;
+  let unlistenThemeSync: (() => void) | undefined;
   let unlistenCrashSync: (() => void) | undefined;
   let unlistenDeepLinkSync: (() => void) | undefined;
   let unlistenNewsChunk: (() => void) | undefined;
@@ -2047,6 +2059,9 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     onPackAdded((p) => {
       handlePackAdded(p);
     }).then((fn) => (unlistenDeepLinkSync = fn));
+    onThemeChanged((level) => {
+      if (Math.abs(themeLevel.value - level) > 0.001) applyThemeLevel(level, false);
+    }).then((fn) => (unlistenThemeSync = fn));
     takePendingPackAdd()
       .then((p) => {
         if (p) handlePackAdded(p);
@@ -2138,6 +2153,7 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     unlistenPlaytimeSync?.();
     unlistenModsChangedSync?.();
     unlistenGameExitedSync?.();
+    unlistenThemeSync?.();
     unlistenCrashSync?.();
     unlistenDeepLinkSync?.();
     unlistenNewsChunk?.();
@@ -2394,6 +2410,7 @@ notify(t("err.switch", { e }));
       void loadCollaborators(id);
       catalogComments.value = [];
       void loadCatalogComments(id);
+      takeAuthorFormBase();
     } catch (e) {
       notify(t("author.error", { e }));
     } finally {
@@ -2408,26 +2425,29 @@ notify(t("err.switch", { e }));
     authorVersions.value = [];
     authorCollaborators.value = [];
     catalogComments.value = [];
+    authorFormBase.value = null;
     void loadAuthorNews();
   }
 
-  /** Загружает выбранный .mrpack как новую версию текущей сборки. */
-  async function createAuthorVersion(filePath: string, version: string, changelog: string) {
-    if (!isTauri() || authorBusy.value) return;
+  /** Загружает выбранный .mrpack как новую версию текущей сборки. Возвращает успех. */
+  async function createAuthorVersion(filePath: string, version: string, changelog: string): Promise<boolean> {
+    if (!isTauri() || authorBusy.value) return false;
     const id = authorSelected.value;
     const token = authorToken();
-    if (!id || !token) return;
+    if (!id || !token) return false;
     if (!version.trim()) {
       notify(t("author.versionTag"), "info");
-      return;
+      return false;
     }
     authorBusy.value = true;
     try {
       const v = await packAddVersionCmd(token, id, filePath, version.trim(), changelog);
       authorVersions.value = [v, ...authorVersions.value];
       notify(t("author.uploaded"), "success");
+      return true;
     } catch (e) {
       notify(t("author.error", { e }));
+      return false;
     } finally {
       authorBusy.value = false;
     }
@@ -2579,10 +2599,11 @@ notify(t("err.switch", { e }));
             dislikes: d.dislikes,
             created_at: d.created_at,
           },
-          ...authorPacks.value.slice(idx + 1),
+           ...authorPacks.value.slice(idx + 1),
         ];
       }
       notify(t("author.uploaded"), "success");
+      takeAuthorFormBase();
     } catch (e) {
       notify(t("author.error", { e }));
     } finally {
@@ -2590,13 +2611,13 @@ notify(t("err.switch", { e }));
     }
   }
 
+
   /** Удаляет текущую сборку целиком. */
   async function deleteAuthorPack() {
     if (!isTauri() || authorBusy.value) return;
     const id = authorSelected.value;
     const token = authorToken();
     if (!id || !token) return;
-    if (!confirm(t("author.confirmDelete"))) return;
     authorBusy.value = true;
     try {
       await packDeleteCmd(token, id);
@@ -2604,9 +2625,77 @@ notify(t("err.switch", { e }));
       authorDetail.value = null;
       authorSelected.value = null;
       authorVersions.value = [];
+      authorFormBase.value = null;
       await loadAuthorNews();
     } catch (e) {
       notify(t("author.error", { e }));
+    } finally {
+      authorBusy.value = false;
+    }
+  }
+
+  /** Снимок формы «Обзор» для отслеживания несохранённых правок. */
+  const authorFormBase = ref<{
+    name: string;
+    description: string;
+    minRamMb: number;
+    boostyBlog: string;
+    iconUrl: string;
+    banner: string;
+  } | null>(null);
+
+  /** Перезапоминает текущие значения формы как «сохранённые». */
+  function takeAuthorFormBase() {
+    const d = authorDetail.value;
+    if (!d) {
+      authorFormBase.value = null;
+      return;
+    }
+    const m = d.meta as Record<string, unknown> | null | undefined;
+    authorFormBase.value = {
+      name: d.name ?? "",
+      description: d.description ?? "",
+      minRamMb: d.min_ram_mb ?? 0,
+      boostyBlog: d.boosty_blog ?? "",
+      iconUrl: d.icon_url ?? "",
+      banner: m && typeof m.banner === "string" ? m.banner : "",
+    };
+  }
+
+  /** Загружает картинку скриншота на storage (возвращает успех). */
+  async function uploadAuthorScreenshot(filePath: string, caption?: string): Promise<boolean> {
+    if (!isTauri() || authorBusy.value) return false;
+    const id = authorSelected.value;
+    const token = authorToken();
+    if (!id || !token || !authorDetail.value) return false;
+    authorBusy.value = true;
+    try {
+      const meta = await packUploadScreenshotCmd(token, id, filePath, caption);
+      authorDetail.value = { ...authorDetail.value, meta };
+      notify(t("author.uploaded"), "success");
+      return true;
+    } catch (e) {
+      notify(t("author.error", { e }));
+      return false;
+    } finally {
+      authorBusy.value = false;
+    }
+  }
+
+  /** Удаляет скриншот по индексу через бэкенд (чистит файл на storage). */
+  async function deleteAuthorScreenshot(index: number): Promise<boolean> {
+    if (!isTauri() || authorBusy.value) return false;
+    const id = authorSelected.value;
+    const token = authorToken();
+    if (!id || !token || !authorDetail.value) return false;
+    authorBusy.value = true;
+    try {
+      const meta = await packDeleteScreenshotCmd(token, id, index);
+      authorDetail.value = { ...authorDetail.value, meta };
+      return true;
+    } catch (e) {
+      notify(t("author.error", { e }));
+      return false;
     } finally {
       authorBusy.value = false;
     }
@@ -3277,6 +3366,10 @@ notify(t("err.switch", { e }));
     deleteAuthorNews,
     updateAuthorMeta,
     deleteAuthorPack,
+    authorFormBase,
+    takeAuthorFormBase,
+    uploadAuthorScreenshot,
+    deleteAuthorScreenshot,
     catalogDetail,
     catalogDetailBusy,
     catalogDetailTab,

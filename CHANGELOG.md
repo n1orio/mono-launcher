@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.0.0-alpha] — 2026-08-24
+
+### Library & packs
+- **Custom categories** — create, rename and delete your own categories; assign any pack to multiple of them via the tile context menu. Sections collapse state is remembered.
+- **Library search** — instantly filter all pack sections by name.
+- **Drag & drop install** — drop a `.mrpack` file onto the launcher window to add it.
+- **System tray** — tray icon with menu (show/quit), optional "close to tray" behavior and "launch at system startup" toggle in Settings → System.
+
+### Author panel
+- **Markdown editor** for pack description and news — toolbar (bold/italic/code/list/heading/link) with live preview.
+- **Screenshot captions** — add a caption when uploading or adding by URL, edit inline later; shown under screenshots in the catalog.
+- Overview form: banner field with preview, dirty-tracking Save/Reset, two-step delete confirmation (danger zone), copy-link / open-in-catalog shortcuts.
+
+### Downloads & resources
+- **CurseForge version picker** — resource detail window now has a Versions tab with game-version filter; install any specific file, not just the latest.
+- Child windows (resource details, CurseForge search) are now frameless with a custom title bar matching the app theme.
+
+### Interface
+- Refined dark theme: borders removed from elements, gradients replaced with flat colors.
+- Larger typography scale across the app and bigger collapsed-sidebar icons.
+- Smooth slim scrollbars on tab strips; theme slider now persists its level and syncs across all launcher windows live.
+
 ## [1.3.1] — 2026-08-18
 
 ### Mods & storage
