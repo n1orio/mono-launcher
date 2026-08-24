@@ -157,6 +157,10 @@ export function msPoll(
 ): Promise<UserSession> {
   return invoke("ms_poll_command", { deviceCode, interval, expiresIn });
 }
+/** Тихо обновляет Microsoft-сессию (refresh_token), возвращает актуальную сессию или null. */
+export function msRefreshSession(): Promise<unknown> {
+  return invoke("ms_refresh_session_command");
+}
 
 export function elyDeviceCode(): Promise<MsDeviceCodeInfo> {
   return invoke("ely_device_code_command");
@@ -626,6 +630,10 @@ export function setPackBanner(packId: string, path: string): Promise<void> {
   return invoke("set_pack_banner_command", { packId, path });
 }
 
+export function setPackUrl(packId: string, url: string): Promise<void> {
+  return invoke("set_pack_url_command", { packId, url });
+}
+
 export function setPackName(packId: string, name: string): Promise<void> {
   return invoke("set_pack_name_command", { packId, name });
 }
@@ -858,6 +866,11 @@ export function packUploadScreenshot(
 }
 
 /** Удаляет скриншот сборки по индексу (возвращает обновлённую meta). */
+/** Резолвит id сборки на бэкенде по URL файла (null если не найдена). */
+export function packIdByUrl(url: string): Promise<string | null> {
+  return invoke("pack_id_by_url_command", { url });
+}
+
 export function packDeleteScreenshot(
   accessToken: string,
   id: string,

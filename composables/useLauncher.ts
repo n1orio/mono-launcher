@@ -40,6 +40,7 @@ import {
   emitThemeChanged,
   onNewsChunk,
   onPackAdded,
+  msRefreshSession,
   onPlaytimeUpdated,
   openExternal,
   openGameFolder,
@@ -82,6 +83,9 @@ import {
   packUploadScreenshot as packUploadScreenshotCmd,
   packDeleteScreenshot as packDeleteScreenshotCmd,
   packDetail as packDetailCmd,
+  packIdByUrl as packIdByUrlCmd,
+  setPackName as setPackNameCmd,
+  setPackUrl as setPackUrlCmd,
   packMine as packMineCmd,
   packNews as packNewsCmd,
   packRate as packRateCmd,
@@ -1391,6 +1395,7 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     }
     loadPacks()
       .then(async () => {
+        try { await syncPackWithBackend(p.id, { forceLatest: true }); } catch { /* ignore */ }
         await load();
         refreshVersions();
         if (p.id && packId.value !== p.id) {
@@ -1415,6 +1420,7 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     warnCustomMods.value = s.warn_custom_mods;
     if (s.session) username.value = s.session.username;
     refreshSkin();
+    if (isTauri()) void msRefreshSession().then(() => void loadAccounts()).catch(() => null);
     loadLicenseStatus();
     loadAccounts();
     loadMonoProfile();
@@ -1889,6 +1895,87 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     listVersions(packId.value)
       .then((v) => (versions.value = v))
       .catch(() => {});
+    void refreshRemoteVersions();
+  }
+
+  /** Доступные версии на сервере Mono (для сборок, добавленных из каталога). */
+  const remoteVersions = ref<PackVersionPublic[] | null>(null);
+  const remoteVersionsLoading = ref(false);
+  const remoteInstallingId = ref<string | null>(null);
+
+  /** Резолвит бэкенд-сборку по URL дескриптора и синхронизирует имя/последнюю версию. */
+  async function syncPackWithBackend(id?: string | null, opts?: { forceLatest?: boolean }): Promise<PackVersionPublic[] | null> {
+    if (!id || !isTauri()) return null;
+    const p = packs.value.find((x) => x.id === id);
+    const url = p?.url ?? activePack.value?.url ?? "";
+    let backendId: string | null = null;
+    if (url) {
+      backendId = await packIdByUrlCmd(url).catch(() => null);
+      if (!backendId) {
+        const norm = (u: string) => u.trim().replace(/\/$/, "").toLowerCase();
+        const file = url.split("?")[0].split("#")[0].split("/").pop() ?? "";
+        const cat = await packCatalogCmd();
+        backendId =
+          cat.find((c) => norm(c.url) === norm(url))?.id ??
+          (file ? (cat.find((c) => norm(c.url).endsWith("/" + file))?.id ?? null) : null);
+      }
+    }
+    if (!backendId) {
+      backendId = id; // для сборок из каталога id уже uuid
+    }
+    const d = await packDetailCmd("", backendId);
+    remoteVersions.value = d.versions ?? [];
+    if (p) {
+      // Имя: только для автосгенерированных (имя == id, диплинк без name).
+      if (p.name === p.id && d.name && d.name !== p.name) {
+        try { await setPackNameCmd(id, d.name); } catch { /* ignore */ }
+      }
+      // URL: обновляем на последнюю версию, если текущий не указывает ни на одну известную.
+      const vs = d.versions ?? [];
+      const latest = vs[0];
+      const known = new Set(vs.map((v) => v.url));
+      if (latest?.url && p.url !== latest.url && (opts?.forceLatest || !known.has(p.url))) {
+        try { await setPackUrlCmd(id, latest.url); } catch { /* ignore */ }
+      }
+      void loadPacks();
+    }
+    return d.versions ?? [];
+  }
+
+  async function refreshRemoteVersions() {
+    const id = packId.value;
+    if (!id || !isTauri()) {
+      remoteVersions.value = null;
+      return;
+    }
+    remoteVersionsLoading.value = true;
+    try {
+      // Локальный id сборки из диплинка — это имя файла, не uuid бэкенда.
+      await syncPackWithBackend(id);
+    } catch {
+      remoteVersions.value = null;
+    } finally {
+      remoteVersionsLoading.value = false;
+    }
+  }
+
+  /** Устанавливает конкретную версию с сервера: подменяет URL сборки и ставит. */
+  async function installRemoteVersion(v: PackVersionPublic): Promise<boolean> {
+    const id = packId.value;
+    if (!id || !isTauri() || busy.value || remoteInstallingId.value) return false;
+    remoteInstallingId.value = v.id;
+    try {
+      await setPackUrlCmd(id, v.url);
+      await installMrpack(id, v.version);
+      notify(t("releases.installed", { v: v.version }), "success");
+      return true;
+    } catch (e) {
+      notify(t("files.updateErr", { e }), "error");
+      return false;
+    } finally {
+      remoteInstallingId.value = null;
+      void refreshVersions();
+    }
   }
 
   /** Скриншоты установленной версии (папка screenshots) и сервера игрока (servers.dat). */
@@ -3435,6 +3522,11 @@ notify(t("err.switch", { e }));
     selectPack,
     addPack,
     refreshVersions,
+    refreshRemoteVersions,
+    remoteVersions,
+    remoteVersionsLoading,
+    remoteInstallingId,
+    installRemoteVersion,
     skinUrl,
     localSkin,
     skinModel,

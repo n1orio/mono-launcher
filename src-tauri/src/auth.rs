@@ -14,6 +14,9 @@ pub struct UserSession {
     pub uuid: String,
     pub access_token: String,
     pub user_type: String,
+    /// Microsoft OAuth2 refresh_token (только для user_type = "microsoft").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refresh_token: Option<String>,
 }
 
 /// Оффлайн-сессия (для «пираток»): генерируется детерминированный UUID из ника.
@@ -29,6 +32,7 @@ pub fn login_offline(username: &str) -> Result<UserSession> {
         uuid,
         access_token: String::new(),
         user_type: "offline".into(),
+        refresh_token: None,
     })
 }
 
@@ -429,6 +433,31 @@ pub async fn mono_pack_news(client: &reqwest::Client) -> Result<Vec<PackNewsPubl
 }
 
 /// Деталь сборки Mono; пустой access_token — без авторизации.
+/// Находит id сборки на бэкенде по URL (packs.url или URL любой версии).
+pub async fn mono_pack_id_by_url(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Option<String>> {
+    let base = crate::config::backend_url();
+    let base = base.trim_end_matches('/');
+    let resp = client
+        .get(format!("{base}/packs/by-url"))
+        .query(&[("url", url)])
+        .send()
+        .await
+        .context("Не удалось связаться с сервером Mono")?;
+    if resp.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(anyhow!("Mono: {}", api_error(&text)));
+    }
+    let v: Value = serde_json::from_str(&text).context("Некорректный ответ сервера Mono")?;
+    Ok(v["id"].as_str().map(|s| s.to_string()))
+}
+
 pub async fn mono_pack_detail(
     client: &reqwest::Client,
     access_token: &str,
@@ -1313,6 +1342,7 @@ pub async fn ms_poll(
     // Поллинг Microsoft-токена.
     let client_id = require_client_id()?;
     let mut ms_token: Option<String> = None;
+    let mut ms_refresh_tok: Option<String> = None;
     let mut poll_interval = interval.max(5);
     let mut elapsed: u64 = 0;
     while elapsed < expires_in {
@@ -1345,11 +1375,22 @@ pub async fn ms_poll(
             continue;
         }
 
+        ms_refresh_tok = resp.refresh_token.clone();
         ms_token = resp.access_token;
         break;
     }
     let ms_token = ms_token.ok_or_else(|| anyhow!("Таймаут авторизации Microsoft"))?;
 
+    // Цепочка XBL → XSTS → Minecraft вынесена в session_from_ms_token.
+    let mut session = session_from_ms_token(client, &ms_token).await?;
+    if let Some(rt) = ms_refresh_tok {
+        session.refresh_token = Some(rt);
+    }
+    Ok(session)
+}
+
+/// Цепочка Microsoft-токен → XBL → XSTS → Minecraft Services → профиль.
+async fn session_from_ms_token(client: &reqwest::Client, ms_token: &str) -> Result<UserSession> {
     // Xbox Live: размениваем Microsoft-токен на XBL-токен (RPS-тикет).
     let xbl: XboxResp = client
         .post("https://user.auth.xboxlive.com/user/authenticate")
@@ -1457,10 +1498,37 @@ pub async fn ms_poll(
             .map(|u| u.to_string())
             .unwrap_or_else(|_| Uuid::new_v3(&Uuid::NAMESPACE_DNS, user.uuid.as_bytes()).to_string()),
         access_token: mine.access_token,
+        refresh_token: None,
         user_type: "microsoft".into(),
     })
 }
 
+/// Обновляет Microsoft-сессию по refresh_token.
+pub async fn ms_refresh(client: &reqwest::Client, refresh_token: &str) -> Result<UserSession> {
+    let client_id = require_client_id()?;
+    let resp_body = client.post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token")
+        .form(&[
+            ("grant_type", "refresh_token"),
+            ("client_id", client_id.as_str()),
+            ("refresh_token", refresh_token),
+        ])
+        .send()
+        .await?;
+    let text = resp_body.text().await.unwrap_or_default();
+    let resp: MsTokenResp = serde_json::from_str(&text).context("Некорректный ответ Microsoft при обновлении")?;
+    if let Some(err) = resp.error {
+        return Err(anyhow!("Ошибка OAuth2: {err}"));
+    }
+    let mut session = session_from_ms_token(
+        client,
+        resp.access_token.as_deref().ok_or_else(|| anyhow!("Microsoft не вернул access_token"))?,
+    )
+    .await?;
+    if resp.refresh_token.is_some() {
+        session.refresh_token = resp.refresh_token.clone();
+    }
+    Ok(session)
+}
 /// Вход через Ely.by: device code flow (как у Microsoft), но токен приходит
 /// сразу с правами `minecraft_server_session` — его передаём игре напрямую.
 ///
@@ -1595,6 +1663,7 @@ pub async fn ely_poll(
         username: user.name,
         uuid,
         access_token,
+        refresh_token: None,
         user_type: "ely".into(),
     })
 }
@@ -1631,6 +1700,9 @@ pub struct AccountEntry {
     pub uuid: String,
     pub access_token: String,
     pub user_type: String,
+    /// Microsoft OAuth2 refresh_token.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refresh_token: Option<String>,
 }
 
 impl From<&UserSession> for AccountEntry {
@@ -1640,6 +1712,7 @@ impl From<&UserSession> for AccountEntry {
             username: s.username.clone(),
             uuid: s.uuid.clone(),
             access_token: s.access_token.clone(),
+            refresh_token: s.refresh_token.clone(),
             user_type: s.user_type.clone(),
         }
     }
@@ -1651,6 +1724,7 @@ impl AccountEntry {
             username: self.username.clone(),
             uuid: self.uuid.clone(),
             access_token: self.access_token.clone(),
+            refresh_token: self.refresh_token.clone(),
             user_type: self.user_type.clone(),
         }
     }

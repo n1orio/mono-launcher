@@ -1045,6 +1045,12 @@ fn set_pack_name_command(pack_id: String, name: String) -> Result<(), String> {
     config::set_pack_name(&pack_id, &name).map_err(|e| e.to_string())
 }
 
+/// Меняет URL сборки (для установки конкретной версии с сервера Mono).
+#[tauri::command]
+fn set_pack_url_command(pack_id: String, url: String) -> Result<(), String> {
+    config::set_pack_url(&pack_id, &url).map_err(|e| e.to_string())
+}
+
 /// Id сборок в порядке убывания времени последнего запуска.
 #[tauri::command]
 fn recent_packs_command() -> Vec<String> {
@@ -2162,6 +2168,48 @@ async fn check_for_updates(
 }
 
 /// Полное скачивание и установка сборки.
+/// Возвращает URL последней версии сборки с бэкенда, если сборка там найдена по URL.
+/// При любых ошибках возвращает None (установка идёт по исходной ссылке).
+async fn resolve_latest_url(client: &reqwest::Client, url: &str) -> Option<(String, String)> {
+    let norm = |u: &str| u.trim().trim_end_matches('/').to_lowercase();
+    let file = url.split('?').next()?.split('#').next()?.rsplit('/').next()?.to_string();
+    if file.is_empty() {
+        return None;
+    }
+    let base = crate::config::backend_url().trim_end_matches('/').to_string();
+    let cat: Vec<serde_json::Value> = client
+        .get(format!("{base}/packs"))
+        .send()
+        .await
+        .ok()?
+        .json()
+        .await
+        .ok()?;
+    let id = cat
+        .iter()
+        .filter_map(|c| {
+            let cu = c.get("url")?.as_str()?;
+            if norm(cu) == norm(url) || cu.ends_with(&format!("/{file}")) {
+                c.get("id")?.as_str().map(|s| s.to_string())
+            } else {
+                None
+            }
+        })
+        .next()?;
+    let detail: serde_json::Value = client
+        .get(format!("{base}/packs/{id}"))
+        .send()
+        .await
+        .ok()?
+        .json()
+        .await
+        .ok()?;
+    let v0 = detail.get("versions")?.get(0)?.clone();
+    let u = v0.get("url")?.as_str()?.to_string();
+    let label = v0.get("version").and_then(|x| x.as_str()).map(|x| x.to_string());
+    Some((u, label.unwrap_or_default()))
+}
+
 #[tauri::command]
 async fn install_mrpack(
     app: AppHandle,
@@ -2179,9 +2227,38 @@ async fn install_mrpack(
         .timeout(Duration::from_secs(600))
         .build()
         .map_err(|e| e.to_string())?;
-    let installed = mrpack::install_mrpack(app, &client, &pack.id, &pack.url, None)
+    // Ручная установка конкретной версии (тег передан): URL уже выставлен клиентом.
+    // Иначе актуализируем URL: для сборок с бэкенда ставим последнюю версию.
+    let (url, label) = if let Some(t) = _tag.as_deref().filter(|t| !t.is_empty()) {
+        (pack.url.clone(), Some(t.to_string()))
+    } else {
+        let mut url = pack.url.clone();
+        let mut label: Option<String> = None;
+        if let Some((latest, lv)) = resolve_latest_url(&client, &pack.url).await {
+            if latest != url {
+                url = latest.clone();
+                let _ = config::set_pack_url(&pack.id, &latest);
+            }
+            label = Some(lv);
+        }
+        (url, label)
+    };
+    let installed = mrpack::install_mrpack(app, &client, &pack.id, &url, None)
         .await
         .map_err(|e| e.to_string())?;
+    // Метка версии: у экспортированных .mrpack внутри часто лежит дефолтная 1.0.0 —
+    // показываем метку бэкенда, чтобы «Активная версия» была честной.
+    if let Some(tag) = label.filter(|t| !t.is_empty() && *t != installed.version_id) {
+        let _ = config::set_active_version(&pack.id, &tag);
+        if let (Ok(from), Ok(to)) = (
+            config::version_dir(&pack.id, &installed.version_id),
+            config::version_dir(&pack.id, &tag),
+        ) {
+            if from.exists() && !to.exists() {
+                let _ = std::fs::rename(&from, &to);
+            }
+        }
+    }
     if pack.kind == "remote" {
         let _ = config::set_pack_locked(&pack.id, true);
     }
@@ -2329,6 +2406,24 @@ async fn ms_poll_command(
 }
 
 /// Ely.by OAuth2, фаза 1: запрашиваем device code для показа в UI.
+/// Тихо обновляет Microsoft-сессию по refresh_token (если он сохранён).
+#[tauri::command]
+async fn ms_refresh_session_command(state: State<'_, AppState>) -> Result<Option<auth::UserSession>, String> {
+    let Some(session) = auth::load_session().map_err(|e| e.to_string())? else { return Ok(None); };
+    if session.user_type != "microsoft" {
+        return Ok(Some(session));
+    }
+    let Some(rt) = session.refresh_token.clone() else { return Ok(Some(session)); };
+    match auth::ms_refresh(&state.client, &rt).await {
+        Ok(fresh) => {
+            save_session(&fresh).map_err(|e| e.to_string())?;
+            let _ = auth::upsert_account(&fresh);
+            Ok(Some(fresh))
+        }
+        Err(_) => Ok(Some(session)),
+    }
+}
+
 #[tauri::command]
 async fn ely_device_code_command(
     state: State<'_, AppState>,
@@ -2536,6 +2631,17 @@ async fn pack_delete_version_command(
     version_id: String,
 ) -> Result<(), String> {
     auth::mono_pack_delete_version(&state.client, &access_token, &id, &version_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Резолвит id сборки на бэкенде по URL файла (для диплинк-сборок).
+#[tauri::command]
+async fn pack_id_by_url_command(
+    state: State<'_, AppState>,
+    url: String,
+) -> Result<Option<String>, String> {
+    auth::mono_pack_id_by_url(&state.client, &url)
         .await
         .map_err(|e| e.to_string())
 }
@@ -3716,6 +3822,7 @@ pub fn run() {
             login_offline_command,
             ms_device_code_command,
             ms_poll_command,
+            ms_refresh_session_command,
             ely_device_code_command,
             ely_poll_command,
             curseforge_search_command,
@@ -3799,6 +3906,8 @@ pub fn run() {
             set_pack_icon_command,
             set_pack_banner_command,
             set_pack_name_command,
+            set_pack_url_command,
+            pack_id_by_url_command,
             recent_packs_command,
             fetch_pack_icon_command,
             modrinth_version_command,

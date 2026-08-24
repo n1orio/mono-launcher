@@ -179,6 +179,27 @@ pub fn set_pack_name(pack_id: &str, name: &str) -> Result<()> {
     save_user_packs(&list)
 }
 
+/// Устанавливает новый URL сборки (для переключения на другую версию с сервера).
+pub fn set_pack_url(pack_id: &str, url: &str) -> Result<()> {
+    let url = url.trim();
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err(anyhow::anyhow!("Некорректный URL"));
+    }
+    let mut list = user_packs()?;
+    let mut found = false;
+    for p in list.iter_mut() {
+        if p.id == pack_id {
+            p.url = url.to_string();
+            found = true;
+            break;
+        }
+    }
+    if !found {
+        return Err(anyhow::anyhow!("Сборка не найдена: {pack_id}"));
+    }
+    save_user_packs(&list)
+}
+
 /// Файл с временем последнего запуска сборок (map `pack_id` → unix-секунды).
 fn recent_packs_file() -> Result<PathBuf> {
     Ok(launcher_root()?.join("recent.json"))

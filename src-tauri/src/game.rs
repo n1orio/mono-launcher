@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
@@ -556,7 +558,10 @@ async fn run_neoforge_installer(
         }
     }
     append_log(&log_file, "=== NeoForge installer: starting ===");
-    let output = tokio::process::Command::new(&java)
+    let mut installer_cmd = tokio::process::Command::new(&java);
+    #[cfg(windows)]
+    installer_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    let output = installer_cmd
         .arg("-jar")
         .arg(installer_path)
         .arg("--installClient")
@@ -1198,6 +1203,8 @@ pub async fn launch_game(
 
     // 9. Запускаем с перехватом вывода (stdout/stderr -> событие "launch-log" + файл).
     let mut cmd = Command::new(&final_args[0]);
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     cmd.args(&final_args[1..])
         .current_dir(&game_dir)
         .stdout(Stdio::piped())
@@ -1399,9 +1406,12 @@ pub fn stop_game_command() -> Result<(), String> {
     #[cfg(unix)]
     let status = std::process::Command::new("kill").arg(pid.to_string()).status();
     #[cfg(windows)]
-    let status = std::process::Command::new("taskkill")
-        .args(["/PID", &pid.to_string(), "/F"])
-        .status();
+    let status = {
+        let mut kill = std::process::Command::new("taskkill");
+        kill.args(["/PID", &pid.to_string(), "/F"]);
+        kill.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        kill.status()
+    };
     if let Ok(st) = status {
         if st.success() {
             return Ok(());

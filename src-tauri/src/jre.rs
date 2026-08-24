@@ -1,4 +1,6 @@
 use std::path::{Path, PathBuf};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 
 use anyhow::{anyhow, Context, Result};
 use futures::StreamExt;
@@ -162,9 +164,17 @@ pub enum JavaArch {
 }
 
 /// Проверяет, что java реально запускается (`-version`), и определяет разрядность
+/// Command без консольного окна на Windows.
+fn quiet_cmd(java: &Path) -> std::process::Command {
+    let mut c = std::process::Command::new(java);
+    #[cfg(windows)]
+    c.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    c
+}
+
 /// (64-битные VM пишут в вывод «64-Bit»). Не работает — вернёт None.
 pub fn probe_java(java: &Path) -> Option<JavaArch> {
-    let out = std::process::Command::new(java)
+    let out = quiet_cmd(java)
         .arg("-version")
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
@@ -188,7 +198,7 @@ pub fn probe_java(java: &Path) -> Option<JavaArch> {
 
 /// Версия java в человекочитаемом виде (например «21.0.11») по выводу `-version`.
 pub fn java_version_string(java: &Path) -> Option<String> {
-    let out = std::process::Command::new(java)
+    let out = quiet_cmd(java)
         .arg("-version")
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())

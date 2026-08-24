@@ -444,13 +444,19 @@
 
   <!-- Список установленных версий -->
   <template v-if="playSubTab === 'releases'">
-  <div v-if="versions && versions.installed.length > 0" class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-  <div class="flex items-center justify-between text-[13px] text-[color:var(--tx-muted)]">
+  <div class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+  <div class="flex items-center justify-end">
+  <button type="button" class="rounded-md  bg-[var(--input)] px-2 py-1 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50" :disabled="remoteVersionsLoading" @click="refreshRemoteVersions()">
+  <svg v-if="remoteVersionsLoading" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current"><path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Zm3.36 2.14a.75.75 0 0 1 0 1.06 4 4 0 1 1-6.72 0 .75.75 0 0 1 1.06-1.06 2.5 2.5 0 1 0 4.6 0 .75.75 0 0 1 1.06-1.06Z"/></svg>
+  <template v-else>{{ t("catalog.refresh") }}</template>
+  </button>
+  </div>
+  <div v-if="versions && versions.installed.length > 0" class="flex items-center justify-between text-[13px] text-[color:var(--tx-muted)]">
   <span class="font-medium">{{ t("releases.count", { n: versions.installed.length }) }}</span>
   </div>
 
   <article
-  v-for="r in versions.installed"
+  v-for="r in versions?.installed ?? []"
   :key="r.version_id"
   class="rounded-xl  bg-[var(--panel)] shadow-sm transition-shadow hover:shadow-md"
   >
@@ -459,7 +465,7 @@
   <span class="font-mono text-sm font-semibold text-[var(--accent)]">
   {{ r.source_tag ?? r.version_id }}
   </span>
-  <span v-if="r.version_id === versions.active" class="rounded-full  bg-[#238636]/10 px-2 py-0.2 text-xs font-medium text-[#3fb950]">
+  <span v-if="versions && r.version_id === versions.active" class="rounded-full  bg-[#238636]/10 px-2 py-0.2 text-xs font-medium text-[#3fb950]">
   {{ t("releases.active") }}
   </span>
   </div>
@@ -469,7 +475,7 @@
   {{ formatPlaytime(r.total_seconds) }}
   </span>
   <button
-  v-if="r.version_id !== versions.active"
+  v-if="versions && r.version_id !== versions.active"
   type="button"
   class="rounded-md  bg-[var(--input)] px-2.5 py-1 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-white disabled:opacity-50"
   :disabled="busy"
@@ -480,9 +486,43 @@
   </div>
   </div>
   </article>
+
+  <!-- Доступные версии на сервере -->
+  <div v-if="remoteVersions && remoteVersions.length > 0" class="pt-2">
+  <div class="flex items-center justify-between text-[13px] text-[color:var(--tx-muted)]">
+  <span class="font-medium">{{ t("releases.serverTitle", { n: remoteVersions.length }) }}</span>
+  </div>
+  <article
+  v-for="v in remoteVersions"
+  :key="v.id"
+  class="mt-3 rounded-xl  bg-[var(--panel)] shadow-sm transition-shadow hover:shadow-md"
+  >
+  <div class="flex items-center justify-between gap-3 px-4 py-3">
+  <div class="min-w-0 flex-1">
+  <p class="font-mono text-sm font-semibold text-[var(--accent)]">v{{ v.version }}</p>
+  <p class="mt-0.5 text-xs text-[color:var(--tx-muted)]">
+  {{ formatDate(v.created_at) }} · {{ formatBytes(v.size) }}
+  </p>
+  <p v-if="v.changelog" class="mt-1 line-clamp-1 text-xs text-[color:var(--tx-muted)]">{{ v.changelog }}</p>
+  </div>
+  <button
+  type="button"
+  class="shrink-0 rounded-md  bg-[var(--input)] px-2.5 py-1 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-white disabled:opacity-50"
+  :disabled="busy || remoteInstallingId === v.id"
+  @click="installRemoteVersion(v)"
+  >
+  <svg v-if="remoteInstallingId === v.id" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Z"/></svg>
+  <template v-else>{{ t("releases.install") }}</template>
+  </button>
+  </div>
+  </article>
+  </div>
   </div>
 
-  <div v-else class="shrink-0 rounded-xl  bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
+  <div v-if="remoteVersionsLoading" class="shrink-0 rounded-xl  bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
+  {{ t("files.loading") }}
+  </div>
+  <div v-else-if="!remoteVersions" class="shrink-0 rounded-xl  bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
   {{ t("releases.loadError") }}
   </div>
   </template>
@@ -6231,6 +6271,11 @@ const {
   selectPack,
   addPack,
   refreshVersions,
+  remoteVersions,
+  remoteVersionsLoading,
+  remoteInstallingId,
+  refreshRemoteVersions,
+  installRemoteVersion,
   notifications,
   notify,
   dismissNotification,
@@ -7031,6 +7076,10 @@ function onGlobalEscapeKey(e: KeyboardEvent) {
 
 /** Прогресс/запуск отражаем в заголовке окна — видно даже в свёрнутом виде. */
 const mainBaseTitle = document.title || "Mono Launcher";
+watch(playSubTab, (t) => {
+  if (t === "releases") void refreshRemoteVersions();
+});
+
 watch([gameRunning, progress, percent, activePack], () => {
   if (isSearchWin.value || isFileDetailWin.value || !isTauri()) return;
   const win = getCurrentWindow();
@@ -9184,8 +9233,14 @@ function cancelAuthorDelete() {
 /** Копирует публичную ссылку на сборку. */
 async function copyAuthorLink(url?: string | null) {
   if (!url) return;
+  // Публичный сайт-мост: страница сама откроет mono://-диплинк в лаунчере.
+  const siteBase = "http://2.27.200.74";
+  const name = authorDetail.value?.name ?? "";
+  const qs = new URLSearchParams({ url });
+  if (name) qs.set("name", name);
+  const link = `${siteBase}/mono?${qs.toString()}`;
   try {
-  await navigator.clipboard.writeText(url);
+  await navigator.clipboard.writeText(link);
   notify(t("author.linkCopied"), "success");
   } catch {
   /* буфер недоступен */
