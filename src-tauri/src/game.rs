@@ -1185,6 +1185,26 @@ pub async fn launch_game(
     final_args.push(format!("-Djava.io.tmpdir={tmp_str}"));
     final_args.push(format!("-Dorg.lwjgl.system.SharedLibraryExtractPath={tmp_str}"));
 
+    // Моды вроде Roxy/Voxy тащат lwjgl-zstd/lwjgl-lmdb как jar-in-jar: классы
+    // загружаются через свой module layer, а нативные .so LWJGL по classpath
+    // не находит → UnsatisfiedLinkError. Извлекаем все liblwjgl*.so из модов
+    // (включая один уровень вложенности jar-in-jar) в каталог natives и
+    // явно указываем его через -Dorg.lwjgl.librarypath.
+    let natives_dir = libraries_dir.join("natives");
+    let _ = std::fs::create_dir_all(&natives_dir);
+    let extracted = extract_lwjgl_natives_from_mods(&game_dir, &natives_dir);
+    if extracted > 0 {
+        emit_log(
+            &app,
+            "sys",
+            &format!("Извлечено lwjgl-нативов из модов: {extracted}"),
+        );
+    }
+    final_args.push(format!(
+        "-Dorg.lwjgl.librarypath={}",
+        natives_dir.to_string_lossy()
+    ));
+
     for a in jvm_args {
         // `-XstartOnFirstThread` — macOS-специфичный флаг; на Linux/Windows он падает.
         if a.starts_with("-XstartOnFirstThread") && !cfg!(target_os = "macos") {
@@ -1522,6 +1542,67 @@ fn required_java_from_mods(game_dir: &Path) -> Option<u32> {
         }
     }
     max_req
+}
+
+/// Извлекает `liblwjgl*.so` из jar-модов в `natives_dir`. Обходит и вложенные
+/// jar-in-jar (напр. roxy-jij-*natives-linux внутри roxy-patched-voxy) — на один
+/// уровень вложенности. Возвращает количество извлечённых файлов.
+fn extract_lwjgl_natives_from_mods(game_dir: &Path, natives_dir: &Path) -> usize {
+    fn extract_so_from_zip<R: std::io::Read + std::io::Seek>(
+        archive: &mut zip::ZipArchive<R>,
+        natives_dir: &Path,
+        nested: bool,
+    ) -> usize {
+        let mut count = 0;
+        for i in 0..archive.len() {
+            let mut entry = match archive.by_index(i) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            let name = entry.name().to_string();
+            let base = name.rsplit('/').next().unwrap_or(&name);
+            if base.starts_with("liblwjgl") && base.ends_with(".so") {
+                let target = natives_dir.join(base);
+                if target.exists() {
+                    continue;
+                }
+                if let Ok(mut out) = std::fs::File::create(&target) {
+                    if std::io::copy(&mut entry, &mut out).is_ok() {
+                        count += 1;
+                    }
+                }
+            } else if nested && name.ends_with(".jar") && name.contains("natives") {
+                // Вложенный jar-in-jar с нативами.
+                let mut buf = Vec::new();
+                if std::io::Read::read_to_end(&mut entry, &mut buf).is_ok() {
+                    if let Ok(mut inner) = zip::ZipArchive::new(std::io::Cursor::new(buf)) {
+                        count += extract_so_from_zip(&mut inner, natives_dir, false);
+                    }
+                }
+            }
+        }
+        count
+    }
+
+    let mods_dir = game_dir.join("mods");
+    let Ok(entries) = std::fs::read_dir(&mods_dir) else {
+        return 0;
+    };
+    let mut total = 0;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !matches!(path.extension().and_then(|e| e.to_str()), Some("jar")) {
+            continue;
+        }
+        let Ok(file) = std::fs::File::open(&path) else {
+            continue;
+        };
+        let Ok(mut archive) = zip::ZipArchive::new(file) else {
+            continue;
+        };
+        total += extract_so_from_zip(&mut archive, natives_dir, true);
+    }
+    total
 }
 
 /// Требуемая Java из одного jar-мода (или None, если её нет).
