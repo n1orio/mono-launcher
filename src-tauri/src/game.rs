@@ -1108,12 +1108,20 @@ pub async fn launch_game(
         .collect::<Vec<_>>()
         .join(&path_sep().to_string());
 
-    let natives_str = libs
-        .natives
-        .iter()
-        .map(|p| p.to_string_lossy().to_string())
-        .collect::<Vec<_>>()
-        .join(&path_sep().to_string());
+    // Дедупликация обязательна: на каждую библиотеку с правилом natives сюда
+    // попадает один и тот же каталог, а склейка дубликатов через ';' даёт
+    // невалидный путь в -Djava.library.path / -Djna.tmpdir и т.д. (JNA падает
+    // с «temporary directory ... does not exist»).
+    let natives_str = {
+        let mut seen: Vec<String> = Vec::new();
+        for p in &libs.natives {
+            let s = p.to_string_lossy().to_string();
+            if !seen.contains(&s) {
+                seen.push(s);
+            }
+        }
+        seen.join(&path_sep().to_string())
+    };
 
     // 7. Плейсхолдеры.
     let mut placeholders: HashMap<String, String> = HashMap::new();
