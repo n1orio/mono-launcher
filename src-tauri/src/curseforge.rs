@@ -1002,6 +1002,7 @@ pub async fn install_modpack(
         name: manifest.name.clone(),
         summary: None,
         files,
+        libraries: Vec::new(),
         dependencies,
     };
 

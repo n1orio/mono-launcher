@@ -1095,6 +1095,13 @@ pub async fn launch_game(
     let mut classpath = Vec::new();
     classpath.push(client_jar);
     classpath.extend(libs.classpath);
+    // Библиотеки, объявленные в mrpack сборки (напр. lwjgl-lmdb/zstd для Voxy).
+    for lib in crate::mrpack::read_pack_libraries(pack_id) {
+        if lib.exists() {
+            emit_log(&app, "sys", &format!("Библиотека сборки: {}", lib.display()));
+            classpath.push(lib);
+        }
+    }
     let classpath_str = classpath
         .iter()
         .map(|p| p.to_string_lossy().to_string())
@@ -1167,6 +1174,16 @@ pub async fn launch_game(
             }
         }
     }
+
+    // /tmp на многих дистрибутивах (Arch и др.) смонтирован с noexec — Java и LWJGL
+    // не могут распаковать туда .so и падают с UnsatisfiedLinkError. Указываем свой
+    // tmp-каталог внутри лаунчера. Аргументы пользователя добавляются позже и
+    // переопределяют эти значения, если нужно.
+    let launcher_tmp = root.join("tmp");
+    tokio::fs::create_dir_all(&launcher_tmp).await?;
+    let tmp_str = launcher_tmp.to_string_lossy().to_string();
+    final_args.push(format!("-Djava.io.tmpdir={tmp_str}"));
+    final_args.push(format!("-Dorg.lwjgl.system.SharedLibraryExtractPath={tmp_str}"));
 
     for a in jvm_args {
         // `-XstartOnFirstThread` — macOS-специфичный флаг; на Linux/Windows он падает.

@@ -1505,6 +1505,7 @@ async fn create_local_pack_command(
         name: name.clone(),
         summary: None,
         files: Vec::new(),
+        libraries: Vec::new(),
         dependencies: index_deps,
     };
     let game_dir = config::version_dir(&pack_id, &version_id).map_err(|e| e.to_string())?;

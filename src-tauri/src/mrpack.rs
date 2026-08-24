@@ -25,7 +25,25 @@ pub struct ModrinthIndex {
     pub name: String,
     pub summary: Option<String>,
     pub files: Vec<IndexFile>,
+    /// Maven-библиотеки, объявленные модами сборки (напр. lwjgl-lmdb/lwjgl-zstd
+    /// с natives-linux для Voxy). Отсутствуют в ванильном version.json.
+    #[serde(default)]
+    pub libraries: Vec<IndexLibrary>,
     pub dependencies: HashMap<String, String>,
+}
+
+/// Библиотека из mrpack: maven-координата + базовый URL репозитория.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexLibrary {
+    /// Maven-координата вида `org.lwjgl:lwjgl-lmdb:3.3.2[:classifier]`
+    pub path: String,
+    #[serde(default)]
+    pub hashes: HashMap<String, String>,
+    #[serde(default)]
+    pub size: u64,
+    #[serde(default)]
+    pub url: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -953,6 +971,99 @@ pub fn read_custom_mods(pack_id: &str, version: &str) -> Vec<CustomFile> {
     serde_json::from_slice(&data).unwrap_or_default()
 }
 
+/// Maven-координата `group:artifact:version[:classifier]` → относительный путь
+/// в репозитории (`group/a/b/version/artifact-version[-classifier].jar`).
+fn maven_coord_to_rel_path(coord: &str) -> Result<String> {
+    let parts: Vec<&str> = coord.split(':').collect();
+    if parts.len() < 3 {
+        return Err(anyhow!("Некорректная maven-координата: {coord}"));
+    }
+    let (group, artifact, version) = (parts[0], parts[1], parts[2]);
+    let classifier = parts.get(3).filter(|c| !c.is_empty());
+    let file = match classifier {
+        Some(c) => format!("{artifact}-{version}-{c}.jar"),
+        None => format!("{artifact}-{version}.jar"),
+    };
+    Ok(format!(
+        "{}/{}/{}/{}/{}",
+        group.replace('.', "/"),
+        artifact,
+        version,
+        version,
+        file
+    ))
+}
+
+const PACK_LIBRARIES_FILE: &str = ".mono-libraries.json";
+
+/// Скачивает библиотеки, объявленные в mrpack (`index.libraries`), в общий
+/// каталог `libraries/` и возвращает абсолютные пути для classpath.
+pub async fn download_pack_libraries(
+    app: &AppHandle,
+    client: &Client,
+    index: &ModrinthIndex,
+) -> Result<Vec<PathBuf>> {
+    if index.libraries.is_empty() {
+        return Ok(Vec::new());
+    }
+    let root = config::launcher_root()?;
+    let libraries_dir = root.join("libraries");
+    let total = index.libraries.len();
+    let mut out = Vec::with_capacity(total);
+    for (i, lib) in index.libraries.iter().enumerate() {
+        let rel = maven_coord_to_rel_path(&lib.path)?;
+        let dest = libraries_dir.join(&rel);
+        let base = lib
+            .url
+            .as_deref()
+            .unwrap_or("https://libraries.minecraft.net/");
+        let base = base.trim_end_matches('/');
+        let url = format!("{base}/{rel}");
+        if !dest.exists() || !hashes_ok(&dest, &lib.hashes) {
+            emit_progress(
+                app,
+                &DownloadProgress {
+                    phase: "Библиотеки модов".into(),
+                    current: i as u64,
+                    total: total as u64,
+                    file_index: i,
+                    file_total: total,
+                    current_file: lib.path.clone(),
+                    bytes_per_sec: 0,
+                },
+            );
+            let ctx = DlCtx {
+                app: app.clone(),
+                phase: "Библиотеки модов".into(),
+                file_index: i,
+                file_total: total,
+                current_file: lib.path.clone(),
+            };
+            download_file_once(client, &url, &dest, &ctx).await.with_context(|| {
+                format!("Не удалось скачать библиотеку сборки {url}")
+            })?;
+            if !hashes_ok(&dest, &lib.hashes) {
+                let _ = fs::remove_file(&dest);
+                return Err(anyhow!("Хэш библиотеки {} не совпал", lib.path));
+            }
+        }
+        out.push(dest);
+    }
+    Ok(out)
+}
+
+/// Пути библиотек сборки, сохранённые при установке версии.
+pub fn read_pack_libraries(pack_id: &str) -> Vec<PathBuf> {
+    let dir = match config::active_game_dir(pack_id) {
+        Ok(d) => d,
+        Err(_) => return Vec::new(),
+    };
+    match fs::read(dir.join(PACK_LIBRARIES_FILE)) {
+        Ok(data) => serde_json::from_slice(&data).unwrap_or_default(),
+        Err(_) => Vec::new(),
+    }
+}
+
 /// Устанавливается в отдельную папку, которая затем становится активной.
 pub async fn install_mrpack(
     app: AppHandle,
@@ -988,6 +1099,15 @@ pub async fn install_mrpack(
     emit_progress(
         &app,
         &DownloadProgress {
+            phase: "Библиотеки модов".into(),
+            ..Default::default()
+        },
+    );
+    let pack_libs = download_pack_libraries(&app, client, &index).await?;
+
+    emit_progress(
+        &app,
+        &DownloadProgress {
             phase: "Применение overrides".into(),
             ..Default::default()
         },
@@ -1004,6 +1124,10 @@ pub async fn install_mrpack(
     fs::write(
         game_dir.join(CUSTOM_MODS_FILE),
         serde_json::to_vec_pretty(&custom)?,
+    )?;
+    fs::write(
+        game_dir.join(PACK_LIBRARIES_FILE),
+        serde_json::to_vec_pretty(&pack_libs)?,
     )?;
 
     config::set_active_version(pack_id, &info.version_id)?;
