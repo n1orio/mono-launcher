@@ -447,6 +447,41 @@ fn build_installed_hash_index(pack_id: &str, exclude_version: &str) -> HashMap<S
     index
 }
 
+// ---------- Глобальный файловый кэш ----------
+
+/// Глобальный контент-адресный кэш `<корень>/file-cache/<sha1>`:
+/// один раз скачанный мод доступен всем сборкам без повторного скачивания.
+pub fn file_cache_dir() -> Result<PathBuf> {
+    Ok(config::launcher_root()?.join("file-cache"))
+}
+
+fn cache_path(sha1: &str) -> Result<PathBuf> {
+    Ok(file_cache_dir()?.join(sha1.to_lowercase()))
+}
+
+/// Ищет файл в глобальном кэше и проверяет его целостность.
+fn cache_get(sha1: &str, hashes: &HashMap<String, String>) -> Option<PathBuf> {
+    let path = cache_path(sha1).ok()?;
+    (path.exists() && hashes_ok(&path, hashes)).then_some(path)
+}
+
+/// Кладёт проверенный файл в кэш (best-effort): сначала жёсткой ссылкой,
+/// при неудаче — копией. Раскладка диска может отличаться — копия надёжнее.
+fn cache_put(src: &Path, sha1: &str) {
+    if sha1.is_empty() {
+        return;
+    }
+    let Ok(dir) = file_cache_dir() else { return };
+    if fs::create_dir_all(&dir).is_err() {
+        return;
+    }
+    let Ok(dst) = cache_path(sha1) else { return };
+    if dst.exists() || fs::hard_link(src, &dst).is_ok() {
+        return;
+    }
+    let _ = fs::copy(src, &dst);
+}
+
 fn hashes_ok(path: &Path, hashes: &HashMap<String, String>) -> bool {
     for (algo, expected) in hashes {
         let ok = match algo.as_str() {
@@ -574,19 +609,26 @@ pub async fn download_all_files(
             current_file: path_name.clone(),
         };
 
-        // Есть ли этот файл в другой установленной версии?
+        // Есть ли этот файл в другой установленной версии или в глобальном кэше?
         let key = file
             .hashes
             .get("sha1")
             .or_else(|| file.hashes.get("sha512"))
             .map(|h| h.to_lowercase());
-        let cached = key.and_then(|k| reuse_index.get(&k).cloned());
+        let sha1 = file.hashes.get("sha1").map(|h| h.to_lowercase());
+        let cached = key
+            .clone()
+            .and_then(|k| reuse_index.get(&k).cloned())
+            .or_else(|| key.clone().and_then(|k| cache_get(&k, &file.hashes)));
 
         tasks.push(tokio::spawn(async move {
             let result = if let Some(src) = cached {
                 let parent = dest.parent().unwrap_or(Path::new("."));
                 tokio::fs::create_dir_all(parent).await?;
                 tokio::fs::copy(&src, &dest).await?;
+                if let Some(s1) = &sha1 {
+                    cache_put(&src, s1);
+                }
                 Ok(tokio::fs::metadata(&dest).await?.len())
             } else {
                 download_file(&client, &url, &dest, semaphore, ctx).await
@@ -595,6 +637,9 @@ pub async fn download_all_files(
             // ловит подмену файла по пути от источника до диска.
             let result = result.and_then(|size| {
                 if hashes.is_empty() || hashes_ok(&dest, &hashes) {
+                    if let Some(s1) = &sha1 {
+                        cache_put(&dest, s1);
+                    }
                     Ok(size)
                 } else {
                     let _ = fs::remove_file(&dest);

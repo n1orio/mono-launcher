@@ -2161,10 +2161,26 @@ async fn check_for_updates(
     let current = installed.iter()
         .find(|v| Some(&v.version_id) == active.as_ref())
         .map(|v| v.version_id.clone());
+
+    // Ищем сборку на бэкенде по URL (подойдёт URL любой из прошлых версий —
+    // их URL сохраняются в pack_versions). Последняя версия на сервере = versions[0].
+    let latest = match auth::mono_pack_id_by_url(&_state.client, &pack.url).await {
+        Ok(Some(id)) => auth::mono_pack_detail(&_state.client, "", &id)
+            .await
+            .ok()
+            .and_then(|d| d.versions.first().map(|v| v.version.clone())),
+        _ => None,
+    };
+
+    // Обновление есть, если последняя версия на сервере отличается от активной
+    // и её ещё не устанавливали локально.
+    let has_update = matches!((&current, &latest), (Some(cur), Some(latest))
+        if latest != cur && !installed.iter().any(|v| &v.version_id == latest));
+
     Ok(UpdateInfo {
         current_version: current,
-        latest_version: None,
-        has_update: false,
+        latest_version: latest,
+        has_update,
     })
 }
 
