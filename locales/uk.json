@@ -13,7 +13,7 @@
   },
   "__meta__": {
     "author": "n1orio",
-    "version": "1.2.0"
+    "version": "2.0.0-alpha.5"
   },
   "nav.releases": "Релизы и запуск",
   "nav.news": "Новини",
@@ -122,6 +122,7 @@
   "warn.show": "список",
   "warn.hide": "сховати",
   "warn.note": "Цілісність файлів перевірена, але походження невідоме. Встановлюйте такі моди тільки від перевіреного автора збірки.",
+  "warn.safeNote": "Файли пройшли автоматичну перевірку сканером, але це не гарантія безпеки — вся відповідальність за встановлення лежить на користувачеві.",
   "sub.releases": "Реклізи",
   "sub.mods": "Моди",
   "sub.resourcepacks": "Ресурспаки",
@@ -799,6 +800,9 @@
   "scanner.pick": "Вибрати .jar",
   "scanner.scanning": "Сканування…",
   "scanner.safe": "Безпечно",
+  "scanner.unchecked": "Не перевірено",
+  "scanner.checkNow": "Перевірити",
+  "scanner.done": "Перевірку завершено",
   "scanner.dangerous": "Знайдено небезпечні класи",
   "scanner.cached": "з кешу",
   "scanner.classes": "Небезпечні класи",
@@ -874,5 +878,11 @@
   "pack.copyLink": "Копіювати діплінк",
   "pack.linkCopied": "Діплінк скопійовано в буфер",
   "pack.linkLocal": "У локальній збірці немає діплінка",
-  "pack.linkCopyFail": "Не вдалося скопіювати діплінк"
+  "pack.linkCopyFail": "Не вдалося скопіювати діплінк",
+  "settings.jvmArgs": "JVM-аргументи",
+  "settings.jvmArgsHint": "наприклад: -XX:+UseG1GC -XX:MaxGCPauseMillis=50",
+  "settings.jvmArgsNote": "Додаються в кінець — перевизначають аргументи лаунчера та версії. Розділювач — пробіли.",
+  "settings.jvmArgsSaved": "JVM-аргументи збережено",
+  "common.save": "Зберегти",
+  "common.saving": "Збереження…"
 }

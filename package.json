@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@fontsource/monaspace-neon": "^5.3.0",
+    "@fontsource/rubik": "^5.3.0",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-dialog": "^2.0.0",
     "@tauri-apps/plugin-opener": "^2.0.0",

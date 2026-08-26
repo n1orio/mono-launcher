@@ -13,7 +13,7 @@
   },
   "__meta__": {
     "author": "n1orio",
-    "version": "1.2.0"
+    "version": "2.0.0-alpha.5"
   },
   "nav.releases": "Релизы и запуск",
   "nav.news": "Новости",
@@ -122,6 +122,7 @@
   "warn.show": "список",
   "warn.hide": "скрыть",
   "warn.note": "Целостность файлов проверена, но происхождение неизвестно. Устанавливайте такие моды только от проверенного автора сборки.",
+  "warn.safeNote": "Файлы прошли автоматическую проверку сканером, но это не гарантия безопасности — вся ответственность за установку лежит на пользователе.",
   "sub.releases": "Релизы",
   "sub.mods": "Моды",
   "sub.resourcepacks": "Ресурспаки",
@@ -799,6 +800,9 @@
   "scanner.pick": "Выбрать .jar",
   "scanner.scanning": "Сканирование…",
   "scanner.safe": "Безопасно",
+  "scanner.unchecked": "Не проверен",
+  "scanner.checkNow": "Проверить",
+  "scanner.done": "Проверка завершена",
   "scanner.dangerous": "Обнаружены опасные классы",
   "scanner.cached": "из кеша",
   "scanner.classes": "Опасные классы",
@@ -874,5 +878,11 @@
   "pack.copyLink": "Скопировать диплинк",
   "pack.linkCopied": "Диплинк скопирован в буфер обмена",
   "pack.linkLocal": "У локальной сборки нет диплинка",
-  "pack.linkCopyFail": "Не удалось скопировать диплинк"
+  "pack.linkCopyFail": "Не удалось скопировать диплинк",
+  "settings.jvmArgs": "JVM-аргументы",
+  "settings.jvmArgsHint": "например: -XX:+UseG1GC -XX:MaxGCPauseMillis=50",
+  "settings.jvmArgsNote": "Добавляются в конец — переопределяют аргументы лаунчера и версии. Разделитель — пробелы.",
+  "settings.jvmArgsSaved": "JVM-аргументы сохранены",
+  "common.save": "Сохранить",
+  "common.saving": "Сохранение…"
 }

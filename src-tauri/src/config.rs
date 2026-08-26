@@ -540,3 +540,31 @@ pub fn set_warn_custom_mods_enabled(on: bool) -> Result<()> {
     std::fs::write(&file, if on { "1" } else { "0" })?;
     Ok(())
 }
+
+/// Файл с пользовательскими JVM-аргументами (одна строка, разделитель — пробелы).
+pub fn jvm_args_file() -> Result<PathBuf> {
+    Ok(launcher_root()?.join("jvm-args.txt"))
+}
+
+/// Пользовательские JVM-аргументы из настроек (пусто — не заданы).
+pub fn user_jvm_args() -> Vec<String> {
+    jvm_args_file()
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|s| s.split_whitespace().map(String::from).collect())
+        .unwrap_or_default()
+}
+
+/// Сохраняет пользовательские JVM-аргументы (пустая строка — сбросить).
+pub fn set_user_jvm_args(args: &str) -> Result<()> {
+    let file = jvm_args_file()?;
+    if args.trim().is_empty() {
+        let _ = std::fs::remove_file(&file);
+        return Ok(());
+    }
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&file, args.trim())?;
+    Ok(())
+}

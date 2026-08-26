@@ -833,6 +833,7 @@ pub async fn launch_game(
     ram_gb: u32,
     session: UserSession,
     app: AppHandle,
+    client: reqwest::Client,
     width: u32,
     height: u32,
     server_address: Option<ServerAddress>,
@@ -1226,6 +1227,15 @@ pub async fn launch_game(
         }
         final_args.push(replace_placeholders(&a, &placeholders));
     }
+
+    // Пользовательские JVM-флаги из настроек — добавляются последними, чтобы
+    // переопределять и дефолты лаунчера, и аргументы версии.
+    for a in crate::config::user_jvm_args() {
+        if a.starts_with("-XstartOnFirstThread") && !cfg!(target_os = "macos") {
+            continue;
+        }
+        final_args.push(replace_placeholders(&a, &placeholders));
+    }
     final_args.push("-cp".into());
     final_args.push(classpath_str.clone());
     final_args.push(main_class);
@@ -1351,6 +1361,7 @@ pub async fn launch_game(
         .unwrap_or_default();
     let pack_id_owned = pack_id.to_string();
     let app2 = app.clone();
+    let client_clone = client.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
         let mut last = std::time::Instant::now();
@@ -1361,11 +1372,12 @@ pub async fn launch_game(
                     last = std::time::Instant::now();
                     if !version_id.is_empty() && delta > 0 {
                         crate::mrpack::add_playtime(&pack_id_owned, &version_id, delta);
+                        let total = crate::mrpack::pack_playtime_seconds(&pack_id_owned);
+                        // Синхронизация playtime на бэкенд (fire-and-forget).
+                        crate::auth::mono_report_playtime(&client_clone, &pack_id_owned, total).await;
                         // Актуализируем «наигранное время» в статусе Discord.
                         crate::discord_rp::update_presence(
-                            crate::discord_rp::played_state(
-                                crate::mrpack::pack_playtime_seconds(&pack_id_owned)
-                            ),
+                            crate::discord_rp::played_state(total),
                         );
                     }
                 }
@@ -1382,6 +1394,8 @@ pub async fn launch_game(
         let delta = last.elapsed().as_secs();
         if !version_id.is_empty() && delta >= 1 {
             let total = crate::mrpack::add_playtime(&pack_id_owned, &version_id, delta);
+            // Финальная синхронизация playtime на бэкенд.
+            crate::auth::mono_report_playtime(&client_clone, &pack_id_owned, total).await;
             let _ = app2.emit(
                 "playtime-updated",
                 PlaytimeUpdate {

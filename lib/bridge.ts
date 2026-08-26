@@ -487,6 +487,14 @@ export function setWarnCustomMods(enabled: boolean): Promise<void> {
   return invoke("set_warn_custom_mods_command", { enabled });
 }
 
+export function getUserJvmArgs(): Promise<string> {
+  return invoke("get_user_jvm_args_command");
+}
+
+export function setUserJvmArgs(args: string): Promise<void> {
+  return invoke("set_user_jvm_args_command", { args });
+}
+
 export function listAccounts(): Promise<Accounts> {
   return invoke("list_accounts_command");
 }
@@ -998,6 +1006,18 @@ export function monoScanMod(accessToken: string, filePath: string): Promise<Scan
 
 export function monoCheckHash(sha256: string): Promise<ScanResult> {
   return invoke("mono_check_hash_command", { sha256 });
+}
+
+export function scanCustomMods(
+  packId: string,
+  version: string,
+  accessToken?: string | null
+): Promise<[unknown[], string[]]> {
+  return invoke("scan_custom_mods_command", {
+    packId,
+    version,
+    accessToken: accessToken ?? null,
+  });
 }
 
 // ==== Соавторы ====

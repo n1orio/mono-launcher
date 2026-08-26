@@ -13,7 +13,7 @@
   },
   "__meta__": {
     "author": "n1orio",
-    "version": "1.2.0"
+    "version": "2.0.0-alpha.5"
   },
   "nav.releases": "Releases & Launch",
   "nav.news": "News",
@@ -122,6 +122,7 @@
   "warn.show": "list",
   "warn.hide": "hide",
   "warn.note": "File integrity is verified, but the origin is unknown. Only install such mods from a trusted pack author.",
+  "warn.safeNote": "Files passed the automatic scanner check, but this is no guarantee of safety — all responsibility for installing them lies with the user.",
   "sub.releases": "Releases",
   "sub.mods": "Mods",
   "sub.resourcepacks": "Resource Packs",
@@ -799,6 +800,9 @@
   "scanner.pick": "Pick a .jar",
   "scanner.scanning": "Scanning…",
   "scanner.safe": "Safe",
+  "scanner.unchecked": "Unchecked",
+  "scanner.checkNow": "Check now",
+  "scanner.done": "Scan complete",
   "scanner.dangerous": "Dangerous classes found",
   "scanner.cached": "cached",
   "scanner.classes": "Dangerous classes",
@@ -874,5 +878,11 @@
   "pack.copyLink": "Copy deep link",
   "pack.linkCopied": "Deep link copied to clipboard",
   "pack.linkLocal": "Local pack has no deep link",
-  "pack.linkCopyFail": "Failed to copy deep link"
+  "pack.linkCopyFail": "Failed to copy deep link",
+  "settings.jvmArgs": "JVM arguments",
+  "settings.jvmArgsHint": "e.g. -XX:+UseG1GC -XX:MaxGCPauseMillis=50",
+  "settings.jvmArgsNote": "Appended last — they override launcher and version defaults. Separate with spaces.",
+  "settings.jvmArgsSaved": "JVM arguments saved",
+  "common.save": "Save",
+  "common.saving": "Saving…"
 }

@@ -24,10 +24,10 @@ export default defineNuxtConfig({
   },
 
   css: [
-    "@fontsource/monaspace-neon/400.css",
-    "@fontsource/monaspace-neon/500.css",
-    "@fontsource/monaspace-neon/600.css",
-    "@fontsource/monaspace-neon/700.css",
+    "@fontsource/rubik/400.css",
+    "@fontsource/rubik/500.css",
+    "@fontsource/rubik/600.css",
+    "@fontsource/rubik/700.css",
     "~/assets/css/main.css",
   ],
 

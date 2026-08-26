@@ -154,7 +154,7 @@ fn list_packs() -> Result<Vec<PackDescriptor>, String> {
 /// Добавляет сборку по прямой ссылке на `.mrpack`.
 /// `blog` (из deep link) — ник блога на Boosty.
 async fn add_pack_impl(
-    _client: &reqwest::Client,
+    client: &reqwest::Client,
     url: &str,
     name: Option<&str>,
     blog: Option<&str>,
@@ -190,6 +190,24 @@ async fn add_pack_impl(
     let blog = blog.map(str::trim).filter(|b| !b.is_empty()).map(String::from);
     config::add_user_pack(&pack_id, &pack_name, &url, "remote", blog.as_deref(), None)
         .map_err(|e| e.to_string())?;
+    // Синхронизация библиотеки на бэкенд (fire-and-forget).
+    let c = client.clone();
+    let pid = pack_id.clone();
+    let pname = pack_name.clone();
+    let purl = url.clone();
+    let pblog = blog.clone();
+    tokio::spawn(async move {
+        crate::auth::mono_sync_library(
+            &c,
+            &pid,
+            &pname,
+            &purl,
+            "remote",
+            pblog.as_deref(),
+            None,
+        )
+        .await;
+    });
     Ok(PackDescriptor {
         id: pack_id,
         name: pack_name,
@@ -247,7 +265,7 @@ async fn add_pack_file_command(
 
 /// Удаляет пользовательскую сборку (вместе с локальными данными).
 #[tauri::command]
-fn remove_pack_command(pack_id: String) -> Result<(), String> {
+async fn remove_pack_command(state: State<'_, AppState>, pack_id: String) -> Result<(), String> {
     let pack = config::find_pack(&pack_id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Сборка не найдена: {pack_id}"))?;
@@ -255,6 +273,12 @@ fn remove_pack_command(pack_id: String) -> Result<(), String> {
         return Err("Встроенную сборку нельзя удалить".into());
     }
     config::remove_user_pack(&pack_id).map_err(|e| e.to_string())?;
+    // Синхронизация удаления на бэкенд (fire-and-forget).
+    let c = state.client.clone();
+    let pid = pack_id.clone();
+    tokio::spawn(async move {
+        crate::auth::mono_remove_library(&c, &pid).await;
+    });
     Ok(())
 }
 
@@ -685,6 +709,16 @@ async fn curseforge_install_pack_command(
             None,
         )
         .map_err(|e| e.to_string())?;
+    }
+    // Синхронизация библиотеки на бэкенд (fire-and-forget).
+    {
+        let c = state.client.clone();
+        let pid = pack_id.clone();
+        let pname = project.name.clone();
+        let purl = format!("https://www.curseforge.com/minecraft/modpacks/{project_id}");
+        tokio::spawn(async move {
+            crate::auth::mono_sync_library(&c, &pid, &pname, &purl, "local", None, None).await;
+        });
     }
     curseforge::install_modpack(&app, &state.client, &pack_id, project_id, file_id)
         .await
@@ -1157,6 +1191,16 @@ async fn modrinth_install_pack_command(
         None,
     )
     .map_err(|e| e.to_string())?;
+    // Синхронизация библиотеки на бэкенд (fire-and-forget).
+    {
+        let c = state.client.clone();
+        let pid = pack_id.clone();
+        let pname = project.title.clone();
+        let purl = mrpack.url.clone();
+        tokio::spawn(async move {
+            crate::auth::mono_sync_library(&c, &pid, &pname, &purl, "local", None, None).await;
+        });
+    }
     mrpack::install_mrpack(
         app,
         &state.client,
@@ -2260,6 +2304,14 @@ async fn install_mrpack(
         }
         (url, label)
     };
+    // Бэкап мира/конфигов текущей активной версии перед обновлением.
+    if let Some(active) = config::active_version(&pack.id).ok().filter(|v| !v.is_empty()) {
+        match mrpack::backup_version(&pack.id, &active) {
+            Ok(Some(p)) => emit_log_static(&format!("Бэкап версии {active}: {}", p.display())),
+            Ok(None) => {}
+            Err(e) => emit_log_static(&format!("Бэкап не удался (продолжаем): {e}")),
+        }
+    }
     let installed = mrpack::install_mrpack(app, &client, &pack.id, &url, None)
         .await
         .map_err(|e| e.to_string())?;
@@ -2279,7 +2331,36 @@ async fn install_mrpack(
     if pack.kind == "remote" {
         let _ = config::set_pack_locked(&pack.id, true);
     }
+    // Автоочистка: держим последние версии, старые удаляем с диска.
+    let removed = mrpack::cleanup_old_versions(&pack.id, mrpack::KEEP_VERSIONS);
+    if !removed.is_empty() {
+        emit_log_static(&format!("Удалены старые версии: {}", removed.join(", ")));
+    }
+    // Счётчик установок версии (fire-and-forget, только для сборок с бэкенда).
+    if pack.kind == "remote" {
+        if let Some(v) = config::active_version(&pack.id).ok().filter(|v| !v.is_empty()) {
+            let client = state.client.clone();
+            let pid = pack.id.clone();
+            tauri::async_runtime::spawn(async move {
+                auth::mono_report_event(&client, &pid, &v, "install").await;
+            });
+        }
+    }
     Ok(installed)
+}
+
+/// Лог в launch.log без AppHandle (для мест, где он недоступен).
+fn emit_log_static(msg: &str) {
+    use std::io::Write;
+    if let Ok(root) = config::launcher_root() {
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(root.join("launch.log"))
+        {
+            let _ = writeln!(f, "[sys] {msg}");
+        }
+    }
 }
 
 /// Определяет, установлена ли сборка и возвращает общий статус.
@@ -2851,6 +2932,25 @@ async fn mono_check_hash_command(
         .map_err(|e| e.to_string())
 }
 
+/// Автоскан кастомных модов установленной версии сборки (см. mrpack::auto_scan_custom_mods).
+/// Возвращает (файлы, ошибки) — ошибки не прерывают проверку остальных.
+#[tauri::command]
+async fn scan_custom_mods_command(
+    state: State<'_, AppState>,
+    pack_id: Option<String>,
+    version: String,
+    access_token: Option<String>,
+) -> Result<(Vec<mrpack::CustomFile>, Vec<String>), String> {
+    let pack = resolve_pack(pack_id)?;
+    Ok(mrpack::auto_scan_custom_mods(
+        &state.client,
+        &pack.id,
+        &version,
+        access_token.as_deref(),
+    )
+    .await)
+}
+
 // ==== Соавторы ====
 
 #[tauri::command]
@@ -3083,12 +3183,31 @@ async fn launch_game_command(
         ram_gb,
         session,
         app,
+        state.client.clone(),
         width.max(320),
         height.max(240),
         server,
     )
     .await
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+    // Счётчик запусков версии (fire-and-forget, только для сборок с бэкенда).
+    let pack = match resolve_pack(Some(pack_id.clone())) {
+        Ok(p) => p,
+        Err(_) => return Ok(()),
+    };
+    if pack.kind == "remote" {
+        if let Ok(v) = config::active_version(&pack_id) {
+            if v.is_empty() {
+                return Ok(());
+            }
+            let client = state.client.clone();
+            let pid = pack_id.clone();
+            tauri::async_runtime::spawn(async move {
+                auth::mono_report_event(&client, &pid, &v, "launch").await;
+            });
+        }
+    }
+    Ok(())
 }
 
 /// Пинг Minecraft-сервера (1.7+ статус с фолбэком на legacy 0xFE).
@@ -3699,6 +3818,20 @@ fn set_warn_custom_mods_command(enabled: bool) -> Result<(), String> {
     config::set_warn_custom_mods_enabled(enabled).map_err(|e| e.to_string())
 }
 
+/// Пользовательские JVM-аргументы (строка, разделитель — пробелы).
+#[tauri::command]
+fn get_user_jvm_args_command() -> String {
+    config::jvm_args_file()
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+fn set_user_jvm_args_command(args: String) -> Result<(), String> {
+    config::set_user_jvm_args(&args).map_err(|e| e.to_string())
+}
+
 /// Запоминает язык интерфейса (ru/en) для строк, формируемых на стороне Rust
 /// (например, активность Discord).
 #[tauri::command]
@@ -3898,6 +4031,8 @@ pub fn run() {
             get_skin_command,
             set_discord_rp_command,
             set_warn_custom_mods_command,
+            get_user_jvm_args_command,
+            set_user_jvm_args_command,
             set_locale_command,
             get_news_command,
             list_game_files_command,
@@ -3951,6 +4086,7 @@ pub fn run() {
             mono_update_profile_command,
             mono_scan_mod_command,
             mono_check_hash_command,
+            scan_custom_mods_command,
             mono_list_collaborators_command,
             mono_add_collaborator_command,
             mono_update_collaborator_command,

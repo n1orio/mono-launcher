@@ -310,6 +310,9 @@ export interface AppStatus {
 export interface CustomFile {
   path: string;
   url: string;
+  sha256?: string;
+  safe?: boolean;
+  scan_result?: string;
 }
 
 export interface PackInfo {

@@ -104,6 +104,7 @@ import {
   monoUpdateProfile as monoUpdateProfileCmd,
   monoScanMod as monoScanModCmd,
   monoCheckHash as monoCheckHashCmd,
+  scanCustomMods as scanCustomModsCmd,
   monoListCollaborators as monoListCollaboratorsCmd,
   monoAddCollaborator as monoAddCollaboratorCmd,
   monoUpdateCollaborator as monoUpdateCollaboratorCmd,
@@ -1418,6 +1419,13 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     session.value = s.session;
     discordRp.value = s.discord_rp_enabled;
     warnCustomMods.value = s.warn_custom_mods;
+    if (
+      s.custom_mods.length > 0 &&
+      s.active_version &&
+      s.custom_mods.some((f) => !f.scan_result)
+    ) {
+      void autoScanCustomMods(s.active_version);
+    }
     if (s.session) username.value = s.session.username;
     refreshSkin();
     if (isTauri()) void msRefreshSession().then(() => void loadAccounts()).catch(() => null);
@@ -1966,8 +1974,9 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     remoteInstallingId.value = v.id;
     try {
       await setPackUrlCmd(id, v.url);
-      await installMrpack(id, v.version);
+      const info = await installMrpack(id, v.version);
       notify(t("releases.installed", { v: v.version }), "success");
+      void autoScanCustomMods(info.version_id);
       return true;
     } catch (e) {
       notify(t("files.updateErr", { e }), "error");
@@ -2282,15 +2291,53 @@ let themeDragTimer: ReturnType<typeof setTimeout> | null = null;
     filesDone.value = 0;
     progress.value = { phase: "Подготовка...", current: 0, total: 0, speed: 0, fileIndex: 0, fileTotal: 0, currentFile: "" };
     try {
-      await installMrpack(packId.value, tag);
+      const info = await installMrpack(packId.value, tag);
       await load();
       refreshVersions();
+      void autoScanCustomMods(info.version_id);
     } catch (e) {
       notify(t("err.install", { e }));
     } finally {
       busy.value = false;
       lastBytes = { value: 0, at: 0 };
       speed = 0;
+    }
+  }
+
+  /** Автоскан кастомных модов установленной версии (фон, без блокировки UI). */
+  const scannedVersions = new Set<string>();
+  async function autoScanCustomMods(versionId?: string | null) {
+    if (!isTauri() || !packId.value || !versionId) return;
+    if (scannedVersions.has(`${packId.value}/${versionId}`)) return;
+    scannedVersions.add(`${packId.value}/${versionId}`);
+    try {
+      const [,] = await scanCustomModsCmd(packId.value, versionId, authorToken());
+      if (packId.value) await load();
+    } catch { /* сканер недоступен — моды остаются непроверенными */ }
+  }
+
+  /** Ручная проверка кастомных модов активной версии (кнопка в плашке). */
+  const customScanBusy = ref(false);
+  async function scanActiveCustomMods() {
+    if (!isTauri() || !packId.value || customScanBusy.value) return;
+    customScanBusy.value = true;
+    const token = authorToken();
+    try {
+      const [, errors] = await scanCustomModsCmd(
+        packId.value,
+        status.value?.active_version ?? "",
+        token
+      );
+      await load();
+      if (errors.length > 0) {
+        notify(t("scanner.err", { e: errors[0] }));
+      } else {
+        notify(t("scanner.done"), "success");
+      }
+    } catch (e) {
+      notify(t("scanner.err", { e }));
+    } finally {
+      customScanBusy.value = false;
     }
   }
 
@@ -3479,6 +3526,8 @@ notify(t("err.switch", { e }));
     saveMyProfile,
     scanResult,
     scanBusy,
+    customScanBusy,
+    scanActiveCustomMods,
     scanModFile,
     scanByHash,
     authorCollaborators,

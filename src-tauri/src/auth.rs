@@ -964,8 +964,97 @@ pub async fn mono_check_hash(client: &reqwest::Client, sha256: &str) -> Result<S
     serde_json::from_str(&text).context("Некорректный ответ сервера Mono")
 }
 
-// ==== Соавторы ====
+/// Сообщает бэкенду событие по версии сборки (установка/запуск) — best-effort:
+/// ошибки игнорируются, ответ не важен. kind: "install" | "launch".
+pub async fn mono_report_event(
+    client: &reqwest::Client,
+    pack_id: &str,
+    version: &str,
+    kind: &str,
+) {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/packs/{pack_id}/versions/{version}/event");
+    let _ = client
+        .post(&url)
+        .json(&json!({ "kind": kind }))
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await;
+}
 
+// ==== Playtime + Library sync (fire-and-forget) ====
+
+/// Отправить суммарное время игры по сборке на бэкенд (POST /auth/playtime).
+/// Идемпотентно: бэкенд хранит MAX(old, new). Тихо проглатывает ошибки.
+pub async fn mono_report_playtime(client: &reqwest::Client, pack_id: &str, seconds: u64) {
+    let Some(profile) = load_mono_profile().ok().flatten() else {
+        return;
+    };
+    let base = crate::config::backend_url();
+    let url = format!("{base}/auth/playtime");
+    let _ = client
+        .post(&url)
+        .bearer_auth(&profile.access_token)
+        .json(&json!({ "packId": pack_id, "seconds": seconds as i64 }))
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await;
+}
+
+/// Синхронизировать сборку в библиотеку на бэкенде (POST /auth/library).
+/// Вызывается при добавлении сборки. Тихо проглатывает ошибки.
+pub async fn mono_sync_library(
+    client: &reqwest::Client,
+    pack_id: &str,
+    pack_name: &str,
+    pack_url: &str,
+    kind: &str,
+    boosty_blog: Option<&str>,
+    min_ram_mb: Option<i32>,
+) {
+    let Some(profile) = load_mono_profile().ok().flatten() else {
+        return;
+    };
+    let base = crate::config::backend_url();
+    let url = format!("{base}/auth/library");
+    let mut body = json!({
+        "packId": pack_id,
+        "packName": pack_name,
+        "packUrl": pack_url,
+        "kind": kind,
+    });
+    if let Some(blog) = boosty_blog {
+        body["boostyBlog"] = json!(blog);
+    }
+    if let Some(ram) = min_ram_mb {
+        body["minRamMb"] = json!(ram);
+    }
+    let _ = client
+        .post(&url)
+        .bearer_auth(&profile.access_token)
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await;
+}
+
+/// Удалить сборку из библиотеки на бэкенде (DELETE /auth/library/{pack_id}).
+/// Тихо проглатывает ошибки.
+pub async fn mono_remove_library(client: &reqwest::Client, pack_id: &str) {
+    let Some(profile) = load_mono_profile().ok().flatten() else {
+        return;
+    };
+    let base = crate::config::backend_url();
+    let url = format!("{base}/auth/library/{pack_id}");
+    let _ = client
+        .delete(&url)
+        .bearer_auth(&profile.access_token)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await;
+}
+
+// ==== Соавторы ====
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CollaboratorPublic {

@@ -181,7 +181,7 @@ body,
   overflow: hidden;
   background-color: var(--app-bg);
   color: var(--tx);
-  font-family: "Monaspace Neon", "Segoe UI", system-ui, sans-serif;
+  font-family: "Rubik", "Segoe UI", system-ui, sans-serif;
   font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;

@@ -108,10 +108,10 @@
   :disabled="busy"
   @click="status?.installed ? (gameRunning ? handleStop() : handlePlay()) : handleInstall()"
   >
-  <svg v-if="busy" viewBox="0 0 16 16" class="h-[18px] w-[18px] animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
-  <svg v-else-if="status?.installed && !gameRunning" viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
-  <svg v-else-if="gameRunning" viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M3.5 3.5h9v9h-9z"/></svg>
-  <svg v-else viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"/><path d="M7.97 2.72a.75.75 0 0 1 1.06 0l3 3a.75.75 0 1 1-1.06 1.06l-1.72-1.72v6.69a.75.75 0 0 1-1.5 0v-6.69L6.03 6.78a.75.75 0 0 1-1.06-1.06l3-3Z"/></svg>
+  <svg v-if="busy" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+  <svg v-else-if="status?.installed && !gameRunning" viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
+  <svg v-else-if="gameRunning" viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.5 3.5h9v9h-9z"/></svg>
+  <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"/><path d="M7.97 2.72a.75.75 0 0 1 1.06 0l3 3a.75.75 0 1 1-1.06 1.06l-1.72-1.72v6.69a.75.75 0 0 1-1.5 0v-6.69L6.03 6.78a.75.75 0 0 1-1.06-1.06l3-3Z"/></svg>
   <template v-if="!status?.installed">{{ busy ? t("side.installing") : t("side.downloadPlay") }}</template>
   <template v-else>{{ busy ? t("side.launching") : gameRunning ? t("side.stopGame") : t("side.play") }}</template>
   </button>
@@ -246,7 +246,7 @@
   </span>
   <button
   type="button"
-  class="shrink-0 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
+  class="shrink-0 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
   :disabled="busy"
   @click="handleUpdate"
   >
@@ -264,7 +264,7 @@
   >
   <div v-if="licenseInfo?.subscribed" class="flex items-center justify-between gap-3">
   <span class="flex min-w-0 items-center gap-2">
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] shrink-0 fill-current">
+  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
   <path d="M7.75.5A4.5 4.5 0 0 1 11.5 5.5v.85A4.5 4.5 0 0 1 13 10v3A2.5 2.5 0 0 1 10.5 15.5h-6A2.5 2.5 0 0 1 2 13v-3a4.5 4.5 0 0 1 1.5-3.35V5.5A4.25 4.25 0 0 1 7.75.5Zm0 1.5a2.75 2.75 0 0 0-2.75 2.75v.5h5.5v-.5A2.75 2.75 0 0 0 7.75 2Z"/>
   </svg>
   <span class="min-w-0">
@@ -307,7 +307,7 @@
   </div>
   <template v-else>
   <div class="flex items-center gap-2">
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] shrink-0 fill-current">
+  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
   <path d="M7.75.5A4.5 4.5 0 0 1 11.5 5.5v.85A4.5 4.5 0 0 1 13 10v3A2.5 2.5 0 0 1 10.5 15.5h-6A2.5 2.5 0 0 1 2 13v-3a4.5 4.5 0 0 1 1.5-3.35V5.5A4.25 4.25 0 0 1 7.75.5Zm0 1.5a2.75 2.75 0 0 0-2.75 2.75v.5h5.5v-.5A2.75 2.75 0 0 0 7.75 2Z"/>
   </svg>
   <span class="min-w-0">
@@ -328,7 +328,7 @@
   <button
   v-if="!boostyAuthOpen"
   type="button"
-  class="w-full rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
+  class="w-full rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
   :disabled="licenseBusy"
   @click="startBoostyLogin()"
   >
@@ -365,7 +365,7 @@
   />
   <button
   type="submit"
-  class="shrink-0 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
+  class="shrink-0 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
   :disabled="licenseBusy || !licenseKeyInput.trim()"
   >
   {{ t("license.activate") }}
@@ -385,10 +385,13 @@
   </template>
   </div>
 
-  <!-- Предупреждение о кастомных файлах (не с Modrinth/CurseForge) -->
+  <!-- Предупреждение о кастомных файлах (не с Modrinth/CurseForge).
+       Цвет плашки: зелёный — всё проверено и безопасно, красный — есть опасные,
+       жёлтый — есть непроверенные. -->
   <div
   v-if="warnCustomMods && status?.installed && status.custom_mods.length > 0"
-  class="mt-4 rounded-md  bg-[#9e6a03]/10 px-3.5 py-2.5 text-[13px] text-[#d29922]"
+  class="mt-4 rounded-md px-3.5 py-2.5 text-[13px]"
+  :class="customBannerClass"
   >
   <button
   type="button"
@@ -396,12 +399,20 @@
   @click="customModsOpen = !customModsOpen"
   >
   <span class="flex min-w-0 items-center gap-2">
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] shrink-0 fill-current">
+  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
   <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM8 7.25a.74.74 0 0 1 .74.75v2.5a.74.74 0 0 1-1.48 0V8a.74.74 0 0 1 .74-.75Zm0 5.25a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>
   </svg>
   <span class="min-w-0">
   {{ t("warn.customMods", { n: status.custom_mods.length }) }}
   </span>
+  <button
+  type="button"
+  class="shrink-0 underline decoration-dotted underline-offset-2 disabled:opacity-50"
+  :disabled="customScanBusy"
+  @click.stop="scanActiveCustomMods()"
+  >
+  {{ customScanBusy ? t("scanner.scanning") : t("scanner.checkNow") }}
+  </button>
   </span>
   <span class="shrink-0 underline decoration-dotted underline-offset-2">
   {{ customModsOpen ? t("warn.hide") : t("warn.show") }}
@@ -411,9 +422,11 @@
   <ul class="space-y-1 font-mono text-[13px]">
   <li v-for="f in status.custom_mods" :key="f.path" class="flex items-start gap-2">
   <span class="truncate" :title="f.url">{{ f.path }}</span>
+  <span v-if="f.scan_result" class="ml-auto shrink-0" :class="f.safe ? 'text-[#3fb950]' : 'text-[#f85149]'">{{ f.safe ? t("scanner.safe") : f.scan_result }}</span>
+  <span v-else-if="f.sha256" class="ml-auto shrink-0 text-[color:var(--tx-muted)]">{{ t("scanner.unchecked") }}</span>
   </li>
   </ul>
-  <p class="pt-1 text-[#e3b341]">{{ t("warn.note") }}</p>
+  <p class="pt-1" :class="customBannerNoteClass">{{ customBannerState === "safe" ? t("warn.safeNote") : t("warn.note") }}</p>
   </div>
   </div>
   </div>
@@ -430,7 +443,7 @@
   : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
   @click="playSubTab = st.kind"
   >
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] shrink-0 fill-current" v-html="st.icon"></svg>
+  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current" v-html="st.icon"></svg>
   <span>{{ t("sub." + st.kind) }}</span>
   <span
   v-if="subTabCount(st.kind) > 0"
@@ -460,7 +473,7 @@
   :key="r.version_id"
   class="rounded-xl  bg-[var(--panel)] shadow-sm transition-shadow hover:shadow-md"
   >
-  <div class="flex items-center justify-between px-4 py-3">
+  <div class="flex items-center justify-between px-3.5 py-2.5">
   <div class="flex items-center gap-2.5 flex-wrap">
   <span class="font-mono text-sm font-semibold text-[var(--accent)]">
   {{ r.source_tag ?? r.version_id }}
@@ -497,7 +510,7 @@
   :key="v.id"
   class="mt-3 rounded-xl  bg-[var(--panel)] shadow-sm transition-shadow hover:shadow-md"
   >
-  <div class="flex items-center justify-between gap-3 px-4 py-3">
+  <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
   <div class="min-w-0 flex-1">
   <p class="font-mono text-sm font-semibold text-[var(--accent)]">v{{ v.version }}</p>
   <p class="mt-0.5 text-xs text-[color:var(--tx-muted)]">
@@ -562,7 +575,7 @@
   <button
   v-if="modUpdatesTab.length > 0"
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
   :disabled="updateAllBusy || updatingMod !== null || packLocked"
   @click="updateAllMods"
   >
@@ -578,7 +591,7 @@
   </button>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
   :title="t('mods.addHint')"
   :disabled="packLocked"
   @click="openSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind, 'modrinth')"
@@ -591,7 +604,7 @@
   <button
   v-if="playSubTab === 'mods'"
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[var(--input)] px-3 py-1.5 text-[13px] font-semibold text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--tx)]"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-semibold text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--tx)]"
   :title="t('scanner.hint')"
   @click="openModScanner"
   >
@@ -604,7 +617,7 @@
   <template v-else>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
   :title="t('mods.addHint')"
   @click="openSearch('datapack', 'modrinth')"
   >
@@ -818,7 +831,7 @@
   </div>
 
   <div v-if="!gameFiles[playSubTab]" class="flex flex-1 items-center justify-center text-[13px] text-[color:var(--tx-muted)]">
-  <svg class="mr-2 h-[18px] w-[18px] animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
+  <svg class="mr-2 h-4 w-4 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   {{ t("files.loading") }}
@@ -827,7 +840,7 @@
   <p class="mb-3">{{ t("files.empty") }}</p>
   <button
   type="button"
-  class="inline-flex items-center gap-1.5 rounded-md  bg-[var(--input)] px-3 py-1.5 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+  class="inline-flex items-center gap-1.5 rounded-md  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click="openFolder(playSubTab as GameFolderKind)"
   >
   <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M.513 1.513A1.75 1.75 0 0 1 1.75 1h3.5c.55 0 1.07.26 1.4.7l.9 1.2a.25.25 0 0 0 .2.1H13a1 1 0 0 1 1 1v.5H2.75a.75.75 0 0 0 0 1.5h11.978a1 1 0 0 1 .994 1.117L15 13.25A1.75 1.75 0 0 1 13.25 15H1.75A1.75 1.75 0 0 1 0 13.25V2.75c0-.464.184-.91.513-1.237Z"/></svg>
@@ -967,7 +980,7 @@
   <template v-else-if="playSubTab === 'duplicates'">
   <div class="flex min-h-0 flex-1 flex-col">
   <div v-if="duplicatesLoading" class="flex flex-1 items-center justify-center text-[13px] text-[color:var(--tx-muted)]">
-  <svg class="mr-2 h-[18px] w-[18px] animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
+  <svg class="mr-2 h-4 w-4 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   {{ t("duplicates.loading") }}
@@ -1016,7 +1029,7 @@
   <template v-else-if="playSubTab === 'screenshots'">
   <div class="flex min-h-0 flex-1 flex-col">
   <div v-if="screenshotsLoading" class="flex flex-1 items-center justify-center text-[13px] text-[color:var(--tx-muted)]">
-  <svg class="mr-2 h-[18px] w-[18px] animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
+  <svg class="mr-2 h-4 w-4 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   {{ t("screenshots.loading") }}
@@ -1113,7 +1126,7 @@
   </p>
 
   </div>
-  <p v-if="group.servers.length === 0" class="rounded-xl  bg-[var(--panel)] shadow-sm px-4 py-3 text-[13px] text-[color:var(--tx-muted)]">
+  <p v-if="group.servers.length === 0" class="rounded-xl  bg-[var(--panel)] shadow-sm px-3.5 py-2.5 text-[13px] text-[color:var(--tx-muted)]">
   {{ group.emptyText }}
   </p>
   <div v-else class="grid gap-3 sm:grid-cols-2">
@@ -1124,7 +1137,7 @@
   >
   <div class="flex items-start gap-3">
   <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md  bg-[var(--input)]">
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-[var(--tx-muted)]">
+  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-[var(--tx-muted)]">
   <path d="M3 1.5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2ZM1.5 4.5H14.5v1.5H1.5ZM1.5 8H14.5v1.25H1.5Zm0 3.25H7v1.5H1.5A.5.5 0 0 1 1 12.25v-1ZM8.5 12.75v-1.5h6v1.5A.5.5 0 0 1 14.5 13h-5a1 1 0 0 1-1-.25ZM2 5.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm3 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM2 9.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm3 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/>
   </svg>
   </div>
@@ -1172,7 +1185,7 @@
   </button>
   <button
   type="button"
-  class="flex items-center gap-1.5 rounded-md bg-[#238636] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#2ea043] disabled:cursor-not-allowed disabled:opacity-50"
+  class="flex items-center gap-1.5 rounded-md bg-[#238636] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#2ea043] disabled:cursor-not-allowed disabled:opacity-50"
   :disabled="gameRunning"
   @click="playOnServer(s)"
   >
@@ -1195,7 +1208,7 @@
   <div class="max-w-2xl space-y-6">
   <!-- ОЗУ -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3 flex justify-between items-center">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 flex justify-between items-center">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.ram") }}</h3>
   <span class="font-mono text-[13px] font-semibold text-[var(--accent)]">{{ ram }} {{ t("units.gb") }}</span>
   </div>
@@ -1225,9 +1238,34 @@
   </div>
   </section>
 
+  <!-- JVM-аргументы -->
+  <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 flex justify-between items-center">
+  <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.jvmArgs") }}</h3>
+  <button
+  type="button"
+  class="text-[13px] underline decoration-dotted underline-offset-2 disabled:opacity-50"
+  :disabled="jvmArgsSaving"
+  @click="saveJvmArgs"
+  >
+  {{ jvmArgsSaving ? t("common.saving") : t("common.save") }}
+  </button>
+  </div>
+  <div class="p-4 space-y-2">
+  <textarea
+  v-model="jvmArgs"
+  rows="3"
+  spellcheck="false"
+  class="w-full rounded-md bg-[var(--input)] border border-[var(--border)] px-3 py-2 font-mono text-[13px] text-[color:var(--tx)] focus:outline-none focus:border-[var(--accent)]"
+  :placeholder="t('settings.jvmArgsHint')"
+  ></textarea>
+  <p class="text-[13px] text-[color:var(--tx-muted)]">{{ t("settings.jvmArgsNote") }}</p>
+  </div>
+  </section>
+
   <!-- Размер окна игры -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3 flex justify-between items-center">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 flex justify-between items-center">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.win") }}</h3>
   <span class="font-mono text-[13px] font-semibold text-[var(--accent)]">{{ windowWidth }}×{{ windowHeight }}</span>
   </div>
@@ -1262,14 +1300,14 @@
 
   <!-- Java -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.java") }}</h3>
   </div>
   <div class="p-4 space-y-3">
   <div class="flex items-center gap-2">
   <select
   :value="javaSelected"
-  class="flex-1 appearance-none rounded-md  bg-[var(--input)] px-3 py-1.5 pr-8 text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]  focus:outline-none"
+  class="flex-1 appearance-none rounded-md  bg-[var(--input)] px-2.5 py-1.5 pr-8 text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]  focus:outline-none"
   :disabled="javaBusy || busy"
   @change="onJavaChange"
   >
@@ -1296,7 +1334,7 @@
 
   <!-- Discord Rich Presence -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.discord") }}</h3>
   </div>
   <div class="p-4">
@@ -1317,7 +1355,7 @@
 
   <!-- Система: трей + автозапуск -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.system") }}</h3>
   </div>
   <div class="space-y-3 p-4">
@@ -1344,7 +1382,7 @@
 
   <!-- Предупреждение о кастомных модах -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.warnCustomMods") }}</h3>
   </div>
   <div class="p-4">
@@ -1365,7 +1403,7 @@
 
   <!-- Проверка целостности -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3 flex justify-between items-center">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 flex justify-between items-center">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.verify") }}</h3>
   </div>
   <div class="p-4 space-y-3">
@@ -1462,7 +1500,7 @@
   @click.self="fileDetail = null"
   >
   <div class="flex max-h-[82vh] w-full max-w-xl flex-col overflow-hidden rounded-xl  bg-[var(--panel)] shadow-2xl">
-  <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">
   {{ fileDetail.entry.displayName }}
   </h3>
@@ -1471,7 +1509,7 @@
   class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
   @click="fileDetail = null"
   >
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
   </button>
   </div>
 
@@ -1534,7 +1572,7 @@
   v-for="tb in fileDetailTabs"
   :key="tb.kind"
   type="button"
-  class="rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors"
+  class="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors"
   :class="fileDetailTab === tb.kind
   ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
   : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
@@ -1543,7 +1581,7 @@
   {{ t("mods.tab" + tb.kind) }}
   </button>
   </div>
-  <div v-if="fileDetailTab === 'about'" class="max-h-[40vh] overflow-y-auto rounded-md  bg-[var(--bg)] px-4 py-3">
+  <div v-if="fileDetailTab === 'about'" class="max-h-[40vh] overflow-y-auto rounded-md  bg-[var(--bg)] px-3.5 py-2.5">
   <Markdown v-if="fileDetailMr.body" :source="fileDetailMr.body" />
   <p v-else class="py-6 text-center text-[13px] italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
   </div>
@@ -1620,7 +1658,7 @@
   </p>
   </div>
 
-  <div class="flex shrink-0 items-center justify-end gap-2 border-t border-[var(--border)]  px-4 py-3">
+  <div class="flex shrink-0 items-center justify-end gap-2 border-t border-[var(--border)]  px-3.5 py-2.5">
   <a
   v-if="fileDetailExternalUrl()"
   href="#"
@@ -1670,7 +1708,7 @@
   </div>
 
   <div v-if="news === null" class="flex flex-1 items-center justify-center text-[13px] text-[color:var(--tx-muted)]">
-  <svg class="mr-2 h-[18px] w-[18px] animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
+  <svg class="mr-2 h-4 w-4 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   {{ t("news.loading") }}
@@ -1690,7 +1728,7 @@
   :key="`${n.kind}-${n.url || n.tag}`"
   class="rounded-xl  bg-[var(--panel)] shadow-sm transition-shadow hover:shadow-md"
   >
-  <div class="flex items-start justify-between gap-3 border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex items-start justify-between gap-3 border-b border-[var(--border)]  px-3.5 py-2.5">
   <div class="min-w-0">
   <div class="flex items-center gap-2 flex-wrap">
   <span
@@ -1739,7 +1777,7 @@
   <button
   v-if="n.kind === 'update' && n.pack_id !== 'launcher' && n.tag"
   type="button"
-  class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
+  class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
   :disabled="busy"
   @click="installNews(n)"
   >
@@ -1809,9 +1847,9 @@
   : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
   @click="switchCatalogSource(src)"
   >
-  <svg v-if="src === 'mono'" viewBox="0 0 24 24" class="h-[18px] w-[18px] rounded-[4px] bg-[var(--accent)]"><path d="M6.5 17V7l5.5 5 5.5-5v10" fill="none" style="stroke: var(--panel)" stroke-width="2.6" stroke-linecap="square" stroke-linejoin="miter"/></svg>
-  <svg v-else-if="src === 'modrinth'" viewBox="0 0 24 24" class="h-[18px] w-[18px] fill-current"><path fill="#00AF5C" d="M12.252.004a11.78 11.768 0 0 0-8.92 3.73 11 10.999 0 0 0-2.17 3.11 11.37 11.359 0 0 0-1.16 5.169c0 1.42.17 2.5.6 3.77.24.759.77 1.899 1.17 2.529a12.3 12.298 0 0 0 8.85 5.639c.44.05 2.54.07 2.76.02.2-.04.22.1-.26-1.7l-.36-1.37-1.01-.06a8.5 8.489 0 0 1-5.18-1.8 5.34 5.34 0 0 1-1.3-1.26c0-.05.34-.28.74-.5a37.572 37.545 0 0 1 2.88-1.629c.03 0 .5.45 1.06.98l1 .97 2.07-.43 2.06-.43 1.47-1.47c.8-.8 1.48-1.5 1.48-1.52 0-.09-.42-1.63-.46-1.7-.04-.06-.2-.03-1.02.18-.53.13-1.2.3-1.45.4l-.48.15-.53.53-.53.53-.93.1-.93.07-.52-.5a2.7 2.7 0 0 1-.96-1.7l-.13-.6.43-.57c.68-.9.68-.9 1.46-1.1.4-.1.65-.2.83-.33.13-.099.65-.579 1.14-1.069l.9-.9-.7-.7-.7-.7-1.95.54c-1.07.3-1.96.53-1.97.53-.03 0-2.23 2.48-2.63 2.97l-.29.35.28 1.03c.16.56.3 1.16.31 1.34l.03.3-.34.23c-.37.23-2.22 1.3-2.84 1.63-.36.2-.37.2-.44.1-.08-.1-.23-.6-.32-1.03-.18-.86-.17-2.75.02-3.73a8.84 8.839 0 0 1 7.9-6.93c.43-.03.77-.08.78-.1.06-.17.5-2.999.47-3.039-.01-.02-.1-.02-.2-.03Zm3.68.67c-.2 0-.3.1-.37.38-.06.23-.46 2.42-.46 2.52 0 .04.1.11.22.16a8.51 8.499 0 0 1 2.99 2 8.38 8.379 0 0 1 2.16 3.449 6.9 6.9 0 0 1 .4 2.8c0 1.07 0 1.27-.1 1.73a9.37 9.369 0 0 1-1.76 3.769c-.32.4-.98 1.06-1.37 1.38-.38.32-1.54 1.1-1.7 1.14-.1.03-.1.06-.07.26.03.18.64 2.56.7 2.78l.06.06a12.07 12.058 0 0 0 7.27-9.4c.13-.77.13-2.58 0-3.4a11.96 11.948 0 0 0-5.73-8.578c-.7-.42-2.05-1.06-2.25-1.06Z"/></svg>
-  <svg v-else viewBox="0 0 24 24" class="h-[18px] w-[18px] fill-current"><path fill="#F16436" d="M18.326 9.2145S23.2261 8.4418 24 6.1882h-7.5066V4.4H0l2.0318 2.3576V9.173s5.1267-.2665 7.1098 1.2372c2.7146 2.516-3.053 5.917-3.053 5.917L5.0995 19.6c1.5465-1.4726 4.494-3.3775 9.8983-3.2857-2.0565.65-4.1245 1.6651-5.7344 3.2857h10.9248l-1.0288-3.2726s-7.918-4.6688-.8336-7.1127z"/></svg>
+  <svg v-if="src === 'mono'" viewBox="0 0 24 24" class="h-4 w-4 rounded-[4px] bg-[var(--accent)]"><path d="M6.5 17V7l5.5 5 5.5-5v10" fill="none" style="stroke: var(--panel)" stroke-width="2.6" stroke-linecap="square" stroke-linejoin="miter"/></svg>
+  <svg v-else-if="src === 'modrinth'" viewBox="0 0 24 24" class="h-4 w-4 fill-current"><path fill="#00AF5C" d="M12.252.004a11.78 11.768 0 0 0-8.92 3.73 11 10.999 0 0 0-2.17 3.11 11.37 11.359 0 0 0-1.16 5.169c0 1.42.17 2.5.6 3.77.24.759.77 1.899 1.17 2.529a12.3 12.298 0 0 0 8.85 5.639c.44.05 2.54.07 2.76.02.2-.04.22.1-.26-1.7l-.36-1.37-1.01-.06a8.5 8.489 0 0 1-5.18-1.8 5.34 5.34 0 0 1-1.3-1.26c0-.05.34-.28.74-.5a37.572 37.545 0 0 1 2.88-1.629c.03 0 .5.45 1.06.98l1 .97 2.07-.43 2.06-.43 1.47-1.47c.8-.8 1.48-1.5 1.48-1.52 0-.09-.42-1.63-.46-1.7-.04-.06-.2-.03-1.02.18-.53.13-1.2.3-1.45.4l-.48.15-.53.53-.53.53-.93.1-.93.07-.52-.5a2.7 2.7 0 0 1-.96-1.7l-.13-.6.43-.57c.68-.9.68-.9 1.46-1.1.4-.1.65-.2.83-.33.13-.099.65-.579 1.14-1.069l.9-.9-.7-.7-.7-.7-1.95.54c-1.07.3-1.96.53-1.97.53-.03 0-2.23 2.48-2.63 2.97l-.29.35.28 1.03c.16.56.3 1.16.31 1.34l.03.3-.34.23c-.37.23-2.22 1.3-2.84 1.63-.36.2-.37.2-.44.1-.08-.1-.23-.6-.32-1.03-.18-.86-.17-2.75.02-3.73a8.84 8.839 0 0 1 7.9-6.93c.43-.03.77-.08.78-.1.06-.17.5-2.999.47-3.039-.01-.02-.1-.02-.2-.03Zm3.68.67c-.2 0-.3.1-.37.38-.06.23-.46 2.42-.46 2.52 0 .04.1.11.22.16a8.51 8.499 0 0 1 2.99 2 8.38 8.379 0 0 1 2.16 3.449 6.9 6.9 0 0 1 .4 2.8c0 1.07 0 1.27-.1 1.73a9.37 9.369 0 0 1-1.76 3.769c-.32.4-.98 1.06-1.37 1.38-.38.32-1.54 1.1-1.7 1.14-.1.03-.1.06-.07.26.03.18.64 2.56.7 2.78l.06.06a12.07 12.058 0 0 0 7.27-9.4c.13-.77.13-2.58 0-3.4a11.96 11.948 0 0 0-5.73-8.578c-.7-.42-2.05-1.06-2.25-1.06Z"/></svg>
+  <svg v-else viewBox="0 0 24 24" class="h-4 w-4 fill-current"><path fill="#F16436" d="M18.326 9.2145S23.2261 8.4418 24 6.1882h-7.5066V4.4H0l2.0318 2.3576V9.173s5.1267-.2665 7.1098 1.2372c2.7146 2.516-3.053 5.917-3.053 5.917L5.0995 19.6c1.5465-1.4726 4.494-3.3775 9.8983-3.2857-2.0565.65-4.1245 1.6651-5.7344 3.2857h10.9248l-1.0288-3.2726s-7.918-4.6688-.8336-7.1127z"/></svg>
   {{ src === "mono" ? t("catalog.sourceMono") : src === "modrinth" ? t("mods.serviceModrinth") : t("mods.serviceCurseforge") }}
   </button>
   </div>
@@ -1868,7 +1906,7 @@
   {{ catalogDetail.dislikes }}
   </button>
   <button v-if="!packs.some((p: any) => p.url === catalogDetail!.url)" type="button" @click="addMonoPack({ url: catalogDetail!.url, name: catalogDetail!.name, boosty_blog: catalogDetail!.boosty_blog } as any)" :disabled="addingPack"
-  class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50">
+  class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50">
   {{ addingPack ? t("dev.adding") : t("catalog.add") }}
   </button>
   <button v-else type="button" @click="openMonoPack({ url: catalogDetail!.url, name: catalogDetail!.name } as any)"
@@ -1879,7 +1917,7 @@
   </div>
 
   <div v-if="catalogDetailBusy" class="flex items-center justify-center py-16 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
   {{ t("catalog.loading") }}
   </div>
 
@@ -1956,7 +1994,7 @@
   </div>
   <p v-if="v.changelog" class="mt-1 text-[13px] text-[color:var(--tx-muted)] whitespace-pre-wrap line-clamp-2">{{ v.changelog }}</p>
   </div>
-  <a :href="v.url" class="shrink-0 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)]">
+  <a :href="v.url" class="shrink-0 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)]">
   {{ t("pack.download") }}
   </a>
   </div>
@@ -1981,7 +2019,7 @@
   <!-- Comments -->
   <div v-if="catalogDetailTab === 'comments'" class="space-y-3">
   <div v-if="catalogCommentsBusy && catalogComments.length === 0" class="flex items-center justify-center py-8 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
   {{ t("catalog.loading") }}
   </div>
 
@@ -2034,7 +2072,7 @@
   <template v-if="commentEditId === c.id">
   <textarea v-model="commentEditDraft" rows="2" class="mt-2 w-full resize-y rounded-md  bg-[var(--bg)] px-3 py-2 text-[13px] text-[color:var(--tx)]  focus:outline-none"></textarea>
   <div class="mt-1.5 flex gap-2">
-  <button type="button" class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
+  <button type="button" class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
   :disabled="catalogCommentsBusy || !commentEditDraft.trim()"
   @click="editCatalogComment(catalogDetail.id, c.id, commentEditDraft); commentEditId = null">
   {{ t("author.save") }}
@@ -2063,7 +2101,7 @@
   <div v-if="commentReplyTo === c.id" class="mt-2 rounded-md  bg-[var(--bg)] p-2">
   <textarea v-model="commentReplyDraft" rows="2" :placeholder="t('comments.placeholder')" class="w-full resize-y rounded-md  bg-[var(--bg)] px-3 py-2 text-[13px] text-[color:var(--tx)] placeholder-[var(--tx-muted)]  focus:outline-none"></textarea>
   <div class="mt-1.5 flex justify-end gap-2">
-  <button type="button" class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
+  <button type="button" class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
   :disabled="catalogCommentsBusy || !commentReplyDraft.trim()"
   @click="sendCatalogComment(catalogDetail.id, commentReplyDraft, c.id); commentReplyTo = null; commentReplyDraft = ''">
   {{ t("comments.send") }}
@@ -2099,7 +2137,7 @@
   <template v-if="commentEditId === r.id">
   <textarea v-model="commentEditDraft" rows="2" class="mt-2 w-full resize-y rounded-md  bg-[var(--bg)] px-3 py-2 text-[13px] text-[color:var(--tx)]  focus:outline-none"></textarea>
   <div class="mt-1.5 flex gap-2">
-  <button type="button" class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
+  <button type="button" class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
   :disabled="catalogCommentsBusy || !commentEditDraft.trim()"
   @click="editCatalogComment(catalogDetail.id, r.id, commentEditDraft); commentEditId = null">
   {{ t("author.save") }}
@@ -2130,7 +2168,7 @@
   <!-- Catalog List View -->
   <template v-else>
   <div v-if="monoCatalogLoading && monoCatalog.length === 0" class="flex items-center justify-center py-16 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current">
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   {{ t("catalog.loading") }}
@@ -2303,7 +2341,7 @@
   </div>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
   :disabled="modPackLoading"
   @click="searchPacks"
   >
@@ -2311,7 +2349,7 @@
   </button>
   </div>
   <div v-if="modPackLoading" class="flex items-center justify-center py-16 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current">
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   {{ t("mods.searchingAll") }}
@@ -2344,7 +2382,7 @@
   </div>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 self-center rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 self-center rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
   :disabled="quickPackBusy !== null"
   :title="t('mods.downloadHint')"
   @click.stop="quickDownloadPack(p, $event)"
@@ -2403,7 +2441,7 @@
   </div>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
   :disabled="cpLoading"
   @click="searchCursePacks"
   >
@@ -2466,11 +2504,11 @@
 
   <!-- Добавление сборки -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="flex items-center justify-between gap-2 border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex items-center justify-between gap-2 border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("dev.addTitle") }}</h3>
   <button
   type="button"
-  class="flex items-center gap-1.5 rounded-md bg-[#238636] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#2ea043]"
+  class="flex items-center gap-1.5 rounded-md bg-[#238636] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#2ea043]"
   @click="openExamplePack"
   >
   <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
@@ -2515,7 +2553,7 @@
 
   <!-- Подключённые сборки -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("dev.listTitle") }}</h3>
   </div>
   <div class="divide-y divide-[var(--border)]">
@@ -2569,7 +2607,7 @@
 
   <!-- Мини-документация -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("dev.docsTitle") }}</h3>
   </div>
   <div class="space-y-2.5 p-4 text-[13px] leading-relaxed text-[color:var(--tx)]">
@@ -2587,7 +2625,7 @@
   </div>
   <button
   type="button"
-  class="flex items-center gap-1.5 rounded-md bg-[var(--accent-deep)] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+  class="flex items-center gap-1.5 rounded-md bg-[var(--accent-deep)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
   @click="openExamplePack"
   >
   <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
@@ -2636,7 +2674,7 @@
   <div class="mt-2.5 flex flex-wrap gap-2">
   <button
   type="button"
-  class="flex items-center gap-1.5 rounded-md bg-[#238636] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#2ea043]"
+  class="flex items-center gap-1.5 rounded-md bg-[#238636] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#2ea043]"
   @click="openExampleInLauncher"
   >
   <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
@@ -2647,7 +2685,7 @@
   <button
   v-if="activePack"
   type="button"
-  class="flex items-center gap-1.5 rounded-md  bg-[#238636]/10 px-3 py-1.5 text-[13px] font-semibold text-[#3fb950] transition-colors hover:bg-[#238636]/20"
+  class="flex items-center gap-1.5 rounded-md  bg-[#238636]/10 px-2.5 py-1.5 text-[13px] font-semibold text-[#3fb950] transition-colors hover:bg-[#238636]/20"
   @click="copyInviteLink"
   >
   <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
@@ -2874,14 +2912,14 @@
   @mousedown.stop
   @contextmenu.stop
   >
-  <div class="px-3 py-1.5">
+  <div class="px-2.5 py-1.5">
   <div class="truncate text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ libMenuPack.name }}</div>
   <div class="truncate font-mono text-xs text-[color:var(--tx-muted)]">{{ libMenuPack.id }}</div>
   </div>
   <div class="mx-3 border-t border-[var(--border)] "></div>
   <button
   type="button"
-  class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
+  class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
   :disabled="busy || gameRunning"
   @click="libDoPlay"
   >
@@ -2891,7 +2929,7 @@
   <button
   v-if="libMenuPack?.url"
   type="button"
-  class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+  class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click="libCopyLink"
   >
   <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="m7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"/></svg>
@@ -2899,7 +2937,7 @@
   </button>
   <button
   type="button"
-  class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+  class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click="libOpenSettings"
   >
   <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0 fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"></path></svg>
@@ -2947,14 +2985,14 @@
   <div class="mt-4 flex justify-end gap-2">
   <button
   type="button"
-  class="rounded-md  bg-[var(--input)] px-3 py-1.5 text-[13px] font-medium text-[color:var(--tx)] hover:bg-[var(--hover)]"
+  class="rounded-md  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx)] hover:bg-[var(--hover)]"
   @click="libCatModal = null"
   >
   {{ t("files.cancel") }}
   </button>
   <button
   type="button"
-  class="rounded-md bg-[var(--accent-deep)] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
+  class="rounded-md bg-[var(--accent-deep)] px-2.5 py-1.5 text-[13px] font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
   :disabled="!libCatName.trim()"
   @click="submitCatModal"
   >
@@ -2998,7 +3036,7 @@
   </button>
 
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="flex items-start gap-3 border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex items-start gap-3 border-b border-[var(--border)]  px-3.5 py-2.5">
   <img v-if="authorDetail.icon_url" :src="authorDetail.icon_url" class="h-10 w-10 shrink-0 rounded-md object-cover" />
   <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--input)] text-sm font-semibold text-[var(--accent)]">
   {{ authorDetail.name?.[0]?.toUpperCase() }}
@@ -3083,7 +3121,7 @@
 
   <!-- Скриншоты: список в meta.screenshots (добавление/удаление по URL) -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3 text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("pack.screenshots") }}</div>
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("pack.screenshots") }}</div>
   <div class="space-y-2 p-4">
   <div v-if="authorShots.length === 0" class="text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("author.noShots") }}</div>
   <div v-for="(s, i) in authorShots" :key="i" class="flex items-center gap-2 rounded-md  bg-[var(--bg)] p-2">
@@ -3132,10 +3170,10 @@
   <p class="text-[13px] font-semibold text-[#f87171]">{{ t("author.dangerZone") }}</p>
   <p class="text-xs leading-snug text-[color:var(--tx-muted)]">{{ t("author.deleteWarn") }}</p>
   <div class="flex items-center gap-2">
-  <button type="button" class="rounded-md  bg-transparent px-3 py-1.5 text-[13px] font-medium text-[#f87171] hover:bg-[#b91c1c]/20 disabled:opacity-50" :class="authorDelArm ? 'bg-[#b91c1c]/20' : ''" :disabled="authorBusy" @click="armAuthorDelete">
+  <button type="button" class="rounded-md  bg-transparent px-2.5 py-1.5 text-[13px] font-medium text-[#f87171] hover:bg-[#b91c1c]/20 disabled:opacity-50" :class="authorDelArm ? 'bg-[#b91c1c]/20' : ''" :disabled="authorBusy" @click="armAuthorDelete">
   {{ authorDelArm ? t("author.deleteSure") : t("author.deleteArm") }}
   </button>
-  <button v-if="authorDelArm" type="button" class="rounded-md  bg-transparent px-3 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] hover:bg-[var(--hover)]" @click="cancelAuthorDelete">
+  <button v-if="authorDelArm" type="button" class="rounded-md  bg-transparent px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] hover:bg-[var(--hover)]" @click="cancelAuthorDelete">
   {{ t("author.cancel") }}
   </button>
   </div>
@@ -3145,7 +3183,7 @@
 
   <div v-else-if="authorTab === 'versions'">
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3 text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("author.versions") }}</div>
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("author.versions") }}</div>
   <div class="divide-y divide-[var(--border)]">
   <div v-for="(v, vi) in authorVersions" :key="v.id" class="flex items-center gap-3 px-4 py-2.5">
   <div class="min-w-0 flex-1">
@@ -3180,7 +3218,7 @@
 
   <div v-else-if="authorTab === 'news'">
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3 text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("author.news") }}</div>
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("author.news") }}</div>
   <div class="divide-y divide-[var(--border)]">
   <div v-for="n in authorNews" :key="n.id" class="px-4 py-2.5">
   <div class="flex items-center gap-2">
@@ -3215,7 +3253,7 @@
   <!-- Соавторы: гранулярные права на сборку -->
   <div v-else-if="authorTab === 'collabs'">
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3 text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("collabs.tab") }}</div>
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("collabs.tab") }}</div>
   <div class="divide-y divide-[var(--border)]">
   <div v-for="c in authorCollaborators" :key="c.id" class="flex flex-wrap items-center gap-2 px-4 py-2.5">
   <button type="button" class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full  bg-[var(--input)] font-mono text-[13px] font-bold text-[color:var(--tx-strong)] transition-colors hover:text-[var(--accent)]"
@@ -3258,7 +3296,7 @@
   <!-- Комментарии к сборке (модерация автора) -->
   <div v-else-if="authorTab === 'comments'">
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3 text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("comments.tab") }}</div>
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("comments.tab") }}</div>
   <div class="divide-y divide-[var(--border)]">
   <div v-if="catalogCommentsBusy && catalogComments.length === 0" class="px-4 py-6 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("catalog.loading") }}</div>
   <div v-if="!catalogCommentsBusy && catalogComments.length === 0" class="px-4 py-6 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("comments.empty") }}</div>
@@ -3346,7 +3384,7 @@
 
   <!-- Пользователи -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3 text-[13px] font-semibold text-[color:var(--tx-strong)]">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 text-[13px] font-semibold text-[color:var(--tx-strong)]">
   {{ t("admin.users") }} ({{ adminUsers.length }})
   </div>
   <div class="divide-y divide-[var(--border)]">
@@ -3398,7 +3436,7 @@
   <!-- Причина бана (inline) -->
   <div v-if="adminBanArmed === u.id" class="mt-2 flex items-center gap-2 rounded-md  bg-[var(--bg)] p-2">
   <input v-model="adminBanReason" type="text" :placeholder="t('admin.banReasonPh')" class="min-w-0 flex-1 rounded-md  bg-[var(--bg)] px-2 py-1 text-[13px] text-[color:var(--tx)] placeholder-[var(--tx-muted)]  focus:outline-none" />
-  <button type="button" class="shrink-0 rounded-md  bg-[#b91c1c]/15 px-3 py-1.5 text-[13px] font-semibold text-[#f87171] hover:bg-[#b91c1c]/25 disabled:opacity-50"
+  <button type="button" class="shrink-0 rounded-md  bg-[#b91c1c]/15 px-2.5 py-1.5 text-[13px] font-semibold text-[#f87171] hover:bg-[#b91c1c]/25 disabled:opacity-50"
   :disabled="adminBusy"
   @click="adminBanUser(u.id, adminBanReason); adminBanArmed = null">
   {{ t("admin.banConfirm") }}
@@ -3413,7 +3451,7 @@
 
   <!-- Сборки -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3 text-[13px] font-semibold text-[color:var(--tx-strong)]">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 text-[13px] font-semibold text-[color:var(--tx-strong)]">
   {{ t("admin.packs") }} ({{ adminPacks.length }})
   </div>
   <div class="divide-y divide-[var(--border)]">
@@ -3462,9 +3500,9 @@
   <div class="grid gap-4 lg:grid-cols-2">
   <!-- Профиль Mono -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3 flex items-center gap-2.5">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 flex items-center gap-2.5">
   <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)]">
-  <svg viewBox="0 0 24 24" class="h-[18px] w-[18px] fill-[color:var(--panel)]"><path d="M3 8.4 8.4 3h7.2L21 8.4v7.2L15.6 21H8.4L3 15.6V8.4Zm2 1.3v4.6L8.3 19H9.7l2.5-6.2L14.7 19h1.4L19 14.3V9.7L15.7 5H9.9L5 9.7Z"/></svg>
+  <svg viewBox="0 0 24 24" class="h-4 w-4 fill-[color:var(--panel)]"><path d="M3 8.4 8.4 3h7.2L21 8.4v7.2L15.6 21H8.4L3 15.6V8.4Zm2 1.3v4.6L8.3 19H9.7l2.5-6.2L14.7 19h1.4L19 14.3V9.7L15.7 5H9.9L5 9.7Z"/></svg>
   </span>
   <div class="min-w-0">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.monoTitle") }}</h3>
@@ -3480,7 +3518,7 @@
   </span>
   <p class="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold text-[color:var(--tx-strong)]">
   {{ monoProfile.username }}
-  <svg class="h-[18px] w-[18px] shrink-0 fill-[#3fb950]" viewBox="0 0 16 16">
+  <svg class="h-4 w-4 shrink-0 fill-[#3fb950]" viewBox="0 0 16 16">
   <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm-1.31-4.21 4.55-4.55-1.06-1.06-3.49 3.49-1.42-1.42-1.06 1.06 2.48 2.48Z"/>
   </svg>
   </p>
@@ -3605,7 +3643,7 @@
 
   <!-- Игровые аккаунты -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.gameAccounts") }}</h3>
   </div>
   <div class="p-4 space-y-3">
@@ -3666,7 +3704,7 @@
   </p>
   <button
   type="button"
-  class="mt-2 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)]"
+  class="mt-2 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)]"
   @click="openMsAuthPage"
   >
   {{ t("settings.msOpen", { uri: deviceFlow.verification_uri.replace(/^https?:\/\//, "") }) }}
@@ -3734,8 +3772,8 @@
 
   <!-- Boosty: платные сборки -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3 flex items-center gap-2">
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] shrink-0 fill-[var(--accent)]" preserveAspectRatio="none">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 flex items-center gap-2">
+  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--accent)]" preserveAspectRatio="none">
   <path d="M8 1C3.9 1 .7 4.3.7 8.4h3.1L1.6 15l7.2-7.2H6.3C6.3 5.3 7.2 2.9 9.6 2.4 11.9 2 13.7 3.6 13.7 5.8c0 .4-.1.9-.1 1.3.9.5 1.5 1.4 1.7 2.5.1-.6.2-1.2.2-1.8 0-3.8-3.2-6.8-7.5-6.8Z" transform="translate(0 -1)"/>
   </svg>
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.boosty") }}</h3>
@@ -3894,7 +3932,7 @@
 
   <!-- Скин -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("skin.title") }}</h3>
   </div>
   <div class="p-4 space-y-3">
@@ -3911,7 +3949,7 @@
   <div class="min-w-0 flex-1 space-y-1.5">
   <select
   v-model="skinModel"
-  class="w-full appearance-none rounded-md  bg-[var(--input)] px-3 py-1.5 pr-8 text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]  focus:outline-none"
+  class="w-full appearance-none rounded-md  bg-[var(--input)] px-2.5 py-1.5 pr-8 text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]  focus:outline-none"
   :disabled="skinBusy"
   >
   <option value="classic">{{ t("skin.modelClassic") }}</option>
@@ -3964,7 +4002,7 @@
   <div class="space-y-4">
   <!-- Тема -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="flex items-center justify-between border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex items-center justify-between border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.theme") }}</h3>
   <span class="text-xs font-medium text-[color:var(--tx-muted)]">
   {{ themeLevel >= 0.5 ? t("theme.dark") : t("theme.light") }}
@@ -3997,13 +4035,13 @@
 
   <!-- Язык интерфейса -->
   <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-4 py-3">
+  <div class="border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.language") }}</h3>
   </div>
   <div class="p-4 space-y-3">
   <select
   :value="locale"
-  class="w-full appearance-none rounded-md  bg-[var(--input)] px-3 py-1.5 pr-8 text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]  focus:outline-none"
+  class="w-full appearance-none rounded-md  bg-[var(--input)] px-2.5 py-1.5 pr-8 text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]  focus:outline-none"
   @change="setLocale(($event.target as HTMLSelectElement).value)"
   >
   <option v-for="l in locales" :key="l" :value="l">{{ localeLabel(l) }}</option>
@@ -4036,21 +4074,21 @@
   @click.self="modPackOpen = false; modPackVersions = null; modPackDetail = null"
   >
   <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl  bg-[var(--panel)] shadow-2xl">
-  <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("mods.packsTitle") }}</h3>
   <button
   type="button"
   class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
   @click="modPackOpen = false; modPackVersions = null; modPackDetail = null"
   >
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
   </button>
   </div>
-  <div class="flex shrink-0 items-center gap-2 border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex shrink-0 items-center gap-2 border-b border-[var(--border)]  px-3.5 py-2.5">
   <div class="flex shrink-0 items-center gap-1 rounded-md  bg-[var(--bg)] p-0.5">
   <button
   type="button"
-  class="flex items-center gap-1.5 rounded px-3 py-1.5 text-[13px] font-semibold transition-colors"
+  class="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[13px] font-semibold transition-colors"
   :class="modPackService === 'modrinth'
   ? 'bg-[var(--accent)] text-white'
   : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
@@ -4061,7 +4099,7 @@
   </button>
   <button
   type="button"
-  class="flex items-center gap-1.5 rounded px-3 py-1.5 text-[13px] font-semibold transition-colors"
+  class="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[13px] font-semibold transition-colors"
   :class="modPackService === 'curseforge'
   ? 'bg-[var(--accent)] text-white'
   : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
@@ -4085,7 +4123,7 @@
   </div>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
   :disabled="modPackLoading || cpLoading || !modPackQuery.trim()"
   @click="searchPacksOrCurse"
   >
@@ -4150,7 +4188,7 @@
   {{ t("mods.back") }}
   </button>
   <div class="overflow-hidden rounded-md  bg-[var(--bg)]">
-  <div class="flex items-start gap-3 px-4 py-3">
+  <div class="flex items-start gap-3 px-3.5 py-2.5">
   <img
   v-if="modPackDetail.iconUrl"
   :src="modPackDetail.iconUrl"
@@ -4188,7 +4226,7 @@
   v-for="tb in modPackTabs"
   :key="tb.kind"
   type="button"
-  class="rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors"
+  class="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors"
   :class="modPackTab === tb.kind
   ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
   : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
@@ -4198,7 +4236,7 @@
   </button>
   </div>
 
-  <div v-if="modPackTab === 'about'" class="max-h-[46vh] overflow-y-auto rounded-md  bg-[var(--bg)] px-4 py-3">
+  <div v-if="modPackTab === 'about'" class="max-h-[46vh] overflow-y-auto rounded-md  bg-[var(--bg)] px-3.5 py-2.5">
   <Markdown v-if="modPackDetail.body" :source="modPackDetail.body" />
   <p v-else class="py-6 text-center text-[13px] italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
   </div>
@@ -4222,7 +4260,7 @@
   </div>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
   :disabled="modPackInstalling !== null"
   @click="installPackVersion(v)"
   >
@@ -4237,7 +4275,7 @@
   </div>
   </div>
   <div v-else class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current">
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   {{ t("mods.searching") }}
@@ -4262,7 +4300,7 @@
   </template>
   <template v-else-if="modPackLoading">
   <div class="flex items-center justify-center py-16 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current">
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   {{ t("mods.searching") }}
@@ -4302,7 +4340,7 @@
   </div>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
   :disabled="quickPackBusy !== null || modPackInstalling !== null"
   :title="t('mods.downloadHint')"
   @click="quickDownloadPack(p, $event)"
@@ -4343,7 +4381,7 @@
   @change="searchCursePacks"
   />
   </div>
-  <div v-if="modPackService === 'curseforge'" class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+  <div v-if="modPackService === 'curseforge'" class="min-h-0 flex-1 overflow-y-auto px-3.5 py-2.5">
   <p v-if="!cpSearched" class="py-8 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("curse.packsHelp") }}</p>
   <p v-else-if="cpLoading" class="flex items-center justify-center gap-2 py-8 text-[13px] text-[color:var(--tx-muted)]">
   <svg viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current">
@@ -4365,7 +4403,7 @@
   {{ t("mods.back") }}
   </button>
   <div class="mb-3 rounded-md  bg-[var(--bg)]">
-  <div class="flex items-start gap-3 px-4 py-3">
+  <div class="flex items-start gap-3 px-3.5 py-2.5">
   <img
   v-if="cpProject.iconUrl"
   :src="cpProject.iconUrl"
@@ -4404,7 +4442,7 @@
   v-for="tb in cpTabs"
   :key="tb"
   type="button"
-  class="rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors"
+  class="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors"
   :class="cpTab === tb
   ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
   : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
@@ -4416,12 +4454,12 @@
 
   <div v-if="cpTab === 'about'">
   <div v-if="cpDetailLoading" class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current">
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   {{ t("mods.searching") }}
   </div>
-  <div v-else-if="cpDetail?.description" class="max-h-[46vh] overflow-y-auto rounded-md  bg-[var(--bg)] px-4 py-3 leading-relaxed">
+  <div v-else-if="cpDetail?.description" class="max-h-[46vh] overflow-y-auto rounded-md  bg-[var(--bg)] px-3.5 py-2.5 leading-relaxed">
   <p class="whitespace-pre-wrap text-[13px] text-[color:var(--tx)]">{{ cpDetail.description }}</p>
   </div>
   <div v-else class="py-8 text-center text-[13px] italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</div>
@@ -4429,7 +4467,7 @@
 
   <div v-else-if="cpTab === 'versions'">
   <div v-if="cpFiles === null" class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current">
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   {{ t("mods.searching") }}
@@ -4449,7 +4487,7 @@
   </div>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
   :disabled="cpBusy !== null"
   @click="installCpPack(f)"
   >
@@ -4467,7 +4505,7 @@
 
   <div v-else>
   <div v-if="cpDetailLoading" class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current">
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   {{ t("mods.searching") }}
@@ -4528,14 +4566,14 @@
   @click.self="createPackOpen = false"
   >
   <div class="flex w-full max-w-md flex-col overflow-hidden rounded-xl  bg-[var(--panel)] shadow-2xl">
-  <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("mods.createTitle") }}</h3>
   <button
   type="button"
   class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
   @click="createPackOpen = false"
   >
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
   </button>
   </div>
   <div class="space-y-4 overflow-y-auto p-4">
@@ -4613,7 +4651,7 @@
   v-for="l in CREATE_LOADERS"
   :key="l"
   type="button"
-  class="flex-1 rounded-md  px-3 py-1.5 text-[13px] font-medium capitalize transition-colors"
+  class="flex-1 rounded-md  px-2.5 py-1.5 text-[13px] font-medium capitalize transition-colors"
   :class="createPackLoader === l
   ? ' bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]'
   : ' bg-[var(--input)] text-[color:var(--tx)] hover:bg-[var(--hover)]'"
@@ -4653,7 +4691,7 @@
   <span>{{ t("mods.createLatest") }}</span>
   <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M12.78 4.22a.75.75 0 0 1 0 1.06l-5.78 5.78a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L6.5 9.44l5.22-5.22a.75.75 0 0 1 1.06 0Z"/></svg>
   </button>
-  <div v-if="!createPackLoaderVersions.length" class="px-3 py-1.5 text-xs text-[color:var(--tx-muted)]">{{ t("mods.createLvNone") }}</div>
+  <div v-if="!createPackLoaderVersions.length" class="px-2.5 py-1.5 text-xs text-[color:var(--tx-muted)]">{{ t("mods.createLvNone") }}</div>
   <button
   v-for="v in createPackLoaderVersions"
   :key="v"
@@ -4738,7 +4776,7 @@
   @click.self="closeBugReport"
   >
   <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl  bg-[var(--panel)] shadow-2xl">
-  <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("reportPack.modalTitle") }}</h3>
   <button
   type="button"
@@ -4748,8 +4786,8 @@
   ✕
   </button>
   </div>
-  <pre class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words px-4 py-3 font-mono text-[13px] leading-relaxed text-[color:var(--tx)]">{{ bugBody }}</pre>
-  <div class="flex shrink-0 items-center justify-end gap-2 border-t border-[var(--border)]  px-4 py-3">
+  <pre class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words px-3.5 py-2.5 font-mono text-[13px] leading-relaxed text-[color:var(--tx)]">{{ bugBody }}</pre>
+  <div class="flex shrink-0 items-center justify-end gap-2 border-t border-[var(--border)]  px-3.5 py-2.5">
   <span v-if="bugLog" class="mr-auto text-[13px] text-[color:var(--tx-muted)]">
   {{ t("reportPack.logNote", { n: bugLog.split("\n").slice(-60).length }) }}
   </span>
@@ -4762,7 +4800,7 @@
   </button>
   <button
   type="button"
-  class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)]"
+  class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)]"
   @click="openBugReportIssue"
   >
   {{ t("reportPack.open") }}
@@ -4778,9 +4816,9 @@
   @click.self="closeCrashAnalysis"
   >
   <div class="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl  bg-[var(--panel)] shadow-2xl">
-  <div class="flex shrink-0 items-start justify-between border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex shrink-0 items-start justify-between border-b border-[var(--border)]  px-3.5 py-2.5">
   <div class="flex items-center gap-2">
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-[var(--accent-deep)]"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm.75 8.5a.75.75 0 0 1-1.5 0V5.25a.75.75 0 0 1 1.5 0Zm-0.75 2.25a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8Z"/></svg>
+  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-[var(--accent-deep)]"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm.75 8.5a.75.75 0 0 1-1.5 0V5.25a.75.75 0 0 1 1.5 0Zm-0.75 2.25a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8Z"/></svg>
   <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("crash.title") }}</h3>
   </div>
   <button
@@ -4791,7 +4829,7 @@
   ✕
   </button>
   </div>
-  <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
+  <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-3.5 py-2.5">
   <div>
   <div class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ crashView(crashAnalysis).title }}</div>
   <p class="mt-0.5 text-[13px] leading-relaxed text-[color:var(--tx)]">{{ crashView(crashAnalysis).msg }}</p>
@@ -4818,7 +4856,7 @@
   <code class="font-mono text-[13px] text-[color:var(--tx)]">{{ crashAnalysis.file }}</code>
   </div>
   </div>
-  <div class="flex shrink-0 items-center justify-between gap-2 border-t border-[var(--border)]  px-4 py-3">
+  <div class="flex shrink-0 items-center justify-between gap-2 border-t border-[var(--border)]  px-3.5 py-2.5">
   <button
   type="button"
   class="rounded-md  bg-[var(--input)] px-3 py-2 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
@@ -4828,7 +4866,7 @@
   </button>
   <button
   type="button"
-  class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)]"
+  class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)]"
   @click="openCrashIssue"
   >
   {{ t("crash.report") }}
@@ -4842,7 +4880,7 @@
   <!-- Модалка: сканер модов (.jar → SHA256 + опасные классы) -->
   <div v-if="scannerOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" @click.self="scannerOpen = false">
   <div class="w-full max-w-lg overflow-hidden rounded-xl  bg-[var(--panel)] shadow-2xl">
-  <div class="flex items-center justify-between gap-2 border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex items-center justify-between gap-2 border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("scanner.title") }}</h3>
   <button type="button" class="rounded-md  bg-[var(--input)] px-2 py-1 text-[13px] text-[color:var(--tx-muted)] hover:text-[var(--accent)] transition-colors" @click="scannerOpen = false">
   <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 5.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 7l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 8.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 7 3.72 3.78a.75.75 0 0 1 0-1.06Z"/></svg>
@@ -4854,7 +4892,7 @@
   <div class="flex items-center gap-2">
   <button
   type="button"
-  class="flex-1 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
+  class="flex-1 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
   :disabled="scanBusy || !monoProfile"
   @click="pickAndScanJar"
   >
@@ -4870,8 +4908,8 @@
   <div class="flex items-center gap-2">
   <span class="inline-flex h-6 w-6 items-center justify-center rounded-full"
   :class="scanResult.safe ? 'bg-[#3fb950]/15 text-[#3fb950]' : 'bg-[#f85149]/20 text-[#f85149]'">
-  <svg v-if="scanResult.safe" viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm-1.31-4.21 4.55-4.55-1.06-1.06-3.49 3.49-1.42-1.42-1.06 1.06 2.48 2.48Z"/></svg>
-  <svg v-else viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M8 1.5A6.5 6.5 0 0 1 14.5 8 6.5 6.5 0 0 1 8 14.5 6.5 6.5 0 0 1 1.5 8 6.5 6.5 0 0 1 8 1.5ZM7.25 9.75h1.5V4.5h-1.5v5.25Zm0 3h1.5v-1.5h-1.5v1.5Z"/></svg>
+  <svg v-if="scanResult.safe" viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm-1.31-4.21 4.55-4.55-1.06-1.06-3.49 3.49-1.42-1.42-1.06 1.06 2.48 2.48Z"/></svg>
+  <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M8 1.5A6.5 6.5 0 0 1 14.5 8 6.5 6.5 0 0 1 8 14.5 6.5 6.5 0 0 1 1.5 8 6.5 6.5 0 0 1 8 1.5ZM7.25 9.75h1.5V4.5h-1.5v5.25Zm0 3h1.5v-1.5h-1.5v1.5Z"/></svg>
   </span>
   <p class="text-[13px] font-bold" :class="scanResult.safe ? 'text-[#3fb950]' : 'text-[#f85149]'">
   {{ scanResult.safe ? t("scanner.safe") : t("scanner.dangerous") }}
@@ -4919,7 +4957,7 @@
   <!-- Модалка: профиль пользователя (bio + сборки + комментарии) -->
   <div v-if="profileView || profileBusy" class="fixed inset-0 z-[65] flex items-center justify-center bg-black/60 p-4" @click.self="closeProfileView()">
   <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl  bg-[var(--panel)] shadow-2xl">
-  <div class="flex items-center justify-between gap-2 border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex items-center justify-between gap-2 border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("profile.title") }}</h3>
   <button type="button" class="rounded-md  bg-[var(--input)] px-2 py-1 text-[13px] text-[color:var(--tx-muted)] hover:text-[var(--accent)] transition-colors" @click="closeProfileView()">
   <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 5.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 7l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 8.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 7 3.72 3.78a.75.75 0 0 1 0-1.06Z"/></svg>
@@ -4927,12 +4965,12 @@
   </div>
 
   <div v-if="profileBusy && !profileView" class="flex items-center justify-center py-16 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
   {{ t("catalog.loading") }}
   </div>
 
   <template v-if="profileView">
-  <div class="flex items-center gap-3 border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex items-center gap-3 border-b border-[var(--border)]  px-3.5 py-2.5">
   <img v-if="profileView.profile.avatarUrl" :src="profileView.profile.avatarUrl" :alt="profileView.profile.user.username" class="h-12 w-12 shrink-0 rounded-full  object-cover" />
   <div v-else class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full  bg-[var(--input)] font-mono text-lg font-bold text-[var(--accent)]">
   {{ profileView.profile.user.username?.[0]?.toUpperCase() ?? "?" }}
@@ -4954,7 +4992,7 @@
   <template v-if="profileIsOwn && profileBioEditing">
   <textarea v-model="profileBioDraft" rows="3" class="w-full resize-y rounded-md  bg-[var(--bg)] px-3 py-2 text-[13px] text-[color:var(--tx)] placeholder-[var(--tx-muted)]  focus:outline-none"></textarea>
   <div class="mt-2 flex gap-2">
-  <button type="button" class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
+  <button type="button" class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
   :disabled="profileBusy"
   @click="saveMyProfile(profileBioDraft); profileBioEditing = false">
   {{ t("author.save") }}
@@ -5016,17 +5054,17 @@
   <!-- Модалка: смена версии Minecraft / загрузчика у своей сборки -->
   <div v-if="editVerOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" @click.self="editVerOpen = false">
   <div class="w-full max-w-md overflow-hidden rounded-xl  bg-[var(--panel)] shadow-2xl">
-  <div class="flex items-center justify-between gap-2 border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex items-center justify-between gap-2 border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("pack.versionTitle") }}</h3>
   <button
   type="button"
   class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
   @click="editVerOpen = false"
   >
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
   </button>
   </div>
-  <div class="space-y-3 px-4 py-3">
+  <div class="space-y-3 px-3.5 py-2.5">
   <div>
   <label class="mb-1 block text-[13px] font-medium text-[color:var(--tx-muted)]">{{ t("pack.editName") }}</label>
   <input
@@ -5079,7 +5117,7 @@
   <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)] transition-transform" :class="editVerMcOpen ? 'rotate-180' : ''"><path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"/></svg>
   </button>
   <div v-if="editVerMcOpen" class="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl  bg-[var(--panel)] shadow-sm shadow-2xl">
-  <input v-model="editVerMcQuery" class="w-full border-b border-[var(--border)]  bg-[var(--input)] px-3 py-1.5 text-[13px] outline-none placeholder:text-[var(--tx-muted)]" :placeholder="t('pack.versionSearch')" />
+  <input v-model="editVerMcQuery" class="w-full border-b border-[var(--border)]  bg-[var(--input)] px-2.5 py-1.5 text-[13px] outline-none placeholder:text-[var(--tx-muted)]" :placeholder="t('pack.versionSearch')" />
   <div class="max-h-52 overflow-y-auto py-1">
   <button
   v-for="v in editVerMcList"
@@ -5136,7 +5174,7 @@
   <span>{{ t("mods.createLatest") }}</span>
   <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M12.78 4.22a.75.75 0 0 1 0 1.06l-5.78 5.78a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L6.5 9.44l5.22-5.22a.75.75 0 0 1 1.06 0Z"/></svg>
   </button>
-  <div v-if="!editVerLoaderVersions.length" class="px-3 py-1.5 text-xs text-[color:var(--tx-muted)]">{{ t("mods.createLvNone") }}</div>
+  <div v-if="!editVerLoaderVersions.length" class="px-2.5 py-1.5 text-xs text-[color:var(--tx-muted)]">{{ t("mods.createLvNone") }}</div>
   <button
   v-for="v in editVerLoaderVersions"
   :key="v"
@@ -5155,14 +5193,14 @@
   <div class="flex items-center justify-end gap-2 pt-1">
   <button
   type="button"
-  class="rounded-md  bg-[var(--input)] px-3 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+  class="rounded-md  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
   @click="editVerOpen = false"
   >
   {{ t("files.cancel") }}
   </button>
   <button
   type="button"
-  class="flex items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
+  class="flex items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
   :disabled="editVerBusy"
   @click="saveEditVersion"
   >
@@ -5177,14 +5215,14 @@
   <!-- Модалка: выбор папок и файлов для экспорта сборки -->
   <div v-if="exportOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" @click.self="exportOpen = false">
   <div class="flex max-h-[80vh] w-full max-w-xl flex-col overflow-hidden rounded-xl  bg-[var(--panel)] shadow-2xl">
-  <div class="flex items-center justify-between gap-2 border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex items-center justify-between gap-2 border-b border-[var(--border)]  px-3.5 py-2.5">
   <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ authorImportMode ? t("author.importTitle") : exportFormat === "author" ? t("pack.exportAuthorTitle") : t("pack.exportTitle") }}</h3>
   <button
   type="button"
   class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
   @click="exportOpen = false"
   >
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
   </button>
   </div>
   <div class="flex items-center justify-between gap-2 border-b border-[var(--border)]  px-4 py-2">
@@ -5352,7 +5390,7 @@
   </div>
   </template>
   <div v-if="!authorImportMode && exportLoading" class="flex items-center justify-center gap-2 py-8 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+  <svg viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
   {{ t("pack.exportLoading") }}
   </div>
   <div v-else-if="!authorImportMode && exportItems.length === 0" class="px-2 py-8 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("pack.exportEmpty") }}</div>
@@ -5379,7 +5417,7 @@
   :indeterminate="exportSelectedCount(row.it.path).selected > 0 && exportSelectedCount(row.it.path).selected < exportSelectedCount(row.it.path).total"
   @change="toggleExport(row.it.path)"
   />
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] shrink-0 fill-[var(--tx-muted)]">
+  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)]">
   <path v-if="row.it.isDir" d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2A1.75 1.75 0 0 0 5 1H1.75Z"/>
   <path v-else d="M9 1H4.5A1.5 1.5 0 0 0 3 2.5v11A1.5 1.5 0 0 0 4.5 15h7A1.5 1.5 0 0 0 13 13.5V5l-4-4Z"/>
   </svg>
@@ -5389,7 +5427,7 @@
   </div>
   </div>
   </div>
-  <div class="flex items-center justify-end gap-2 border-t border-[var(--border)]  px-4 py-3">
+  <div class="flex items-center justify-end gap-2 border-t border-[var(--border)]  px-3.5 py-2.5">
   <label
   v-if="monoProfile && exportFormat === 'mrpack'"
   class="mr-auto flex cursor-pointer items-center gap-1.5 text-[13px] text-[color:var(--tx-muted)]"
@@ -5399,14 +5437,14 @@
   </label>
   <button
   type="button"
-  class="rounded-md  bg-[var(--input)] px-3 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+  class="rounded-md  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
   @click="exportOpen = false"
   >
   {{ t("files.cancel") }}
   </button>
   <button
   type="button"
-  class="flex items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
+  class="flex items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
   :disabled="exportBusy || exportLoading || (!authorImportMode && exportSelected.size === 0)"
   @click="authorImportMode ? doAuthorImport() : exportFormat === 'author' ? doAuthorExport() : doExport()"
   >
@@ -5433,13 +5471,13 @@
   >
   <SubTitleBar v-if="isSearchWin" />
   <div
-  class="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)]  px-4 py-3"
+  class="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)]  px-3.5 py-2.5"
   :class="isSearchWin ? '' : 'cursor-move'"
   @pointerdown="dragSearchWin"
   >
   <div class="flex min-w-0 items-center gap-2.5">
   <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg  bg-[var(--input)]">
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-[var(--accent)]"><path d="M10.68 1.997a5.5 5.5 0 0 1 4.553 8.573l.783 2.802a.5.5 0 0 1-.62.619l-2.775-.783A5.5 5.5 0 1 1 10.68 1.997ZM6.5 7A.75.75 0 0 0 6.5 8.5h4A.75.75 0 0 0 10.5 7h-4Zm0 3a.75.75 0 0 0 0 1.5h2.75a.75.75 0 0 0 0-1.5H6.5Z"/></svg>
+  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-[var(--accent)]"><path d="M10.68 1.997a5.5 5.5 0 0 1 4.553 8.573l.783 2.802a.5.5 0 0 1-.62.619l-2.775-.783A5.5 5.5 0 1 1 10.68 1.997ZM6.5 7A.75.75 0 0 0 6.5 8.5h4A.75.75 0 0 0 10.5 7h-4Zm0 3a.75.75 0 0 0 0 1.5h2.75a.75.75 0 0 0 0-1.5H6.5Z"/></svg>
   </div>
   <div class="min-w-0">
   <h3 class="truncate text-[15px] font-bold tracking-tight text-[color:var(--tx-strong)]">
@@ -5482,14 +5520,14 @@
   :title="t('common.close')"
   @click="closeSearch"
   >
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
   </button>
   </div>
   </div>
   <div v-if="searchService === 'curseforge' && !curseKeyOk" class="border-b border-[var(--border)]  px-4 py-2.5">
   <p class="text-[13px] text-[color:var(--tx-muted)]">{{ t("curse.noKey") }}</p>
   </div>
-  <div class="flex shrink-0 items-center gap-2 border-b border-[var(--border)]  px-4 py-3">
+  <div class="flex shrink-0 items-center gap-2 border-b border-[var(--border)]  px-3.5 py-2.5">
   <div class="relative min-w-0 flex-1">
   <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 fill-[var(--tx-muted)]">
   <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
@@ -5504,7 +5542,7 @@
   </div>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
   :disabled="searchLoading || !searchInput.trim()"
   @click="doSearch"
   >
@@ -5605,7 +5643,7 @@
   </span>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
   :disabled="multiSelBusy || quickModBusy !== null || modInstallBusy !== null"
   @click="downloadSelectedMods"
   >
@@ -5665,7 +5703,7 @@
   </div>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
   :disabled="quickModBusy !== null || modInstallBusy !== null"
   :title="t('mods.downloadHint')"
   @click="quickDownloadMod(modDetail, $event)"
@@ -5685,7 +5723,7 @@
   v-for="tb in modDetailTabs"
   :key="tb.kind"
   type="button"
-  class="rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors"
+  class="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors"
   :class="modDetailTab === tb.kind
   ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
   : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
@@ -5694,13 +5732,13 @@
   {{ t("mods.tab" + tb.kind) }}
   </button>
   </div>
-  <div v-if="modDetailTab === 'about'" class="max-h-[46vh] overflow-y-auto rounded-md  bg-[var(--bg)] px-4 py-3">
+  <div v-if="modDetailTab === 'about'" class="max-h-[46vh] overflow-y-auto rounded-md  bg-[var(--bg)] px-3.5 py-2.5">
   <Markdown v-if="modDetail.body" :source="modDetail.body" />
   <p v-else class="py-6 text-center text-[13px] italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
   </div>
   <div v-else-if="modDetailTab === 'versions'">
   <div v-if="modVersions === null" class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current">
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   {{ t("mods.searching") }}
@@ -5773,7 +5811,7 @@
   </template>
   <template v-else-if="modSearchLoading">
   <div class="flex items-center justify-center py-16 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current">
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   {{ t("mods.searching") }}
@@ -5785,7 +5823,7 @@
   <button
   v-if="modFiltersActive"
   type="button"
-  class="inline-flex items-center gap-1.5 rounded-md  bg-[var(--input)] px-3 py-1.5 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+  class="inline-flex items-center gap-1.5 rounded-md  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click="resetModFiltersAndSearch"
   >
   <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1A1.75 1.75 0 0 0 0 2.75v3.5C0 7.216.784 8 1.75 8h3.5A1.75 1.75 0 0 0 7 6.25v-3.5A1.75 1.75 0 0 0 5.25 1h-3.5ZM1 2.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-.75.75h-3.5a.75.75 0 0 1-.75-.75v-3.5Zm9-1.75A1.75 1.75 0 0 0 8.25 2.75v3.5A1.75 1.75 0 0 0 10 8h3.5A1.75 1.75 0 0 0 15.25 6.25v-3.5A1.75 1.75 0 0 0 13.5 1H10Zm-.75 1.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-.75.75H10a.75.75 0 0 1-.75-.75v-3.5ZM1.75 9A1.75 1.75 0 0 0 0 10.75v3.5A1.75 1.75 0 0 0 1.75 16h3.5A1.75 1.75 0 0 0 7 14.25v-3.5A1.75 1.75 0 0 0 5.25 9h-3.5Zm-.75 1.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-.75.75h-3.5a.75.75 0 0 1-.75-.75v-3.5ZM10 9A1.75 1.75 0 0 0 8.25 10.75v3.5A1.75 1.75 0 0 0 10 16h3.5A1.75 1.75 0 0 0 15.25 14.25v-3.5A1.75 1.75 0 0 0 13.5 9H10Zm-.75 1.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-.75.75H10a.75.75 0 0 1-.75-.75v-3.5Z"/></svg>
@@ -5835,7 +5873,7 @@
   </div>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
   :disabled="quickModBusy !== null || modInstallBusy !== null || installedModrinthSlugs.has(p.slug)"
   :title="t('mods.downloadHint')"
   @click="quickDownloadMod(p, $event)"
@@ -5856,7 +5894,7 @@
   </div>
   </template>
   <div v-if="modSearchMore || modSearchMoreBusy" class="flex justify-center py-4">
-  <svg v-if="modSearchMoreBusy" viewBox="0 0 16 16" class="h-[18px] w-[18px] animate-spin fill-[var(--tx-muted)]">
+  <svg v-if="modSearchMoreBusy" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-[var(--tx-muted)]">
   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
   </svg>
   <button
@@ -5867,7 +5905,7 @@
   >{{ t("mods.loadMore") }}</button>
   </div>
   </div>
-  <div v-else class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+  <div v-else class="min-h-0 flex-1 overflow-y-auto px-3.5 py-2.5">
   <div
   v-if="selCurse.size > 0 && !curseLoading"
   class="mb-3 flex flex-wrap items-center gap-2 rounded-md  bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-3 py-2"
@@ -5877,7 +5915,7 @@
   </span>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
   :disabled="multiSelBusy || curseInstallBusy !== null"
   @click="downloadSelectedCurse"
   >
@@ -5953,7 +5991,7 @@
   </div>
   <button
   type="button"
-  class="shrink-0 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="shrink-0 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
   :disabled="curseInstallBusy !== null && curseInstallBusy !== p.projectId || installedCurseIds.has(p.projectId)"
   @click="installCurse(p)"
   >
@@ -6005,7 +6043,7 @@
   class="rounded-md p-1.5 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
   @click="closeFileDetailWin"
   >
-  <svg viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
   </button>
   </div>
   </div>
@@ -6014,7 +6052,7 @@
   v-for="tb in fileDetailTabs"
   :key="tb.kind"
   type="button"
-  class="rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors"
+  class="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors"
   :class="fileDetailTab === tb.kind
   ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
   : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
@@ -6024,11 +6062,11 @@
   </button>
   </div>
   <div v-if="fileDetailMrLoading" class="flex min-h-0 flex-1 items-center justify-center text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
   {{ t("mods.searching") }}
   </div>
-  <div v-else-if="fileDetailMr" class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-  <div v-if="fileDetailTab === 'about'" class="rounded-md  bg-[var(--bg)] px-4 py-3">
+  <div v-else-if="fileDetailMr" class="min-h-0 flex-1 overflow-y-auto px-3.5 py-2.5">
+  <div v-if="fileDetailTab === 'about'" class="rounded-md  bg-[var(--bg)] px-3.5 py-2.5">
   <Markdown v-if="fileDetailMr.body" :source="fileDetailMr.body" />
   <p v-else class="py-6 text-center text-[13px] italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
   </div>
@@ -6039,7 +6077,7 @@
   <FilterSelect v-model="fileDetailTypeSel" :options="versionTypeOptions" :placeholder="t('mods.fType')" :multiple="false" />
   </div>
   <div v-if="fileDetailMrVersions === null" class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-[18px] w-[18px] animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
   {{ t("mods.searching") }}
   </div>
   <div v-else-if="fileDetailFilteredVersions.length === 0" class="rounded-md  bg-[var(--input-50)] p-6 text-center text-[13px] text-[color:var(--tx-muted)]">
@@ -6093,7 +6131,7 @@
   <p v-else class="py-10 text-center text-[13px] italic text-[color:var(--tx-muted)]">{{ t("mods.noGallery") }}</p>
   </div>
   </div>
-  <div v-else-if="fileDetailCf" class="min-h-0 flex-1 overflow-y-auto px-4 py-3 nice-scrollbar">
+  <div v-else-if="fileDetailCf" class="min-h-0 flex-1 overflow-y-auto px-3.5 py-2.5 nice-scrollbar">
   <div v-if="fileDetailTab === 'about'" class="space-y-4">
   <p class="whitespace-pre-wrap text-sm leading-relaxed text-[color:var(--tx)]">{{ fileDetailCf.description || t("mods.noAbout") }}</p>
   <dl class="grid grid-cols-2 gap-2 text-xs">
@@ -6144,7 +6182,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open as openDialog, save } from "@tauri-apps/plugin-dialog";
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, editPackVersion, exportPack as exportPackFn, exportSourceList, exportAuthorPack, uploadPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, installedModSha1, setPackIcon, setPackBanner, setPackName, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles, getStatus, addPackFile, setCloseToTray, autostartSet, autostartGet } from "~/lib/bridge";
+import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, editPackVersion, exportPack as exportPackFn, exportSourceList, exportAuthorPack, uploadPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, installedModSha1, setPackIcon, setPackBanner, setPackName, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles, getStatus, addPackFile, setCloseToTray, autostartSet, autostartGet, getUserJvmArgs, setUserJvmArgs } from "~/lib/bridge";
 import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit, CurseFile, CursePackFile, CurseProjectDetail } from "~/lib/bridge";
 import type { AuthorPackConfig, AuthorServer, AuthorSocial, AuthorTheme, CrashAnalysis, CurseInstallResult, ExportSourceItem, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackCatalog, PackDescriptor, ServerStatus, TrackedMod, AppStatus, DuplicateGroup } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
@@ -6408,6 +6446,8 @@ const {
   saveMyProfile,
   scanResult,
   scanBusy,
+  customScanBusy,
+  scanActiveCustomMods,
   scanModFile,
   scanByHash,
   authorCollaborators,
@@ -6521,6 +6561,47 @@ function openCrashIssue() {
 }
 
 const customModsOpen = ref(false);
+
+// Пользовательские JVM-аргументы (настройки сборки).
+const jvmArgs = ref("");
+const jvmArgsSaving = ref(false);
+async function loadJvmArgs() {
+  if (!isTauri()) return;
+  try { jvmArgs.value = await getUserJvmArgs(); } catch { /* ignore */ }
+}
+async function saveJvmArgs() {
+  if (!isTauri() || jvmArgsSaving.value) return;
+  jvmArgsSaving.value = true;
+  try {
+    await setUserJvmArgs(jvmArgs.value.trim());
+    notify(t("settings.jvmArgsSaved"), "success");
+  } catch (e) {
+    notify(t("files.updateErr", { e }), "error");
+  } finally {
+    jvmArgsSaving.value = false;
+  }
+}
+watch(playSubTab, (tab) => { if (tab === "settings") void loadJvmArgs(); }, { immediate: true });
+
+// Цвет плашки кастомных модов: зелёный — все проверены и безопасны,
+// красный — есть опасные, жёлтый (по умолчанию) — есть непроверенные.
+const customBannerState = computed<"safe" | "danger" | "warn">(() => {
+  const mods = status.value?.custom_mods ?? [];
+  if (!mods.length) return "warn";
+  if (mods.some((f) => f.scan_result && f.safe === false)) return "danger";
+  if (mods.every((f) => f.scan_result && f.safe)) return "safe";
+  return "warn";
+});
+const customBannerClass = computed(() => ({
+  safe: "bg-[#238636]/10 text-[#3fb950]",
+  danger: "bg-[#da3633]/10 text-[#f85149]",
+  warn: "bg-[#9e6a03]/10 text-[#d29922]",
+}[customBannerState.value]));
+const customBannerNoteClass = computed(() => ({
+  safe: "text-[#3fb950]",
+  danger: "text-[#f85149]",
+  warn: "text-[#e3b341]",
+}[customBannerState.value]));
 
 const catalogSource = ref<"mono" | "modrinth" | "curse">("mono");
 
@@ -10460,6 +10541,8 @@ provide(LauncherCtxKey, {
   endSidebarDrag,
   createPackOpen,
   customModsOpen,
+  customScanBusy,
+  scanActiveCustomMods,
   openEditVersion,
   openPackTab,
   activePackRepo,

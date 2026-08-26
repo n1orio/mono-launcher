@@ -9,7 +9,7 @@ use futures::future::try_join_all;
 use futures::StreamExt;
 use reqwest::Client;
 use sha1::{Digest, Sha1};
-use sha2::Sha512;
+use sha2::{Sha256, Sha512};
 use tauri::{AppHandle, Emitter};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Semaphore;
@@ -140,6 +140,15 @@ fn resolve_url(file: &IndexFile) -> Option<&str> {
 pub struct CustomFile {
     pub path: String,
     pub url: String,
+    /// SHA256 файла (заполняется автосканером после установки).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
+    /// Вердикт сканера: true = безопасен, false = опасные классы.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub safe: Option<bool>,
+    /// Текстовый результат скана ("safe"/"dangerous: ..." и т.п.).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scan_result: Option<String>,
 }
 
 /// Хосты, которым доверяем как источникам файлов сборки.
@@ -163,6 +172,9 @@ fn custom_file(file: &IndexFile) -> Option<CustomFile> {
         Some(CustomFile {
             path: file.path.clone(),
             url,
+            sha256: None,
+            safe: None,
+            scan_result: None,
         })
     }
 }
@@ -835,6 +847,110 @@ pub fn installed_details(pack_id: &str) -> Vec<InstalledVersion> {
     out
 }
 
+/// Сколько установленных версий сборки держать на диске (включая активную).
+pub const KEEP_VERSIONS: usize = 3;
+
+/// Автоочистка: оставляет активную версию и `keep` самых новых по времени
+/// изменения папки, остальные установленные удаляет. Возвращает удалённые id.
+pub fn cleanup_old_versions(pack_id: &str, keep: usize) -> Vec<String> {
+    let active = config::active_version(pack_id).unwrap_or_default();
+    let Ok(root) = config::versions_root(pack_id) else {
+        return Vec::new();
+    };
+    let Ok(entries) = fs::read_dir(&root) else {
+        return Vec::new();
+    };
+    let mut dirs: Vec<(std::time::SystemTime, String, std::path::PathBuf)> = entries
+        .flatten()
+        .filter(|e| e.path().is_dir() && e.path().join(INSTALL_MARKER).exists())
+        .filter_map(|e| {
+            let meta = e.metadata().ok()?;
+            let modified = meta.modified().ok()?;
+            Some((
+                modified,
+                e.file_name().to_string_lossy().to_string(),
+                e.path(),
+            ))
+        })
+        .collect();
+    dirs.sort_by_key(|(t, _, _)| std::cmp::Reverse(*t)); // свежие сверху
+    let mut removed = Vec::new();
+    let mut kept = 0usize;
+    for (_, id, path) in dirs {
+        if id == active || kept < keep {
+            if id != active {
+                kept += 1;
+            }
+            continue;
+        }
+        if fs::remove_dir_all(&path).is_ok() {
+            removed.push(id);
+        }
+    }
+    removed
+}
+
+/// Бэкап пользовательских данных версии перед обновлением: `saves/`, `config/`,
+/// `options.txt`, `servers.dat` → zip в `<корень>/backups/<pack_id>/`.
+/// Возвращает путь к архиву или None, если бэкапить нечего.
+pub fn backup_version(pack_id: &str, version: &str) -> Result<Option<PathBuf>> {
+    use std::io::Read;
+    let dir = config::version_dir(pack_id, version)?;
+    if !dir.exists() {
+        return Ok(None);
+    }
+    // Что бэкапим: папки целиком + отдельные файлы в корне версии.
+    let mut files: Vec<PathBuf> = Vec::new();
+    for sub in ["saves", "config"] {
+        let d = dir.join(sub);
+        if d.is_dir() {
+            let mut queue = vec![d.clone()];
+            while let Some(q) = queue.pop() {
+                for e in fs::read_dir(&q)? {
+                    let p = e?.path();
+                    if p.is_dir() {
+                        queue.push(p);
+                    } else {
+                        files.push(p);
+                    }
+                }
+            }
+        }
+    }
+    for f in ["options.txt", "servers.dat", "servers.dat_old"] {
+        let p = dir.join(f);
+        if p.is_file() {
+            files.push(p);
+        }
+    }
+    if files.is_empty() {
+        return Ok(None);
+    }
+
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let out_dir = config::launcher_root()?.join("backups").join(pack_id);
+    fs::create_dir_all(&out_dir)?;
+    let out_path = out_dir.join(format!("{version}-{ts}.zip"));
+    let file = fs::File::create(&out_path)?;
+    let mut zip = zip::ZipWriter::new(file);
+    let options: zip::write::SimpleFileOptions = Default::default();
+    for p in &files {
+        let Ok(rel) = p.strip_prefix(&dir) else { continue };
+        let Ok(mut f) = fs::File::open(p) else { continue };
+        if zip.start_file(rel.to_string_lossy(), options).is_err() {
+            continue;
+        }
+        let mut buf = Vec::new();
+        let _ = f.read_to_end(&mut buf);
+        let _ = std::io::Write::write_all(&mut zip, &buf);
+    }
+    zip.finish()?;
+    Ok(Some(out_path))
+}
+
 /// Возвращает индекс установленной версии из её папки (если есть).
 pub fn read_version_index(pack_id: &str, version_id: &str) -> Option<ModrinthIndex> {
     let dir = config::version_dir(pack_id, version_id).ok()?;
@@ -998,6 +1114,9 @@ pub(crate) fn collect_override_jars(extract_dir: &Path, custom: &mut Vec<CustomF
                 custom.push(CustomFile {
                     path: rel.to_string_lossy().to_string(),
                     url: "overrides (внутри .mrpack)".to_string(),
+                    sha256: None,
+                    safe: None,
+                    scan_result: None,
                 });
             }
         }
@@ -1014,6 +1133,96 @@ pub fn read_custom_mods(pack_id: &str, version: &str) -> Vec<CustomFile> {
         return Vec::new();
     };
     serde_json::from_slice(&data).unwrap_or_default()
+}
+
+/// Сохраняет обновлённый список кастомных файлов версии.
+pub fn write_custom_mods(pack_id: &str, version: &str, mods: &[CustomFile]) -> Result<()> {
+    let dir = config::version_dir(pack_id, version)?;
+    fs::write(
+        dir.join(CUSTOM_MODS_FILE),
+        serde_json::to_vec_pretty(mods)?,
+    )?;
+    Ok(())
+}
+
+/// SHA256 файла в hex (нижний регистр) — для сверки со сканером на бэкенде.
+pub fn sha256_file(path: &Path) -> Result<String> {
+    let mut file = fs::File::open(path)?;
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut file, &mut hasher)?;
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+/// Автоскан кастомных модов установленной версии: для каждого файла считается
+/// SHA256 и проверяется по базе сканера; неизвестные хэши при наличии токена
+/// Mono загружаются в сканер полностью. Результат пишется обратно в маркер.
+/// Ошибки сети/сканера не роняют установку — файл остаётся непроверенным,
+/// а текст ошибки возвращается вторым элементом.
+pub async fn auto_scan_custom_mods(
+    client: &Client,
+    pack_id: &str,
+    version: &str,
+    token: Option<&str>,
+) -> (Vec<CustomFile>, Vec<String>) {
+    let mut errors = Vec::new();
+    let mut mods = read_custom_mods(pack_id, version);
+    if mods.is_empty() {
+        return (mods, errors);
+    }
+    let Ok(game_dir) = config::version_dir(pack_id, version) else {
+        return (mods, errors);
+    };
+    // Пустой токен = не авторизован: полная проверка недоступна, только кэш хэшей.
+    let token = token.filter(|t| !t.trim().is_empty());
+    for cf in mods.iter_mut() {
+        if cf.sha256.is_some() && cf.scan_result.is_some() {
+            continue;
+        }
+        let path = game_dir.join(&cf.path);
+        if !path.exists() {
+            continue;
+        }
+        let sha = match sha256_file(&path) {
+            Ok(s) => s,
+            Err(e) => {
+                errors.push(format!("{}: {e}", cf.path));
+                continue;
+            }
+        };
+        cf.sha256 = Some(sha.clone());
+        let verdict = match crate::auth::mono_check_hash(client, &sha).await {
+            Ok(r) => Some(r).filter(|r| r.scan_result != "unknown"),
+            Err(e) => {
+                errors.push(format!("{}: проверка хэша: {e}", cf.path));
+                None
+            }
+        };
+        match verdict {
+            Some(r) => {
+                cf.safe = Some(r.safe);
+                cf.scan_result = Some(r.scan_result);
+            }
+            None => {
+                let Some(tok) = token else {
+                    errors.push(format!("{}: неизвестный хэш, нужен вход в Mono", cf.path));
+                    continue;
+                };
+                if let Err(e) =
+                    crate::auth::mono_scan_mod(client, tok, &path.to_string_lossy()).await
+                {
+                    errors.push(format!("{}: сканер: {e}", cf.path));
+                    continue;
+                }
+                // После загрузки результат точно в базе — перечитываем по хэшу.
+                if let Ok(r) = crate::auth::mono_check_hash(client, &sha).await {
+                    cf.safe = Some(r.safe);
+                    cf.scan_result = Some(r.scan_result);
+                }
+            }
+        }
+    }
+    let _ = write_custom_mods(pack_id, version, &mods);
+    (mods, errors)
 }
 
 /// Maven-координата `group:artifact:version[:classifier]` → относительный путь
