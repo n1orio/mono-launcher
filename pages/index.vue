@@ -1587,9 +1587,9 @@
   </div>
   <div v-else-if="fileDetailTab === 'versions'">
   <div class="mb-2 flex flex-wrap items-center gap-2">
-  <FilterSelect v-model="fileDetailMcSel" :options="fileDetailMcOptions" :placeholder="t('curse.fVersion')" :multiple="false" />
-  <FilterSelect v-model="fileDetailLoaderSel" :options="fileDetailLoaderOptions" :placeholder="t('mods.fLoader')" :multiple="false" />
-  <FilterSelect v-model="fileDetailTypeSel" :options="versionTypeOptions" :placeholder="t('mods.fType')" :multiple="false" />
+  <FilterSelect v-model="fileDetailMcSel" :options="fileDetailMcOptions" :placeholder="t('curse.fVersion')" :multiple="true" />
+  <FilterSelect v-model="fileDetailLoaderSel" :options="fileDetailLoaderOptions" :placeholder="t('mods.fLoader')" :multiple="true" />
+  <FilterSelect v-model="fileDetailTypeSel" :options="versionTypeOptions" :placeholder="t('mods.fType')" :multiple="true" />
   </div>
   <div v-if="fileDetailMrVersions === null" class="flex items-center justify-center py-4 text-[13px] text-[color:var(--tx-muted)]">
   <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
@@ -5746,9 +5746,9 @@
   <div v-else-if="modVersions.length === 0" class="py-8 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("mods.noVersions") }}</div>
   <div v-else class="space-y-2">
   <div v-if="modVersionsRaw.length > 1" class="flex flex-wrap items-center gap-2">
-  <FilterSelect v-model="verFilterMcSel" :options="verFilterMcOptions" :placeholder="t('curse.fVersion')" :multiple="false" />
-  <FilterSelect v-model="verFilterLoaderSel" :options="verFilterLoaderOptions" :placeholder="t('curse.fLoader')" :multiple="false" />
-  <FilterSelect v-model="verFilterTypeSel" :options="verFilterTypeOptions" :placeholder="t('mods.fType')" :multiple="false" />
+  <FilterSelect v-model="verFilterMcSel" :options="verFilterMcOptions" :placeholder="t('curse.fVersion')" :multiple="true" />
+  <FilterSelect v-model="verFilterLoaderSel" :options="verFilterLoaderOptions" :placeholder="t('curse.fLoader')" :multiple="true" />
+  <FilterSelect v-model="verFilterTypeSel" :options="verFilterTypeOptions" :placeholder="t('mods.fType')" :multiple="true" />
   </div>
   <p v-if="filteredModVersions.length === 0" class="py-6 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("mods.noVersions") }}</p>
   <div
@@ -5764,12 +5764,6 @@
   <div class="min-w-0 flex-1">
   <div class="flex items-center gap-1.5">
   <span class="truncate text-[13px] font-medium text-[color:var(--tx-strong)]">{{ v.name }}</span>
-  <span
-  v-if="status?.minecraft_version && v.gameVersions.includes(status.minecraft_version)"
-  class="shrink-0 rounded-full  bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-1.5 py-px text-[11px] font-medium text-[var(--accent)]"
-  >
-  {{ t("mods.versionMatch") }}
-  </span>
   </div>
   <div class="truncate text-xs text-[color:var(--tx-muted)]">
   {{ v.loaders.map(cap).join(" · ") || "vanilla" }} · {{ v.gameVersions.slice(0, 2).join(", ") }} · {{ formatDate(v.datePublished) }}
@@ -6072,9 +6066,9 @@
   </div>
   <div v-else-if="fileDetailTab === 'versions'">
   <div v-if="fileDetailMrVersions !== null" class="mb-2 flex flex-wrap items-center gap-2">
-  <FilterSelect v-model="fileDetailMcSel" :options="fileDetailMcOptions" :placeholder="t('curse.fVersion')" :multiple="false" />
-  <FilterSelect v-model="fileDetailLoaderSel" :options="fileDetailLoaderOptions" :placeholder="t('mods.fLoader')" :multiple="false" />
-  <FilterSelect v-model="fileDetailTypeSel" :options="versionTypeOptions" :placeholder="t('mods.fType')" :multiple="false" />
+  <FilterSelect v-model="fileDetailMcSel" :options="fileDetailMcOptions" :placeholder="t('curse.fVersion')" :multiple="true" />
+  <FilterSelect v-model="fileDetailLoaderSel" :options="fileDetailLoaderOptions" :placeholder="t('mods.fLoader')" :multiple="true" />
+  <FilterSelect v-model="fileDetailTypeSel" :options="versionTypeOptions" :placeholder="t('mods.fType')" :multiple="true" />
   </div>
   <div v-if="fileDetailMrVersions === null" class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
   <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
@@ -7581,9 +7575,9 @@ let modSearchGen = 0;
 const MOD_SEARCH_PAGE = 20;
 const modVersions = ref<ModrinthVersion[] | null>(null);
 const modVersionsRaw = ref<ModrinthVersion[]>([]);
-const verFilterMc = ref("");
-const verFilterLoader = ref("");
-const verFilterType = ref("");
+const verFilterMc = ref<string[]>([]);
+const verFilterLoader = ref<string[]>([]);
+const verFilterType = ref<string[]>([]);
 
 const verFilterMcOptions = computed(() =>
   Array.from(new Set(modVersionsRaw.value.flatMap((v) => v.gameVersions)))
@@ -7602,23 +7596,23 @@ const verFilterTypeOptions = computed(() =>
 );
 const filteredModVersions = computed(() =>
   modVersionsRaw.value.filter((v) => {
-  if (verFilterMc.value && !v.gameVersions.includes(verFilterMc.value)) return false;
-  if (verFilterLoader.value && !v.loaders.includes(verFilterLoader.value)) return false;
-  if (verFilterType.value && v.versionType !== verFilterType.value) return false;
+  if (verFilterMc.value.length > 0 && !verFilterMc.value.some((mc) => v.gameVersions.includes(mc))) return false;
+  if (verFilterLoader.value.length > 0 && !verFilterLoader.value.some((l) => v.loaders.includes(l))) return false;
+  if (verFilterType.value.length > 0 && !verFilterType.value.includes(v.versionType)) return false;
   return true;
   })
 );
 const verFilterMcSel = computed({
-  get: () => (verFilterMc.value ? [verFilterMc.value] : []),
-  set: (v: string[]) => { verFilterMc.value = v[0] ?? ""; },
+  get: () => verFilterMc.value,
+  set: (v: string[]) => { verFilterMc.value = v; },
 });
 const verFilterLoaderSel = computed({
-  get: () => (verFilterLoader.value ? [verFilterLoader.value] : []),
-  set: (v: string[]) => { verFilterLoader.value = v[0] ?? ""; },
+  get: () => verFilterLoader.value,
+  set: (v: string[]) => { verFilterLoader.value = v; },
 });
 const verFilterTypeSel = computed({
-  get: () => (verFilterType.value ? [verFilterType.value] : []),
-  set: (v: string[]) => { verFilterType.value = v[0] ?? ""; },
+  get: () => verFilterType.value,
+  set: (v: string[]) => { verFilterType.value = v; },
 });
 const verTypeColor = (ty: string) =>
   ty === "beta" ? "#f59e0b" : ty === "alpha" ? "#ef4444" : "#22c55e";
@@ -7671,7 +7665,7 @@ const fileDetailMrLoading = ref(false);
 const fileDetailMr = ref<ModrinthProject | null>(null);
 const fileDetailMrVersions = ref<ModrinthVersion[] | null>(null);
 const fileDetailInstalledSha = ref<string | null>(null);
-const fileDetailMcFilter = ref<string | null>(null);
+const fileDetailMcFilter = ref<string[]>([]);
 const fileDetailTab = ref<"about" | "versions" | "gallery">("about");
 const fileDetailTabs = computed<{ kind: "about" | "versions" | "gallery" }[]>(() =>
   fileDetailMr.value
@@ -7796,16 +7790,18 @@ async function openFileDetail(folder: GameFolderKind, entry: GameFileEntry) {
   fileDetailCf.value = null;
   fileDetailCfVersions.value = null;
   fileDetailCfMcFilter.value = null;
-  fileDetailMcFilter.value = status.value?.minecraft_version || null;
-  fileDetailLoaderFilter.value = "";
-  fileDetailTypeFilter.value = "";
   fileDetailTab.value = "about";
   if (slug) {
   fileDetailMrLoading.value = true;
   try {
   fileDetailMr.value = await modrinthProject(slug);
   const fl = folder === "saves" && (entry.kind === "dir" ? true : false) ? "mods" : folder;
-  void loadFileDetailVersions(slug, fl);
+  await loadFileDetailVersions(slug, fl);
+  const ver = status.value?.minecraft_version;
+  const ldr = status.value?.loader?.replace("-loader", "");
+  fileDetailMcFilter.value = ver ? [ver] : [];
+  fileDetailLoaderFilter.value = ldr ? [ldr] : [];
+  fileDetailTypeFilter.value = [];
   void loadFileDetailInstalledSha(fileDetailMr.value.projectId);
   } catch {
   /* не удалось — остаётся placeholder проекта */
@@ -7865,36 +7861,28 @@ const fileDetailLoaderOptions = computed(() =>
 );
 
 const fileDetailMcSel = computed({
-  get: () => (fileDetailMcFilter.value ? [fileDetailMcFilter.value] : []),
-  set: (v: string[]) => { fileDetailMcFilter.value = v[0] ?? null; },
+  get: () => fileDetailMcFilter.value,
+  set: (v: string[]) => { fileDetailMcFilter.value = v; },
 });
-const fileDetailLoaderFilter = ref("");
-const fileDetailTypeFilter = ref("");
+const fileDetailLoaderFilter = ref<string[]>([]);
+const fileDetailTypeFilter = ref<string[]>([]);
 const fileDetailLoaderSel = computed({
-  get: () => (fileDetailLoaderFilter.value ? [fileDetailLoaderFilter.value] : []),
-  set: (v: string[]) => { fileDetailLoaderFilter.value = v[0] ?? ""; },
+  get: () => fileDetailLoaderFilter.value,
+  set: (v: string[]) => { fileDetailLoaderFilter.value = v; },
 });
 const fileDetailTypeSel = computed({
-  get: () => (fileDetailTypeFilter.value ? [fileDetailTypeFilter.value] : []),
-  set: (v: string[]) => { fileDetailTypeFilter.value = v[0] ?? ""; },
+  get: () => fileDetailTypeFilter.value,
+  set: (v: string[]) => { fileDetailTypeFilter.value = v; },
 });
 
-/** Версии с применёнными фильтрами (версия игры, загрузчик, канал):
- *  сначала подходящие под выбранную версию сборки, затем остальные. */
+/** Версии с применёнными фильтрами (версия игры, загрузчик, канал). */
 const fileDetailFilteredVersions = computed<ModrinthVersion[]>(() => {
   const all = fileDetailMrVersions.value ?? [];
-  const explicit = all.filter((v) =>
-  (!fileDetailMcFilter.value || v.gameVersions.includes(fileDetailMcFilter.value)) &&
-  (!fileDetailLoaderFilter.value || v.loaders.includes(fileDetailLoaderFilter.value)) &&
-  (!fileDetailTypeFilter.value || v.versionType === fileDetailTypeFilter.value)
+  return all.filter((v) =>
+  (fileDetailMcFilter.value.length === 0 || fileDetailMcFilter.value.some((mc) => v.gameVersions.includes(mc))) &&
+  (fileDetailLoaderFilter.value.length === 0 || fileDetailLoaderFilter.value.some((l) => v.loaders.includes(l))) &&
+  (fileDetailTypeFilter.value.length === 0 || fileDetailTypeFilter.value.includes(v.versionType))
   );
-  const mc = status.value?.minecraft_version;
-  const loader = status.value?.loader?.replace("-loader", "");
-  const isMod = fileDetailFolder.value !== "saves";
-  const matchLoader = isMod && loader ? (v: ModrinthVersion) => v.loaders.includes(loader) : () => true;
-  const match = mc ? explicit.filter((v) => v.gameVersions.includes(mc) && matchLoader(v)) : explicit;
-  const rest = mc ? explicit.filter((v) => !match.includes(v)) : [];
-  return [...match, ...rest];
 });
 
 /** Сортировка версий «1.21.1» по убыванию (новые сверху). */
@@ -8677,21 +8665,17 @@ const updatesByFile = computed(() => {
  *  часто поддержаны только на vanilla, даже в fabric-сборках. */
 async function openModVersions(p: ModrinthProject) {
   modVersions.value = null;
-  verFilterMc.value = "";
-  verFilterLoader.value = "";
-  verFilterType.value = "";
+  verFilterMc.value = [];
+  verFilterLoader.value = [];
+  verFilterType.value = [];
   try {
   const all = await modrinthProjectVersions(p.projectId);
   modVersionsRaw.value = all;
+  modVersions.value = all;
   const mc = status.value?.minecraft_version;
   const loader = status.value?.loader?.replace("-loader", "");
-  const kind = modSearchKind.value;
-  const matchLoader = kind === "mod" && loader ? (v: ModrinthVersion) => v.loaders.includes(loader) : () => true;
-  const match = mc
-  ? all.filter((v) => v.gameVersions.includes(mc) && matchLoader(v))
-  : all;
-  const rest = mc ? all.filter((v) => !match.includes(v)) : [];
-  modVersions.value = [...match, ...rest];
+  verFilterMc.value = mc ? [mc] : [];
+  verFilterLoader.value = loader ? [loader] : [];
   } catch (e) {
   modSearchErr.value = String(e);
   modVersions.value = [];
@@ -10467,9 +10451,6 @@ if (isFileDetailWin.value) {
   const slug = typeof q.slug === "string" ? q.slug : "";
   const cfid = typeof q.cfid === "string" && q.cfid ? q.cfid : "";
   fileDetailFolder.value = folder;
-  fileDetailMcFilter.value = status.value?.minecraft_version || null;
-  fileDetailLoaderFilter.value = "";
-  fileDetailTypeFilter.value = "";
   fileDetailTab.value = "about";
   if (slug) {
   fileDetail.value = {
@@ -10477,14 +10458,18 @@ if (isFileDetailWin.value) {
   entry: { name: "", displayName: fileDetailTitle.value, kind: "file", enabled: true, sizeBytes: 0, modified: 0, modrinthProjectId: slug },
   };
   void (async () => {
-  await load();
   if (typeof q.packId === "string" && q.packId) packId.value = q.packId;
-  fileDetailMcFilter.value = status.value?.minecraft_version || null;
+  await load();
   fileDetailMrLoading.value = true;
   try {
   fileDetailMr.value = await modrinthProject(slug);
   const fl = folder === "saves" ? "mods" : folder;
   await loadFileDetailVersions(slug, fl);
+  const ver = status.value?.minecraft_version;
+  const ldr = status.value?.loader?.replace("-loader", "");
+  fileDetailMcFilter.value = ver ? [ver] : [];
+  fileDetailLoaderFilter.value = ldr ? [ldr] : [];
+  fileDetailTypeFilter.value = [];
   await loadFileDetailInstalledSha(fileDetailMr.value.projectId);
   } catch {
   fileDetailMr.value = null;
@@ -10499,8 +10484,8 @@ if (isFileDetailWin.value) {
   entry: { name: "", displayName: fileDetailTitle.value, kind: "file", enabled: true, sizeBytes: 0, modified: 0, curseforgeProjectId: cfIdNum },
   };
   void (async () => {
-  await load();
   if (typeof q.packId === "string" && q.packId) packId.value = q.packId;
+  await load();
   void loadFileDetailCfVersions(cfIdNum);
   fileDetailCfLoading.value = true;
   try {
