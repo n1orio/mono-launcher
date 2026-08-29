@@ -167,6 +167,10 @@ fn file_ext_for_class(class_id: u32) -> &'static str {
 pub struct CurseSearchHit {
     pub project_id: u32,
     pub name: String,
+    /// Полное описание из проекта CurseForge (если есть).
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Краткое описание.
     pub summary: String,
     pub author: String,
     pub download_count: u64,
@@ -187,6 +191,9 @@ struct SearchResp {
 struct SearchItem {
     id: u32,
     name: String,
+    /// Полное описание (может быть null в API)
+    #[serde(default)]
+    description: Option<String>,
     summary: String,
     download_count: u64,
     authors: Vec<Author>,
@@ -278,6 +285,7 @@ pub async fn search(
         .map(|i| CurseSearchHit {
             project_id: i.id,
             name: i.name,
+            description: i.description,  // Полное описание из проекта (может быть null)
             summary: i.summary,
             author: i.authors.first().map(|a| a.name.clone()).unwrap_or_default(),
             download_count: i.download_count,
@@ -576,10 +584,18 @@ struct ProjectResp {
 #[serde(rename_all = "camelCase")]
 struct ProjectItem {
     id: u32,
+    #[serde(default)]
     name: String,
+    #[serde(default)]
     slug: String,
+    #[serde(default)]
     summary: String,
-    description: String,
+    /// Полное описание (может быть HTML) из CurseForge API.
+    #[serde(default)]
+    description: Option<String>,
+    /// Альтернативное поле с текстовым описанием (если description пустой).
+    #[serde(alias="descriptionContent", default)]
+    description_text: Option<String>,
     logo: Option<LogoItem>,
     #[serde(default)]
     screenshots: Vec<LogoItem>,
@@ -608,12 +624,16 @@ struct ProjectLinks {
 /// Полное описание проекта CurseForge (деталка сборки: описание/скриншоты).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+/// Результат CurseForge project endpoint.
+/// `description` — полное HTML из проекта CurseForge (может быть null), используется для отображения описания.
 pub struct CurseProjectDetail {
     pub project_id: u32,
     pub name: String,
     pub slug: String,
+    /// Полное HTML описание из проекта CurseForge (если есть в API).
+    pub description: Option<String>,
+    /// Краткое текстовое описание как fallback.
     pub summary: String,
-    pub description: String,
     pub author: String,
     pub download_count: u64,
     pub icon_url: Option<String>,
@@ -669,28 +689,31 @@ pub async fn project_detail(
         .json()
         .await?;
     let d = resp.data;
-    Ok(CurseProjectDetail {
-        project_id: d.id,
-        name: d.name,
-        slug: d.slug,
-        summary: d.summary,
-        description: d.description,
-        author: d.authors.first().map(|a| a.name.clone()).unwrap_or_default(),
-        download_count: d.download_count,
-        icon_url: d
-            .logo
-            .as_ref()
-            .map(|l| {
-                if !l.thumbnail_url.is_empty() {
-                    l.thumbnail_url.clone()
-                } else {
-                    l.url.clone()
-                }
-            }),
-        screenshots: d.screenshots.into_iter().map(|s| s.url).collect(),
-        categories: d.categories.into_iter().map(|c| c.name).collect(),
-        website_url: d.links.website_url,
-    })
+        // CurseForge API v1: description часто null, summary — краткое описание
+        // description — полное HTML из API, summary — краткое описание как fallback
+        Ok(CurseProjectDetail {
+            project_id: d.id,
+            name: d.name,
+            slug: d.slug,
+            description: d.description.clone(),  // Полное HTML описание из проекта CurseForge (может быть null)
+            summary: d.summary,
+
+            author: d.authors.first().map(|a| a.name.clone()).unwrap_or_default(),
+            download_count: d.download_count,
+            icon_url: d
+                .logo
+                .as_ref()
+                .map(|l| {
+                    if !l.thumbnail_url.is_empty() {
+                        l.thumbnail_url.clone()
+                    } else {
+                        l.url.clone()
+                    }
+                }),
+            screenshots: d.screenshots.into_iter().map(|s| s.url).collect(),
+            categories: d.categories.into_iter().map(|c| c.name).collect(),
+            website_url: d.links.website_url,
+        })
 }
 
 /// Выбирает подходящий файл: последний по дате; при указании версии
