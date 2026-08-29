@@ -3,6 +3,12 @@ export default defineNuxtConfig({
   compatibilityDate: "2026-08-09",
   devtools: { enabled: false },
 
+  components: {
+    dirs: [
+      { path: "~/components", pathPrefix: false },
+    ],
+  },
+
   postcss: {
     plugins: {
       tailwindcss: {},

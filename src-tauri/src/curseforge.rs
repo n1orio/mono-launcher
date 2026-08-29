@@ -234,9 +234,10 @@ pub async fn search(
     client: &reqwest::Client,
     query: &str,
     class_id: u32,
-    category_id: Option<u32>,
+    category_ids: &[u32],
     game_version: Option<&str>,
     sort_field: Option<&str>,
+    mod_loader_type: Option<u32>,
 ) -> Result<Vec<CurseSearchHit>> {
     let key = require_api_key()?;
     let mut req = client
@@ -251,8 +252,11 @@ pub async fn search(
             ("sortField", sort_field.unwrap_or("2").to_string()),
             ("sortOrder", "desc".to_string()),
         ]);
-    if let Some(cat) = category_id {
+    for cat in category_ids {
         req = req.query(&[("categoryId", cat.to_string())]);
+    }
+    if let Some(lt) = mod_loader_type {
+        req = req.query(&[("modLoaderType", lt.to_string())]);
     }
     if let Some(gv) = game_version.filter(|v| !v.trim().is_empty()) {
         req = req.query(&[("gameVersion", gv.trim())]);
@@ -354,6 +358,11 @@ pub struct CursePackFile {
     pub file_name: String,
     pub display_name: String,
     pub game_version: String,
+    /// Все версии игры (MC + loader).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub game_versions: Vec<String>,
+    /// Тип релиза: 1=release, 2=beta, 3=alpha.
+    pub release_type: u8,
     pub file_date: String,
 }
 
@@ -373,6 +382,7 @@ struct FileItem {
     download_url: Option<String>,
     #[serde(default)]
     game_versions: Vec<String>,
+    release_type: u8,
     file_date: String,
     #[serde(default)]
     hashes: Vec<FileHash>,
@@ -457,6 +467,8 @@ pub async fn pack_files(
             file_name: f.file_name,
             display_name: f.display_name,
             game_version: f.game_versions.first().cloned().unwrap_or_default(),
+            game_versions: f.game_versions,
+            release_type: f.release_type,
             file_date: f.file_date,
         })
         .collect();
@@ -613,6 +625,10 @@ struct LogoItem {
     url: String,
     #[serde(default)]
     thumbnail_url: String,
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
+    description: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -637,13 +653,23 @@ pub struct CurseProjectDetail {
     pub author: String,
     pub download_count: u64,
     pub icon_url: Option<String>,
-    /// URL-ы скриншотов (полные).
+    /// Скриншоты (объекты с url/title/description).
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub screenshots: Vec<String>,
+    pub screenshots: Vec<CurseScreenshot>,
     /// Категории (имена).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub categories: Vec<String>,
     pub website_url: String,
+}
+
+/// Скриншот проекта CurseForge.
+#[derive(Debug, Clone, Serialize)]
+pub struct CurseScreenshot {
+    pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 pub async fn project(client: &reqwest::Client, project_id: u32) -> Result<CfProject> {
@@ -689,15 +715,18 @@ pub async fn project_detail(
         .json()
         .await?;
     let d = resp.data;
-        // CurseForge API v1: description часто null, summary — краткое описание
-        // description — полное HTML из API, summary — краткое описание как fallback
+        let description = if d.description.is_some() {
+            d.description.clone()
+        } else {
+            // CurseForge часто возвращает null в description — пробуем отдельный endpoint
+            fetch_mod_description(&client, d.id).await
+        };
         Ok(CurseProjectDetail {
             project_id: d.id,
             name: d.name,
             slug: d.slug,
-            description: d.description.clone(),  // Полное HTML описание из проекта CurseForge (может быть null)
+            description,
             summary: d.summary,
-
             author: d.authors.first().map(|a| a.name.clone()).unwrap_or_default(),
             download_count: d.download_count,
             icon_url: d
@@ -710,10 +739,36 @@ pub async fn project_detail(
                         l.url.clone()
                     }
                 }),
-            screenshots: d.screenshots.into_iter().map(|s| s.url).collect(),
+            screenshots: d.screenshots.into_iter().map(|s| CurseScreenshot {
+                url: s.url,
+                title: s.title,
+                description: s.description,
+            }).collect(),
             categories: d.categories.into_iter().map(|c| c.name).collect(),
             website_url: d.links.website_url,
         })
+}
+
+/// Отдельный endpoint для получения полного описания мода (если основной вернул null).
+#[derive(Debug, Deserialize)]
+struct DescResp {
+    data: String,
+}
+
+async fn fetch_mod_description(client: &reqwest::Client, mod_id: u32) -> Option<String> {
+    let key = require_api_key().ok()?;
+    let resp = client
+        .get(format!("{API_BASE}/mods/{mod_id}/description"))
+        .header("x-api-key", &key)
+        .header("User-Agent", ua())
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?;
+    let body: DescResp = resp.json().await.ok()?;
+    let desc = body.data;
+    if desc.trim().is_empty() { None } else { Some(desc) }
 }
 
 /// Выбирает подходящий файл: последний по дате; при указании версии
@@ -1100,6 +1155,7 @@ mod tests {
                 is_available: true,
                 download_url: Some(format!("https://cdn.example/f{id}.jar")),
                 game_versions: mcs.iter().map(|s| s.to_string()).collect(),
+                release_type: 1,
                 file_date: date.to_string(),
                 hashes: vec![],
                 dependencies: vec![],

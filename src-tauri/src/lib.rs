@@ -557,17 +557,19 @@ async fn curseforge_search_command(
     state: State<'_, AppState>,
     query: String,
     class_id: u32,
-    category_id: Option<u32>,
+    category_ids: Vec<u32>,
     game_version: Option<String>,
     sort: Option<String>,
+    mod_loader_type: Option<u32>,
 ) -> Result<Vec<curseforge::CurseSearchHit>, String> {
     curseforge::search(
         &state.client,
         &query,
         class_id,
-        category_id,
+        &category_ids,
         game_version.as_deref(),
         sort.as_deref(),
+        mod_loader_type,
     )
     .await
     .map_err(|e| e.to_string())
@@ -602,6 +604,18 @@ async fn curseforge_project_detail_command(
     project_id: u32,
 ) -> Result<curseforge::CurseProjectDetail, String> {
     curseforge::project_detail(&state.client, project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Конкретный файл CurseForge по ID (для установки выбранной версии).
+#[tauri::command]
+async fn curseforge_file_by_id_command(
+    state: State<'_, AppState>,
+    project_id: u32,
+    file_id: u32,
+) -> Result<curseforge::CurseFile, String> {
+    curseforge::file_by_id(&state.client, project_id, file_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -3981,6 +3995,7 @@ pub fn run() {
             curseforge_install_command,
             curseforge_modpack_files_command,
             curseforge_project_detail_command,
+            curseforge_file_by_id_command,
             curseforge_install_pack_command,
             curseforge_key_configured_command,
             list_accounts_command,

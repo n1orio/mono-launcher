@@ -13,7 +13,7 @@
   },
   "__meta__": {
     "author": "n1orio",
-    "version": "2.0.0-alpha.5"
+    "version": "2.0.0-alpha.6"
   },
   "nav.releases": "Релизы и запуск",
   "nav.news": "Новости",
@@ -509,6 +509,7 @@
   "mods.tababout": "Описание",
   "mods.tabversions": "Версии",
   "mods.tabgallery": "Галерея",
+  "mods.tabscreenshots": "Скриншоты",
   "mods.noAbout": "Описание пока не добавлено",
   "mods.noGallery": "Скриншотов пока нет",
   "mods.download": "Скачать",

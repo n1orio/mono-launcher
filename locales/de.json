@@ -13,7 +13,7 @@
   },
   "__meta__": {
     "author": "n1orio",
-    "version": "2.0.0-alpha.5"
+    "version": "2.0.0-alpha.6"
   },
   "nav.releases": "Releases & Start",
   "nav.news": "Neuigkeiten",
@@ -490,7 +490,6 @@
   "mods.byAuthor": "von {author}",
   "mods.downloads": "Downloads",
   "mods.noSummary": "{name} (keine Beschreibung)",
-  "mods.noSummary": "{name} (keine Beschreibung)",
   "mods.versionMatch": "passt zum Pack",
   "mods.install": "Installieren",
   "mods.installed": "{kind} „{name}“ installiert",
@@ -508,6 +507,7 @@
   "mods.tababout": "Beschreibung",
   "mods.tabversions": "Versionen",
   "mods.tabgallery": "Galerie",
+  "mods.tabscreenshots": "Screenshots",
   "mods.noAbout": "Beschreibung noch nicht hinzugefügt",
   "mods.noGallery": "Noch keine Screenshots",
   "mods.download": "Herunterladen",

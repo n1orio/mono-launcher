@@ -193,11 +193,12 @@ export function monoLogout(): Promise<MonoProfile | null> {
 export function curseforgeSearch(
   query: string,
   classId: number,
-  categoryId: number | null = null,
+  categoryIds: number[],
   gameVersion?: string,
-  sort?: string
+  sort?: string,
+  modLoaderType?: number
 ): Promise<CurseSearchHit[]> {
-  return invoke("curseforge_search_command", { query, classId, categoryId, gameVersion, sort });
+  return invoke("curseforge_search_command", { query, classId, categoryIds, gameVersion, sort, modLoaderType });
 }
 
 export function curseforgeCategories(classId: number): Promise<CurseCategory[]> {
@@ -224,6 +225,10 @@ export function curseforgeModpackFiles(projectId: number): Promise<CursePackFile
 
 export function curseforgeProjectDetail(projectId: number): Promise<CurseProjectDetail> {
   return invoke("curseforge_project_detail_command", { projectId });
+}
+
+export function curseforgeFileById(projectId: number, fileId: number): Promise<CurseFile> {
+  return invoke("curseforge_file_by_id_command", { projectId, fileId });
 }
 
 export function curseforgeInstallPack(projectId: number, fileId: number): Promise<PackDescriptor> {

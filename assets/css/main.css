@@ -182,7 +182,7 @@ body,
   background-color: var(--app-bg);
   color: var(--tx);
   font-family: "Rubik", "Segoe UI", system-ui, sans-serif;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

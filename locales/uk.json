@@ -13,7 +13,7 @@
   },
   "__meta__": {
     "author": "n1orio",
-    "version": "2.0.0-alpha.5"
+    "version": "2.0.0-alpha.6"
   },
   "nav.releases": "Релизы и запуск",
   "nav.news": "Новини",
@@ -491,7 +491,6 @@
   "mods.byAuthor": "від {author}",
   "mods.downloads": "завантажень",
   "mods.noSummary": "{name} (опис відсутній)",
-  "mods.noSummary": "{name} (опис відсутній)",
   "mods.versionMatch": "підходить збірці",
   "mods.install": "Встановити",
   "mods.installed": "{kind} «{name}» встановлено",
@@ -509,6 +508,7 @@
   "mods.tababout": "Опис",
   "mods.tabversions": "Версії",
   "mods.tabgallery": "Галерея",
+  "mods.tabscreenshots": "Скріншоти",
   "mods.noAbout": "Опис поки не додано",
   "mods.noGallery": "Скріншотів поки немає",
   "mods.download": "Завантажити",

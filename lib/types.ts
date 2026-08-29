@@ -394,17 +394,19 @@ export interface CurseProjectDetail {
   name: string;
   slug: string;
   summary: string;
-  /// Полное описание из проекта CurseForge (если есть).
-  description?: string,
-  /** Описание из файла проекта CurseForge (если project endpoint вернул null). */
-  curseFileDescription?: string,
-  isShortDescription?: boolean;
+  description?: string;
   author: string;
   downloadCount: number;
   iconUrl?: string;
-  screenshots: string[];
+  screenshots: CurseScreenshot[];
   categories: string[];
   websiteUrl: string;
+}
+
+export interface CurseScreenshot {
+  url: string;
+  title?: string;
+  description?: string;
 }
 
 /** Категория класса проектов CurseForge (для фильтра поиска). */
@@ -419,6 +421,8 @@ export interface CursePackFile {
   fileName: string;
   displayName: string;
   gameVersion: string;
+  gameVersions: string[];
+  releaseType: number;
   fileDate: string;
 }
 
