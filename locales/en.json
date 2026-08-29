@@ -490,6 +490,7 @@
   "mods.back": "Back to results",
   "mods.byAuthor": "by {author}",
   "mods.downloads": "downloads",
+  "mods.noSummary": "{name} (no description)",
   "mods.versionMatch": "matches pack",
   "mods.install": "Install",
   "mods.installed": "{kind} “{name}” installed",

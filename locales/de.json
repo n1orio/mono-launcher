@@ -489,6 +489,8 @@
   "mods.back": "Zurück zu den Ergebnissen",
   "mods.byAuthor": "von {author}",
   "mods.downloads": "Downloads",
+  "mods.noSummary": "{name} (keine Beschreibung)",
+  "mods.noSummary": "{name} (keine Beschreibung)",
   "mods.versionMatch": "passt zum Pack",
   "mods.install": "Installieren",
   "mods.installed": "{kind} „{name}“ installiert",

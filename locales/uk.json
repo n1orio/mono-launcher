@@ -490,6 +490,8 @@
   "mods.back": "Назад до результатів",
   "mods.byAuthor": "від {author}",
   "mods.downloads": "завантажень",
+  "mods.noSummary": "{name} (опис відсутній)",
+  "mods.noSummary": "{name} (опис відсутній)",
   "mods.versionMatch": "підходить збірці",
   "mods.install": "Встановити",
   "mods.installed": "{kind} «{name}» встановлено",

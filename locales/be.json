@@ -489,6 +489,8 @@
   "mods.back": "Назад да вынікаў",
   "mods.byAuthor": "ад {author}",
   "mods.downloads": "спампаванняў",
+  "mods.noSummary": "{name} (апiс адсутнічае)",
+  "mods.noSummary": "{name} (апiс адсутнічае)",
   "mods.versionMatch": "падыходзіць зборцы",
   "mods.install": "Устанавіць",
   "mods.installed": "{kind} «{name}» усталяваны",

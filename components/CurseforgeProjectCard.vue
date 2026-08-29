@@ -116,11 +116,12 @@ function handleOpenDetail(e: MouseEvent) {
           {{ t("mods.byAuthor", { author: project.author }) }}
         </span>
       </div>
+      <!-- Полное описание (description) или summary если description отсутствует -->
       <p
-        v-if="!compact"
+        v-if="!compact && (project.description || project.summary)"
         class="mt-1 line-clamp-2 text-[13px] leading-snug text-[color:var(--tx-muted)]"
       >
-        {{ project.summary }}
+        {{ project.description || project.summary }}
       </p>
       <div v-if="!compact" class="mt-1.5 flex items-center gap-1 text-xs text-[color:var(--tx-muted)]">
         <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">

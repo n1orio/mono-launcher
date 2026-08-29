@@ -490,6 +490,8 @@
   "mods.back": "Назад к результатам",
   "mods.byAuthor": "от {author}",
   "mods.downloads": "скачиваний",
+  "mods.noSummary": "{name} (описание отсутствует)",
+  "mods.shortDescription": "Short Description",
   "mods.versionMatch": "подходит сборке",
   "mods.install": "Установить",
   "mods.installed": "{kind} «{name}» установлен",

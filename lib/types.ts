@@ -379,6 +379,8 @@ export interface MsDeviceCodeInfo {
 export interface CurseSearchHit {
   projectId: number;
   name: string;
+  /** Полное HTML описание из проекта CurseForge (если есть в API). */
+  description: string | null;
   summary: string;
   author: string;
   downloadCount: number;
@@ -392,7 +394,11 @@ export interface CurseProjectDetail {
   name: string;
   slug: string;
   summary: string;
-  description: string;
+  /// Полное описание из проекта CurseForge (если есть).
+  description?: string,
+  /** Описание из файла проекта CurseForge (если project endpoint вернул null). */
+  curseFileDescription?: string,
+  isShortDescription?: boolean;
   author: string;
   downloadCount: number;
   iconUrl?: string;
