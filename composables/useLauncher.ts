@@ -946,6 +946,8 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
 
   let lastBytes = { value: 0, at: 0 };
   let speed = 0;
+  const speedHistory = ref<number[]>([]);
+  let speedHistoryTimer: ReturnType<typeof setInterval> | null = null;
   let unlistenSync: (() => void) | undefined;
   let unlistenLogSync: (() => void) | undefined;
   let unlistenPlaytimeSync: (() => void) | undefined;
@@ -1699,6 +1701,9 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     const id = packId.value;
     if (!id || !isTauri() || busy.value || remoteInstallingId.value) return false;
     remoteInstallingId.value = v.id;
+    busy.value = true;
+    filesDone.value = 0;
+    progress.value = { phase: "Подготовка...", current: 0, total: 0, speed: 0, fileIndex: 0, fileTotal: 0, currentFile: "" };
     try {
       await setPackUrlCmd(id, v.url);
       const info = await installMrpack(id, v.version);
@@ -1706,10 +1711,20 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
       void autoScanCustomMods(info.version_id);
       return true;
     } catch (e) {
-      notify(t("files.updateErr", { e }), "error");
+      const msg = String(e);
+      if (msg.includes("отмен") || msg.includes("cancel")) {
+        notify(t("progress.cancel"), "info");
+      } else {
+        notify(t("files.updateErr", { e }), "error");
+      }
       return false;
     } finally {
+      busy.value = false;
       remoteInstallingId.value = null;
+      lastBytes = { value: 0, at: 0 };
+      speed = 0;
+      speedHistory.value = [];
+      if (speedHistoryTimer) { clearInterval(speedHistoryTimer); speedHistoryTimer = null; }
       void refreshVersions();
     }
   }
@@ -1839,6 +1854,9 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
         fileTotal: p.file_total,
         currentFile: p.current_file,
       };
+      // Update speed history (keep last 60 samples, ~60 seconds)
+      speedHistory.value.push(speed);
+      if (speedHistory.value.length > 60) speedHistory.value.shift();
     }).then((fn) => (unlistenSync = fn));
     onLaunchLog((entry: LaunchLogEntry) => {
       pushLog([entry]);
@@ -2023,11 +2041,18 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
       refreshVersions();
       void autoScanCustomMods(info.version_id);
     } catch (e) {
-      notify(t("err.install", { e }));
+      const msg = String(e);
+      if (msg.includes("отмен") || msg.includes("cancel")) {
+        notify(t("progress.cancel"), "info");
+      } else {
+        notify(t("err.install", { e }));
+      }
     } finally {
       busy.value = false;
       lastBytes = { value: 0, at: 0 };
       speed = 0;
+      speedHistory.value = [];
+      if (speedHistoryTimer) { clearInterval(speedHistoryTimer); speedHistoryTimer = null; }
     }
   }
 
@@ -3144,6 +3169,45 @@ notify(t("err.switch", { e }));
     return Math.min(100, Math.round((pr.current / pr.total) * 100));
   });
 
+  /** Оставшееся время до завершения (в секундах), null если невозможно вычислить. */
+  const eta = computed(() => {
+    const pr = progress.value;
+    if (!pr || pr.speed <= 0) return null;
+    // During multi-file phase, estimate by file count
+    if (pr.fileTotal > 1) {
+      const remaining = pr.fileTotal - filesDone.value;
+      if (remaining <= 0) return null;
+      // Average time per file from speed history
+      const avgSpeed = pr.speed;
+      if (avgSpeed <= 0) return null;
+      // We don't have per-file size, so estimate from file index progress
+      return null; // Can't reliably estimate without per-file sizes
+    }
+    // Single-file download: bytes remaining / speed
+    if (pr.total <= 0 || pr.current <= 0) return null;
+    const remaining = pr.total - pr.current;
+    return Math.ceil(remaining / pr.speed);
+  });
+
+  /** Средняя скорость за последние N секунд (для графика). */
+  const speedHistorySmooth = computed(() => {
+    const h = speedHistory.value;
+    if (h.length < 2) return [];
+    // Downsample to max 30 points for rendering
+    const step = Math.max(1, Math.floor(h.length / 30));
+    const result: number[] = [];
+    for (let i = 0; i < h.length; i += step) {
+      let sum = 0;
+      let count = 0;
+      for (let j = i; j < Math.min(i + step, h.length); j++) {
+        sum += h[j];
+        count++;
+      }
+      result.push(sum / count);
+    }
+    return result;
+  });
+
   const loaderLabel = computed(() => {
     if (status.value?.loader) {
       return `${status.value.loader}${status.value.minecraft_version ? ` · ${status.value.minecraft_version}` : ""}`;
@@ -3182,6 +3246,8 @@ notify(t("err.switch", { e }));
     sidebarRecentPacks,
     percent,
     filePercent,
+    eta,
+    speedHistorySmooth,
     filesDone,
     loaderLabel,
     formatBytes,

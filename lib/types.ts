@@ -723,3 +723,16 @@ export interface AdminCreateUser {
   email: string | null;
   role: string | null;
 }
+
+// ==== Network settings ====
+
+export interface NetworkSettings {
+  /** Количество одновременных скачиваний (1..32). */
+  concurrent: number;
+  /** Лимит скорости в КБ/с (0 = без лимита). */
+  speed_limit_kb: number;
+  /** Адрес прокси (socks5://host:port или http://host:port), пусто = без прокси. */
+  proxy: string;
+  /** Принудительный IPv4. */
+  force_ipv4: boolean;
+}

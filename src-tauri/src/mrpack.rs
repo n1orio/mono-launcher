@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -259,6 +260,9 @@ async fn download_mrpack_once(
     let mut last_report = std::time::Instant::now();
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.context("Ошибка чтения потока скачивания")?;
+        crate::check_download_cancelled_or_paused()
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
         downloaded += chunk.len() as u64;
         file.write_all(&chunk).await?;
         if last_report.elapsed().as_millis() >= 150 {
@@ -541,8 +545,14 @@ async fn download_file_once(
     dest: &Path,
     ctx: &DlCtx,
 ) -> Result<u64> {
-    let resp = client
-        .get(url)
+    let mut req = client.get(url);
+    // CurseForge CDN требует x-api-key для скачивания файлов.
+    if url.contains("curseforge.com/") || url.contains("forgecdn.net") {
+        if let Ok(key) = crate::curseforge::require_api_key() {
+            req = req.header("x-api-key", &key);
+        }
+    }
+    let resp = req
         .send()
         .await
         .with_context(|| format!("Не удалось скачать {url}"))?
@@ -556,6 +566,9 @@ async fn download_file_once(
     emit_file_progress(ctx, 0, total, &mut last, true);
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.context("Ошибка чтения файла")?;
+        crate::check_download_cancelled_or_paused()
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
         file.write_all(&chunk).await?;
         done += chunk.len() as u64;
         emit_file_progress(ctx, done, total, &mut last, false);
@@ -588,8 +601,13 @@ pub async fn download_all_files(
 
     // Кэш: пропускаем файлы, которые уже есть и совпадают по хэшу.
     let mut tasks = Vec::new();
-    let semaphore = Arc::new(Semaphore::new(8));
+    let semaphore = Arc::new(Semaphore::new(crate::config::net_concurrent_downloads()));
     let mut custom = Vec::new();
+
+    // Агрегированный счётчик завершённых файлов (все таски инкрементируют атомарно).
+    let completed = Arc::new(AtomicUsize::new(0));
+    // Сколько файлов нужно скачать (не копировать из кэша) — для denominator.
+    let mut download_count: usize = 0;
 
     for (i, file) in index.files.iter().enumerate() {
         let rel = safe_rel_path(&file.path)?;
@@ -606,10 +624,12 @@ pub async fn download_all_files(
         if let Some(cf) = custom_file(file) {
             custom.push(cf);
         }
+        download_count += 1;
         let dest = dest.clone();
         let client = client.clone();
         let app = app.clone();
         let semaphore = semaphore.clone();
+        let completed = completed.clone();
         let path_name = rel.to_string();
         let hashes = file.hashes.clone();
         let total_files = index.files.len();
@@ -660,6 +680,8 @@ pub async fn download_all_files(
                     ))
                 }
             });
+            // Агрегированный прогресс: file_index = кол-во завершённых файлов.
+            let done = completed.fetch_add(1, Ordering::Relaxed) + 1;
             match &result {
                 Ok(size) => emit_progress(
                     &app,
@@ -667,7 +689,7 @@ pub async fn download_all_files(
                         phase: "Установка модов".into(),
                         current: 0,
                         total: *size,
-                        file_index: i,
+                        file_index: done,
                         file_total: total_files,
                         current_file: path_name,
                         bytes_per_sec: 0,

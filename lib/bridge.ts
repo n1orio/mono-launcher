@@ -23,6 +23,7 @@ import type {
   ModrinthVersion,
   MsDeviceCodeInfo,
   NewsItem,
+  NetworkSettings,
   PackDescriptor,
   PackInfo,
   SavedServer,
@@ -196,9 +197,10 @@ export function curseforgeSearch(
   categoryIds: number[],
   gameVersion?: string,
   sort?: string,
-  modLoaderType?: number
+  modLoaderType?: number,
+  index?: number
 ): Promise<CurseSearchHit[]> {
-  return invoke("curseforge_search_command", { query, classId, categoryIds, gameVersion, sort, modLoaderType });
+  return invoke("curseforge_search_command", { query, classId, categoryIds, gameVersion, sort, modLoaderType, index });
 }
 
 export function curseforgeCategories(classId: number): Promise<CurseCategory[]> {
@@ -498,6 +500,40 @@ export function getUserJvmArgs(): Promise<string> {
 
 export function setUserJvmArgs(args: string): Promise<void> {
   return invoke("set_user_jvm_args_command", { args });
+}
+
+export function getNetworkSettings(): Promise<NetworkSettings> {
+  return invoke("get_network_settings_command");
+}
+
+export function setNetworkSettings(opts: {
+  concurrent?: number;
+  speed_limit_kb?: number;
+  proxy?: string;
+  force_ipv4?: boolean;
+}): Promise<void> {
+  return invoke("set_network_settings_command", {
+    concurrent: opts.concurrent ?? null,
+    speed_limit_kb: opts.speed_limit_kb ?? null,
+    proxy: opts.proxy ?? null,
+    force_ipv4: opts.force_ipv4 ?? null,
+  });
+}
+
+export function pauseDownload(): Promise<void> {
+  return invoke("pause_download_command");
+}
+
+export function resumeDownload(): Promise<void> {
+  return invoke("resume_download_command");
+}
+
+export function cancelDownload(): Promise<void> {
+  return invoke("cancel_download_command");
+}
+
+export function isDownloadPaused(): Promise<boolean> {
+  return invoke("is_download_paused_command");
 }
 
 export function listAccounts(): Promise<Accounts> {

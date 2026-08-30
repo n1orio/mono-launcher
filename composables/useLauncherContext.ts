@@ -159,6 +159,7 @@ export interface LauncherCtx {
   copyPackDeepLink: any;
   copyServerIp: any;
   cpBusy: any;
+  quickCpBusy: any;
   cpCatOptions: any;
   cpCatSel: any;
   cpDetail: any;
@@ -306,6 +307,8 @@ export interface LauncherCtx {
   fileMenuRef: any;
   fileMetaTitle: any;
   filePercent: ComputedRef<any>;
+  eta: ComputedRef<number | null>;
+  speedHistorySmooth: ComputedRef<number[]>;
   fileRowStride: any;
   fileSearch: Ref<any>;
   fileSortDir: any;
@@ -424,6 +427,12 @@ export interface LauncherCtx {
   loadLocalSkin: (...args: any[]) => any;
   loadMonoCatalog: (...args: any[]) => any;
   loadMoreMods: any;
+  loadMorePacks: any;
+  loadMoreCpPacks: any;
+  modPackMoreBusy: any;
+  cpMoreBusy: any;
+  modPackMore: any;
+  cpMore: any;
   loadMyServers: (...args: any[]) => any;
   loadNews: (...args: any[]) => any;
   loadPackScreenshots: (...args: any[]) => any;
@@ -579,6 +588,7 @@ export interface LauncherCtx {
   profileView: Ref<ProfileDetail | null>;
   progress: Ref<ProgressState | null>;
   quickDownloadMod: any;
+  quickDownloadCpPack: any;
   quickDownloadPack: any;
   quickModBusy: any;
   quickPackBusy: any;

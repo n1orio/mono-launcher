@@ -106,7 +106,7 @@ export function useLibrary(deps: UseLibraryDeps) {
 
   // ─── Разбивка сборок по источнику ──────────────────────────────────────
 
-  /** Разбивка сборок по источнику: id mrn-* → Modrinth, cf-* → CurseForge,
+  /** Разбивка сборок по источнику: URL modrinth.* → Modrinth, curseforge.com → CurseForge,
    *  local-* / local:// → свои, остальные (встроенные и GitHub) → авторские. */
   type PacksBySource = Record<PackCat, PackDescriptor[]>;
 
@@ -116,11 +116,11 @@ export function useLibrary(deps: UseLibraryDeps) {
   const packsBySource = computed<PacksBySource>(() => {
     const out: PacksBySource = { github: [], custom: [], modrinth: [], curseforge: [] };
     for (const p of filteredPacks.value) {
-      const group: PackCat = p.id.startsWith("mrn-")
+      const group: PackCat = p.url.includes("modrinth.")
         ? "modrinth"
-        : p.id.startsWith("cf-")
+        : p.url.includes("curseforge.com")
           ? "curseforge"
-          : p.id.startsWith("local-") || p.url.startsWith("local://")
+          : p.url.startsWith("local://")
             ? "custom"
             : "github";
       out[group].push(p);

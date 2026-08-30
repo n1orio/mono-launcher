@@ -118,6 +118,8 @@ const {
   sidebarRecentPacks,
   percent,
   filePercent,
+  eta,
+  speedHistorySmooth,
   filesDone,
   loaderLabel,
   formatBytes,
@@ -623,7 +625,7 @@ function packTabDragEnd() {
   dragPackTab.value = null;
 }
 
-/** Разбивка сборок по источнику: id mrn-* → Modrinth, cf-* → CurseForge,
+/** Разбивка сборок по источнику: URL modrinth.* → Modrinth, curseforge.com → CurseForge,
  *  local-* / local:// → свои, остальные (встроенные и GitHub) → авторские. */
 type PacksBySource = Record<PackCat, PackDescriptor[]>;
 
@@ -633,11 +635,11 @@ const paidPacks = computed<PackDescriptor[]>(() => packs.value.filter((p) => Boo
 const packsBySource = computed<PacksBySource>(() => {
   const out: PacksBySource = { github: [], custom: [], modrinth: [], curseforge: [] };
   for (const p of filteredPacks.value) {
-  const group: PackCat = p.id.startsWith("mrn-")
+  const group: PackCat = p.url.includes("modrinth.")
   ? "modrinth"
-  : p.id.startsWith("cf-")
+  : p.url.includes("curseforge.com")
   ? "curseforge"
-  : p.id.startsWith("local-") || p.url.startsWith("local://")
+  : p.url.startsWith("local://")
   ? "custom"
   : "github";
   out[group].push(p);
@@ -1550,6 +1552,9 @@ const modPackVersions = ref<ModrinthVersion[] | null>(null);
 const modPackInstalling = ref<string | null>(null);
 const modPackDetail = ref<ModrinthProject | null>(null);
 const modPackTab = ref<"about" | "versions" | "gallery">("about");
+const modPackOffset = ref(0);
+const modPackMore = ref(false);
+const modPackMoreBusy = ref(false);
 
 /** Поиск сборок на CurseForge (отдельное состояние от поиска файлов). */
 const cpSearched = ref(false);
@@ -1560,6 +1565,9 @@ const cpProject = ref<CurseSearchHit | null>(null);
 const cpFiles = ref<CursePackFile[] | null>(null);
 const cpBusy = ref<number | null>(null);
 const cpDetail = ref<CurseProjectDetail | null>(null);
+const cpOffset = ref(0);
+const cpMore = ref(false);
+const cpMoreBusy = ref(false);
 const cpDetailLoading = ref(false);
 const cpTab = ref<"about" | "versions" | "screenshots">("about");
 const cpTabs: ("about" | "versions" | "screenshots")[] = ["about", "versions", "screenshots"];
@@ -1964,19 +1972,47 @@ async function searchCursePacks() {
   cpProject.value = null;
   cpFiles.value = null;
   cpDetail.value = null;
+  cpOffset.value = 0;
+  cpMore.value = false;
   try {
-  cpResults.value = await curseforgeSearch(
+  const page = await curseforgeSearch(
   modPackQuery.value.trim(),
   4471,
   cpCatIds.value,
   cpVersion.value || undefined,
-  cpSortField.value
+  cpSortField.value,
+  undefined,
+  0
   );
+  cpResults.value = page;
+  cpOffset.value = page.length;
+  cpMore.value = page.length >= 20;
   } catch (e) {
   cpResults.value = [];
   cpErr.value = String(e);
   } finally {
   cpLoading.value = false;
+  }
+}
+
+async function loadMoreCpPacks() {
+  if (cpMoreBusy.value || cpLoading.value || !cpMore.value) return;
+  cpMoreBusy.value = true;
+  try {
+  const page = await curseforgeSearch(
+  modPackQuery.value.trim(),
+  4471,
+  cpCatIds.value,
+  cpVersion.value || undefined,
+  cpSortField.value,
+  undefined,
+  cpOffset.value
+  );
+  if (page.length) cpResults.value.push(...page);
+  cpOffset.value += page.length;
+  cpMore.value = page.length >= 20;
+  } catch { /* не критично */ } finally {
+  cpMoreBusy.value = false;
   }
 }
 
@@ -2017,6 +2053,9 @@ async function loadCpDetail(projectId: number) {
 async function installCpPack(f: CursePackFile) {
   if (!cpProject.value || cpBusy.value !== null) return;
   cpBusy.value = f.fileId;
+  busy.value = true;
+  filesDone.value = 0;
+  progress.value = { phase: "Подготовка...", current: 0, total: 0, speed: 0, fileIndex: 0, fileTotal: 0, currentFile: "" };
   try {
   const pack = await curseforgeInstallPack(cpProject.value.projectId, f.fileId);
   notify(t("mods.packInstalled", { name: pack.name }), "success");
@@ -2028,8 +2067,15 @@ async function installCpPack(f: CursePackFile) {
   await nextTick();
   openPackTab(pack.id);
   } catch (e) {
-  notify(t("mods.packInstallErr", { e }), "error");
+  const msg = String(e);
+  if (msg.includes("отмен") || msg.includes("cancel")) {
+    notify(t("progress.cancel"), "info");
+  } else {
+    notify(t("mods.packInstallErr", { e }), "error");
+  }
   } finally {
+  busy.value = false;
+  progress.value = null;
   cpBusy.value = null;
   }
 }
@@ -2852,6 +2898,27 @@ async function quickDownloadPack(p: ModrinthProject, ev: Event) {
   }
 }
 
+/** Быстрое скачивание CurseForge сборки: последняя версия файла. */
+const quickCpBusy = ref<number | null>(null);
+async function quickDownloadCpPack(p: CurseSearchHit, ev: Event) {
+  ev.stopPropagation();
+  if (quickCpBusy.value || cpBusy.value !== null) return;
+  quickCpBusy.value = p.projectId;
+  try {
+    const files = await curseforgeModpackFiles(p.projectId);
+    if (!files.length) {
+      notify(t("curse.noFiles"), "info");
+      return;
+    }
+    const pick = files[0];
+    await installCpPack(pick);
+  } catch (e) {
+    notify(t("mods.packInstallErr", { e }));
+  } finally {
+    quickCpBusy.value = null;
+  }
+}
+
 /** Проверяет обновления установленных из Modrinth модов (с кешем на 5 минут). */
 const updatesCheckedAt = ref(0);
 const UPDATES_TTL_MS = 5 * 60 * 1000;
@@ -2915,22 +2982,48 @@ async function updateAllMods() {
 }
 
 /** Поиск модпаков на Modrinth для установки как сборки. */
+const PACK_SEARCH_PAGE = 20;
 async function searchPacks() {
   if (!isTauri()) return;
   modPackLoading.value = true;
   modPackDetail.value = null;
   modPackVersions.value = null;
+  modPackOffset.value = 0;
+  modPackMore.value = false;
   try {
-  modPackResults.value = await modrinthSearch(
+  const page = await modrinthSearch(
   modPackQuery.value.trim(),
   "modpack",
-  20,
-  searchOpts(packFilters)
+  PACK_SEARCH_PAGE,
+  searchOpts(packFilters),
+  0
   );
+  modPackResults.value = page;
+  modPackOffset.value = page.length;
+  modPackMore.value = page.length >= PACK_SEARCH_PAGE;
   } catch (e) {
   notify(t("mods.packsSearchErr", { e }));
   } finally {
   modPackLoading.value = false;
+  }
+}
+
+async function loadMorePacks() {
+  if (modPackMoreBusy.value || modPackLoading.value || !modPackMore.value) return;
+  modPackMoreBusy.value = true;
+  try {
+  const page = await modrinthSearch(
+  modPackQuery.value.trim(),
+  "modpack",
+  PACK_SEARCH_PAGE,
+  searchOpts(packFilters),
+  modPackOffset.value
+  );
+  if (page.length) modPackResults.value.push(...page);
+  modPackOffset.value += page.length;
+  modPackMore.value = page.length >= PACK_SEARCH_PAGE;
+  } catch { /* не критично */ } finally {
+  modPackMoreBusy.value = false;
   }
 }
 
@@ -2967,6 +3060,9 @@ async function openPackDetail(p: ModrinthProject) {
 async function installPackVersion(v: ModrinthVersion) {
   if (modPackInstalling.value) return;
   modPackInstalling.value = v.id;
+  busy.value = true;
+  filesDone.value = 0;
+  progress.value = { phase: "Подготовка...", current: 0, total: 0, speed: 0, fileIndex: 0, fileTotal: 0, currentFile: "" };
   try {
   const pack = await modrinthInstallPack(v.id);
   notify(t("mods.packInstalled", { name: pack.name }), "success");
@@ -2977,8 +3073,15 @@ async function installPackVersion(v: ModrinthVersion) {
   await nextTick();
   openPackTab(pack.id);
   } catch (e) {
-  notify(t("mods.packInstallErr", { e }));
+  const msg = String(e);
+  if (msg.includes("отмен") || msg.includes("cancel")) {
+    notify(t("progress.cancel"), "info");
+  } else {
+    notify(t("mods.packInstallErr", { e }));
+  }
   } finally {
+  busy.value = false;
+  progress.value = null;
   modPackInstalling.value = null;
   }
 }
@@ -4753,6 +4856,8 @@ provide(LauncherCtxKey, {
   playSubTabsVisible,
   profileBioDraft,
   profileBioEditing,
+  quickCpBusy,
+  quickDownloadCpPack,
   quickModBusy,
   quickPackBusy,
   removeAuthorServer,
@@ -4824,6 +4929,12 @@ provide(LauncherCtxKey, {
   quickDownloadPack,
   searchPacks,
   searchCursePacks,
+  loadMorePacks,
+  loadMoreCpPacks,
+  modPackMoreBusy,
+  cpMoreBusy,
+  modPackMore,
+  cpMore,
   openCatalogCurseDetail,
   addMonoPack,
   openMonoPack,

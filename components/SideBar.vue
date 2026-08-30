@@ -160,32 +160,8 @@
 
   <div class="flex-1" />
 
-  <!-- Глобальный прогресс установки/скачивания -->
-  <div v-if="progress && busy" class="border-t border-[var(--border)]  p-3 bg-[var(--panel-soft)]">
-  <div class="mb-1 flex items-center justify-between text-[13px] text-[color:var(--tx-muted)]">
-  <span class="truncate pr-2 font-medium text-[color:var(--tx)]">{{ phaseLabel(progress.phase) }}</span>
-  <span v-if="progress.fileTotal > 1" class="tabular-nums font-mono text-xs">{{ t("progress.files", { n: filesDone, m: progress.fileTotal }) }}</span>
-  <span v-else class="tabular-nums font-mono text-xs">{{ percent }}%</span>
-  </div>
-  <div class="h-1.5 w-full overflow-hidden rounded-full bg-[var(--input)]">
-  <div
-  class="h-full bg-[#2f81f7] transition-all duration-200"
-  :style="{ width: `${percent}%` }"
-  />
-  </div>
-  <div class="mt-1 flex items-center justify-between text-xs text-[color:var(--tx-muted)]">
-  <span class="truncate max-w-[120px]">{{ progress.currentFile || t("side.preparing") }}</span>
-  <span class="tabular-nums font-mono">{{ progress.speed > 0 ? `${formatBytes(progress.speed)}${t("units.perSec")}` : "" }}</span>
-  </div>
-  <div v-if="progress.fileTotal > 1 && filePercent > 0" class="mt-1">
-  <div class="h-1 w-full overflow-hidden rounded-full bg-[var(--input)]">
-  <div
-  class="h-full bg-[color-mix(in_srgb,var(--accent)_60%,transparent)]"
-  :style="{ width: `${filePercent}%` }"
-  />
-  </div>
-  </div>
-  </div>
+  <!-- Расширенная панель загрузки -->
+  <DownloadPanel />
 
   <!-- Учётная запись -->
   <div
@@ -315,15 +291,11 @@ const {
   session,
   busy,
   gameRunning,
-  progress,
   launcherVer,
   tab,
   packId,
   packs,
   activePack,
-  percent,
-  filePercent,
-  filesDone,
   handleInstall,
   handlePlay,
   selectPack,
@@ -344,8 +316,6 @@ const {
   createPackOpen,
   activeLocaleAuthor,
   activeLocaleVersion,
-  formatBytes,
-  phaseLabel,
   themeLevel,
   setThemeLevel,
   packThemeActive,

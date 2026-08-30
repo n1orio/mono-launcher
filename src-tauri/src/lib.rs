@@ -127,6 +127,28 @@ fn resolve_pack(pack_id: Option<String>) -> Result<PackInfo, String> {
         .ok_or_else(|| format!("Сборка не найдена: {id}"))
 }
 
+/// Извлекает project_id из CurseForge URL
+/// (`https://www.curseforge.com/minecraft/modpacks/925200` → `Some(925200)`).
+fn extract_cf_project_id(url: &str) -> Option<u32> {
+    let path = url.strip_prefix("https://").or_else(|| url.strip_prefix("http://"))?;
+    let slug_and_id = path.split('/').last()?;
+    slug_and_id.parse().ok()
+}
+
+/// Извлекает project_id из Modrinth URL
+/// (`https://modrinth.com/modpack/fabulously-optimized` → None,
+///  `https://modrinth.com/modpack/abc123` → `Some("abc123")`).
+/// Modrinth API URLs: `https://api.modrinth.com/v2/project/abc123`.
+fn extract_modrinth_project_id(url: &str) -> Option<String> {
+    let path = url.strip_prefix("https://").or_else(|| url.strip_prefix("http://"))?;
+    let segments: Vec<&str> = path.split('/').collect();
+    if let Some(pos) = segments.iter().position(|&s| s == "project") {
+        segments.get(pos + 1).map(|s| s.to_string())
+    } else {
+        None
+    }
+}
+
 /// Список сборок: встроенные + добавленные пользователем.
 #[tauri::command]
 fn list_packs() -> Result<Vec<PackDescriptor>, String> {
@@ -177,16 +199,12 @@ async fn add_pack_impl(
         .unwrap_or("pack")
         .trim_end_matches(".mrpack")
         .to_string();
-    let pack_id = if file_stem.is_empty() {
-        "pack".to_string()
-    } else {
-        file_stem
-    };
     let pack_name = name
         .map(str::trim)
         .filter(|n| !n.is_empty())
         .map(String::from)
-        .unwrap_or_else(|| pack_id.clone());
+        .unwrap_or_else(|| file_stem.clone());
+    let pack_id = config::unique_pack_id(&config::sanitize_pack_name(&pack_name));
     let blog = blog.map(str::trim).filter(|b| !b.is_empty()).map(String::from);
     config::add_user_pack(&pack_id, &pack_name, &url, "remote", blog.as_deref(), None)
         .map_err(|e| e.to_string())?;
@@ -561,6 +579,7 @@ async fn curseforge_search_command(
     game_version: Option<String>,
     sort: Option<String>,
     mod_loader_type: Option<u32>,
+    index: Option<u32>,
 ) -> Result<Vec<curseforge::CurseSearchHit>, String> {
     curseforge::search(
         &state.client,
@@ -570,6 +589,7 @@ async fn curseforge_search_command(
         game_version.as_deref(),
         sort.as_deref(),
         mod_loader_type,
+        index,
     )
     .await
     .map_err(|e| e.to_string())
@@ -711,13 +731,22 @@ async fn curseforge_install_pack_command(
     let project = curseforge::project(&state.client, project_id)
         .await
         .map_err(|e| e.to_string())?;
-    let pack_id = format!("cf-{project_id}");
-    let existing = config::find_pack(&pack_id).map_err(|e| e.to_string())?;
+    let cf_url = format!("https://www.curseforge.com/minecraft/modpacks/{project_id}");
+    // Ищем существующую сборку по URL (а не по id), т.к. id теперь на основе имени.
+    let existing = config::all_packs()
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .find(|p| p.url == cf_url);
+    let pack_id = if let Some(ref p) = existing {
+        p.id.clone()
+    } else {
+        config::unique_pack_id(&config::sanitize_pack_name(&project.name))
+    };
     if existing.is_none() {
         config::add_user_pack(
             &pack_id,
             &project.name,
-            &format!("https://www.curseforge.com/minecraft/modpacks/{project_id}"),
+            &cf_url,
             "local",
             None,
             None,
@@ -729,7 +758,7 @@ async fn curseforge_install_pack_command(
         let c = state.client.clone();
         let pid = pack_id.clone();
         let pname = project.name.clone();
-        let purl = format!("https://www.curseforge.com/minecraft/modpacks/{project_id}");
+        let purl = cf_url.clone();
         tokio::spawn(async move {
             crate::auth::mono_sync_library(&c, &pid, &pname, &purl, "local", None, None).await;
         });
@@ -749,7 +778,7 @@ async fn curseforge_install_pack_command(
     let icon = config::pack_icon_path(&pack_id);
     let (name, url) = match existing {
         Some(p) => (p.name, p.url),
-        None => (project.name, format!("https://www.curseforge.com/minecraft/modpacks/{project_id}")),
+        None => (project.name, cf_url),
     };
     Ok(PackDescriptor {
         id: pack_id.clone(),
@@ -1106,15 +1135,15 @@ fn recent_packs_command() -> Vec<String> {
 }
 
 /// Скачивает иконку сборки в `packs/<id>/icon.png` (если её ещё нет):
-/// — сборки с Modrinth (`mrn-<id>`): иконка проекта;
-/// — сборки с CurseForge (`cf-<id>`): логотип проекта.
+/// — сборки с Modrinth (URL modrinth.org): иконка проекта;
+/// — сборки с CurseForge (URL curseforge.com): логотип проекта.
 /// Возвращает, нашлась ли иконка.
 #[tauri::command]
 async fn fetch_pack_icon_command(
     state: State<'_, AppState>,
     pack_id: String,
 ) -> Result<bool, String> {
-    let _pack = config::find_pack(&pack_id)
+    let pack = config::find_pack(&pack_id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Сборка не найдена".to_string())?;
     let dest = config::pack_dir(&pack_id)
@@ -1123,14 +1152,13 @@ async fn fetch_pack_icon_command(
     if dest.exists() {
         return Ok(true);
     }
-    let icon_url = if let Some(pid) = pack_id.strip_prefix("mrn-") {
-        modrinth::project_by_id(&state.client, pid)
+    let icon_url = if let Some(pid) = extract_modrinth_project_id(&pack.url) {
+        modrinth::project_by_id(&state.client, &pid)
             .await
             .map_err(|e| e.to_string())?
             .icon_url
-    } else if let Some(pid) = pack_id.strip_prefix("cf-") {
-        let id: u32 = pid.parse::<u32>().map_err(|e| e.to_string())?;
-        curseforge::project(&state.client, id)
+    } else if let Some(pid) = extract_cf_project_id(&pack.url) {
+        curseforge::project(&state.client, pid)
             .await
             .map_err(|e| e.to_string())?
             .logo_url
@@ -1165,9 +1193,18 @@ async fn modrinth_install_pack_command(
         .iter()
         .find(|f| f.filename.to_ascii_lowercase().ends_with(".mrpack"))
         .ok_or_else(|| "У версии модпака нет файла .mrpack".to_string())?;
-    let pack_id = format!("mrn-{}", version.project_id);
-    if let Some(existing) = config::find_pack(&pack_id).map_err(|e| e.to_string())? {
-        if existing.boosty_blog.is_some() {
+    // Ищем существующую сборку по URL (а не по id), т.к. id теперь на основе имени.
+    let existing = config::all_packs()
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .find(|p| p.url == mrpack.url);
+    let pack_id = if let Some(ref p) = existing {
+        p.id.clone()
+    } else {
+        config::unique_pack_id(&config::sanitize_pack_name(&project.title))
+    };
+    if let Some(ref p) = existing {
+        if p.boosty_blog.is_some() {
             return Err("Сборка с этим Modrinth-проектом уже добавлена".into());
         }
         // Уже добавлена — просто переустанавливаем/обновляем.
@@ -1185,8 +1222,8 @@ async fn modrinth_install_pack_command(
         let banner = config::pack_banner_path(&pack_id);
         return Ok(PackDescriptor {
             id: pack_id,
-            name: existing.name,
-            url: existing.url,
+            name: p.name.clone(),
+            url: p.url.clone(),
             builtin: false,
             kind: "local".into(),
             author: None,
@@ -2292,7 +2329,38 @@ async fn install_mrpack(
     pack_id: Option<String>,
     _tag: Option<String>,
 ) -> Result<mrpack::PackInfo, String> {
+    crate::reset_download_controls();
     let pack = resolve_pack(pack_id)?;
+    // CurseForge packs: URL — страница проекта (curseforge.com/...), а не .mrpack.
+    // Перенаправляем на CurseForge-установку через API.
+    if pack.url.contains("curseforge.com/") {
+        if let Some(project_id) = extract_cf_project_id(&pack.url) {
+            let file_id: Option<u32> = _tag.as_deref().and_then(|t| t.parse().ok());
+            let fid = match file_id {
+                Some(id) => id,
+                None => {
+                    let f = curseforge::latest_file(&state.client, project_id, None)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    f.file_id
+                }
+            };
+            let info = curseforge::install_modpack(
+                &app,
+                &state.client,
+                &pack.id,
+                project_id,
+                fid,
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+            let _ = config::set_pack_locked(&pack.id, true);
+            if let Some(v) = config::active_version(&pack.id).ok().filter(|v| !v.is_empty()) {
+                auth::mono_report_event(&state.client, &pack.id, &v, "install").await;
+            }
+            return Ok(info);
+        }
+    }
     // Гейт лицензии: платные сборки требуют активную подписку Boosty.
     license::ensure_license(&state.client, &pack.id)
         .await
@@ -3808,6 +3876,57 @@ fn set_close_to_tray_command(enabled: bool) {
     close_to_tray_flag().store(enabled, std::sync::atomic::Ordering::Relaxed);
 }
 
+// ── Download control: pause / resume / cancel ────────────────────────
+fn download_paused() -> &'static std::sync::atomic::AtomicBool {
+    static FLAG: std::sync::OnceLock<std::sync::atomic::AtomicBool> = std::sync::OnceLock::new();
+    FLAG.get_or_init(|| std::sync::atomic::AtomicBool::new(false))
+}
+fn download_cancelled() -> &'static std::sync::atomic::AtomicBool {
+    static FLAG: std::sync::OnceLock<std::sync::atomic::AtomicBool> = std::sync::OnceLock::new();
+    FLAG.get_or_init(|| std::sync::atomic::AtomicBool::new(false))
+}
+
+/// Проверяет, приостановлены ли загрузки. Если да — ждёт до снятия паузы или отмены.
+/// Возвращает `Err` если загрузка отменена.
+pub(crate) async fn check_download_cancelled_or_paused() -> Result<()> {
+    if download_cancelled().load(std::sync::atomic::Ordering::Relaxed) {
+        anyhow::bail!("Загрузка отменена пользователем");
+    }
+    while download_paused().load(std::sync::atomic::Ordering::Relaxed) {
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        if download_cancelled().load(std::sync::atomic::Ordering::Relaxed) {
+            anyhow::bail!("Загрузка отменена пользователем");
+        }
+    }
+    Ok(())
+}
+
+/// Сбросить флаги паузы и отмены перед началом новой загрузки.
+pub(crate) fn reset_download_controls() {
+    download_paused().store(false, std::sync::atomic::Ordering::Relaxed);
+    download_cancelled().store(false, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[tauri::command]
+fn pause_download_command() {
+    download_paused().store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[tauri::command]
+fn resume_download_command() {
+    download_paused().store(false, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[tauri::command]
+fn cancel_download_command() {
+    download_cancelled().store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[tauri::command]
+fn is_download_paused_command() -> bool {
+    download_paused().load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// Автозапуск лаунчера вместе с системой (tauri-plugin-autostart).
 #[tauri::command]
 fn autostart_set_command(app: AppHandle, enabled: bool) -> Result<(), String> {
@@ -3844,6 +3963,48 @@ fn get_user_jvm_args_command() -> String {
 #[tauri::command]
 fn set_user_jvm_args_command(args: String) -> Result<(), String> {
     config::set_user_jvm_args(&args).map_err(|e| e.to_string())
+}
+
+/// --- Network settings ---
+
+#[derive(serde::Serialize)]
+struct NetworkSettings {
+    concurrent: u32,
+    speed_limit_kb: u32,
+    proxy: String,
+    force_ipv4: bool,
+}
+
+#[tauri::command]
+fn get_network_settings_command() -> NetworkSettings {
+    NetworkSettings {
+        concurrent: config::net_concurrent_downloads() as u32,
+        speed_limit_kb: config::net_speed_limit_kb(),
+        proxy: config::net_proxy(),
+        force_ipv4: config::net_force_ipv4(),
+    }
+}
+
+#[tauri::command]
+fn set_network_settings_command(
+    concurrent: Option<u32>,
+    speed_limit_kb: Option<u32>,
+    proxy: Option<String>,
+    force_ipv4: Option<bool>,
+) -> Result<(), String> {
+    if let Some(n) = concurrent {
+        config::set_net_concurrent_downloads(n).map_err(|e| e.to_string())?;
+    }
+    if let Some(kb) = speed_limit_kb {
+        config::set_net_speed_limit_kb(kb).map_err(|e| e.to_string())?;
+    }
+    if let Some(p) = proxy {
+        config::set_net_proxy(&p).map_err(|e| e.to_string())?;
+    }
+    if let Some(v4) = force_ipv4 {
+        config::set_net_force_ipv4(v4).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 /// Запоминает язык интерфейса (ru/en) для строк, формируемых на стороне Rust
@@ -4048,6 +4209,12 @@ pub fn run() {
             set_warn_custom_mods_command,
             get_user_jvm_args_command,
             set_user_jvm_args_command,
+            get_network_settings_command,
+            pause_download_command,
+            resume_download_command,
+            cancel_download_command,
+            is_download_paused_command,
+            set_network_settings_command,
             set_locale_command,
             get_news_command,
             list_game_files_command,

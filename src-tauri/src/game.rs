@@ -669,7 +669,7 @@ async fn resolve_assets(
     let objects = index["objects"].as_object().cloned().unwrap_or_default();
 
     // Скачиваем объекты (ассеты) — параллельно, с лимитом.
-    let semaphore = Arc::new(tokio::sync::Semaphore::new(16));
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(crate::config::net_concurrent_downloads()));
     let mut tasks = Vec::new();
     for (_name, obj) in objects {
         let hash = obj["hash"].as_str().unwrap_or("").to_string();
@@ -687,10 +687,13 @@ async fn resolve_assets(
         );
         let client = client.clone();
         let sem = semaphore.clone();
-        tasks.push(tokio::spawn(async move {
-            let _p = sem.acquire().await?;
-            ensure_download(&client, &url, &hash, &dest).await
-        }));
+    tasks.push(tokio::spawn(async move {
+        let _p = sem.acquire().await?;
+        crate::check_download_cancelled_or_paused()
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        ensure_download(&client, &url, &hash, &dest).await
+    }));
     }
 
     let results = futures::future::join_all(tasks).await;

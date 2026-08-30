@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import { useLauncherCtx } from '~/composables/useLauncherContext';
 const ctx = useLauncherCtx();
 const {
@@ -67,7 +68,26 @@ const {
   cpErr,
   cpResults,
   openCatalogCurseDetail,
+  quickCpBusy,
+  quickDownloadCpPack,
+  loadMorePacks,
+  loadMoreCpPacks,
+  modPackMoreBusy,
+  cpMoreBusy,
+  modPackMore,
+  cpMore,
 } = ctx;
+
+const catalogScrollRef = ref<HTMLElement | null>(null);
+
+function onCatalogScroll() {
+  const el = catalogScrollRef.value;
+  if (!el) return;
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+    if (catalogSource.value === "modrinth") loadMorePacks();
+    else if (catalogSource.value === "curse") loadMoreCpPacks();
+  }
+}
 </script>
 
 <template>
@@ -107,7 +127,7 @@ const {
   </button>
   </div>
 
-  <div class="min-h-0 flex-1 overflow-y-auto pb-6">
+  <div ref="catalogScrollRef" class="min-h-0 flex-1 overflow-y-auto pb-6" @scroll="onCatalogScroll">
   <template v-if="catalogSource === 'mono'">
   <!-- Catalog Detail View -->
   <template v-if="catalogDetail">
@@ -646,13 +666,17 @@ const {
   <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
   <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
   </svg>
-  {{ t("mods.download") }}
-  </button>
-  </div>
-  </div>
-  </template>
+   {{ t("mods.download") }}
+   </button>
+   </div>
+   </div>
+   <div v-if="modPackMoreBusy" class="flex items-center justify-center py-4 text-[13px] text-[color:var(--tx-muted)]">
+   <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+   {{ t("mods.searchingAll") }}
+   </div>
+   </template>
 
-  <template v-else-if="catalogSource === 'curse'">
+   <template v-else-if="catalogSource === 'curse'">
   <div class="mb-3 flex shrink-0 flex-wrap items-center gap-2">
   <FilterSelect
   v-model="cpCatSel"
@@ -737,11 +761,30 @@ const {
   <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
   {{ p.downloadCount.toLocaleString() }}
   </p>
-  </div>
-  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 self-center fill-[var(--tx-muted)]"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
-  </div>
-  </div>
-  </template>
+   </div>
+   <button
+   type="button"
+   class="flex shrink-0 items-center gap-1.5 self-center rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+   :disabled="quickCpBusy !== null"
+   :title="t('mods.downloadHint')"
+   @click="quickDownloadCpPack(p, $event)"
+   >
+   <svg v-if="quickCpBusy === p.projectId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
+   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
+   </svg>
+   <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+   <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
+   </svg>
+    {{ t("mods.download") }}
+    </button>
+    <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 self-center fill-[var(--tx-muted)]"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+    </div>
+    </div>
+    <div v-if="cpMoreBusy" class="flex items-center justify-center py-4 text-[13px] text-[color:var(--tx-muted)]">
+    <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+    {{ t("mods.searchingAll") }}
+    </div>
+    </template>
   </div>
   </div>
 </template>

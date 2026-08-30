@@ -57,6 +57,51 @@ pub fn default_pack_id() -> String {
         .unwrap_or_default()
 }
 
+/// Превращает название сборки в безопасный для файловой системы slug.
+/// «Fabulously Optimized 1.20» → «fabulously-optimized-120»
+pub fn sanitize_pack_name(name: &str) -> String {
+    let slug: String = name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else if c == '-' || c == '_' {
+                '-'
+            } else if c.is_whitespace() {
+                '-'
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let slug: String = slug
+        .split('-')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("-");
+    if slug.is_empty() {
+        "pack".to_string()
+    } else {
+        slug
+    }
+}
+
+/// Генерирует уникальный pack_id из slug-а: если такой уже есть, добавляет
+/// суффикс «-2», «-3», …
+pub fn unique_pack_id(slug: &str) -> String {
+    let packs = user_packs().unwrap_or_default();
+    if !packs.iter().any(|p| p.id == slug) {
+        return slug.to_string();
+    }
+    for n in 2.. {
+        let candidate = format!("{slug}-{n}");
+        if !packs.iter().any(|p| p.id == candidate) {
+            return candidate;
+        }
+    }
+    unreachable!()
+}
+
 /// Файл реестра пользовательских сборок.
 fn user_packs_file() -> Result<PathBuf> {
     Ok(launcher_root()?.join("packs.json"))
@@ -566,5 +611,107 @@ pub fn set_user_jvm_args(args: &str) -> Result<()> {
         std::fs::create_dir_all(parent)?;
     }
     std::fs::write(&file, args.trim())?;
+    Ok(())
+}
+
+// ========== Network settings ==========
+
+/// Файл: количество одновременных скачиваний (по умолчанию 8).
+fn net_concurrent_file() -> Result<PathBuf> {
+    Ok(launcher_root()?.join("net-concurrent.txt"))
+}
+
+/// Количество одновременных потоков скачивания (1..32, по умолчанию 8).
+pub fn net_concurrent_downloads() -> usize {
+    net_concurrent_file()
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| s.trim().parse().ok())
+        .map(|n: u32| n.clamp(1, 32) as usize)
+        .unwrap_or(8)
+}
+
+pub fn set_net_concurrent_downloads(n: u32) -> Result<()> {
+    let file = net_concurrent_file()?;
+    let n = n.clamp(1, 32);
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&file, n.to_string())?;
+    Ok(())
+}
+
+/// Файл: лимит скорости в КБ/с (0 = без лимита).
+fn net_speed_limit_file() -> Result<PathBuf> {
+    Ok(launcher_root()?.join("net-speed-limit.txt"))
+}
+
+/// Лимит скорости скачивания в КБ/с (0 = без лимита).
+pub fn net_speed_limit_kb() -> u32 {
+    net_speed_limit_file()
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(0)
+}
+
+pub fn set_net_speed_limit_kb(kb: u32) -> Result<()> {
+    let file = net_speed_limit_file()?;
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&file, kb.to_string())?;
+    Ok(())
+}
+
+/// Файл: прокси-сервер (пусто = без прокси).
+fn net_proxy_file() -> Result<PathBuf> {
+    Ok(launcher_root()?.join("net-proxy.txt"))
+}
+
+/// Адрес прокси (socks5://host:port или http://host:port), пусто = без прокси.
+pub fn net_proxy() -> String {
+    net_proxy_file()
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_default()
+}
+
+pub fn set_net_proxy(proxy: &str) -> Result<()> {
+    let file = net_proxy_file()?;
+    let proxy = proxy.trim();
+    if proxy.is_empty() {
+        let _ = std::fs::remove_file(&file);
+        return Ok(());
+    }
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&file, proxy)?;
+    Ok(())
+}
+
+/// Файл: принудительный IPv4 (по умолчанию включён).
+fn net_ipv4_file() -> Result<PathBuf> {
+    Ok(launcher_root()?.join("net-ipv4.txt"))
+}
+
+/// Принудительно использовать только IPv4? (по умолчанию true).
+pub fn net_force_ipv4() -> bool {
+    net_ipv4_file()
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|s| s.trim() != "0")
+        .unwrap_or(true)
+}
+
+pub fn set_net_force_ipv4(on: bool) -> Result<()> {
+    let file = net_ipv4_file()?;
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&file, if on { "1" } else { "0" })?;
     Ok(())
 }

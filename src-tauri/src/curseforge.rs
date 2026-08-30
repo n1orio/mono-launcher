@@ -140,7 +140,7 @@ pub fn api_key_from_cfg() -> Option<String> {
     }
 }
 
-fn require_api_key() -> Result<String> {
+pub fn require_api_key() -> Result<String> {
     api_key_from_cfg().ok_or_else(|| {
         anyhow!(
             "CurseForge требует API-ключ.\n\
@@ -238,6 +238,7 @@ pub async fn search(
     game_version: Option<&str>,
     sort_field: Option<&str>,
     mod_loader_type: Option<u32>,
+    index: Option<u32>,
 ) -> Result<Vec<CurseSearchHit>> {
     let key = require_api_key()?;
     let mut req = client
@@ -252,6 +253,9 @@ pub async fn search(
             ("sortField", sort_field.unwrap_or("2").to_string()),
             ("sortOrder", "desc".to_string()),
         ]);
+    if let Some(idx) = index {
+        req = req.query(&[("index", idx.to_string())]);
+    }
     for cat in category_ids {
         req = req.query(&[("categoryId", cat.to_string())]);
     }
@@ -483,17 +487,47 @@ fn curse_file_from_item(project_id: u32, f: FileItem) -> CurseFile {
         .find(|h| h.algo == 1)
         .map(|h| h.value.clone())
         .unwrap_or_default();
+    // CurseForge иногда отдаёт website-URL вместо прямой CDN-ссылки.
+    // Такие ссылки не работают напрямую (403) — оставляем пустым,
+    // resolve_download_url получит реальный CDN.
+    let download_url = f.download_url.filter(|u| {
+        !u.contains("curseforge.com/minecraft/") && !u.contains("/download/")
+    });
     CurseFile {
         file_id: f.id,
         project_id,
         file_name: f.file_name,
-        download_url: f.download_url.unwrap_or_else(|| {
-            format!("https://www.curseforge.com/minecraft/mc-mods/{project_id}/download/{}/file", f.id)
-        }),
+        download_url: download_url.unwrap_or_default(),
         sha1,
         game_version: f.game_versions.first().cloned().unwrap_or_default(),
         dependencies: f.dependencies,
     }
+}
+
+/// Запрашивает реальную ссылку на скачивание файла CurseForge.
+/// Используется когда API возвращает `downloadUrl: null` (protected downloads).
+pub async fn resolve_download_url(
+    client: &reqwest::Client,
+    project_id: u32,
+    file_id: u32,
+) -> Result<String> {
+    let key = require_api_key()?;
+    let url = format!("{API_BASE}/mods/{project_id}/files/{file_id}/download-url");
+    let resp: serde_json::Value = client
+        .get(&url)
+        .header("x-api-key", &key)
+        .header("User-Agent", ua())
+        .send()
+        .await
+        .context("Не удалось запросить ссылку на скачивание")?
+        .error_for_status()
+        .context("CurseForge отклонил запрос download-url")?
+        .json()
+        .await?;
+    resp.get("data")
+        .and_then(|d| d.as_str())
+        .map(String::from)
+        .ok_or_else(|| anyhow!("CurseForge не вернул URL скачивания (data пусто)"))
 }
 
 /// Устанавливает required-зависимости файла CurseForge (рекурсивно, до
@@ -795,7 +829,7 @@ pub async fn latest_file(
     let files: Vec<(String, FileItem)> = resp
         .data
         .into_iter()
-        .filter(|f| f.is_available && f.download_url.is_some())
+        .filter(|f| f.is_available)
         .map(|f| (f.file_date.clone(), f))
         .collect();
     let Some(f) = pick_latest(files, mc_version) else {
@@ -837,9 +871,18 @@ pub async fn download_to(
         .next()
         .unwrap_or(&file.file_name)
         .to_string();
-    let resp = client
-        .get(&file.download_url)
-        .header("User-Agent", ua())
+    let url = if file.download_url.is_empty()
+        || file.download_url.contains("curseforge.com/minecraft/")
+    {
+        resolve_download_url(client, file.project_id, file.file_id).await?
+    } else {
+        file.download_url.clone()
+    };
+    let mut req = client.get(&url).header("User-Agent", ua());
+    if let Ok(key) = require_api_key() {
+        req = req.header("x-api-key", &key);
+    }
+    let resp = req
         .send()
         .await
         .context("Не удалось скачать файл с CurseForge")?
@@ -888,6 +931,8 @@ struct CfManifest {
 #[derive(Debug, Deserialize)]
 struct CfMinecraft {
     version: String,
+    #[serde(default, rename = "modLoaders")]
+    mod_loaders: Vec<CfModLoader>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -899,7 +944,9 @@ struct CfModLoader {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CfManifestFile {
+    #[serde(alias = "projectID")]
     project_id: u32,
+    #[serde(alias = "fileID")]
     file_id: u32,
 }
 
@@ -929,9 +976,11 @@ async fn download_zip(
 ) -> Result<()> {
     use futures::StreamExt;
     use tokio::io::AsyncWriteExt;
-    let resp = client
-        .get(url)
-        .header("User-Agent", ua())
+    let mut req = client.get(url).header("User-Agent", ua());
+    if let Ok(key) = require_api_key() {
+        req = req.header("x-api-key", &key);
+    }
+    let resp = req
         .send()
         .await
         .context("Не удалось скачать архив сборки с CurseForge")?
@@ -944,6 +993,9 @@ async fn download_zip(
     let mut last_report = std::time::Instant::now();
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.context("Ошибка чтения потока скачивания")?;
+        crate::check_download_cancelled_or_paused()
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
         downloaded += chunk.len() as u64;
         file.write_all(&chunk).await?;
         if last_report.elapsed().as_millis() >= 150 {
@@ -973,7 +1025,7 @@ async fn resolve_manifest_files(
     entries: &[CfManifestFile],
 ) -> Result<Vec<crate::mrpack::IndexFile>> {
     use std::sync::Arc;
-    let semaphore = Arc::new(tokio::sync::Semaphore::new(8));
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(crate::config::net_concurrent_downloads()));
     let mut tasks: Vec<tokio::task::JoinHandle<Result<Option<crate::mrpack::IndexFile>>>> = Vec::new();
     for e in entries.iter() {
         let client = client.clone();
@@ -993,8 +1045,28 @@ async fn resolve_manifest_files(
                     ))
                 }
             };
-            if file.download_url.is_empty() {
-                return Ok(None);
+            if file.download_url.is_empty()
+                || file.download_url.contains("curseforge.com/minecraft/")
+            {
+                // Protected download — запрашиваем реальную CDN-ссылку через API.
+                match resolve_download_url(&client, project_id, file_id).await {
+                    Ok(url) => {
+                        let mut hashes = std::collections::HashMap::new();
+                        if !file.sha1.is_empty() {
+                            hashes.insert("sha1".to_string(), file.sha1);
+                        }
+                        let name = file.file_name.rsplit('/').next().unwrap_or(&file.file_name).to_string();
+                        return Ok(Some(crate::mrpack::IndexFile {
+                            path: format!("mods/{name}"),
+                            hashes,
+                            downloads: vec![url],
+                            url: None,
+                            file_size: 0,
+                            env: None,
+                        }));
+                    }
+                    Err(_) => return Ok(None),
+                }
             }
             let mut hashes = std::collections::HashMap::new();            if !file.sha1.is_empty() {
                 hashes.insert("sha1".to_string(), file.sha1);
@@ -1050,11 +1122,12 @@ pub async fn install_modpack(
 
     let extract_dir = crate::mrpack::extract_mrpack(app, &zip_path).await?;
 
-    let manifest: CfManifest = serde_json::from_slice(
-        &std::fs::read(extract_dir.join("manifest.json"))
-            .context("В архиве сборки нет manifest.json")?,
-    )
-    .context("Не удалось разобрать manifest.json")?;
+    let manifest_bytes = std::fs::read(extract_dir.join("manifest.json"))
+        .context("В архиве сборки нет manifest.json")?;
+    let manifest: CfManifest = serde_json::from_slice(&manifest_bytes).map_err(|e| {
+        let preview = String::from_utf8_lossy(&manifest_bytes[..manifest_bytes.len().min(500)]);
+        anyhow!("Не удалось разобрать manifest.json: {e}\nПревью: {preview}")
+    })?;
 
     let files = resolve_manifest_files(client, &manifest.files).await?;
     if files.is_empty() {
@@ -1065,7 +1138,12 @@ pub async fn install_modpack(
 
     let mut dependencies = std::collections::HashMap::new();
     dependencies.insert("minecraft".to_string(), manifest.minecraft.version.clone());
-    for ml in manifest.mod_loaders.iter() {
+    let loaders = if !manifest.mod_loaders.is_empty() {
+        &manifest.mod_loaders
+    } else {
+        &manifest.minecraft.mod_loaders
+    };
+    for ml in loaders.iter() {
         if let Some((key, ver)) = cf_loader_to_dep(&ml.id) {
             dependencies.entry(key).or_insert(ver);
             break;

@@ -8,6 +8,8 @@ import {
   autostartGet,
   getUserJvmArgs,
   setUserJvmArgs,
+  getNetworkSettings,
+  setNetworkSettings,
 } from "~/lib/bridge";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -110,13 +112,15 @@ const activeLocaleVersion = computed(() => getLocaleMeta(locale.value).version ?
 
 // --- Settings sub-tabs ---
 
-const settingsTab = ref<"accounts" | "appearance">("accounts");
+const settingsTab = ref<"accounts" | "appearance" | "network">("accounts");
 
-const SETTINGS_TAB_ICONS: Record<"accounts" | "appearance", string> = {
+const SETTINGS_TAB_ICONS: Record<"accounts" | "appearance" | "network", string> = {
   accounts:
     '<path d="M8 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM2 13.25C2 10.75 4.46 9.25 8 9.25s6 1.5 6 4V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-.75Z"/>',
   appearance:
     '<path fill-rule="evenodd" d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm0 1.5v11a5.5 5.5 0 0 1 0-11Z"/>',
+  network:
+    '<path d="M1 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5Zm3-2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5Zm3-2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5Zm3-2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5Z"/>',
 };
 
 // --- System: tray + autostart ---
@@ -189,6 +193,49 @@ onMounted(() => {
   void loadJvmArgs();
 });
 
+// --- Network settings ---
+
+const netConcurrent = ref(8);
+const netSpeedLimit = ref(0);
+const netProxy = ref("");
+const netForceIpv4 = ref(true);
+const netSaving = ref(false);
+
+async function loadNetworkSettings() {
+  if (!isTauri()) return;
+  try {
+    const s = await getNetworkSettings();
+    netConcurrent.value = s.concurrent;
+    netSpeedLimit.value = s.speed_limit_kb;
+    netProxy.value = s.proxy;
+    netForceIpv4.value = s.force_ipv4;
+  } catch {
+    /* ignore */
+  }
+}
+
+async function saveNetworkSettings() {
+  if (!isTauri() || netSaving.value) return;
+  netSaving.value = true;
+  try {
+    await setNetworkSettings({
+      concurrent: netConcurrent.value,
+      speed_limit_kb: netSpeedLimit.value,
+      proxy: netProxy.value,
+      force_ipv4: netForceIpv4.value,
+    });
+    notify(t("settings.netSaved"), "success");
+  } catch (e) {
+    notify(t("files.updateErr", { e }), "error");
+  } finally {
+    netSaving.value = false;
+  }
+}
+
+onMounted(() => {
+  void loadNetworkSettings();
+});
+
 // --- Java change ---
 
 function onJavaChange(e: Event) {
@@ -238,7 +285,7 @@ async function copySkinApi() {
         <p class="text-[13px] text-[color:var(--tx-muted)]">{{ t("settings.subtitle") }}</p>
         <div class="mt-3 flex gap-1">
           <button
-            v-for="st in ([['accounts', t('settings.tabAccounts')], ['appearance', t('settings.tabAppearance')]] as const)"
+            v-for="st in ([['accounts', t('settings.tabAccounts')], ['appearance', t('settings.tabAppearance')], ['network', t('settings.tabNetwork')]] as const)"
             :key="st[0]"
             type="button"
             class="relative inline-flex items-center gap-1.5 px-3 pb-2 pt-1 text-[13px] font-semibold transition-colors"
@@ -755,7 +802,7 @@ async function copySkinApi() {
         </div>
       </template>
 
-      <template v-else>
+      <template v-else-if="settingsTab === 'appearance'">
         <div class="space-y-4">
           <!-- Тема -->
           <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
@@ -813,6 +860,94 @@ async function copySkinApi() {
               </p>
             </div>
           </section>
+        </div>
+      </template>
+
+      <template v-else>
+        <div class="space-y-4">
+          <!-- Одновременные скачивания -->
+          <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
+            <div class="border-b border-[var(--border)] px-3.5 py-2.5 flex justify-between items-center">
+              <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.netConcurrent") }}</h3>
+              <span class="font-mono text-[13px] font-semibold text-[var(--accent)]">{{ netConcurrent }}</span>
+            </div>
+            <div class="p-4 space-y-2">
+              <input
+                type="range"
+                min="1"
+                max="32"
+                step="1"
+                v-model.number="netConcurrent"
+                class="w-full accent-[var(--accent-deep)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
+              />
+              <p class="text-[13px] text-[color:var(--tx-muted)]">{{ t("settings.netConcurrentNote") }}</p>
+            </div>
+          </section>
+
+          <!-- Ограничение скорости -->
+          <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
+            <div class="border-b border-[var(--border)] px-3.5 py-2.5 flex justify-between items-center">
+              <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.netSpeedLimit") }}</h3>
+              <span class="font-mono text-[13px] font-semibold text-[var(--accent)]">
+                {{ netSpeedLimit === 0 ? t("settings.netSpeedLimitUnlimited") : netSpeedLimit + " КБ/с" }}
+              </span>
+            </div>
+            <div class="p-4 space-y-2">
+              <input
+                type="range"
+                min="0"
+                max="10240"
+                step="64"
+                v-model.number="netSpeedLimit"
+                class="w-full accent-[var(--accent-deep)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
+              />
+              <p class="text-[13px] text-[color:var(--tx-muted)]">{{ t("settings.netSpeedLimitNote") }}</p>
+            </div>
+          </section>
+
+          <!-- Прокси -->
+          <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
+            <div class="border-b border-[var(--border)] px-3.5 py-2.5">
+              <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.netProxy") }}</h3>
+            </div>
+            <div class="p-4 space-y-2">
+              <input
+                v-model="netProxy"
+                type="text"
+                :placeholder="t('settings.netProxyPlaceholder')"
+                class="w-full rounded-md bg-[var(--input)] border border-[var(--border)] px-3 py-2 font-mono text-[13px] text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)]"
+              />
+              <p class="text-[13px] text-[color:var(--tx-muted)]">{{ t("settings.netProxyNote") }}</p>
+            </div>
+          </section>
+
+          <!-- IPv4 -->
+          <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
+            <div class="border-b border-[var(--border)] px-3.5 py-2.5">
+              <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.netIpv4") }}</h3>
+            </div>
+            <div class="p-4">
+              <label class="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 accent-[var(--accent-deep)]"
+                  :checked="netForceIpv4"
+                  @change="netForceIpv4 = ($event.target as HTMLInputElement).checked"
+                />
+                <span class="text-[13px] text-[color:var(--tx)]">{{ t("settings.netIpv4Note") }}</span>
+              </label>
+            </div>
+          </section>
+
+          <!-- Кнопка сохранить -->
+          <button
+            type="button"
+            class="w-full rounded-lg bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] py-2.5 text-[13px] font-semibold text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] disabled:opacity-50"
+            :disabled="netSaving"
+            @click="saveNetworkSettings"
+          >
+            {{ netSaving ? t("common.saving") : t("common.save") }}
+          </button>
         </div>
       </template>
 
