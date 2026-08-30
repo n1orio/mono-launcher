@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.0.0-alpha.6] — 2026-08-30
+
+### CurseForge
+- **Loader filter** — CurseForge modpack search now filters by `modLoaderType` (forge / fabric / quilt / neoforge) instead of `categoryId`.
+- **Auto-filters** — opening a pack automatically applies filters from pack status (lo loaders, mod loaders).
+- **Full descriptions** — CurseForge modpack cards render full HTML descriptions (with prose styling) instead of truncated summary.
+- **Infinite scroll** for search results.
+
+### Context menus
+- Right-click a pack in the sidebar → Play / Settings / News / Remove.
+- Right-click a file in the file list → View Detail / Update / Enable-Disable / Delete / Open Folder.
+- Reusable `AppContextMenu` and `AppContextMenuItem` components.
+
+### Toolbar
+- "..." menu with sections: mod management, file operations, delete.
+- Delete button moved into dropdown (red trash icon).
+
+### UI
+- Font scale: 13px → 14px.
+- Window size: 1200×750, minimum 950×650.
+- `enableAllFiles()` helper for bulk enable/disable operations.
+
+### Fixes
+- Restored missing component files (tabs/, modals/).
+- Version bumped to 2.0.0-alpha.6 across package.json, tauri.conf.json, Cargo.toml, and all locale files.
+
 ## [2.0.0-alpha] — 2026-08-24
 
 ### Library & packs
