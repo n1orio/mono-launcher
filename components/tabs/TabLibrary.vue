@@ -67,7 +67,7 @@ const { t, packs, filteredPacks, packsBySource, sidebarCat, toggleSidebarCat, li
   :title="t('library.toggleCat')"
   @click="toggleSidebarCat(cat)"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current transition-transform" :class="sidebarCat[cat] ? 'rotate-90' : ''"><path d="M6 4l4 4-4 4V4Z"/></svg>
+   <AppIcon name="chevron-right" class="h-3 w-3 fill-current transition-transform" :class="sidebarCat[cat] ? 'rotate-90' : ''" />
   </button>
   {{ t(PACK_CAT_LABELS[cat]) }}
   <span class="rounded-full bg-[var(--input)] px-1.5 py-0.5 text-[11px] font-bold tabular-nums">{{ packsBySource[cat].length }}</span>
@@ -107,7 +107,7 @@ const { t, packs, filteredPacks, packsBySource, sidebarCat, toggleSidebarCat, li
   :disabled="busy || gameRunning"
   @click="playLibraryPack(p)"
   >
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
+  <AppIcon name="play" class="h-4 w-4 fill-current" />
   {{ libStatus[p.id]?.installed ? t("side.play") : t("side.downloadPlay") }}
   </button>
   </div>
@@ -123,7 +123,7 @@ const { t, packs, filteredPacks, packsBySource, sidebarCat, toggleSidebarCat, li
   :title="t('library.toggleCat')"
   @click="toggleSidebarCat(s.cat.id)"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current transition-transform" :class="sidebarCat[s.cat.id] ? 'rotate-90' : ''"><path d="M6 4l4 4-4 4V4Z"/></svg>
+   <AppIcon name="chevron-right" class="h-3 w-3 fill-current transition-transform" :class="sidebarCat[s.cat.id] ? 'rotate-90' : ''" />
   </button>
   {{ s.cat.name }}
   <span class="rounded-full bg-[var(--input)] px-1.5 py-0.5 text-[11px] font-bold tabular-nums">{{ s.packs.length }}</span>
@@ -134,7 +134,7 @@ const { t, packs, filteredPacks, packsBySource, sidebarCat, toggleSidebarCat, li
   :title="t('library.renameCat')"
   @click="openCatRename(s.cat.id)"
   >
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25a1.75 1.75 0 0 1 .445-.758l8.61-8.61Zm.176 4.82 1.658-1.659-1.085-1.085-1.66 1.657 1.087 1.087Z"/></svg>
+   <AppIcon name="pencil" class="h-3 w-3 fill-current" />
   </button>
   <button
   type="button"
@@ -142,7 +142,7 @@ const { t, packs, filteredPacks, packsBySource, sidebarCat, toggleSidebarCat, li
   :title="t('library.deleteCat')"
   @click="deleteLibCat(s.cat.id)"
   >
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.15l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15ZM6.5 1.75V3h3V1.75a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25Z"/></svg>
+   <AppIcon name="trash" class="h-3 w-3 fill-current" />
   </button>
   </span>
   </h3>
@@ -181,7 +181,7 @@ const { t, packs, filteredPacks, packsBySource, sidebarCat, toggleSidebarCat, li
   :disabled="busy || gameRunning"
   @click="playLibraryPack(p)"
   >
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
+  <AppIcon name="play" class="h-4 w-4 fill-current" />
   {{ libStatus[p.id]?.installed ? t("side.play") : t("side.downloadPlay") }}
   </button>
   </div>
@@ -226,8 +226,8 @@ const { t, packs, filteredPacks, packsBySource, sidebarCat, toggleSidebarCat, li
   :disabled="busy || gameRunning"
   @click="libDoPlay"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
-  {{ libMenuPack && libStatus[libMenuPack.id]?.installed ? t("side.play") : t("side.downloadPlay") }}
+   <AppIcon name="play" class="h-4 w-4 fill-current" />
+   {{ libMenuPack && libStatus[libMenuPack.id]?.installed ? t("side.play") : t("side.downloadPlay") }}
   </button>
   <button
   v-if="libMenuPack?.url"
@@ -235,7 +235,7 @@ const { t, packs, filteredPacks, packsBySource, sidebarCat, toggleSidebarCat, li
   class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click="libCopyLink"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="m7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"/></svg>
+   <AppIcon name="link" class="h-4 w-4 fill-current" />
   {{ t("pack.copyLink") }}
   </button>
   <button
@@ -243,7 +243,7 @@ const { t, packs, filteredPacks, packsBySource, sidebarCat, toggleSidebarCat, li
   class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click="libOpenSettings"
   >
-  <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0 fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"></path></svg>
+   <AppIcon name="settings" class="h-4 w-4 fill-current" />
   {{ t("nav.settings") }}
   </button>
   <template v-if="libCats.length > 0">

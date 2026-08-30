@@ -194,7 +194,7 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
       >
         <div class="flex min-w-0 items-center gap-2.5">
           <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg  bg-[var(--input)]">
-            <svg viewBox="0 0 16 16" class="h-4 w-4 fill-[var(--accent)]"><path d="M10.68 1.997a5.5 5.5 0 0 1 4.553 8.573l.783 2.802a.5.5 0 0 1-.62.619l-2.775-.783A5.5 5.5 0 1 1 10.68 1.997ZM6.5 7A.75.75 0 0 0 6.5 8.5h4A.75.75 0 0 0 10.5 7h-4Zm0 3a.75.75 0 0 0 0 1.5h2.75a.75.75 0 0 0 0-1.5H6.5Z"/></svg>
+            <AppIcon name="search" class="h-4 w-4 fill-[var(--accent)]" />
           </div>
           <div class="min-w-0">
             <h3 class="truncate text-[15px] font-bold tracking-tight text-[color:var(--tx-strong)]">
@@ -237,7 +237,7 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
             :title="t('common.close')"
             @click="closeSearch"
           >
-            <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+            <AppIcon name="x" class="h-4 w-4 fill-current" />
           </button>
         </div>
       </div>
@@ -246,9 +246,7 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
       </div>
       <div class="flex shrink-0 items-center gap-2 border-b border-[var(--border)]  px-3.5 py-2.5">
         <div class="relative min-w-0 flex-1">
-          <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 fill-[var(--tx-muted)]">
-            <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
-          </svg>
+          <AppIcon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 fill-[var(--tx-muted)]" />
           <input
             v-model="searchInput"
             type="text"
@@ -263,12 +261,8 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
           :disabled="searchLoading || !searchInput.trim()"
           @click="doSearch"
         >
-          <svg v-if="searchLoading" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current">
-            <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-          </svg>
-          <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current">
-            <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
-          </svg>
+          <AppIcon v-if="searchLoading" name="spinner" class="h-4 w-4 animate-spin fill-current" />
+          <AppIcon v-else name="search" class="h-4 w-4 fill-current" />
           {{ searchService === 'modrinth' ? t("mods.search") : t("curse.search") }}
         </button>
       </div>
@@ -364,12 +358,8 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
             :disabled="multiSelBusy || quickModBusy !== null || modInstallBusy !== null"
             @click="downloadSelectedMods"
           >
-            <svg v-if="multiSelBusy" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
-              <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-            </svg>
-            <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-              <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
-            </svg>
+            <AppIcon v-if="multiSelBusy" name="spinner" class="h-3 w-3 animate-spin fill-current" />
+            <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
             {{ multiSelBusy ? t("mods.installingSel") : t("mods.downloadSel") }}
           </button>
           <button
@@ -404,7 +394,7 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
               <div class="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-[color:var(--tx-muted)]">
                 <span>{{ t("mods.byAuthor", { author: modDetail.author }) }}</span>
                 <span class="flex items-center gap-1">
-                  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                  <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
                   {{ modDetail.downloads.toLocaleString() }}
                 </span>
                 <span v-if="modDetail.categories.length">{{ modDetail.categories.slice(0, 4).join(", ") }}</span>
@@ -425,12 +415,8 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
               :title="t('mods.downloadHint')"
               @click="quickDownloadMod(modDetail, $event)"
             >
-              <svg v-if="quickModBusy === modDetail.projectId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
-                <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-              </svg>
-              <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
-              </svg>
+              <AppIcon v-if="quickModBusy === modDetail.projectId" name="spinner" class="h-3 w-3 animate-spin fill-current" />
+              <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
               {{ t("mods.download") }}
             </button>
           </div>
@@ -454,9 +440,7 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
           </div>
           <div v-else-if="modDetailTab === 'versions'">
             <div v-if="modVersions === null" class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
-              <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
-                <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-              </svg>
+              <AppIcon name="spinner" class="mr-2 h-4 w-4 animate-spin fill-current" />
               {{ t("mods.searching") }}
             </div>
             <div v-else-if="modVersions.length === 0" class="py-8 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("mods.noVersions") }}</div>
@@ -493,12 +477,8 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
                   :title="v.versionNumber"
                   @click="installModVersion(v)"
                 >
-                  <svg v-if="modInstallBusy === v.id" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
-                    <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-                  </svg>
-                  <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                    <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
-                  </svg>
+                  <AppIcon v-if="modInstallBusy === v.id" name="spinner" class="h-3 w-3 animate-spin fill-current" />
+                  <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
                 </button>
               </div>
             </div>
@@ -512,9 +492,7 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
         </template>
         <template v-else-if="modSearchLoading">
           <div class="flex items-center justify-center py-16 text-[13px] text-[color:var(--tx-muted)]">
-            <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
-              <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-            </svg>
+            <AppIcon name="spinner" class="mr-2 h-4 w-4 animate-spin fill-current" />
             {{ t("mods.searching") }}
           </div>
         </template>
@@ -566,7 +544,7 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
                 <p class="mt-0.5 line-clamp-2 text-[13px] leading-snug text-[color:var(--tx-muted)]">{{ p.description }}</p>
                 <div class="mt-1 flex items-center gap-3 text-xs text-[color:var(--tx-muted)]">
                   <span class="flex items-center gap-1">
-                    <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                    <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
                     {{ p.downloads.toLocaleString() }}
                   </span>
                   <span v-if="status?.minecraft_version">{{ status.minecraft_version }}</span>
@@ -579,25 +557,17 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
                 :title="t('mods.downloadHint')"
                 @click="quickDownloadMod(p, $event)"
               >
-                <svg v-if="quickModBusy === p.projectId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
-                  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-                </svg>
-                <svg v-else-if="installedModrinthSlugs.has(p.slug)" viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                  <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-                </svg>
-                <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                  <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
-                </svg>
+                <AppIcon v-if="quickModBusy === p.projectId" name="spinner" class="h-3 w-3 animate-spin fill-current" />
+                <AppIcon v-else-if="installedModrinthSlugs.has(p.slug)" name="check" class="h-3 w-3 fill-current" />
+                <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
                 {{ installedModrinthSlugs.has(p.slug) ? t("mods.installedBadge") : t("mods.download") }}
               </button>
-              <svg viewBox="0 0 16 16" class="mt-1 h-4 w-4 shrink-0 fill-[var(--tx-muted)]"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+              <AppIcon name="chevron-right" class="mt-1 h-4 w-4 shrink-0 fill-[var(--tx-muted)]" />
             </div>
           </div>
         </template>
         <div v-if="modSearchMore || modSearchMoreBusy" class="flex justify-center py-4">
-          <svg v-if="modSearchMoreBusy" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-[var(--tx-muted)]">
-            <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-          </svg>
+          <AppIcon v-if="modSearchMoreBusy" name="spinner" class="h-4 w-4 animate-spin fill-[var(--tx-muted)]" />
           <button
             v-else
             type="button"
@@ -620,13 +590,9 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
             :disabled="multiSelBusy || curseInstallBusy !== null"
             @click="downloadSelectedCurse"
           >
-            <svg v-if="multiSelBusy" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
-              <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-            </svg>
-            <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-              <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
-            </svg>
-            {{ multiSelBusy ? t("mods.installingSel") : t("mods.downloadSel") }}
+              <AppIcon v-if="multiSelBusy" name="spinner" class="h-3 w-3 animate-spin fill-current" />
+              <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
+              {{ multiSelBusy ? t("mods.installingSel") : t("mods.downloadSel") }}
           </button>
           <button
             type="button"
@@ -638,11 +604,9 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
           </button>
         </div>
         <p v-if="!curseSearched" class="py-8 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("curse.help") }}</p>
-        <p v-else-if="curseLoading" class="flex items-center justify-center gap-2 py-8 text-[13px] text-[color:var(--tx-muted)]">
-          <svg viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current">
-            <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-          </svg>
-          {{ t("mods.searchingAll") }}
+          <p v-else-if="curseLoading" class="flex items-center justify-center gap-2 py-8 text-[13px] text-[color:var(--tx-muted)]">
+            <AppIcon name="spinner" class="h-4 w-4 animate-spin fill-current" />
+            {{ t("mods.searchingAll") }}
         </p>
         <template v-else-if="curseDetail">
           <button
@@ -663,7 +627,7 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
               <div class="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-[color:var(--tx-muted)]">
                 <span>{{ t("mods.byAuthor", { author: curseDetail.author }) }}</span>
                 <span class="flex items-center gap-1">
-                  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                  <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
                   {{ curseDetail.downloadCount.toLocaleString() }}
                 </span>
                 <span v-if="curseDetail.categories.length">{{ curseDetail.categories.slice(0, 4).join(", ") }}</span>
@@ -722,10 +686,8 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
             <p v-else class="py-6 text-center text-[13px] italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
           </div>
           <div v-else-if="curseDetailTab === 'versions'" class="max-h-[46vh] overflow-y-auto">
-            <div v-if="curseVersions === null" class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
-              <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
-                <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-              </svg>
+              <div v-if="curseVersions === null" class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
+              <AppIcon name="spinner" class="mr-2 h-4 w-4 animate-spin fill-current" />
               {{ t("mods.searching") }}
             </div>
             <div v-else-if="curseVersions.length === 0" class="py-8 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("mods.noVersions") }}</div>
@@ -762,12 +724,8 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
                   :title="f.fileName"
                   @click="installCurseFile(f)"
                 >
-                  <svg v-if="curseInstallBusy === f.fileId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
-                    <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-                  </svg>
-                  <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                    <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
-                  </svg>
+                  <AppIcon v-if="curseInstallBusy === f.fileId" name="spinner" class="h-3 w-3 animate-spin fill-current" />
+                  <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
                 </button>
               </div>
             </div>

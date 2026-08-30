@@ -96,7 +96,7 @@ const {
       </button>
     </div>
     <div v-if="fileDetailMrLoading" class="flex min-h-0 flex-1 items-center justify-center text-[13px] text-[color:var(--tx-muted)]">
-      <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+      <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
       {{ t("mods.searching") }}
     </div>
     <div v-else-if="fileDetailMr" class="min-h-0 flex-1 overflow-y-auto px-3.5 py-2.5">
@@ -111,7 +111,7 @@ const {
           <FilterSelect v-model="fileDetailTypeSel" :options="versionTypeOptions" :placeholder="t('mods.fType')" :multiple="true" />
         </div>
         <div v-if="fileDetailMrVersions === null" class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
-          <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+          <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
           {{ t("mods.searching") }}
         </div>
         <div v-else-if="fileDetailFilteredVersions.length === 0" class="rounded-md  bg-[var(--input-50)] p-6 text-center text-[13px] text-[color:var(--tx-muted)]">
@@ -143,7 +143,7 @@ const {
             </span>
             <span class="shrink-0 rounded  bg-[var(--input-50)] px-1.5 py-px font-mono text-[11px] text-[color:var(--tx-muted)]">{{ v.versionNumber }}</span>
             <template v-if="fileDetailMrVersionBusy === v.id">
-              <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 animate-spin fill-[var(--accent)]"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+              <AppIcon name="spinner" class="h-4 w-4 shrink-0 fill-[var(--accent)]" />
             </template>
             <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--accent)]"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/></svg>
           </button>
@@ -183,7 +183,7 @@ const {
           class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-[var(--input-50)] disabled:opacity-60"
           :disabled="fileDetailCfVersionBusy !== null"
           @click="installFileDetailCfVersion(f)">
-          <svg v-if="fileDetailCfVersionBusy === f.fileId" viewBox="0 0 16 16" class="h-4 w-4 shrink-0 animate-spin fill-current text-[var(--accent)]"><path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Zm3.36 2.14a.75.75 0 0 1 0 1.06 4 4 0 1 1-6.72 0 .75.75 0 0 1 1.06-1.06 2.5 2.5 0 1 0 4.6 0 .75.75 0 0 1 1.06-1.06Z"/></svg>
+          <AppIcon v-if="fileDetailCfVersionBusy === f.fileId" name="spinner" class="h-4 w-4 shrink-0 fill-current text-[var(--accent)]" />
           <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current text-[var(--accent)]"><path d="M7.47 10.78a.75.75 0 0 0 1.06 0l3.75-3.75a.75.75 0 0 0-1.06-1.06L8.75 8.44V1.75a.75.75 0 0 0-1.5 0v6.69L4.78 5.97a.75.75 0 0 0-1.06 1.06l3.75 3.75ZM3.75 13a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5h-8.5Z"/></svg>
           <span class="min-w-0 flex-1">
             <span class="block truncate text-sm font-medium text-[color:var(--tx-strong)]">{{ f.displayName || f.fileName }}</span>

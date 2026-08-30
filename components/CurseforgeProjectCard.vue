@@ -73,9 +73,7 @@ function handleOpenDetail(e: MouseEvent) {
       :title="props.selected ? 'Отменить выбор' : 'Выбрать для скачивания'"
       @click.stop="handleSelect"
     >
-      <svg v-if="props.selected" viewBox="0 0 16 16" class="h-3 w-3 fill-[var(--accent)]">
-        <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
-      </svg>
+      <AppIcon v-if="props.selected" name="check" class="h-3 w-3 fill-[var(--accent)]" />
     </button>
 
     <!-- Icon -->
@@ -124,9 +122,7 @@ function handleOpenDetail(e: MouseEvent) {
         {{ project.description || project.summary }}
       </p>
       <div v-if="!compact" class="mt-1.5 flex items-center gap-1 text-xs text-[color:var(--tx-muted)]">
-        <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-          <path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z" />
-        </svg>
+        <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
         {{ project.downloadCount.toLocaleString() }}
       </div>
     </div>
@@ -143,39 +139,31 @@ function handleOpenDetail(e: MouseEvent) {
       :disabled="props.loading || props.installed"
       @click.stop="handleInstall"
     >
-      <svg
+      <AppIcon
         v-if="props.loading"
-        viewBox="0 0 16 16"
-        :class="['animate-spin fill-current', compact ? 'h-3 w-3' : 'h-3 w-3']"
-      >
-        <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z" />
-      </svg>
-      <svg
+        name="spinner"
+        :class="'fill-current ' + (compact ? 'h-3 w-3' : 'h-3 w-3')"
+      />
+      <AppIcon
         v-else-if="props.installed"
-        viewBox="0 0 16 16"
-        :class="['fill-current', compact ? 'h-3 w-3' : 'h-3 w-3']"
-      >
-        <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
-      </svg>
-      <svg
+        name="check"
+        :class="'fill-current ' + (compact ? 'h-3 w-3' : 'h-3 w-3')"
+      />
+      <AppIcon
         v-else
-        viewBox="0 0 16 16"
-        :class="['fill-current', compact ? 'h-3 w-3' : 'h-3 w-3']"
-      >
-        <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z" />
-      </svg>
+        name="arrow-down"
+        :class="'fill-current ' + (compact ? 'h-3 w-3' : 'h-3 w-3')"
+      />
       <span v-if="!compact">
         {{ props.installed ? t("mods.installedBadge") : t("mods.download") }}
       </span>
     </button>
 
     <!-- Chevron for non-compact -->
-    <svg
+    <AppIcon
       v-if="!compact"
-      viewBox="0 0 16 16"
+      name="chevron-right"
       class="mt-1 h-4 w-4 shrink-0 fill-[var(--tx-muted)]"
-    >
-      <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" />
-    </svg>
+    />
   </div>
 </template>

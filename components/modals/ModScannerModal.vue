@@ -33,7 +33,7 @@ const {
             :disabled="scanBusy || !monoProfile"
             @click="pickAndScanJar"
           >
-            <svg v-if="scanBusy" viewBox="0 0 16 16" class="mr-1 inline h-3 w-3 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+            <AppIcon v-if="scanBusy" name="spinner" class="mr-1 inline h-3 w-3 fill-current" />
             {{ scanBusy ? t("scanner.scanning") : t("scanner.pick") }}
           </button>
         </div>
@@ -45,8 +45,8 @@ const {
           <div class="flex items-center gap-2">
             <span class="inline-flex h-6 w-6 items-center justify-center rounded-full"
               :class="scanResult.safe ? 'bg-[#3fb950]/15 text-[#3fb950]' : 'bg-[#f85149]/20 text-[#f85149]'">
-              <svg v-if="scanResult.safe" viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm-1.31-4.21 4.55-4.55-1.06-1.06-3.49 3.49-1.42-1.42-1.06 1.06 2.48 2.48Z"/></svg>
-              <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M8 1.5A6.5 6.5 0 0 1 14.5 8 6.5 6.5 0 0 1 8 14.5 6.5 6.5 0 0 1 1.5 8 6.5 6.5 0 0 1 8 1.5ZM7.25 9.75h1.5V4.5h-1.5v5.25Zm0 3h1.5v-1.5h-1.5v1.5Z"/></svg>
+              <AppIcon v-if="scanResult.safe" name="shield-check" class="h-4 w-4 fill-current" />
+              <AppIcon v-else name="shield_alert" class="h-4 w-4 fill-current" />
             </span>
             <p class="text-[13px] font-bold" :class="scanResult.safe ? 'text-[#3fb950]' : 'text-[#f85149]'">
               {{ scanResult.safe ? t("scanner.safe") : t("scanner.dangerous") }}

@@ -230,7 +230,7 @@ const {
           </div>
         </template>
         <div v-if="!authorImportMode && exportLoading" class="flex items-center justify-center gap-2 py-8 text-[13px] text-[color:var(--tx-muted)]">
-          <svg viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+          <AppIcon name="spinner" class="h-4 w-4 fill-current" />
           {{ t("pack.exportLoading") }}
         </div>
         <div v-else-if="!authorImportMode && exportItems.length === 0" class="px-2 py-8 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("pack.exportEmpty") }}</div>
@@ -288,7 +288,7 @@ const {
           :disabled="exportBusy || exportLoading || (!authorImportMode && exportSelected.size === 0)"
           @click="authorImportMode ? doAuthorImport() : exportFormat === 'author' ? doAuthorExport() : doExport()"
         >
-          <svg v-if="exportBusy" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+          <AppIcon v-if="exportBusy" name="spinner" class="h-4 w-4 fill-current" />
           {{ authorImportMode ? t("author.upload") : exportFormat === "author" ? t("pack.exportAuthorBtn") : t("pack.exportBtn") }}
         </button>
       </div>

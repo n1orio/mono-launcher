@@ -151,13 +151,11 @@ watch(showPanel, (v) => {
           class="flex flex-1 items-center justify-center gap-1 py-1 text-[11px] text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]"
           @click="expanded = !expanded"
         >
-          <svg
-            viewBox="0 0 16 16"
+          <AppIcon
+            name="chevron-down"
             class="h-3 w-3 fill-current transition-transform"
             :class="expanded ? 'rotate-180' : ''"
-          >
-            <path d="M4.427 5.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 5H4.604a.25.25 0 00-.177.427z" />
-          </svg>
+          />
           {{ expanded ? t("progress.hideDetails") : t("progress.showDetails") }}
         </button>
         <div class="h-4 w-px bg-[var(--border)]"></div>
@@ -168,12 +166,8 @@ watch(showPanel, (v) => {
           :title="paused ? t('progress.resume') : t('progress.pause')"
           @click="togglePause"
         >
-          <svg v-if="!paused" viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-            <path d="M2.75 3.5a.75.75 0 0 0-.75.75v7.5c0 .414.336.75.75.75h1.5a.75.75 0 0 0 .75-.75v-7.5a.75.75 0 0 0-.75-.75h-1.5Zm8 0a.75.75 0 0 0-.75.75v7.5c0 .414.336.75.75.75h1.5a.75.75 0 0 0 .75-.75v-7.5a.75.75 0 0 0-.75-.75h-1.5Z"/>
-          </svg>
-          <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-            <path d="M4.5 3.14a1 1 0 0 1 1.725-.062l6.3 7.5a1 1 0 0 1-.85 1.612H3.025a1 1 0 0 1-.85-1.612l6.3-7.5a1 1 0 0 1 1.025.062Z"/>
-          </svg>
+          <AppIcon v-if="!paused" name="pause" class="h-3 w-3 fill-current" />
+          <AppIcon v-else name="play" class="h-3 w-3 fill-current" />
           {{ paused ? t("progress.resume") : t("progress.pause") }}
         </button>
         <div class="h-4 w-px bg-[var(--border)]"></div>
@@ -183,9 +177,7 @@ watch(showPanel, (v) => {
           :title="t('progress.cancel')"
           @click="handleCancel"
         >
-          <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-            <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/>
-          </svg>
+          <AppIcon name="x" class="h-3 w-3 fill-current" />
           {{ t("progress.cancel") }}
         </button>
       </div>

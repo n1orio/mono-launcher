@@ -47,7 +47,7 @@ const {
 
   <template v-else-if="authorDetail">
   <button type="button" class="flex items-center gap-1 rounded-md  bg-[var(--input)] px-3 py-2 text-[13px] font-medium text-[color:var(--tx)] hover:bg-[var(--hover)]" @click="closeAuthorDetail()">
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4 6 8l4 4"/></svg>
+  <AppIcon name="chevron-right" class="h-3 w-3 fill-current -rotate-180" />
   {{ t("author.back") }}
   </button>
 
@@ -366,10 +366,10 @@ const {
   </p>
   </div>
   <button type="button" class="shrink-0 rounded-md  bg-[var(--input)] px-2 py-2 text-[13px] text-[color:var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx)]" :title="t('author.copyLink')" @click="copyAuthorLink(p.url)">
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-none stroke-current" stroke-width="1.5" stroke-linecap="round"><path d="M6.5 9.5 9.5 6.5M7 4.5l1.2-1.2a2.6 2.6 0 0 1 3.7 3.7L10.7 8.2M9 11.5l-1.2 1.2a2.6 2.6 0 0 1-3.7-3.7L5.3 7.8"/></svg>
+  <AppIcon name="link" class="h-4 w-4 fill-current" />
   </button>
   <button type="button" class="shrink-0 rounded-md  bg-[var(--input)] px-2 py-2 text-[13px] text-[color:var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx)]" :title="t('author.openCatalog')" @click="openCatalogPackById(p.id)">
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-none stroke-current" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 8s2-4.5 6.5-4.5S14.5 8 14.5 8s-2 4.5-6.5 4.5S1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/></svg>
+  <AppIcon name="eye_icon" class="h-4 w-4 fill-current" />
   </button>
   <button type="button" class="shrink-0 rounded-md  bg-[var(--input)] px-3 py-2 text-[13px] font-medium text-[color:var(--tx)] hover:bg-[var(--hover)]" @click="openAuthorDetail(p.id)">
   {{ t("author.edit") }}

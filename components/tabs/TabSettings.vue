@@ -115,12 +115,9 @@ const activeLocaleVersion = computed(() => getLocaleMeta(locale.value).version ?
 const settingsTab = ref<"accounts" | "appearance" | "network">("accounts");
 
 const SETTINGS_TAB_ICONS: Record<"accounts" | "appearance" | "network", string> = {
-  accounts:
-    '<path d="M8 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM2 13.25C2 10.75 4.46 9.25 8 9.25s6 1.5 6 4V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-.75Z"/>',
-  appearance:
-    '<path fill-rule="evenodd" d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm0 1.5v11a5.5 5.5 0 0 1 0-11Z"/>',
-  network:
-    '<path d="M1 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5Zm3-2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5Zm3-2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5Zm3-2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5Z"/>',
+  accounts: 'user',
+  appearance: 'half-circle',
+  network: 'bars',
 };
 
 // --- System: tray + autostart ---
@@ -292,7 +289,7 @@ async function copySkinApi() {
             :class="settingsTab === st[0] ? 'text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
             @click="settingsTab = st[0]"
           >
-            <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current" v-html="SETTINGS_TAB_ICONS[st[0]]"></svg>
+            <AppIcon :name="SETTINGS_TAB_ICONS[st[0]]" class="h-4 w-4 fill-current" />
             {{ st[1] }}
             <span v-if="settingsTab === st[0]" class="absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-full bg-[var(--accent)]"></span>
           </button>
@@ -323,9 +320,7 @@ async function copySkinApi() {
                     </span>
                     <p class="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold text-[color:var(--tx-strong)]">
                       {{ monoProfile.username }}
-                      <svg class="h-4 w-4 shrink-0 fill-[#3fb950]" viewBox="0 0 16 16">
-                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm-1.31-4.21 4.55-4.55-1.06-1.06-3.49 3.49-1.42-1.42-1.06 1.06 2.48 2.48Z"/>
-                      </svg>
+                      <AppIcon name="check-circle" class="h-4 w-4 shrink-0 fill-[#3fb950]" />
                     </p>
                   </div>
                   <div class="flex flex-wrap gap-2">
@@ -517,9 +512,7 @@ async function copySkinApi() {
                     </div>
                   </div>
                   <p v-if="msPolling || elyPolling" class="flex items-center gap-2 text-[13px] text-[color:var(--tx-muted)]">
-                    <svg class="h-3 w-3 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
-                      <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-                    </svg>
+                    <AppIcon name="spinner" class="h-3 w-3 fill-[var(--accent)]" />
                     {{ t("settings.msBrowser") }}
                   </p>
                 </div>
@@ -564,9 +557,7 @@ async function copySkinApi() {
                       :disabled="accountBusy"
                       @click="handleRemoveAccount(a.id)"
                     >
-                      <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                        <path d="M4.75 1.5h6.5a.75.75 0 0 1 .75.75V3.5h2.5a.75.75 0 0 1 0 1.5h-.75v9A1.75 1.75 0 0 1 12 15.75H4A1.75 1.75 0 0 1 2.25 14V5H1.5a.75.75 0 0 1 0-1.5H4V2.25a.75.75 0 0 1 .75-.75Zm.75 5.75a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-1.5 0Zm3.5 0a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-1.5 0Z"/>
-                      </svg>
+                      <AppIcon name="trash" class="h-3 w-3 fill-current" />
                     </button>
                   </div>
                 </div>
@@ -577,9 +568,7 @@ async function copySkinApi() {
           <!-- Boosty: платные сборки -->
           <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
             <div class="border-b border-[var(--border)] px-3.5 py-2.5 flex items-center gap-2">
-              <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--accent)]" preserveAspectRatio="none">
-                <path d="M8 1C3.9 1 .7 4.3.7 8.4h3.1L1.6 15l7.2-7.2H6.3C6.3 5.3 7.2 2.9 9.6 2.4 11.9 2 13.7 3.6 13.7 5.8c0 .4-.1.9-.1 1.3.9.5 1.5 1.4 1.7 2.5.1-.6.2-1.2.2-1.8 0-3.8-3.2-6.8-7.5-6.8Z" transform="translate(0 -1)"/>
-              </svg>
+              <AppIcon name="bolt" class="h-4 w-4 shrink-0 fill-[var(--accent)]" />
               <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.boosty") }}</h3>
             </div>
             <div class="space-y-3 p-4">
@@ -621,7 +610,7 @@ async function copySkinApi() {
                     :disabled="licenseBusy || boostyAuthOpen"
                     @click="startBoostyGlobalLogin"
                   >
-                    <svg v-if="boostyAuthOpen && boostyGlobalOpen" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+                    <AppIcon v-if="boostyAuthOpen && boostyGlobalOpen" name="spinner" class="h-3 w-3 fill-current" />
                     {{ boostyAuthOpen && boostyGlobalOpen ? t("license.waiting") : t("license.oauth") }}
                   </button>
                   <div v-if="boostyAuthOpen && boostyGlobalOpen" class="flex justify-center">
@@ -700,7 +689,7 @@ async function copySkinApi() {
                     :disabled="licenseBusyFor === p.id || boostyAuthOpen"
                     @click="startBoostyLogin(p.id)"
                   >
-                    <svg v-if="boostyAuthOpen && boostyTargetPack === p.id" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+                    <AppIcon v-if="boostyAuthOpen && boostyTargetPack === p.id" name="spinner" class="h-3 w-3 fill-current" />
                     {{ boostyAuthOpen && boostyTargetPack === p.id ? t("license.waiting") : t("license.oauth") }}
                   </button>
                   <div v-if="boostyAuthOpen && boostyTargetPack === p.id" class="flex justify-center">

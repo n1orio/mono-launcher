@@ -117,12 +117,8 @@ const {
           :disabled="modPackLoading || cpLoading || !modPackQuery.trim()"
           @click="searchPacksOrCurse"
         >
-          <svg v-if="modPackLoading || cpLoading" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current">
-            <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-          </svg>
-          <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current">
-            <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
-          </svg>
+          <AppIcon v-if="modPackLoading || cpLoading" name="spinner" class="h-4 w-4 fill-current" />
+          <AppIcon v-else name="search" class="h-4 w-4 fill-current" />
           {{ t("mods.search") }}
         </button>
       </div>
@@ -155,7 +151,7 @@ const {
                 <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--tx-muted)]">
                   <span>{{ t("mods.byAuthor", { author: modPackDetail.author }) }}</span>
                   <span class="flex items-center gap-1">
-                    <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                    <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
                     {{ modPackDetail.downloads.toLocaleString() }}
                   </span>
                   <span v-if="modPackDetail.categories.length">{{ modPackDetail.categories.slice(0, 4).join(", ") }}</span>
@@ -166,7 +162,7 @@ const {
                 class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
                 @click="openExternal(`https://modrinth.com/modpack/${modPackDetail!.slug}`)"
               >
-                <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-2l6 6V7.5a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75H5.5a.75.75 0 0 1 0-1.5h2l-6-6v2a.75.75 0 0 1-1.5 0V3.5A1.75 1.75 0 0 1 1.75 1.75h2a.75.75 0 0 1 0 1.5Z"/></svg>
+                <AppIcon name="external-link" class="h-3 w-3 fill-current" />
                 {{ t("mods.openPage") }}
               </button>
             </div>
@@ -211,20 +207,14 @@ const {
                   :disabled="modPackInstalling !== null"
                   @click="installPackVersion(v)"
                 >
-                  <svg v-if="modPackInstalling === v.id" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
-                    <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-                  </svg>
-                  <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                    <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
-                  </svg>
+                  <AppIcon v-if="modPackInstalling === v.id" name="spinner" class="h-3 w-3 fill-current" />
+                  <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
                   {{ t("mods.install") }}
                 </button>
               </div>
             </div>
             <div v-else class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
-              <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
-                <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-              </svg>
+              <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
               {{ t("mods.searching") }}
             </div>
           </div>
@@ -238,9 +228,7 @@ const {
         </template>
         <template v-else-if="modPackLoading">
           <div class="flex items-center justify-center py-16 text-[13px] text-[color:var(--tx-muted)]">
-            <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
-              <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-            </svg>
+            <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
             {{ t("mods.searching") }}
           </div>
         </template>
@@ -265,7 +253,7 @@ const {
                 <p class="mt-0.5 line-clamp-2 text-[13px] leading-snug text-[color:var(--tx-muted)]">{{ p.description }}</p>
                 <div class="mt-1 flex items-center gap-3 text-xs text-[color:var(--tx-muted)]">
                   <span class="flex items-center gap-1">
-                    <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                    <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
                     {{ p.downloads.toLocaleString() }}
                   </span>
                   <span v-if="status?.minecraft_version">{{ status.minecraft_version }}</span>
@@ -278,15 +266,11 @@ const {
                 :title="t('mods.downloadHint')"
                 @click="quickDownloadPack(p, $event)"
               >
-                <svg v-if="quickPackBusy === p.projectId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
-                  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-                </svg>
-                <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                  <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
-                </svg>
+                <AppIcon v-if="quickPackBusy === p.projectId" name="spinner" class="h-3 w-3 fill-current" />
+                <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
                 {{ t("mods.download") }}
               </button>
-              <svg viewBox="0 0 16 16" class="mt-1 h-4 w-4 shrink-0 fill-[var(--tx-muted)]"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+              <AppIcon name="chevron-right" class="mt-1 h-4 w-4 shrink-0 fill-[var(--tx-muted)]" />
             </div>
           </div>
         </template>
@@ -299,7 +283,7 @@ const {
       <div v-if="modPackService === 'curseforge'" class="min-h-0 flex-1 overflow-y-auto px-3.5 py-2.5">
         <p v-if="!cpSearched" class="py-8 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("curse.packsHelp") }}</p>
         <p v-else-if="cpLoading" class="flex items-center justify-center gap-2 py-8 text-[13px] text-[color:var(--tx-muted)]">
-          <svg viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+          <AppIcon name="spinner" class="h-4 w-4 fill-current" />
           {{ t("mods.searchingAll") }}
         </p>
         <div v-else-if="cpErr" class="rounded-md  bg-[var(--input-50)] p-6 text-center text-[13px] text-[color:var(--tx-muted)]">
@@ -322,7 +306,7 @@ const {
                 <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--tx-muted)]">
                   <span>{{ t("mods.byAuthor", { author: cpProject.author }) }}</span>
                   <span class="flex items-center gap-1">
-                    <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                    <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
                     {{ cpProject.downloadCount.toLocaleString() }}
                   </span>
                   <span v-if="cpDetail?.categories.length">{{ cpDetail.categories.slice(0, 4).join(", ") }}</span>
@@ -350,7 +334,7 @@ const {
 
           <div v-else-if="cpTab === 'versions'">
             <div v-if="cpFiles === null" class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
-              <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+              <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
               {{ t("mods.searching") }}
             </div>
             <div v-else-if="cpFiles.length === 0" class="py-8 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("curse.noFiles") }}</div>
@@ -368,10 +352,8 @@ const {
                   :disabled="cpBusy !== null"
                   @click="installCpPack(f)"
                 >
-                  <svg v-if="cpBusy === f.fileId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
-                  <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-                    <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
-                  </svg>
+                  <AppIcon v-if="cpBusy === f.fileId" name="spinner" class="h-3 w-3 fill-current" />
+                  <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
                   {{ t("mods.install") }}
                 </button>
               </div>
@@ -380,7 +362,7 @@ const {
 
           <div v-else>
             <div v-if="cpDetailLoading" class="flex items-center justify-center py-10 text-[13px] text-[color:var(--tx-muted)]">
-              <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+              <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
               {{ t("mods.searching") }}
             </div>
             <div v-else-if="cpDetail?.screenshots.length" class="grid grid-cols-2 gap-2">
@@ -407,11 +389,11 @@ const {
                 </div>
                 <p class="mt-0.5 line-clamp-2 text-[13px] leading-snug text-[color:var(--tx-muted)]">{{ p.summary }}</p>
                 <p class="mt-1 flex items-center gap-1 text-xs text-[color:var(--tx-muted)]">
-                  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+                  <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
                   {{ p.downloadCount.toLocaleString() }}
                 </p>
               </div>
-              <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)]"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+              <AppIcon name="chevron-right" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)]" />
             </div>
           </div>
         </template>

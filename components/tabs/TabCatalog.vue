@@ -190,7 +190,7 @@ function onCatalogScroll() {
   </div>
 
   <div v-if="catalogDetailBusy" class="flex items-center justify-center py-16 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+  <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
   {{ t("catalog.loading") }}
   </div>
 
@@ -292,7 +292,7 @@ function onCatalogScroll() {
   <!-- Comments -->
   <div v-if="catalogDetailTab === 'comments'" class="space-y-3">
   <div v-if="catalogCommentsBusy && catalogComments.length === 0" class="flex items-center justify-center py-8 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+  <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
   {{ t("catalog.loading") }}
   </div>
 
@@ -441,9 +441,7 @@ function onCatalogScroll() {
   <!-- Catalog List View -->
   <template v-else>
   <div v-if="monoCatalogLoading && monoCatalog.length === 0" class="flex items-center justify-center py-16 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
-  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-  </svg>
+  <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
   {{ t("catalog.loading") }}
   </div>
   <div v-else-if="monoCatalogError && monoCatalog.length === 0" class="rounded-xl  bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
@@ -504,7 +502,7 @@ function onCatalogScroll() {
   {{ formatBytes(entry.size) }}
   </span>
   <span v-if="entry.rating" class="inline-flex items-center gap-1 rounded-full  bg-[var(--input-50)] px-2 py-0.5 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-[var(--accent)]"><path d="M8 1.3 9.9 5l4 .56-2.9 2.8.7 4L8 10.38 4.3 12.36l.7-4L2.1 5.56 6.1 5 8 1.3Z"/></svg>
+  <AppIcon name="star" class="h-3 w-3 fill-[var(--accent)]" />
   {{ entry.rating }}
   <template v-if="entry.likes + entry.dislikes">({{ entry.likes }}👍/{{ entry.dislikes }}👎)</template>
   </span>
@@ -601,9 +599,7 @@ function onCatalogScroll() {
   </div>
   <div class="mb-3 flex items-center gap-2">
   <div class="relative min-w-0 flex-1">
-  <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 fill-[var(--tx-muted)]">
-  <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
-  </svg>
+  <AppIcon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 fill-[var(--tx-muted)]" />
   <input
   v-model="modPackQuery"
   type="text"
@@ -622,9 +618,7 @@ function onCatalogScroll() {
   </button>
   </div>
   <div v-if="modPackLoading" class="flex items-center justify-center py-16 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current">
-  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-  </svg>
+  <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
   {{ t("mods.searchingAll") }}
   </div>
   <div v-else-if="modPackResults.length === 0" class="py-16 text-center text-[13px] text-[color:var(--tx-muted)]">
@@ -649,7 +643,7 @@ function onCatalogScroll() {
   </div>
   <p class="mt-0.5 line-clamp-2 text-[13px] leading-snug text-[color:var(--tx-muted)]">{{ p.description }}</p>
   <p class="mt-1 flex items-center gap-1 text-xs text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+  <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
   {{ p.downloads.toLocaleString() }}
   </p>
   </div>
@@ -660,18 +654,14 @@ function onCatalogScroll() {
   :title="t('mods.downloadHint')"
   @click.stop="quickDownloadPack(p, $event)"
   >
-  <svg v-if="quickPackBusy === p.projectId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
-  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-  </svg>
-  <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-  <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
-  </svg>
+   <AppIcon v-if="quickPackBusy === p.projectId" name="spinner" class="h-3 w-3 fill-current" />
+   <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
    {{ t("mods.download") }}
    </button>
    </div>
    </div>
    <div v-if="modPackMoreBusy" class="flex items-center justify-center py-4 text-[13px] text-[color:var(--tx-muted)]">
-   <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+   <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
    {{ t("mods.searchingAll") }}
    </div>
    </template>
@@ -705,9 +695,7 @@ function onCatalogScroll() {
   </div>
   <div class="mb-3 flex items-center gap-2">
   <div class="relative min-w-0 flex-1">
-  <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 fill-[var(--tx-muted)]">
-  <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
-  </svg>
+  <AppIcon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 fill-[var(--tx-muted)]" />
   <input
   v-model="modPackQuery"
   type="text"
@@ -727,9 +715,7 @@ function onCatalogScroll() {
   </div>
   <p v-if="!cpSearched" class="py-8 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("curse.packsHelp") }}</p>
   <p v-else-if="cpLoading" class="flex items-center justify-center gap-2 py-8 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current">
-  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-  </svg>
+  <AppIcon name="spinner" class="h-4 w-4 fill-current" />
   {{ t("mods.searchingAll") }}
   </p>
   <div v-else-if="cpErr" class="rounded-md  bg-[var(--input-50)] p-6 text-center text-[13px] text-[color:var(--tx-muted)]">
@@ -758,7 +744,7 @@ function onCatalogScroll() {
   </div>
   <p class="mt-0.5 line-clamp-2 text-[13px] leading-snug text-[color:var(--tx-muted)]">{{ p.summary }}</p>
   <p class="mt-1 flex items-center gap-1 text-xs text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
+  <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
   {{ p.downloadCount.toLocaleString() }}
   </p>
    </div>
@@ -769,19 +755,15 @@ function onCatalogScroll() {
    :title="t('mods.downloadHint')"
    @click="quickDownloadCpPack(p, $event)"
    >
-   <svg v-if="quickCpBusy === p.projectId" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
-   <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-   </svg>
-   <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-   <path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/>
-   </svg>
+    <AppIcon v-if="quickCpBusy === p.projectId" name="spinner" class="h-3 w-3 fill-current" />
+    <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
     {{ t("mods.download") }}
     </button>
-    <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 self-center fill-[var(--tx-muted)]"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+     <AppIcon name="chevron-right" class="h-4 w-4 shrink-0 self-center fill-[var(--tx-muted)]" />
     </div>
     </div>
     <div v-if="cpMoreBusy" class="flex items-center justify-center py-4 text-[13px] text-[color:var(--tx-muted)]">
-    <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+    <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
     {{ t("mods.searchingAll") }}
     </div>
     </template>

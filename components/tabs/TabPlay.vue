@@ -295,10 +295,10 @@ async function enableAllFiles(enabled: boolean) {
   :disabled="busy"
   @click="status?.installed ? (gameRunning ? handleStop() : handlePlay()) : handleInstall()"
   >
-  <svg v-if="busy" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
-  <svg v-else-if="status?.installed && !gameRunning" viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
-  <svg v-else-if="gameRunning" viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.5 3.5h9v9h-9z"/></svg>
-  <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"/><path d="M7.97 2.72a.75.75 0 0 1 1.06 0l3 3a.75.75 0 1 1-1.06 1.06l-1.72-1.72v6.69a.75.75 0 0 1-1.5 0v-6.69L6.03 6.78a.75.75 0 0 1-1.06-1.06l3-3Z"/></svg>
+  <AppIcon v-if="busy" name="spinner" class="h-4 w-4 fill-current" />
+  <AppIcon v-else-if="status?.installed && !gameRunning" name="play" class="h-4 w-4 fill-current" />
+  <AppIcon v-else-if="gameRunning" name="stop" class="h-4 w-4 fill-current" />
+  <AppIcon v-else name="arrow-down" class="h-4 w-4 fill-current" />
   <template v-if="!status?.installed">{{ busy ? t("side.installing") : t("side.downloadPlay") }}</template>
   <template v-else>{{ busy ? t("side.launching") : gameRunning ? t("side.stopGame") : t("side.play") }}</template>
   </button>
@@ -309,9 +309,7 @@ async function enableAllFiles(enabled: boolean) {
   :title="t('pack.openDir')"
   @click="handleOpenPackDir"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
-  <path d="M.513 1.513A1.75 1.75 0 0 1 1.75 1h3.5c.55 0 1.07.26 1.4.7l.9 1.2a.25.25 0 0 0 .2.1H13a1 1 0 0 1 1 1v.5H2.75a.75.75 0 0 0 0 1.5h11.978a1 1 0 0 1 .994 1.117L15 13.25A1.75 1.75 0 0 1 13.25 15H1.75A1.75 1.75 0 0 1 0 13.25V2.75c0-.464.184-.91.513-1.237Z"/>
-  </svg>
+  <AppIcon name="folder" class="h-4 w-4 fill-current" />
   {{ t("pack.folder") }}
   </button>
   <button
@@ -321,9 +319,7 @@ async function enableAllFiles(enabled: boolean) {
   :title="t('pack.copyLink')"
   @click="copyPackDeepLink(activePack)"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
-  <path d="m7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"/>
-  </svg>
+  <AppIcon name="link" class="h-4 w-4 fill-current" />
   {{ t("pack.copyLink") }}
   </button>
   <template v-if="activePack?.kind === 'local' && status?.installed">
@@ -335,12 +331,9 @@ async function enableAllFiles(enabled: boolean) {
   :disabled="exportBusy"
   @click="exportMenuOpen = !exportMenuOpen"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
-  <path d="M7.97.72a.75.75 0 0 1 1.06 0l3 3a.75.75 0 1 1-1.06 1.06L9 2.81v6.94a.75.75 0 0 1-1.5 0V2.81L5.53 4.78a.75.75 0 0 1-1.06-1.06l3-3Z"/>
-  <path d="M2.5 13.25a.75.75 0 0 1 .75.75c0 .138.112.25.25.25h9a.25.25 0 0 0 .25-.25.75.75 0 0 1 1.5 0 1.75 1.75 0 0 1-1.75 1.75h-9A1.75 1.75 0 0 1 1.75 14a.75.75 0 0 1 .75-.75Z"/>
-  </svg>
+  <AppIcon name="arrow-up" class="h-4 w-4 fill-current" />
   <span>{{ t("pack.exportBtn") }}</span>
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current opacity-60"><path d="m4.22 6 3.72 3.72a.75.75 0 0 0 1.06 0L12.72 6l-1.06-1.06L8 8.09 5.28 4.94 4.22 6Z"/></svg>
+  <AppIcon name="chevron-down" class="h-3 w-3 fill-current opacity-60" />
   </button>
   <div
   v-if="exportMenuOpen"
@@ -352,7 +345,7 @@ async function enableAllFiles(enabled: boolean) {
   :disabled="exportBusy"
   @click="exportMenuOpen = false; openExport('mrpack')"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current opacity-70"><path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/><path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/></svg>
+  <AppIcon name="cloud-download" class="h-4 w-4 fill-current opacity-70" />
   .mrpack
   </button>
   <button
@@ -361,7 +354,7 @@ async function enableAllFiles(enabled: boolean) {
   :disabled="exportBusy"
   @click="exportMenuOpen = false; openAuthorExport()"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current opacity-70"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v5.5h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5h-5.5a.75.75 0 0 1 0-1.5h5.5v-5.5Z"/></svg>
+  <AppIcon name="plus" class="h-4 w-4 fill-current opacity-70" />
   {{ t("pack.exportAuthorShort") }}
   </button>
   <button
@@ -370,7 +363,7 @@ async function enableAllFiles(enabled: boolean) {
   :disabled="exportBusy"
   @click="exportMenuOpen = false; openExport('curseforge')"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current opacity-70"><path d="M8 1.5A2.75 2.75 0 0 0 5.5 3.25a.75.75 0 0 1-1.5 0A4.25 4.25 0 0 1 9 1.075 4.25 4.25 0 0 1 13.2 4.5a.75.75 0 0 1-1.47.27A2.751 2.751 0 0 0 8 1.5Zm-4.5 8a2.75 2.75 0 0 1 2.5-1.75h.22a.75.75 0 0 0 .71-.51A3.75 3.75 0 0 1 8 5.25a3.75 3.75 0 0 1 1.07 1.99.75.75 0 0 0 .71.51h.22A2.75 2.75 0 0 1 12.5 9.5 2.75 2.75 0 0 1 9.75 12.25h-3.5A2.75 2.75 0 0 1 3.5 9.5Z"/><path d="M8 7.25a.75.75 0 0 1 .75.75v4.19l.97-.97a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l.97.97V8a.75.75 0 0 1 .75-.75Z"/></svg>
+  <AppIcon name="cloud-download" class="h-4 w-4 fill-current opacity-70" />
   CurseForge
   </button>
   </div>
@@ -391,7 +384,7 @@ async function enableAllFiles(enabled: boolean) {
   :title="t('pack.versionChange')"
   @click="openEditVersion"
   >
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251 1.302a.75.75 0 0 1-.993-.993l1.302-3.251a1.75 1.75 0 0 1 .445-.756l8.61-8.61Z"/></svg>
+  <AppIcon name="pencil" class="h-3 w-3 fill-current" />
   {{ t("pack.versionChange") }}
   </button>
   <span v-if="activePack?.author">•</span>
@@ -403,11 +396,7 @@ async function enableAllFiles(enabled: boolean) {
   :title="activePackRepo"
   @click="openExternal(activePackRepo)"
   >
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-  <path d="M6.75 2.75h2.5a.75.75 0 0 1 0 1.5h-1.72l4.29 4.29a.75.75 0 0 1-1.06 1.06L6.47 5.31v1.69a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Z"/>
-  <path d="M2.25 5.75A1.75 1.75 0 0 1 4 4h2.75a.75.75 0 0 1 0 1.5H4v6.5h6.5v-2.5a.75.75 0 0 1 1.5 0V11A1.75 1.75 0 0 1 10.25 12.75H4A1.75 1.75 0 0 1 2.25 11V5.75Z"/>
-  <path d="M11.75 7.25a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V7.75h-1.5a.75.75 0 0 1-.75-.75Z"/>
-  </svg>
+  <AppIcon name="link" class="h-4 w-4 fill-current" />
   {{ t("pack.repo") }}
   </button>
   <button
@@ -451,9 +440,7 @@ async function enableAllFiles(enabled: boolean) {
   >
   <div v-if="licenseInfo?.subscribed" class="flex items-center justify-between gap-3">
   <span class="flex min-w-0 items-center gap-2">
-  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
-  <path d="M7.75.5A4.5 4.5 0 0 1 11.5 5.5v.85A4.5 4.5 0 0 1 13 10v3A2.5 2.5 0 0 1 10.5 15.5h-6A2.5 2.5 0 0 1 2 13v-3a4.5 4.5 0 0 1 1.5-3.35V5.5A4.25 4.25 0 0 1 7.75.5Zm0 1.5a2.75 2.75 0 0 0-2.75 2.75v.5h5.5v-.5A2.75 2.75 0 0 0 7.75 2Z"/>
-  </svg>
+  <AppIcon name="lock" class="h-4 w-4 fill-current" />
   <span class="min-w-0">
   {{
   licenseInfo.expiresAt
@@ -478,9 +465,7 @@ async function enableAllFiles(enabled: boolean) {
   v-if="licenseInfo?.requiredTiers.length"
   class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] text-[color:var(--tx-muted)]"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
-  <path d="M4.5 7.5a3.5 3.5 0 1 1 7 0v1h.75A.75.75 0 0 1 13 9.25v4A.75.75 0 0 1 12.25 14h-8.5a.75.75 0 0 1-.75-.75v-4A.75.75 0 0 1 3.75 8.5h.75v-1Zm1.5 1v-1a2 2 0 0 1 4 0v1h-4Z"/>
-  </svg>
+  <AppIcon name="lock" class="h-4 w-4 fill-[var(--accent)]" />
   <span>
   {{
   licenseInfo.tier
@@ -494,9 +479,7 @@ async function enableAllFiles(enabled: boolean) {
   </div>
   <template v-else>
   <div class="flex items-center gap-2">
-  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
-  <path d="M7.75.5A4.5 4.5 0 0 1 11.5 5.5v.85A4.5 4.5 0 0 1 13 10v3A2.5 2.5 0 0 1 10.5 15.5h-6A2.5 2.5 0 0 1 2 13v-3a4.5 4.5 0 0 1 1.5-3.35V5.5A4.25 4.25 0 0 1 7.75.5Zm0 1.5a2.75 2.75 0 0 0-2.75 2.75v.5h5.5v-.5A2.75 2.75 0 0 0 7.75 2Z"/>
-  </svg>
+  <AppIcon name="lock" class="h-4 w-4 fill-current" />
   <span class="min-w-0">
   {{
   licenseInfo?.requiredTiers.length
@@ -526,10 +509,7 @@ async function enableAllFiles(enabled: boolean) {
   class="flex items-center justify-between gap-3 rounded-md  bg-[var(--input)] px-3 py-2 text-[13px] text-[color:var(--tx-muted)]"
   >
   <span class="flex items-center gap-2">
-  <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v3a5 5 0 0 0-5 5H4z"/>
-  </svg>
+  <AppIcon name="spinner" class="h-4 w-4 fill-current" />
   {{ t("license.waiting") }}
   </span>
   <button type="button" class="text-[var(--accent)] hover:underline" @click="cancelBoostyLogin">
@@ -647,7 +627,7 @@ async function enableAllFiles(enabled: boolean) {
   <div class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
   <div class="flex items-center justify-end">
   <button type="button" class="rounded-md  bg-[var(--input)] px-2 py-1 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50" :disabled="remoteVersionsLoading" @click="refreshRemoteVersions()">
-  <svg v-if="remoteVersionsLoading" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current"><path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Zm3.36 2.14a.75.75 0 0 1 0 1.06 4 4 0 1 1-6.72 0 .75.75 0 0 1 1.06-1.06 2.5 2.5 0 1 0 4.6 0 .75.75 0 0 1 1.06-1.06Z"/></svg>
+  <AppIcon v-if="remoteVersionsLoading" name="spinner" class="h-3 w-3 fill-current" />
   <template v-else>{{ t("catalog.refresh") }}</template>
   </button>
   </div>
@@ -711,7 +691,7 @@ async function enableAllFiles(enabled: boolean) {
   :disabled="busy || remoteInstallingId === v.id"
   @click="installRemoteVersion(v)"
   >
-  <svg v-if="remoteInstallingId === v.id" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Z"/></svg>
+  <AppIcon v-if="remoteInstallingId === v.id" name="spinner" class="h-3.5 w-3.5 fill-current" />
   <template v-else>{{ t("releases.install") }}</template>
   </button>
   </div>
@@ -737,7 +717,7 @@ async function enableAllFiles(enabled: boolean) {
   class="mb-3 flex shrink-0 items-center justify-between gap-3 rounded-md  bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-3 py-2 text-[13px] text-[color:var(--tx)]"
   >
   <span class="flex items-center gap-2">
-  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--accent)]"><path d="M8 1a4.25 4.25 0 0 0-4.25 4.25V7H3.5A1.5 1.5 0 0 0 2 8.5v5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5v-5A1.5 1.5 0 0 0 12.5 7h-.25V5.25A4.25 4.25 0 0 0 8 1Zm2.5 6h-5V5.25a2.5 2.5 0 0 1 5 0Z"/></svg>
+  <AppIcon name="lock" class="h-4 w-4 fill-[var(--accent)]" />
   {{ t("files.locked") }}
   </span>
   <button
@@ -766,8 +746,8 @@ async function enableAllFiles(enabled: boolean) {
   :disabled="updateAllBusy || updatingMod !== null || packLocked"
   @click="updateAllMods"
   >
-  <svg v-if="updateAllBusy" viewBox="0 0 16 16" class="h-3.5 w-3.5 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
-  <svg v-else viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M4.5 3.75a.75.75 0 0 0-1.5 0v2.5A.75.75 0 0 0 3.75 7h2.5a.75.75 0 0 0 0-1.5H5.07a4.5 4.5 0 1 1 .57 6.44.75.75 0 0 0-.98-1.13 6 6 0 1 0-.16-8.5v.49Z"/></svg>
+  <AppIcon v-if="updateAllBusy" name="spinner" class="h-3.5 w-3.5 fill-current" />
+  <AppIcon v-else name="refresh" class="h-3.5 w-3.5 fill-current" />
   {{ t("mods.updateAll") }}
   <span class="rounded-full bg-[var(--accent)] px-1.5 text-xs font-bold text-[var(--bg)]">{{ modUpdatesTab.length }}</span>
   </button>
@@ -780,7 +760,7 @@ async function enableAllFiles(enabled: boolean) {
   :title="t('mods.addHint')"
   @click="openSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind, 'modrinth')"
   >
-  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M8 2.75a.75.75 0 0 1 .75.75v3.75h3.75a.75.75 0 0 1 0 1.5h-3.75v3.75a.75.75 0 0 1-1.5 0V8.75H3.5a.75.75 0 0 1 0-1.5h3.75V3.5A.75.75 0 0 1 8 2.75Z"/></svg>
+  <AppIcon name="plus" class="h-3.5 w-3.5 fill-current" />
   {{ playSubTab === 'mods' ? t("mods.add") : playSubTab === 'resourcepacks' ? t("mods.addRP") : t("mods.addShaders") }}
   </button>
   <button
@@ -789,7 +769,7 @@ async function enableAllFiles(enabled: boolean) {
   class="flex shrink-0 items-center gap-1.5 rounded-md bg-[var(--accent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:opacity-90"
   @click="openSearch('datapack', 'modrinth')"
   >
-  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M8 2.75a.75.75 0 0 1 .75.75v3.75h3.75a.75.75 0 0 1 0 1.5h-3.75v3.75a.75.75 0 0 1-1.5 0V8.75H3.5a.75.75 0 0 1 0-1.5h3.75V3.5A.75.75 0 0 1 8 2.75Z"/></svg>
+  <AppIcon name="plus" class="h-3.5 w-3.5 fill-current" />
   {{ t("mods.addDatapack") }}
   </button>
   <button
@@ -826,9 +806,9 @@ async function enableAllFiles(enabled: boolean) {
   :title="fileSortKey === 'name' ? (fileSortDir === 'asc' ? t('files.sortNameAsc') : t('files.sortNameDesc')) : t('files.sortNameHint')"
   @click="toggleFileSort('name')"
   >
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M3.75 2h1.5a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1 0-1.5Zm0 4h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1 0-1.5Zm0 4h5.5a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5Z"/></svg>
+  <AppIcon name="filter" class="h-3 w-3 fill-current" />
   {{ t("files.sortName") }}
-  <svg v-if="fileSortKey === 'name'" viewBox="0 0 16 16" class="h-2.5 w-2.5 fill-current" :style="{ transform: fileSortDir === 'asc' ? 'none' : 'rotate(180deg)' }"><path d="M8 11.5 3.5 7h9L8 11.5Z"/></svg>
+  <AppIcon v-if="fileSortKey === 'name'" name="sort-desc" class="h-2.5 w-2.5 fill-current" :style="{ transform: fileSortDir === 'asc' ? 'none' : 'rotate(180deg)' }" />
   </button>
   <button
   type="button"
@@ -837,9 +817,9 @@ async function enableAllFiles(enabled: boolean) {
   :title="fileSortKey === 'date' ? (fileSortDir === 'desc' ? t('files.sortDateNew') : t('files.sortDateOld')) : t('files.sortDateHint')"
   @click="toggleFileSort('date')"
   >
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M4.75 0a.75.75 0 0 1 .75.75V2h5V.75a.75.75 0 0 1 1.5 0V2h1.25c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 13.25 16H2.75A1.75 1.75 0 0 1 1 14.25V3.75C1 2.784 1.784 2 2.75 2H4V.75A.75.75 0 0 1 4.75 0Zm0 3.5h-2a.25.25 0 0 0-.25.25V6h11V3.75a.25.25 0 0 0-.25-.25h-2v.75a.75.75 0 0 1-1.5 0v-.75h-5v.75a.75.75 0 0 1-1.5 0v-.75Zm-.75 4v6.75c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25V7.5H4Z"/></svg>
+  <AppIcon name="calendar" class="h-3 w-3 fill-current" />
   {{ t("files.sortDate") }}
-  <svg v-if="fileSortKey === 'date'" viewBox="0 0 16 16" class="h-2.5 w-2.5 fill-current" :style="{ transform: fileSortDir === 'asc' ? 'none' : 'rotate(180deg)' }"><path d="M8 11.5 3.5 7h9L8 11.5Z"/></svg>
+  <AppIcon v-if="fileSortKey === 'date'" name="sort-desc" class="h-2.5 w-2.5 fill-current" :style="{ transform: fileSortDir === 'asc' ? 'none' : 'rotate(180deg)' }" />
   </button>
   <button
   v-if="fileSortKey !== 'none'"
@@ -886,7 +866,7 @@ async function enableAllFiles(enabled: boolean) {
   :title="t('files.more')"
   @click="fileMenuOpen = !fileMenuOpen"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M8 4.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Zm0 5a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Zm0 5a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Z"/></svg>
+  <AppIcon name="dots" class="h-4 w-4 fill-current" />
   </button>
   <div
   v-if="fileMenuOpen"
@@ -899,7 +879,7 @@ async function enableAllFiles(enabled: boolean) {
   class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click="fileMenuOpen = false; openSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind, 'modrinth')"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M8 2.75a.75.75 0 0 1 .75.75v3.75h3.75a.75.75 0 0 1 0 1.5h-3.75v3.75a.75.75 0 0 1-1.5 0V8.75H3.5a.75.75 0 0 1 0-1.5h3.75V3.5A.75.75 0 0 1 8 2.75Z"/></svg>
+  <AppIcon name="plus" class="h-4 w-4 fill-current" />
   {{ playSubTab === 'mods' ? t("mods.add") : playSubTab === 'resourcepacks' ? t("mods.addRP") : t("mods.addShaders") }}
   </button>
   <button
@@ -909,8 +889,8 @@ async function enableAllFiles(enabled: boolean) {
   :disabled="updateAllBusy || updatingMod !== null"
   @click="fileMenuOpen = false; updateAllMods()"
   >
-  <svg v-if="updateAllBusy" viewBox="0 0 16 16" class="h-4 w-4 shrink-0 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
-  <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M4.5 3.75a.75.75 0 0 0-1.5 0v2.5A.75.75 0 0 0 3.75 7h2.5a.75.75 0 0 0 0-1.5H5.07a4.5 4.5 0 1 1 .57 6.44.75.75 0 0 0-.98-1.13 6 6 0 1 0-.16-8.5v.49Z"/></svg>
+  <AppIcon v-if="updateAllBusy" name="spinner" class="h-4 w-4 fill-current" />
+  <AppIcon v-else name="refresh" class="h-4 w-4 fill-current" />
   {{ t("mods.updateAll") }} <span class="ml-auto rounded-full bg-[var(--accent)] px-1.5 text-xs font-bold text-[var(--bg)]">{{ modUpdatesTab.length }}</span>
   </button>
   <button
@@ -929,7 +909,7 @@ async function enableAllFiles(enabled: boolean) {
   class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click="fileMenuOpen = false; openFolder(playSubTab as GameFolderKind)"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M.513 1.513A1.75 1.75 0 0 1 1.75 1h3.5c.55 0 1.07.26 1.4.7l.9 1.2a.25.25 0 0 0 .2.1H13a1 1 0 0 1 1 1v.5H2.75a.75.75 0 0 0 0 1.5h11.978a1 1 0 0 1 .994 1.117L15 13.25A1.75 1.75 0 0 1 13.25 15H1.75A1.75 1.75 0 0 1 0 13.25V2.75c0-.464.184-.91.513-1.237Z"/></svg>
+  <AppIcon name="folder" class="h-4 w-4 fill-current" />
   {{ t("files.open") }}
   </button>
   <button
@@ -964,7 +944,7 @@ async function enableAllFiles(enabled: boolean) {
   :disabled="fileDeleteBusy"
   @click="fileMenuOpen = false; deleteSelectedFiles()"
   >
-  <svg v-if="fileDeleteBusy" viewBox="0 0 16 16" class="h-4 w-4 shrink-0 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+  <AppIcon v-if="fileDeleteBusy" name="spinner" class="h-4 w-4 fill-current" />
   <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M6.5 1.75A1.75 1.75 0 0 1 8.25 0h2.5A1.75 1.75 0 0 1 12 1.75V3h2.25a.75.75 0 0 1 0 1.5h-.65l-.75 9.006A1.75 1.75 0 0 1 10.738 15H5.262a1.75 1.75 0 0 1-1.742-1.494L2.77 4.5H2.12a.75.75 0 0 1 0-1.5H4.5V1.75ZM5.07 4.5l.76 8.91a.25.25 0 0 0 .25.214h5.456a.25.25 0 0 0 .25-.214L12.54 4.5H5.07Z"/></svg>
   {{ t("files.delete") }} ({{ Object.keys(selectedFiles).length }})
   </button>
@@ -973,9 +953,7 @@ async function enableAllFiles(enabled: boolean) {
   </div>
 
   <div v-if="!gameFiles[playSubTab]" class="flex flex-1 items-center justify-center text-[13px] text-[color:var(--tx-muted)]">
-  <svg class="mr-2 h-4 w-4 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
-  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-  </svg>
+  <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-[var(--accent)]" />
   {{ t("files.loading") }}
   </div>
   <div v-else-if="(gameFiles[playSubTab] ?? []).length === 0" class="shrink-0 rounded-xl  bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
@@ -985,7 +963,7 @@ async function enableAllFiles(enabled: boolean) {
   class="inline-flex items-center gap-1.5 rounded-md  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click="openFolder(playSubTab as GameFolderKind)"
   >
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M.513 1.513A1.75 1.75 0 0 1 1.75 1h3.5c.55 0 1.07.26 1.4.7l.9 1.2a.25.25 0 0 0 .2.1H13a1 1 0 0 1 1 1v.5H2.75a.75.75 0 0 0 0 1.5h11.978a1 1 0 0 1 .994 1.117L15 13.25A1.75 1.75 0 0 1 13.25 15H1.75A1.75 1.75 0 0 1 0 13.25V2.75c0-.464.184-.91.513-1.237Z"/></svg>
+  <AppIcon name="folder" class="h-3 w-3 fill-current" />
   {{ t("files.open") }}
   </button>
   </div>
@@ -1072,7 +1050,7 @@ async function enableAllFiles(enabled: boolean) {
   :title="t('files.view')"
   @click.stop="openFileDetail(playSubTab as GameFolderKind, f)"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M8 3.75a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5Zm0 8.5A8.75 8.75 0 0 1 0 8a8.75 8.75 0 0 1 8-4.25A8.75 8.75 0 0 1 16 8a8.75 8.75 0 0 1-8 4.25Z"/></svg>
+  <AppIcon name="eye" class="h-4 w-4 fill-current" />
   </button>
   <button
   v-if="playSubTab !== 'saves' && modUpdateFor(f)"
@@ -1082,12 +1060,8 @@ async function enableAllFiles(enabled: boolean) {
   :title="`${modUpdateFor(f)!.newVersion.name} (${modUpdateFor(f)!.newVersion.versionNumber})`"
   @click.stop="updateOneMod(modUpdateFor(f)!)"
   >
-  <svg v-if="updatingMod === f.name" viewBox="0 0 16 16" class="h-3 w-3 animate-spin fill-current">
-  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-  </svg>
-  <svg v-else viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-  <path d="M4.5 3.75a.75.75 0 0 0-1.5 0v2.5A.75.75 0 0 0 3.75 7h2.5a.75.75 0 0 0 0-1.5H5.07a4.5 4.5 0 1 1 .57 6.44.75.75 0 0 0-.98-1.13 6 6 0 1 0-.16-8.5v.49Z"/>
-  </svg>
+  <AppIcon v-if="updatingMod === f.name" name="spinner" class="h-3 w-3 fill-current" />
+  <AppIcon v-else name="refresh" class="h-3 w-3 fill-current" />
   {{ t("mods.update") }}
   </button>
   <button
@@ -1108,9 +1082,7 @@ async function enableAllFiles(enabled: boolean) {
   class="absolute top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white shadow-sm transition-all duration-200"
   :class="f.enabled ? 'left-[18px]' : 'left-0.5'"
   >
-  <svg v-if="isFileToggling(playSubTab, f)" viewBox="0 0 16 16" class="h-2.5 w-2.5 animate-spin fill-[var(--accent)]">
-  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-  </svg>
+  <AppIcon v-if="isFileToggling(playSubTab, f)" name="spinner" class="h-2.5 w-2.5 fill-[var(--accent)]" />
   </span>
   </button>
   </div>
@@ -1123,9 +1095,7 @@ async function enableAllFiles(enabled: boolean) {
   <template v-else-if="playSubTab === 'duplicates'">
   <div class="flex min-h-0 flex-1 flex-col">
   <div v-if="duplicatesLoading" class="flex flex-1 items-center justify-center text-[13px] text-[color:var(--tx-muted)]">
-  <svg class="mr-2 h-4 w-4 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
-  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-  </svg>
+  <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-[var(--accent)]" />
   {{ t("duplicates.loading") }}
   </div>
   <div v-else-if="duplicates.groups.length === 0" class="flex flex-1 items-center justify-center">
@@ -1172,9 +1142,7 @@ async function enableAllFiles(enabled: boolean) {
   <template v-else-if="playSubTab === 'screenshots'">
   <div class="flex min-h-0 flex-1 flex-col">
   <div v-if="screenshotsLoading" class="flex flex-1 items-center justify-center text-[13px] text-[color:var(--tx-muted)]">
-  <svg class="mr-2 h-4 w-4 animate-spin fill-[var(--accent)]" viewBox="0 0 16 16">
-  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-  </svg>
+  <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-[var(--accent)]" />
   {{ t("screenshots.loading") }}
   </div>
   <div v-else-if="!packScreenshotsInstalled" class="flex flex-1 items-center justify-center">
@@ -1691,12 +1659,8 @@ async function enableAllFiles(enabled: boolean) {
   :disabled="fileDetailMrLoading || fileDetailCfLoading || updatingFileDetail"
   @click="updateFileDetail()"
   >
-  <svg v-if="updatingFileDetail" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current">
-  <path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/>
-  </svg>
-  <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current">
-  <path d="M4.5 3.75a.75.75 0 0 0-1.5 0v2.5A.75.75 0 0 0 3.75 7h2.5a.75.75 0 0 0 0-1.5H5.07a4.5 4.5 0 1 1 .57 6.44.75.75 0 0 0-.98-1.13 6 6 0 1 0-.16-8.5v.49Z"/>
-  </svg>
+  <AppIcon v-if="updatingFileDetail" name="spinner" class="h-4 w-4 fill-current" />
+  <AppIcon v-else name="refresh" class="h-4 w-4 fill-current" />
   {{ t("files.update") }}
   </button>
 
@@ -1734,7 +1698,7 @@ async function enableAllFiles(enabled: boolean) {
   <FilterSelect v-model="fileDetailTypeSel" :options="versionTypeOptions" :placeholder="t('mods.fType')" :multiple="true" />
   </div>
   <div v-if="fileDetailMrVersions === null" class="flex items-center justify-center py-4 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+  <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
   {{ t("mods.searching") }}
   </div>
   <div v-else-if="fileDetailFilteredVersions.length === 0" class="rounded-md  bg-[var(--input-50)] p-4 text-center text-[13px] text-[color:var(--tx-muted)]">
@@ -1766,9 +1730,9 @@ async function enableAllFiles(enabled: boolean) {
   </span>
   <span class="shrink-0 rounded  bg-[var(--input-50)] px-1.5 py-px font-mono text-[11px] text-[color:var(--tx-muted)]">{{ v.versionNumber }}</span>
   <template v-if="fileDetailMrVersionBusy === v.id">
-  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 animate-spin fill-[var(--accent)]"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+  <AppIcon name="spinner" class="h-4 w-4 fill-[var(--accent)]" />
   </template>
-  <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--accent)]"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v8.5l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22v-8.5Z"/></svg>
+  <AppIcon v-else name="arrow-down" class="h-4 w-4 fill-current" />
   </button>
   </div>
   </div>
@@ -1795,7 +1759,7 @@ async function enableAllFiles(enabled: boolean) {
   </div>
   </template>
   <p v-else-if="fileDetailMrLoading || fileDetailCfLoading" class="flex items-center justify-center py-6 text-[13px] text-[color:var(--tx-muted)]">
-  <svg viewBox="0 0 16 16" class="mr-2 h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+  <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
   {{ t("mods.searching") }}
   </p>
   </div>
@@ -1807,7 +1771,7 @@ async function enableAllFiles(enabled: boolean) {
   class="flex items-center gap-1.5 rounded-md  bg-[var(--bg)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click.prevent="openExternal(fileDetailExternalUrl()!)"
   >
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-2l6 6V7.5a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75H5.5a.75.75 0 0 1 0-1.5h2l-6-6v2a.75.75 0 0 1-1.5 0V3.5A1.75 1.75 0 0 1 1.75 1.75h2a.75.75 0 0 1 0 1.5Z"/></svg>
+  <AppIcon name="link" class="h-3 w-3 fill-current" />
   {{ t("files.openPage") }}
   </a>
   </div>
@@ -1830,12 +1794,12 @@ async function enableAllFiles(enabled: boolean) {
       <div class="mx-3 border-t border-[var(--border)]"></div>
 
       <button v-if="fileCtx.file.modrinthProjectId || fileCtx.file.curseforgeProjectId" type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]" @click="closeFileCtx(); openFileDetail(playSubTab as GameFolderKind, fileCtx!.file)">
-        <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M8 3.75a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5Zm0 8.5A8.75 8.75 0 0 1 0 8a8.75 8.75 0 0 1 8-4.25A8.75 8.75 0 0 1 16 8a8.75 8.75 0 0 1-8 4.25Z"/></svg>
+        <AppIcon name="eye" class="h-4 w-4 fill-current" />
         {{ t("files.view") }}
       </button>
 
       <button v-if="modUpdateFor(fileCtx.file)" type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[var(--accent)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50" :disabled="updatingMod !== null || packLocked" @click="closeFileCtx(); updateOneMod(modUpdateFor(fileCtx!.file)!)">
-        <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M4.5 3.75a.75.75 0 0 0-1.5 0v2.5A.75.75 0 0 0 3.75 7h2.5a.75.75 0 0 0 0-1.5H5.07a4.5 4.5 0 1 1 .57 6.44.75.75 0 0 0-.98-1.13 6 6 0 1 0-.16-8.5v.49Z"/></svg>
+        <AppIcon name="refresh" class="h-4 w-4 fill-current" />
         {{ t("mods.update") }}
       </button>
 
@@ -1854,7 +1818,7 @@ async function enableAllFiles(enabled: boolean) {
 
       <div class="mx-3 border-t border-[var(--border)]"></div>
       <button type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]" @click="closeFileCtx(); openFolder(playSubTab as GameFolderKind)">
-        <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M.513 1.513A1.75 1.75 0 0 1 1.75 1h3.5c.55 0 1.07.26 1.4.7l.9 1.2a.25.25 0 0 0 .2.1H13a1 1 0 0 1 1 1v.5H2.75a.75.75 0 0 0 0 1.5h11.978a1 1 0 0 1 .994 1.117L15 13.25A1.75 1.75 0 0 1 13.25 15H1.75A1.75 1.75 0 0 1 0 13.25V2.75c0-.464.184-.91.513-1.237Z"/></svg>
+        <AppIcon name="folder" class="h-4 w-4 fill-current" />
         {{ t("files.open") }}
       </button>
     </div>

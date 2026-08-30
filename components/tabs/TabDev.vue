@@ -21,9 +21,7 @@ const { t, status, packId, activePack, isAdmin, packUrl, packName, addingPack, p
   class="flex items-center gap-1.5 rounded-md bg-[#238636] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#2ea043]"
   @click="openExamplePack"
   >
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-  <path d="M2 1.75C2 .784 2.784 0 3.75 0h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h3.5a.75.75 0 0 1 0 1.5h-3.5A1.75 1.75 0 0 1 2 14.25Zm12.28 4.97a.75.75 0 0 1 0 1.06l-4.75 4.75a.75.75 0 0 1-1.06-1.06l3.47-3.47H5.75a.75.75 0 0 1 0-1.5h6.19l-3.47-3.47a.75.75 0 0 1 1.06-1.06Z"/>
-  </svg>
+   <AppIcon name="import" class="h-4 w-4 fill-current" />
   {{ t("dev.createBtn") }}
   </button>
   </div>
@@ -138,9 +136,7 @@ const { t, status, packId, activePack, isAdmin, packUrl, packName, addingPack, p
   class="flex items-center gap-1.5 rounded-md bg-[var(--accent-deep)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
   @click="openExamplePack"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
-  <path d="M8 1.5a.75.75 0 0 1 .75.75V9.44l1.72-1.72a.75.75 0 1 1 1.06 1.06l-3 3a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 1 1 1.06-1.06l1.72 1.72V2.25A.75.75 0 0 1 8 1.5ZM4 12.25a.75.75 0 0 1 .75.75v.5a.5.5 0 0 0 .5.5h5.5a.5.5 0 0 0 .5-.5v-.5a.75.75 0 0 1 1.5 0v.5a2 2 0 0 1-2 2h-5.5a2 2 0 0 1-2-2v-.5a.75.75 0 0 1 .75-.75Z"/>
-  </svg>
+   <AppIcon name="arrow-down" class="h-4 w-4 fill-current" />
   {{ t("dev.docsExample") }}
   </button>
   <p class="text-[13px] text-[color:var(--tx-muted)]">{{ t("dev.docsNews") }}</p>
@@ -187,9 +183,7 @@ const { t, status, packId, activePack, isAdmin, packUrl, packName, addingPack, p
   class="flex items-center gap-1.5 rounded-md bg-[#238636] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#2ea043]"
   @click="openExampleInLauncher"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
-  <path d="M10.78 5.22a.75.75 0 0 1 0 1.06L8.56 8.5H11.5a.75.75 0 0 1 0 1.5H8.56l2.22 2.22a.75.75 0 1 1-1.06 1.06l-3.5-3.5a.75.75 0 0 1 0-1.06l3.5-3.5a.75.75 0 0 1 1.06 0ZM3.75 4A1.75 1.75 0 0 0 2 5.75v4.5c0 .966.784 1.75 1.75 1.75h3a.75.75 0 0 0 0-1.5h-3a.25.25 0 0 1-.25-.25v-4.5a.25.25 0 0 1 .25-.25h3a.75.75 0 0 0 0-1.5h-3Z"/>
-  </svg>
+   <AppIcon name="external-link" class="h-4 w-4 fill-current" />
   {{ t("dev.docsOpenExample") }}
   </button>
   <button
@@ -198,9 +192,7 @@ const { t, status, packId, activePack, isAdmin, packUrl, packName, addingPack, p
   class="flex items-center gap-1.5 rounded-md  bg-[#238636]/10 px-2.5 py-1.5 text-[13px] font-semibold text-[#3fb950] transition-colors hover:bg-[#238636]/20"
   @click="copyInviteLink"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current">
-  <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Zm10.108-9.858 3.05 3.05a.75.75 0 0 1 0 1.061l-5.25 5.25a.75.75 0 0 1-1.061 0l-3.05-3.05a.75.75 0 0 1 0-1.061l5.25-5.25a.75.75 0 0 1 1.061 0Z"/>
-  </svg>
+   <AppIcon name="link" class="h-4 w-4 fill-current" />
   {{ t("dev.copyInvite") }}
   </button>
   </div>

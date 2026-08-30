@@ -84,18 +84,18 @@
   :disabled="busy || gameRunning"
   @click.stop="playFromSidebar(p.id)"
   >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
-  </button>
-  <button
-  type="button"
-  class="flex h-7 w-7 items-center justify-center rounded-md transition-colors disabled:opacity-50"
-  :class="removeArmed === p.id ? 'bg-[#f85149]/15 text-[#f85149]' : 'text-[color:var(--tx-muted)] hover:bg-[#f85149]/10 hover:text-[#f85149]'"
-  :title="removeArmed === p.id ? t('dev.removeConfirm') : t('dev.remove')"
-  :disabled="busy || removingPack === p.id"
-  @click.stop="handleRemovePack(p.id)"
-  >
-  <svg v-if="removingPack === p.id" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1.5a.75.75 0 0 1 .75.75V8a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 8 1.5Zm3.36 2.14a.75.75 0 0 1 0 1.06 4 4 0 1 1-6.72 0 .75.75 0 0 1 1.06-1.06 2.5 2.5 0 1 0 4.6 0 .75.75 0 0 1 1.06-1.06Z"/></svg>
-  <svg v-else viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M6 1.75a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75V2h3.5a.75.75 0 0 1 0 1.5h-.38l-.89 10.055A1.75 1.75 0 0 1 10.495 15H5.505a1.75 1.75 0 0 1-1.735-1.445L2.88 3.5H2.5a.75.75 0 0 1 0-1.5H6v-.25ZM4.416 3.5l.864 9.9A.25.25 0 0 0 5.525 13.5h4.95a.25.25 0 0 0 .245-.22l.864-9.78H4.416Z"/></svg>
+   <AppIcon name="play" class="h-4 w-4 fill-current" />
+   </button>
+   <button
+   type="button"
+   class="flex h-7 w-7 items-center justify-center rounded-md transition-colors disabled:opacity-50"
+   :class="removeArmed === p.id ? 'bg-[#f85149]/15 text-[#f85149]' : 'text-[color:var(--tx-muted)] hover:bg-[#f85149]/10 hover:text-[#f85149]'"
+   :title="removeArmed === p.id ? t('dev.removeConfirm') : t('dev.remove')"
+   :disabled="busy || removingPack === p.id"
+   @click.stop="handleRemovePack(p.id)"
+   >
+   <AppIcon v-if="removingPack === p.id" name="spinner" class="h-4 w-4 fill-current" />
+   <AppIcon v-else name="trash" class="h-4 w-4 fill-current" />
   </button>
   </div>
   </div>
@@ -258,8 +258,8 @@
       </div>
       <div class="mx-3 border-t border-[var(--border)]"></div>
       <button type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50" :disabled="busy || gameRunning" @click="closeSideCtx(); openPackTab(ctxMenuPack.id); tab = 'play'">
-        <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M4.5 1.94a1 1 0 0 1 1.523-.853l9.6 6.06a1 1 0 0 1 0 1.707l-9.6 6.06A1 1 0 0 1 4.5 14.06V1.94Z"/></svg>
-        {{ t("side.play") }}
+   <AppIcon name="play" class="h-4 w-4 shrink-0 fill-current" />
+         {{ t("side.play") }}
       </button>
       <button type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]" @click="closeSideCtx(); openPackTab(ctxMenuPack.id); tab = 'settings'">
         <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0 fill-none stroke-current" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
@@ -271,8 +271,8 @@
       </button>
       <div class="mx-3 border-t border-[var(--border)]"></div>
       <button type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[#f85149] transition-colors hover:bg-[#f85149]/10 disabled:opacity-50" :disabled="busy || gameRunning || removingPack === ctxMenuPack.id" @click="closeSideCtx(); handleRemovePack(ctxMenuPack.id)">
-        <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M6 1.75a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75V2h3.5a.75.75 0 0 1 0 1.5h-.38l-.89 10.055A1.75 1.75 0 0 1 10.495 15H5.505a1.75 1.75 0 0 1-1.735-1.445L2.88 3.5H2.5a.75.75 0 0 1 0-1.5H6v-.25ZM4.416 3.5l.864 9.9A.25.25 0 0 0 5.525 13.5h4.95a.25.25 0 0 0 .245-.22l.864-9.78H4.416Z"/></svg>
-        {{ t("dev.remove") }}
+   <AppIcon name="trash" class="h-4 w-4 shrink-0 fill-current" />
+         {{ t("dev.remove") }}
       </button>
     </div>
   </div>

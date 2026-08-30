@@ -94,7 +94,7 @@ const {
               @click="editVerMcOpen = !editVerMcOpen"
             >
               <span class="truncate">{{ editVerMc || t("pack.versionPick") }}</span>
-              <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)] transition-transform" :class="editVerMcOpen ? 'rotate-180' : ''"><path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"/></svg>
+              <AppIcon name="chevron-down" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)] transition-transform" :class="editVerMcOpen ? 'rotate-180' : ''" />
             </button>
             <div v-if="editVerMcOpen" class="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl  bg-[var(--panel)] shadow-sm shadow-2xl">
               <input v-model="editVerMcQuery" class="w-full border-b border-[var(--border)]  bg-[var(--input)] px-2.5 py-1.5 text-[13px] outline-none placeholder:text-[var(--tx-muted)]" :placeholder="t('pack.versionSearch')" />
@@ -142,7 +142,7 @@ const {
               @click="editVerLvOpen = !editVerLvOpen"
             >
               <span class="truncate">{{ editVerLv || t("mods.createLatest") }}</span>
-              <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)] transition-transform" :class="editVerLvOpen ? 'rotate-180' : ''"><path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"/></svg>
+              <AppIcon name="chevron-down" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)] transition-transform" :class="editVerLvOpen ? 'rotate-180' : ''" />
             </button>
             <div v-if="editVerLvOpen" class="absolute left-0 right-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-xl  bg-[var(--panel)] shadow-sm py-1 shadow-2xl">
               <button
@@ -152,7 +152,7 @@ const {
                 @click="chooseEditVerLoaderVersion('')"
               >
                 <span>{{ t("mods.createLatest") }}</span>
-                <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M12.78 4.22a.75.75 0 0 1 0 1.06l-5.78 5.78a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L6.5 9.44l5.22-5.22a.75.75 0 0 1 1.06 0Z"/></svg>
+                <AppIcon name="check" class="h-4 w-4 fill-current" />
               </button>
               <div v-if="!editVerLoaderVersions.length" class="px-2.5 py-1.5 text-xs text-[color:var(--tx-muted)]">{{ t("mods.createLvNone") }}</div>
               <button
@@ -164,7 +164,7 @@ const {
                 @click="chooseEditVerLoaderVersion(v)"
               >
                 <span class="min-w-0 truncate">{{ v }}</span>
-                <svg v-if="editVerLv === v" viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M12.78 4.22a.75.75 0 0 1 0 1.06l-5.78 5.78a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L6.5 9.44l5.22-5.22a.75.75 0 0 1 1.06 0Z"/></svg>
+                <AppIcon v-if="editVerLv === v" name="check" class="h-4 w-4 shrink-0 fill-current" />
               </button>
             </div>
           </div>
@@ -184,7 +184,7 @@ const {
             :disabled="editVerBusy"
             @click="saveEditVersion"
           >
-            <svg v-if="editVerBusy" viewBox="0 0 16 16" class="h-4 w-4 animate-spin fill-current"><path d="M8 1a7 7 0 1 0 7 7h-1.5A5.5 5.5 0 1 1 8 2.5V1Z"/></svg>
+            <AppIcon v-if="editVerBusy" name="spinner" class="h-4 w-4 fill-current" />
             {{ t("pack.versionSave") }}
           </button>
         </div>
