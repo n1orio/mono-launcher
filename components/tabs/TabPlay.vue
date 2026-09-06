@@ -284,7 +284,7 @@ async function enableAllFiles(enabled: boolean) {
   v-if="activePack?.icon"
   :src="convertFileSrc(activePack.icon)"
   :alt="activePack.name"
-  class="h-[60px] w-[60px] shrink-0 rounded-xl  bg-[var(--panel)] object-cover shadow-lg"
+  class="h-[60px] w-[60px] shrink-0 rounded-2xl bg-[var(--panel)] object-cover shadow-lg"
   @error="(e: any) => (e.target.style.display = 'none')"
   />
   <div v-else class="w-[60px] h-[60px] rounded-2xl flex items-center justify-center text-white font-black text-xl select-none shrink-0 shadow-lg" :style="{ background: packGradient(activePack?.name || 'T') }">
@@ -629,14 +629,13 @@ async function enableAllFiles(enabled: boolean) {
   </div>
 
   <!-- Сабтабы: релизы / моды / ресурспаки / шейдеры / миры / консоль -->
-  <div class="nice-scrollbar mb-4 flex shrink-0 items-center gap-1 overflow-x-auto border-b border-[var(--border)] pb-2">
+  <div class="nice-scrollbar mb-4 flex w-fit max-w-full shrink-0 items-center gap-1 overflow-x-auto rounded-xl bg-[var(--panel)] p-1">
   <template v-for="st in playSubTabsVisible" :key="st.kind">
-  <span v-if="st.kind === 'screenshots'" class="mx-1.5 my-2 h-5 w-px shrink-0 bg-[var(--border)]"></span>
   <button
   type="button"
-  class="relative flex shrink-0 items-center gap-1.5 px-3 pb-2.5 pt-1 text-[13px] font-semibold transition-colors"
+  class="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-all"
   :class="playSubTab === st.kind
-  ? 'text-[var(--accent)]'
+  ? 'bg-[var(--input)] text-white shadow-sm'
   : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
   @click="playSubTab = st.kind"
   >
@@ -644,10 +643,8 @@ async function enableAllFiles(enabled: boolean) {
   <span>{{ t("sub." + st.kind) }}</span>
   <span
   v-if="subTabCount(st.kind) > 0"
-  class="rounded-full bg-[var(--input)] px-1.5 py-px text-[11px] font-bold tabular-nums"
-  :class="playSubTab === st.kind ? 'text-[var(--accent)]' : 'text-[color:var(--tx-muted)]'"
+  class="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-bold tabular-nums"
   >{{ subTabCount(st.kind) }}</span>
-  <span v-if="playSubTab === st.kind" class="absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-full bg-[var(--accent)]"></span>
   </button>
   </template>
   </div>
@@ -950,25 +947,31 @@ async function enableAllFiles(enabled: boolean) {
   </div>
   </div>
   <!-- RIGHT GROUP: Badge + Eye + Update + Toggle -->
-  <div class="flex items-center gap-3 shrink-0">
+  <div class="flex items-center gap-2 shrink-0">
   <button
   v-if="playSubTab !== 'saves' && f.curseforgeProjectId"
   type="button"
-  class="flex shrink-0 items-center gap-1 rounded-md  bg-[var(--input)] px-2 py-1 text-xs font-medium text-[color:var(--tx-muted)] transition-colors  hover:text-[var(--accent)]"
+  class="flex shrink-0 items-center gap-1 rounded-md border border-[#F16436]/25 bg-[#F16436]/10 px-2 py-1 text-xs font-semibold text-[#F16436] transition-colors hover:bg-[#F16436]/20"
   :title="t('files.curseforge')"
   @click.stop="openFileOnCurseForge(playSubTab as GameFolderKind, f)"
   >
   CurseForge
   </button>
   <button
-  v-if="playSubTab !== 'saves' && !f.curseforgeProjectId"
+  v-else-if="playSubTab !== 'saves' && (f.modrinthProjectId || f.modrinthUrl)"
   type="button"
-  class="flex shrink-0 items-center gap-1 rounded-md  bg-[var(--input)] px-2 py-1 text-xs font-medium text-[color:var(--tx-muted)] transition-colors  hover:text-[var(--accent)]"
+  class="flex shrink-0 items-center gap-1 rounded-md border border-[#00AF5C]/25 bg-[#00AF5C]/10 px-2 py-1 text-xs font-semibold text-[#00AF5C] transition-colors hover:bg-[#00AF5C]/20"
   :title="t('files.modrinth')"
   @click.stop="openFileOnModrinth(playSubTab as GameFolderKind, f)"
   >
   Modrinth
   </button>
+  <span
+  v-else-if="playSubTab !== 'saves' && f.kind === 'file'"
+  class="flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-xs font-semibold text-[color:var(--tx-muted)]"
+  >
+  Local
+  </span>
   <button
   v-if="playSubTab !== 'saves' && (f.modrinthProjectId || f.modrinthUrl || f.curseforgeProjectId)"
   type="button"
@@ -1243,21 +1246,21 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Настройки сборки -->
   <template v-else-if="playSubTab === 'settings'">
   <div class="min-h-0 flex-1 overflow-y-auto pr-1">
-  <div class="max-w-2xl space-y-6">
+  <div class="max-w-4xl mx-auto w-full space-y-4">
   <!-- ОЗУ -->
-  <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 flex justify-between items-center">
+  <section class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm">
+  <div class="mb-3 flex items-center justify-between">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.ram") }}</h3>
   <span class="font-mono text-[13px] font-semibold text-[var(--accent)]">{{ ram }} {{ t("units.gb") }}</span>
   </div>
-  <div class="p-4 space-y-2">
+  <div class="space-y-2">
   <input
   type="range"
   min="2"
   :max="maxRam"
   step="1"
   v-model.number="ram"
-  class="w-full accent-[var(--accent-deep)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
+  class="w-full accent-[var(--accent)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
   />
   <div class="flex justify-between text-[13px] text-[color:var(--tx-muted)] font-mono">
   <span>2 {{ t("units.gb") }}</span>
@@ -1277,8 +1280,8 @@ async function enableAllFiles(enabled: boolean) {
   </section>
 
   <!-- JVM-аргументы -->
-  <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 flex justify-between items-center">
+  <section class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm">
+  <div class="mb-3 flex items-center justify-between">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.jvmArgs") }}</h3>
   <button
   type="button"
@@ -1289,7 +1292,7 @@ async function enableAllFiles(enabled: boolean) {
   {{ jvmArgsSaving ? t("common.saving") : t("common.save") }}
   </button>
   </div>
-  <div class="p-4 space-y-2">
+  <div class="space-y-2">
   <textarea
   v-model="jvmArgs"
   rows="3"
@@ -1302,12 +1305,12 @@ async function enableAllFiles(enabled: boolean) {
   </section>
 
   <!-- Размер окна игры -->
-  <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 flex justify-between items-center">
+  <section class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm">
+  <div class="mb-3 flex items-center justify-between">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.win") }}</h3>
   <span class="font-mono text-[13px] font-semibold text-[var(--accent)]">{{ windowWidth }}×{{ windowHeight }}</span>
   </div>
-  <div class="p-4 space-y-2">
+  <div class="space-y-2">
   <div class="flex items-center gap-3">
   <label class="w-16 text-[13px] text-[color:var(--tx-muted)]" for="win-width">{{ t("settings.width") }}</label>
   <input
@@ -1337,11 +1340,11 @@ async function enableAllFiles(enabled: boolean) {
   </section>
 
   <!-- Java -->
-  <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-3.5 py-2.5">
+  <section class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm">
+  <div class="mb-3">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.java") }}</h3>
   </div>
-  <div class="p-4 space-y-3">
+  <div class="space-y-3">
   <div class="flex items-center gap-2">
   <select
   :value="javaSelected"
@@ -1371,11 +1374,11 @@ async function enableAllFiles(enabled: boolean) {
   </section>
 
   <!-- Discord Rich Presence -->
-  <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-3.5 py-2.5">
+  <section class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm">
+  <div class="mb-3">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.discord") }}</h3>
   </div>
-  <div class="p-4">
+  <div>
   <label class="flex cursor-pointer items-center gap-3">
   <input
   type="checkbox"
@@ -1392,47 +1395,59 @@ async function enableAllFiles(enabled: boolean) {
   </section>
 
   <!-- Система: трей + автозапуск -->
-  <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-3.5 py-2.5">
+  <section class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm">
+  <div class="mb-3">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.system") }}</h3>
   </div>
-  <div class="space-y-3 p-4">
-  <label class="flex cursor-pointer items-center gap-3">
-  <input
-  type="checkbox"
-  class="h-4 w-4 accent-[#5865F2]"
-  :checked="closeToTray"
-  @change="toggleCloseToTray(($event.target as HTMLInputElement).checked)"
-  />
+  <div class="space-y-3">
+  <div class="flex cursor-pointer items-center justify-between gap-3" @click="toggleCloseToTray(!closeToTray)">
   <span class="text-[13px] text-[color:var(--tx)]">{{ t("settings.closeToTray") }}</span>
-  </label>
-  <label class="flex cursor-pointer items-center gap-3">
-  <input
-  type="checkbox"
-  class="h-4 w-4 accent-[#5865F2]"
-  :checked="autostartOn"
-  @change="toggleAutostart(($event.target as HTMLInputElement).checked)"
-  />
+  <button
+  type="button"
+  role="switch"
+  :aria-checked="closeToTray"
+  class="relative h-6 w-11 shrink-0 rounded-full transition-colors"
+  :class="closeToTray ? 'bg-[var(--accent)]' : 'bg-[var(--input)] border border-[var(--border)]'"
+  @click.stop="toggleCloseToTray(!closeToTray)"
+  >
+  <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all" :class="closeToTray ? 'left-[22px]' : 'left-0.5'"></span>
+  </button>
+  </div>
+  <div class="flex cursor-pointer items-center justify-between gap-3" @click="toggleAutostart(!autostartOn)">
   <span class="text-[13px] text-[color:var(--tx)]">{{ t("settings.autostart") }}</span>
-  </label>
+  <button
+  type="button"
+  role="switch"
+  :aria-checked="autostartOn"
+  class="relative h-6 w-11 shrink-0 rounded-full transition-colors"
+  :class="autostartOn ? 'bg-[var(--accent)]' : 'bg-[var(--input)] border border-[var(--border)]'"
+  @click.stop="toggleAutostart(!autostartOn)"
+  >
+  <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all" :class="autostartOn ? 'left-[22px]' : 'left-0.5'"></span>
+  </button>
+  </div>
   </div>
   </section>
 
   <!-- Предупреждение о кастомных модах -->
-  <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-3.5 py-2.5">
+  <section class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm">
+  <div class="mb-3">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.warnCustomMods") }}</h3>
   </div>
-  <div class="p-4">
-  <label class="flex cursor-pointer items-center gap-3">
-  <input
-  type="checkbox"
-  class="h-4 w-4 accent-[#f0883e]"
-  :checked="warnCustomMods"
-  @change="toggleWarnCustomMods(($event.target as HTMLInputElement).checked)"
-  />
+  <div>
+  <div class="flex cursor-pointer items-center justify-between gap-3" @click="toggleWarnCustomMods(!warnCustomMods)">
   <span class="text-[13px] text-[color:var(--tx)]">{{ t("settings.warnCustomModsLabel") }}</span>
-  </label>
+  <button
+  type="button"
+  role="switch"
+  :aria-checked="warnCustomMods"
+  class="relative h-6 w-11 shrink-0 rounded-full transition-colors"
+  :class="warnCustomMods ? 'bg-[var(--accent)]' : 'bg-[var(--input)] border border-[var(--border)]'"
+  @click.stop="toggleWarnCustomMods(!warnCustomMods)"
+  >
+  <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all" :class="warnCustomMods ? 'left-[22px]' : 'left-0.5'"></span>
+  </button>
+  </div>
   <p class="mt-2 text-[13px] text-[color:var(--tx-muted)]">
   {{ t("settings.warnCustomModsNote") }}
   </p>
@@ -1440,11 +1455,11 @@ async function enableAllFiles(enabled: boolean) {
   </section>
 
   <!-- Проверка целостности -->
-  <section class="rounded-xl  bg-[var(--panel)] shadow-sm overflow-hidden">
-  <div class="border-b border-[var(--border)]  px-3.5 py-2.5 flex justify-between items-center">
+  <section class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm">
+  <div class="mb-3 flex items-center justify-between">
   <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.verify") }}</h3>
   </div>
-  <div class="p-4 space-y-3">
+  <div class="space-y-3">
   <p class="text-[13px] text-[color:var(--tx-muted)]">
   {{ t("settings.verifyNote") }}
   </p>
