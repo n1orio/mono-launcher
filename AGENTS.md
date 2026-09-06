@@ -99,4 +99,5 @@ The catalog tab has 4 source sub-tabs: `mono` (backend catalog), `author` (your 
 
 ## Versioning
 - Launcher versioned via `launcher-v*` tags
+- **Version lives in 3 files — bump all together**: `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`. `tauri-action` resolves `__VERSION__` (filenames + target tag) from `tauri.conf.json` — if it lags behind, the build uploads alpha.N binaries into the alpha.N-1 release and `update-manifest` fails with "no assets to download"
 - Pack `.mrpack` uploaded to mono backend (via upload flow), served by storage
