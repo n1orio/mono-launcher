@@ -1752,7 +1752,6 @@ async fn minecraft_versions_command(state: State<'_, AppState>) -> Result<Vec<Mc
     let resp: serde_json::Value = state
         .client
         .get(url)
-        .header("User-Agent", "mono-launcher")
         .send()
         .await
         .map_err(|e| format!("Не удалось получить список версий Minecraft: {e}"))?
@@ -2162,7 +2161,6 @@ async fn get_news_command(
         "https://api.github.com/repos/n1orio/mono-launcher/releases?per_page=5";
     if let Ok(resp) = client
         .get(GH_RELEASES)
-        .header("User-Agent", "MonoLauncher")
         .header("Accept", "application/vnd.github+json")
         .send()
         .await
@@ -2182,7 +2180,6 @@ async fn get_news_command(
                     if let Some(mu) = manifest_url {
                         if let Ok(m) = client
                             .get(mu)
-                            .header("User-Agent", "MonoLauncher")
                             .send()
                             .await
                         {
@@ -4063,7 +4060,6 @@ async fn get_skin_command(
     let resp = state
         .client
         .get(&url)
-        .header("User-Agent", "mono-launcher")
         .send()
         .await
         .map_err(|e| e.to_string())?;
