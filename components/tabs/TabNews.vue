@@ -133,7 +133,7 @@ function cardTitle(n: any): string {
               v-if="n.kind === 'update'"
               class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
               :class="isLauncherPost(n)
-                ? 'bg-[var(--accent)] text-white'
+                ? 'bg-[var(--accent-deep)] text-white'
                 : 'bg-[#16a34a]/15 text-[#22c55e] border border-[#16a34a]/30'"
             >
               {{ isLauncherPost(n) ? t("news.launcherBadge") : t("news.packBadge") }}
