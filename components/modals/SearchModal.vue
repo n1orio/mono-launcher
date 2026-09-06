@@ -158,6 +158,12 @@ watch(curseDetail, () => {
   cfVerFilterType.value = [];
 });
 
+const detailSideLoaders = computed(() => {
+  const set = new Set<string>();
+  for (const v of (modVersionsRaw.value ?? []) as any[]) for (const l of v.loaders ?? []) set.add(String(l));
+  return [...set].slice(0, 6);
+});
+
 async function installCurseFile(f: { fileId: number; fileName: string; displayName?: string }) {
   if (!curseDetail.value || !packId.value) return;
   curseInstallBusy.value = f.fileId;
@@ -244,7 +250,7 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
       <div v-if="searchService === 'curseforge' && !curseKeyOk" class="border-b border-[var(--border)]  px-4 py-2.5">
         <p class="text-[13px] text-[color:var(--tx-muted)]">{{ t("curse.noKey") }}</p>
       </div>
-      <div class="flex shrink-0 items-center gap-2 border-b border-[var(--border)]  px-3.5 py-2.5">
+      <div v-if="!modDetail && !curseDetail" class="flex shrink-0 items-center gap-2 border-b border-[var(--border)]  px-3.5 py-2.5">
         <div class="relative min-w-0 flex-1">
           <AppIcon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 fill-[var(--tx-muted)]" />
           <input
@@ -266,7 +272,7 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
           {{ searchService === 'modrinth' ? t("mods.search") : t("curse.search") }}
         </button>
       </div>
-      <div v-if="searchService === 'curseforge'" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)]  px-4 py-2">
+      <div v-if="searchService === 'curseforge' && !curseDetail" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)]  px-4 py-2">
         <FilterSelect
           v-model="curseLoaderSel"
           :options="curseLoaderOptions"
@@ -296,7 +302,7 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
           @change="searchCurse()"
         />
       </div>
-      <div v-if="searchService === 'modrinth'" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)]  px-4 py-2">
+      <div v-if="searchService === 'modrinth' && !modDetail" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)]  px-4 py-2">
         <FilterSelect
           v-if="modSearchKind === 'datapack'"
           v-model="modDatapackWorldSel"
@@ -378,63 +384,50 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
         <template v-else-if="modDetail">
           <button
             type="button"
-            class="mb-3 flex items-center gap-1 text-[13px] text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]"
+            class="mb-4 flex w-fit items-center gap-1.5 text-xs font-semibold text-[color:var(--tx-muted)] transition-colors hover:text-[color:var(--tx)]"
             @click="modDetail = null; modVersions = null"
           >
-            <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M7.28 3.22a.75.75 0 0 1 0 1.06L3.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Zm4 0a.75.75 0 0 1 0 1.06L7.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"/></svg>
+            <AppIcon name="chevron-right" class="h-3.5 w-3.5 fill-current -rotate-180" />
             {{ t("mods.back") }}
           </button>
-          <div class="mb-3 flex items-center gap-3 rounded-md  bg-[var(--bg)] px-3 py-2.5">
-            <img v-if="modDetail.iconUrl" :src="searchIconUrl(modDetail.iconUrl)" :alt="modDetail.title" loading="lazy" class="h-11 w-11 shrink-0 rounded-md object-cover" />
-            <div v-else class="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-[13px] text-[color:var(--tx-muted)]">
+          <div class="grid w-full grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div class="min-w-0">
+          <div class="mb-5 flex items-center gap-4">
+            <img v-if="modDetail.iconUrl" :src="searchIconUrl(modDetail.iconUrl)" :alt="modDetail.title" loading="lazy" class="h-16 w-16 shrink-0 rounded-2xl object-cover" />
+            <div v-else class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[var(--input)] text-lg font-bold text-[color:var(--tx-muted)]">
               {{ modDetail.title.slice(0, 2).toUpperCase() }}
             </div>
             <div class="min-w-0 flex-1">
-              <h4 class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">{{ modDetail.title }}</h4>
-              <div class="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-[color:var(--tx-muted)]">
+              <h4 class="truncate text-xl font-bold text-[color:var(--tx)] tracking-tight">{{ modDetail.title }}</h4>
+              <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[color:var(--tx-muted)]">
                 <span>{{ t("mods.byAuthor", { author: modDetail.author }) }}</span>
+                <span>•</span>
                 <span class="flex items-center gap-1">
                   <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
                   {{ modDetail.downloads.toLocaleString() }}
                 </span>
-                <span v-if="modDetail.categories.length">{{ modDetail.categories.slice(0, 4).join(", ") }}</span>
-                <button
-                  v-if="modDetail.slug"
-                  type="button"
-                  class="text-[var(--accent)] hover:underline"
-                  @click="openExternal(`https://modrinth.com/mod/${modDetail!.slug}`)"
-                >
-                  {{ t("mods.openPage") }}
-                </button>
+                <template v-if="modDetail.categories.length">
+                  <span>•</span>
+                  <span>{{ modDetail.categories.slice(0, 4).join(" / ") }}</span>
+                </template>
               </div>
             </div>
-            <button
-              type="button"
-              class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-              :disabled="quickModBusy !== null || modInstallBusy !== null"
-              :title="t('mods.downloadHint')"
-              @click="quickDownloadMod(modDetail, $event)"
-            >
-              <AppIcon v-if="quickModBusy === modDetail.projectId" name="spinner" class="h-3 w-3 animate-spin fill-current" />
-              <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
-              {{ t("mods.download") }}
-            </button>
           </div>
-          <div class="mb-3 flex shrink-0 items-center gap-1 border-b border-[var(--border)]  pb-2">
+          <div class="mb-4 flex shrink-0 items-center gap-1.5">
             <button
               v-for="tb in modDetailTabs"
               :key="tb.kind"
               type="button"
-              class="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors"
+              class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border"
               :class="modDetailTab === tb.kind
-                ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
-                : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+                ? 'bg-[var(--panel)] text-[color:var(--tx)] border-[var(--border)] shadow-sm'
+                : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] hover:bg-[var(--hover)] border-transparent'"
               @click="modDetailTab = tb.kind"
             >
               {{ t("mods.tab" + tb.kind) }}
             </button>
           </div>
-          <div v-if="modDetailTab === 'about'" class="max-h-[46vh] overflow-y-auto rounded-md  bg-[var(--bg)] px-3.5 py-2.5">
+          <div v-if="modDetailTab === 'about'" class="rounded-xl border border-[var(--border)] bg-[var(--panel)] px-4 py-3 text-sm leading-relaxed text-[color:var(--tx-muted)]">
             <Markdown v-if="modDetail.body" :source="modDetail.body" />
             <p v-else class="py-6 text-center text-[13px] italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
           </div>
@@ -485,9 +478,61 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
           </div>
           <div v-else>
             <div v-if="modDetail.gallery.length" class="grid grid-cols-2 gap-2">
-              <img v-for="g in modDetail.gallery" :key="g.url" :src="g.url" :alt="g.title ?? ''" loading="lazy" class="h-32 w-full cursor-zoom-in rounded-md  object-cover transition-transform hover:scale-[1.02]" :title="g.title ?? undefined" @click="openExternal(g.url)" />
+              <img v-for="g in modDetail.gallery" :key="g.url" :src="g.url" :alt="g.title ?? ''" loading="lazy" class="h-32 w-full max-w-full cursor-zoom-in rounded-xl object-cover transition-transform hover:scale-[1.02]" :title="g.title ?? undefined" @click="openExternal(g.url)" />
             </div>
             <p v-else class="py-10 text-center text-[13px] italic text-[color:var(--tx-muted)]">{{ t("mods.noGallery") }}</p>
+          </div>
+          </div>
+          <aside class="min-w-0 space-y-4 lg:sticky lg:top-4">
+            <div class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+              <span v-if="installedModrinthSlugs.has(modDetail.slug)" class="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 text-xs font-semibold text-[color:var(--tx-muted)]">
+                <AppIcon name="check" class="h-4 w-4 fill-current" />
+                {{ t("mods.installedBadge") }}
+              </span>
+              <button
+                v-else
+                type="button"
+                class="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] hover:brightness-110 px-4 py-2.5 text-[13px] font-bold text-white shadow-md transition-all active:scale-95 disabled:opacity-50"
+                :disabled="quickModBusy !== null || modInstallBusy !== null"
+                @click="quickDownloadMod(modDetail, $event)"
+              >
+                <AppIcon v-if="quickModBusy === modDetail.projectId" name="spinner" class="h-4 w-4 animate-spin fill-current" />
+                <AppIcon v-else name="arrow-down" class="h-4 w-4 fill-current" />
+                {{ t("mods.install") }}
+              </button>
+            </div>
+            <div class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+              <h4 class="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("mods.aboutProject") }}</h4>
+              <dl class="space-y-2 text-xs">
+                <div class="flex items-center justify-between gap-2">
+                  <dt class="text-[color:var(--tx-muted)]">{{ t("mods.projectId") }}</dt>
+                  <dd class="font-mono text-[color:var(--tx)] truncate">{{ modDetail.projectId }}</dd>
+                </div>
+                <div v-if="modDetail.latestVersion" class="flex items-center justify-between gap-2">
+                  <dt class="text-[color:var(--tx-muted)]">{{ t("mods.latestVersion") }}</dt>
+                  <dd class="font-mono text-[color:var(--tx)]">{{ modDetail.latestVersion }}</dd>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <dt class="text-[color:var(--tx-muted)]">{{ t("mods.downloads") }}</dt>
+                  <dd class="tabular-nums text-[color:var(--tx)]">{{ modDetail.downloads.toLocaleString() }}</dd>
+                </div>
+              </dl>
+            </div>
+            <div v-if="detailSideLoaders.length || modDetail.categories.length" class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+              <h4 class="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("mods.compat") }}</h4>
+              <div class="flex flex-wrap gap-1.5">
+                <span v-for="l in detailSideLoaders" :key="l" class="text-[11px] px-2 py-0.5 rounded-md bg-white/5 text-[color:var(--tx-muted)]">{{ l }}</span>
+                <span v-for="c in modDetail.categories.slice(0, 6)" :key="c" class="text-[11px] px-2 py-0.5 rounded-md bg-white/5 text-[color:var(--tx-muted)]">{{ c }}</span>
+              </div>
+            </div>
+            <div v-if="modDetail.slug" class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+              <h4 class="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("mods.links") }}</h4>
+              <button type="button" class="flex w-full items-center gap-2 rounded-xl bg-[var(--input)] hover:bg-[var(--hover)] px-3 py-2 text-xs font-semibold text-[color:var(--tx)] transition-all" @click="openExternal(`https://modrinth.com/mod/${modDetail!.slug}`)">
+                <AppIcon name="external-link" class="h-3.5 w-3.5 fill-current" />
+                {{ t("mods.openPage") }}
+              </button>
+            </div>
+          </aside>
           </div>
         </template>
         <template v-else-if="modSearchLoading">
@@ -618,76 +663,62 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
         <template v-else-if="curseDetail">
           <button
             type="button"
-            class="mb-3 flex items-center gap-1 text-[13px] text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]"
+            class="mb-4 flex w-fit items-center gap-1.5 text-xs font-semibold text-[color:var(--tx-muted)] transition-colors hover:text-[color:var(--tx)]"
             @click="closeCurseDetail()"
           >
-            <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M7.28 3.22a.75.75 0 0 1 0 1.06L3.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Zm4 0a.75.75 0 0 1 0 1.06L7.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"/></svg>
+            <AppIcon name="chevron-right" class="h-3.5 w-3.5 fill-current -rotate-180" />
             {{ t("mods.back") }}
           </button>
-          <div class="mb-3 flex items-center gap-3 rounded-md bg-[var(--bg)] px-3 py-2.5">
-            <img v-if="curseDetail.iconUrl" :src="searchIconUrl(curseDetail.iconUrl)" :alt="curseDetail.name" loading="lazy" class="h-11 w-11 shrink-0 rounded-md object-cover" />
-            <div v-else class="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-[13px] text-[color:var(--tx-muted)]">
+          <div class="grid w-full grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div class="min-w-0">
+          <div class="mb-5 flex items-center gap-4">
+            <img v-if="curseDetail.iconUrl" :src="searchIconUrl(curseDetail.iconUrl)" :alt="curseDetail.name" loading="lazy" class="h-16 w-16 shrink-0 rounded-2xl object-cover" />
+            <div v-else class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[var(--input)] text-lg font-bold text-[color:var(--tx-muted)]">
               {{ curseDetail.name.slice(0, 2).toUpperCase() }}
             </div>
             <div class="min-w-0 flex-1">
-              <h4 class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">{{ curseDetail.name }}</h4>
-              <div class="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-[color:var(--tx-muted)]">
+              <h4 class="truncate text-xl font-bold text-[color:var(--tx)] tracking-tight">{{ curseDetail.name }}</h4>
+              <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[color:var(--tx-muted)]">
                 <span>{{ t("mods.byAuthor", { author: curseDetail.author }) }}</span>
+                <span>•</span>
                 <span class="flex items-center gap-1">
                   <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
                   {{ curseDetail.downloadCount.toLocaleString() }}
                 </span>
-                <span v-if="curseDetail.categories.length">{{ curseDetail.categories.slice(0, 4).join(", ") }}</span>
-                <button
-                  v-if="curseDetail.websiteUrl"
-                  type="button"
-                  class="text-[var(--accent)] hover:underline"
-                  @click="openExternal(curseDetail!.websiteUrl)"
-                >
-                  {{ t("mods.openPage") }}
-                </button>
+                <template v-if="curseDetail.categories.length">
+                  <span>•</span>
+                  <span>{{ curseDetail.categories.slice(0, 4).join(" / ") }}</span>
+                </template>
               </div>
             </div>
-            <button
-              type="button"
-              class="shrink-0 rounded-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-              :disabled="curseInstallBusy !== null || installedCurseIds.has(curseDetail!.projectId)"
-              @click="installCurse(curseDetail!)"
-            >
-              <template v-if="installedCurseIds.has(curseDetail!.projectId)">
-                <svg viewBox="0 0 16 16" class="mr-1 inline h-3 w-3 fill-current"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
-                {{ t("mods.installedBadge") }}
-              </template>
-              <template v-else>{{ t("mods.download") }}</template>
-            </button>
           </div>
-          <div class="mb-3 flex shrink-0 items-center gap-1 border-b border-[var(--border)] pb-2">
+          <div class="mb-4 flex shrink-0 items-center gap-1.5">
             <button
               type="button"
-              class="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors"
-              :class="curseDetailTab === 'about' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+              class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border"
+              :class="curseDetailTab === 'about' ? 'bg-[var(--panel)] text-[color:var(--tx)] border-[var(--border)] shadow-sm' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] hover:bg-[var(--hover)] border-transparent'"
               @click="curseDetailTab = 'about'"
             >
               {{ t("mods.tababout") }}
             </button>
             <button
               type="button"
-              class="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors"
-              :class="curseDetailTab === 'versions' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+              class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border"
+              :class="curseDetailTab === 'versions' ? 'bg-[var(--panel)] text-[color:var(--tx)] border-[var(--border)] shadow-sm' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] hover:bg-[var(--hover)] border-transparent'"
               @click="curseDetailTab = 'versions'"
             >
               {{ t("mods.tabversions") }}
             </button>
             <button
               type="button"
-              class="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors"
-              :class="curseDetailTab === 'screenshots' ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+              class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border"
+              :class="curseDetailTab === 'screenshots' ? 'bg-[var(--panel)] text-[color:var(--tx)] border-[var(--border)] shadow-sm' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] hover:bg-[var(--hover)] border-transparent'"
               @click="curseDetailTab = 'screenshots'"
             >
               {{ t("mods.tabscreenshots") }}
             </button>
           </div>
-          <div v-if="curseDetailTab === 'about'" class="max-h-[46vh] overflow-y-auto rounded-md bg-[var(--bg)] px-3.5 py-2.5">
+          <div v-if="curseDetailTab === 'about'" class="rounded-xl border border-[var(--border)] bg-[var(--panel)] px-4 py-3 text-sm leading-relaxed text-[color:var(--tx-muted)]">
             <div v-if="curseDetail.description" v-html="curseDetail.description" class="prose prose-invert max-w-none text-[13px] leading-relaxed"></div>
             <p v-else-if="curseDetail.summary" class="text-[13px] leading-relaxed text-[color:var(--tx)]">{{ curseDetail.summary }}</p>
             <p v-else class="py-6 text-center text-[13px] italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
@@ -737,14 +768,61 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
               </div>
             </div>
           </div>
-          <div v-else-if="curseDetailTab === 'screenshots'" class="max-h-[46vh] overflow-y-auto">
+          <div v-else-if="curseDetailTab === 'screenshots'">
             <div v-if="curseDetail.screenshots.length" class="grid grid-cols-2 gap-2">
               <div v-for="(s, i) in curseDetail.screenshots" :key="i" class="group relative cursor-pointer" @click="openExternal(s.url)">
-                <img :src="s.url" :alt="s.title || ''" loading="lazy" class="h-32 w-full rounded-md object-cover transition-transform hover:scale-[1.02]" />
+                <img :src="s.url" :alt="s.title || ''" loading="lazy" class="h-32 w-full max-w-full rounded-xl object-cover transition-transform hover:scale-[1.02]" />
                 <div v-if="s.title" class="absolute inset-x-0 bottom-0 rounded-b-md bg-black/60 px-2 py-1 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100">{{ s.title }}</div>
               </div>
             </div>
             <p v-else class="py-10 text-center text-[13px] italic text-[color:var(--tx-muted)]">{{ t("mods.noGallery") }}</p>
+          </div>
+          </div>
+          <aside class="min-w-0 space-y-4 lg:sticky lg:top-4">
+            <div class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+              <span v-if="installedCurseIds.has(curseDetail.projectId)" class="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 text-xs font-semibold text-[color:var(--tx-muted)]">
+                <AppIcon name="check" class="h-4 w-4 fill-current" />
+                {{ t("mods.installedBadge") }}
+              </span>
+              <button
+                v-else
+                type="button"
+                class="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] hover:brightness-110 px-4 py-2.5 text-[13px] font-bold text-white shadow-md transition-all active:scale-95 disabled:opacity-50"
+                :disabled="curseInstallBusy !== null"
+                @click="installCurse(curseDetail!)"
+              >
+                <AppIcon v-if="curseInstallBusy !== null" name="spinner" class="h-4 w-4 fill-current" />
+                <AppIcon v-else name="arrow-down" class="h-4 w-4 fill-current" />
+                {{ t("mods.install") }}
+              </button>
+            </div>
+            <div class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+              <h4 class="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("mods.aboutProject") }}</h4>
+              <dl class="space-y-2 text-xs">
+                <div class="flex items-center justify-between gap-2">
+                  <dt class="text-[color:var(--tx-muted)]">{{ t("mods.projectId") }}</dt>
+                  <dd class="font-mono text-[color:var(--tx)]">{{ curseDetail.projectId }}</dd>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <dt class="text-[color:var(--tx-muted)]">{{ t("mods.downloads") }}</dt>
+                  <dd class="tabular-nums text-[color:var(--tx)]">{{ curseDetail.downloadCount.toLocaleString() }}</dd>
+                </div>
+              </dl>
+            </div>
+            <div v-if="curseDetail.categories.length" class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+              <h4 class="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("mods.compat") }}</h4>
+              <div class="flex flex-wrap gap-1.5">
+                <span v-for="c in curseDetail.categories.slice(0, 8)" :key="c" class="text-[11px] px-2 py-0.5 rounded-md bg-white/5 text-[color:var(--tx-muted)]">{{ c }}</span>
+              </div>
+            </div>
+            <div v-if="curseDetail.websiteUrl" class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+              <h4 class="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("mods.links") }}</h4>
+              <button type="button" class="flex w-full items-center gap-2 rounded-xl bg-[var(--input)] hover:bg-[var(--hover)] px-3 py-2 text-xs font-semibold text-[color:var(--tx)] transition-all" @click="openExternal(curseDetail!.websiteUrl)">
+                <AppIcon name="external-link" class="h-3.5 w-3.5 fill-current" />
+                {{ t("curse.openPage") }}
+              </button>
+            </div>
+          </aside>
           </div>
         </template>
         <div v-else-if="curseErr" class="rounded-md  bg-[var(--input-50)] p-6 text-center text-[13px] text-[color:var(--tx-muted)]">

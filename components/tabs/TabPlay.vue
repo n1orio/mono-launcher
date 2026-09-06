@@ -604,7 +604,7 @@ async function enableAllFiles(enabled: boolean) {
     v-if="warnCustomMods && (status?.custom_mods?.length || 0) > 0"
     class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all"
     :class="customModsState === 'safe'
-      ? 'border-[#16a34a]/30 bg-[#16a34a]/15 text-[#22c55e]'
+      ? 'border-[#16a34a]/20 bg-[#16a34a]/10 text-[#16a34a]'
       : customModsState === 'dangerous'
         ? 'border-red-500/30 bg-red-500/10 text-red-300'
         : 'border-amber-500/30 bg-amber-500/10 text-amber-300'"
@@ -964,8 +964,8 @@ async function enableAllFiles(enabled: boolean) {
   </div>
   </div>
   </div>
-  <!-- RIGHT GROUP: Badge + Eye + Update + Toggle -->
-  <div class="flex items-center gap-2 shrink-0">
+  <!-- RIGHT GROUP: Badge + Eye + Update + Toggle (фикс. ширина, тоггл всегда справа) -->
+  <div class="flex items-center justify-end gap-2 shrink-0 min-w-[160px]">
   <button
   v-if="playSubTab !== 'saves' && f.curseforgeProjectId"
   type="button"
