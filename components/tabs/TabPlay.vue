@@ -1674,17 +1674,17 @@ async function enableAllFiles(enabled: boolean) {
       </div>
       <div class="mx-3 border-t border-[var(--border)]"></div>
 
-      <button v-if="fileCtx.file.modrinthProjectId || fileCtx.file.curseforgeProjectId" type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]" @click="closeFileCtx(); openFileDetail(playSubTab as GameFolderKind, fileCtx!.file)">
+      <button v-if="fileCtx.file.modrinthProjectId || fileCtx.file.curseforgeProjectId" type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]" @click="openFileDetail(playSubTab as GameFolderKind, fileCtx!.file); closeFileCtx()">
         <AppIcon name="eye" class="h-4 w-4 fill-current" />
         {{ t("files.view") }}
       </button>
 
-      <button v-if="modUpdateFor(fileCtx.file)" type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[var(--accent)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50" :disabled="updatingMod !== null || packLocked" @click="closeFileCtx(); updateOneMod(modUpdateFor(fileCtx!.file)!)">
+      <button v-if="modUpdateFor(fileCtx.file)" type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[var(--accent)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50" :disabled="updatingMod !== null || packLocked" @click="updateOneMod(modUpdateFor(fileCtx!.file)!); closeFileCtx()">
         <AppIcon name="refresh" class="h-4 w-4 fill-current" />
         {{ t("mods.update") }}
       </button>
 
-      <button type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]" @click="closeFileCtx(); handleToggleFile(playSubTab as GameFolderKind, fileCtx!.file)">
+      <button type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]" @click="handleToggleFile(playSubTab as GameFolderKind, fileCtx!.file); closeFileCtx()">
         <svg v-if="fileCtx.file.enabled" viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M2 8a6 6 0 1 1 12 0A6 6 0 0 1 2 8Zm6-4.5a.75.75 0 0 1 .75.75v3.69l2.12 2.12a.75.75 0 1 1-1.06 1.06l-2.25-2.25a.75.75 0 0 1-.22-.53v-4a.75.75 0 0 1 .75-.75Z"/></svg>
         <svg v-else viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0Zm0 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z"/></svg>
         {{ fileCtx.file.enabled ? t("files.disable") : t("files.enable") }}
@@ -1692,7 +1692,7 @@ async function enableAllFiles(enabled: boolean) {
 
       <div v-if="!packLocked && fileCtx.file.kind === 'file'" class="mx-3 border-t border-[var(--border)]"></div>
 
-      <button v-if="!packLocked && fileCtx.file.kind === 'file'" type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[#f85149] transition-colors hover:bg-[#f85149]/10 disabled:opacity-50" :disabled="fileDeleteBusy" @click="closeFileCtx(); clearFileSelection(); toggleFileSelect(playSubTab as GameFolderKind, fileCtx!.file); fileDeleteArmed = true">
+      <button v-if="!packLocked && fileCtx.file.kind === 'file'" type="button" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[#f85149] transition-colors hover:bg-[#f85149]/10 disabled:opacity-50" :disabled="fileDeleteBusy" @click="clearFileSelection(); toggleFileSelect(playSubTab as GameFolderKind, fileCtx!.file); fileDeleteArmed = true; closeFileCtx()">
         <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current"><path d="M6 1.75a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75V2h3.5a.75.75 0 0 1 0 1.5h-.38l-.89 10.055A1.75 1.75 0 0 1 10.495 15H5.505a1.75 1.75 0 0 1-1.735-1.445L2.88 3.5H2.5a.75.75 0 0 1 0-1.5H6v-.25ZM4.416 3.5l.864 9.9A.25.25 0 0 0 5.525 13.5h4.95a.25.25 0 0 0 .245-.22l.864-9.78H4.416Z"/></svg>
         {{ t("dev.remove") }}
       </button>
