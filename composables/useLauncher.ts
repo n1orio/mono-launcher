@@ -233,6 +233,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const versions = ref<VersionsInfo | null>(null);
   const logEntries = ref<LaunchLogEntry[]>([]);
   const logRef = ref<HTMLElement | null>(null);
+  const logAutoScroll = ref(true);
   const tab = ref<"play" | "settings" | "news" | "catalog" | "dev" | "library" | "author" | "admin">("play");
 
   // Theme extracted to useTheme.ts
@@ -2043,7 +2044,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   watch(
     logEntries,
     () => {
-      if (logRef.value) {
+      if (logAutoScroll.value && logRef.value) {
         logRef.value.scrollTop = logRef.value.scrollHeight;
       }
     },
@@ -3266,6 +3267,7 @@ notify(t("err.switch", { e }));
     versions,
     logEntries,
     logRef,
+    logAutoScroll,
     tab,
     themeLevel,
     setThemeLevel,

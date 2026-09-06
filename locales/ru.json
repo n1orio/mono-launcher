@@ -961,5 +961,17 @@
   "catalog.installPack": "Установить сборку",
   "catalog.backToCatalog": "Назад к каталогу",
   "curse.openPage": "На CurseForge",
-  "pack.managed": "Эта сборка управляемая"
+  "pack.managed": "Эта сборка управляемая",
+  "mods.aboutProject": "О проекте",
+  "mods.links": "Ссылки",
+  "mods.compat": "Совместимость",
+  "mods.latestVersion": "Последняя версия",
+  "mods.projectId": "ID проекта",
+  "mods.projectType": "Тип",
+  "console.running": "Процесс запущен",
+  "console.stopped": "Остановлен",
+  "console.autoscroll": "Автоскролл",
+  "files.colName": "Название",
+  "files.colSource": "Источник",
+  "files.colActions": "Действия"
 }

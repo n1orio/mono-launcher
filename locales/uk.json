@@ -961,5 +961,17 @@
   "catalog.installPack": "Встановити збірку",
   "catalog.backToCatalog": "Назад до каталогу",
   "curse.openPage": "На CurseForge",
-  "pack.managed": "Керована збірка"
+  "pack.managed": "Керована збірка",
+  "mods.aboutProject": "Про проєкт",
+  "mods.links": "Посилання",
+  "mods.compat": "Сумісність",
+  "mods.latestVersion": "Остання версія",
+  "mods.projectId": "ID проєкту",
+  "mods.projectType": "Тип",
+  "console.running": "Процес запущено",
+  "console.stopped": "Зупинено",
+  "console.autoscroll": "Автопрокрутка",
+  "files.colName": "Назва",
+  "files.colSource": "Джерело",
+  "files.colActions": "Дії"
 }

@@ -38,36 +38,81 @@ const {
   installFileDetailCfVersion,
   fileDetailInstalledVersion,
 } = useLauncherCtx();
+
+/** Лоадеры/версии игры для сайдбара совместимости (из загруженных файлов). */
+const detailCompatLoaders = computed(() => {
+  const vers = (fileDetailMrVersions.value ?? []) as any[];
+  const out = new Set<string>();
+  for (const v of vers.slice(0, 20)) {
+    for (const l of v.loaders ?? []) out.add(String(l));
+    for (const g of (v.gameVersions ?? []).slice(0, 1)) out.add(String(g));
+  }
+  return [...out].slice(0, 8);
+});
 </script>
 
 <template>
   <div v-if="isFileDetailWin" class="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[var(--bg)] text-[color:var(--tx)] font-sans">
     <SubTitleBar :title="fileDetailMr?.title || fileDetailCf?.name || fileDetailTitle" />
-    <div class="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)]  bg-[var(--panel)] px-4 py-2.5">
-      <div class="flex min-w-0 flex-1 items-center gap-3">
-        <img v-if="fileDetailMr?.iconUrl || fileDetailCf?.iconUrl" :src="searchIconUrl((fileDetailMr?.iconUrl ?? fileDetailCf?.iconUrl)!)" :alt="fileDetailMr?.title ?? fileDetailCf?.name ?? ''" loading="lazy" class="h-10 w-10 shrink-0 rounded-md object-cover" />
-        <div v-else-if="fileDetailMr || fileDetailCf" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-[13px] text-[color:var(--tx-muted)]">
+    <div class="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--panel)] px-5 py-4">
+      <div class="flex min-w-0 flex-1 items-center gap-4">
+        <img v-if="fileDetailMr?.iconUrl || fileDetailCf?.iconUrl" :src="searchIconUrl((fileDetailMr?.iconUrl ?? fileDetailCf?.iconUrl)!)" :alt="fileDetailMr?.title ?? fileDetailCf?.name ?? ''" loading="lazy" class="h-16 w-16 shrink-0 rounded-2xl object-cover" />
+        <div v-else-if="fileDetailMr || fileDetailCf" class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[var(--input)] text-lg font-bold text-[color:var(--tx-muted)]">
           {{ (fileDetailMr?.title ?? fileDetailCf?.name ?? "?").slice(0, 2).toUpperCase() }}
         </div>
-        <div class="min-w-0">
-          <h2 class="truncate text-sm font-semibold text-[color:var(--tx-strong)]">{{ fileDetailMr?.title ?? fileDetailTitle }}</h2>
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[color:var(--tx-muted)]">
+        <div class="min-w-0 flex-1">
+          <h2 class="truncate text-xl font-bold text-[color:var(--tx)] tracking-tight">{{ fileDetailMr?.title ?? fileDetailCf?.name ?? fileDetailTitle }}</h2>
+          <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[color:var(--tx-muted)]">
             <template v-if="fileDetailMr">
               <span>{{ t("mods.byAuthor", { author: fileDetailMr.author }) }}</span>
+              <span>•</span>
               <span class="flex items-center gap-1">
-                <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M1.75 1.75a.75.75 0 0 0-1.5 0v9A2.25 2.25 0 0 0 2.5 13h12.75a.75.75 0 0 0 0-1.5H2.5a.75.75 0 0 1-.75-.75v-9Zm10.75 2.5a.75.75 0 0 0-1.5 0v5a.75.75 0 0 0 1.5 0v-5Zm-3 .75a.75.75 0 0 1 1.5 0v4.25a.75.75 0 0 1-1.5 0V5Zm-3 1.25a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3Z"/></svg>
-                {{ fileDetailMr.downloads.toLocaleString() }}
+                <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
+                {{ fileDetailMr.downloads.toLocaleString() }} {{ t("mods.downloads") }}
               </span>
-              <span v-if="fileDetailMr.categories.length">{{ fileDetailMr.categories.slice(0, 4).join(", ") }}</span>
+              <template v-if="fileDetailMr.categories.length">
+                <span>•</span>
+                <span>{{ fileDetailMr.categories.slice(0, 4).join(" / ") }}</span>
+              </template>
+            </template>
+            <template v-else-if="fileDetailCf">
+              <span>{{ t("mods.byAuthor", { author: fileDetailCf.author }) }}</span>
+              <span>•</span>
+              <span class="flex items-center gap-1">
+                <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
+                {{ fileDetailCf.downloadCount.toLocaleString() }} {{ t("mods.downloads") }}
+              </span>
             </template>
           </div>
         </div>
       </div>
       <div class="flex shrink-0 items-center gap-2">
         <button
+          v-if="fileDetailMr && fileDetailFilteredVersions.length"
+          type="button"
+          class="flex items-center gap-1.5 rounded-xl bg-[var(--accent)] hover:brightness-110 px-4 py-2 text-[13px] font-bold text-white shadow-md transition-all active:scale-95 disabled:opacity-50"
+          :disabled="fileDetailMrVersionBusy !== null"
+          @click="installFileDetailVersion(fileDetailFilteredVersions[0])"
+        >
+          <AppIcon v-if="fileDetailMrVersionBusy !== null" name="spinner" class="h-4 w-4 fill-current" />
+          <AppIcon v-else name="arrow-down" class="h-4 w-4 fill-current" />
+          {{ t("mods.install") }}
+        </button>
+        <button
+          v-else-if="fileDetailCf && fileDetailCfFilteredVersions.length"
+          type="button"
+          class="flex items-center gap-1.5 rounded-xl bg-[var(--accent)] hover:brightness-110 px-4 py-2 text-[13px] font-bold text-white shadow-md transition-all active:scale-95 disabled:opacity-50"
+          :disabled="fileDetailCfVersionBusy !== null"
+          @click="installFileDetailCfVersion(fileDetailCfFilteredVersions[0])"
+        >
+          <AppIcon v-if="fileDetailCfVersionBusy !== null" name="spinner" class="h-4 w-4 fill-current" />
+          <AppIcon v-else name="arrow-down" class="h-4 w-4 fill-current" />
+          {{ t("mods.install") }}
+        </button>
+        <button
           v-if="fileDetailExternalUrl()"
           type="button"
-          class="rounded-md  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors  hover:text-[var(--accent)]"
+          class="rounded-xl bg-[var(--input)] hover:bg-[var(--panel)] border border-[var(--border)] px-3.5 py-2 text-xs font-semibold text-[color:var(--tx)] transition-all"
           @click="openExternal(fileDetailExternalUrl()!)"
         >
           {{ t("mods.openPage") }}
@@ -77,7 +122,7 @@ const {
           class="rounded-md p-1.5 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
           @click="closeFileDetailWin"
         >
-          <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+          <AppIcon name="x" class="h-4 w-4 fill-current" />
         </button>
       </div>
     </div>
@@ -99,7 +144,9 @@ const {
       <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
       {{ t("mods.searching") }}
     </div>
-    <div v-else-if="fileDetailMr" class="min-h-0 flex-1 overflow-y-auto px-3.5 py-2.5">
+    <div v-else-if="fileDetailMr" class="min-h-0 flex-1 overflow-y-auto">
+      <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 w-full max-w-7xl mx-auto mt-6 px-4 pb-6">
+      <div class="min-w-0">
       <div v-if="fileDetailTab === 'about'" class="rounded-md  bg-[var(--bg)] px-3.5 py-2.5">
         <Markdown v-if="fileDetailMr.body" :source="fileDetailMr.body" />
         <p v-else class="py-6 text-center text-[13px] italic text-[color:var(--tx-muted)]">{{ t("mods.noAbout") }}</p>
@@ -157,15 +204,52 @@ const {
             :src="g.url"
             :alt="g.title ?? ''"
             loading="lazy"
-            class="h-40 w-full cursor-zoom-in rounded-md  object-cover transition-transform hover:scale-[1.02]"
+            class="h-40 w-full max-w-full cursor-zoom-in rounded-xl object-cover transition-transform hover:scale-[1.02]"
             :title="g.title ?? undefined"
             @click="openExternal(g.url)"
           />
         </div>
         <p v-else class="py-10 text-center text-[13px] italic text-[color:var(--tx-muted)]">{{ t("mods.noGallery") }}</p>
       </div>
+      </div>
+      <aside class="space-y-4 min-w-0">
+        <div class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+          <h4 class="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("mods.aboutProject") }}</h4>
+          <dl class="space-y-2 text-xs">
+            <div class="flex items-center justify-between gap-2">
+              <dt class="text-[color:var(--tx-muted)]">{{ t("mods.projectId") }}</dt>
+              <dd class="font-mono text-[color:var(--tx)] truncate">{{ fileDetailMr.projectId }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <dt class="text-[color:var(--tx-muted)]">{{ t("mods.projectType") }}</dt>
+              <dd class="text-[color:var(--tx)]">{{ fileDetailMr.projectType }}</dd>
+            </div>
+            <div v-if="fileDetailMr.latestVersion" class="flex items-center justify-between gap-2">
+              <dt class="text-[color:var(--tx-muted)]">{{ t("mods.latestVersion") }}</dt>
+              <dd class="font-mono text-[color:var(--tx)]">{{ fileDetailMr.latestVersion }}</dd>
+            </div>
+          </dl>
+        </div>
+        <div v-if="detailCompatLoaders.length || fileDetailMr.categories.length" class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+          <h4 class="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("mods.compat") }}</h4>
+          <div class="flex flex-wrap gap-1.5">
+            <span v-for="l in detailCompatLoaders" :key="l" class="text-[11px] px-2 py-0.5 rounded-md bg-white/5 text-[color:var(--tx-muted)]">{{ l }}</span>
+            <span v-for="c in fileDetailMr.categories.slice(0, 6)" :key="c" class="text-[11px] px-2 py-0.5 rounded-md bg-white/5 text-[color:var(--tx-muted)]">{{ c }}</span>
+          </div>
+        </div>
+        <div v-if="fileDetailExternalUrl()" class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+          <h4 class="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("mods.links") }}</h4>
+          <button type="button" class="flex w-full items-center gap-2 rounded-xl bg-[var(--input)] hover:bg-[var(--hover)] px-3 py-2 text-xs font-semibold text-[color:var(--tx)] transition-all" @click="openExternal(fileDetailExternalUrl()!)">
+            <AppIcon name="external-link" class="h-3.5 w-3.5 fill-current" />
+            {{ t("mods.openPage") }}
+          </button>
+        </div>
+      </aside>
+      </div>
     </div>
-    <div v-else-if="fileDetailCf" class="min-h-0 flex-1 overflow-y-auto px-3.5 py-2.5 nice-scrollbar">
+    <div v-else-if="fileDetailCf" class="min-h-0 flex-1 overflow-y-auto nice-scrollbar">
+      <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 w-full max-w-7xl mx-auto mt-6 px-4 pb-6">
+      <div class="min-w-0">
       <div v-if="fileDetailTab === 'about'" class="space-y-4">
         <p class="whitespace-pre-wrap text-sm leading-relaxed text-[color:var(--tx)]">{{ fileDetailCf.description || t("mods.noAbout") }}</p>
         <dl class="grid grid-cols-2 gap-2 text-xs">
@@ -191,6 +275,36 @@ const {
           </span>
           <span class="shrink-0 rounded bg-[var(--input)] px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-[color:var(--tx-muted)]">#{{ f.fileId }}</span>
         </button>
+      </div>
+      </div>
+      <aside class="space-y-4 min-w-0">
+        <div class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+          <h4 class="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("mods.aboutProject") }}</h4>
+          <dl class="space-y-2 text-xs">
+            <div class="flex items-center justify-between gap-2">
+              <dt class="text-[color:var(--tx-muted)]">{{ t("mods.projectId") }}</dt>
+              <dd class="font-mono text-[color:var(--tx)]">{{ fileDetailCf.projectId }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <dt class="text-[color:var(--tx-muted)]">{{ t("mods.downloads") }}</dt>
+              <dd class="tabular-nums text-[color:var(--tx)]">{{ fileDetailCf.downloadCount.toLocaleString() }}</dd>
+            </div>
+          </dl>
+        </div>
+        <div v-if="fileDetailCf.categories.length" class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+          <h4 class="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("mods.compat") }}</h4>
+          <div class="flex flex-wrap gap-1.5">
+            <span v-for="c in fileDetailCf.categories.slice(0, 8)" :key="c" class="text-[11px] px-2 py-0.5 rounded-md bg-white/5 text-[color:var(--tx-muted)]">{{ c }}</span>
+          </div>
+        </div>
+        <div class="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
+          <h4 class="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("mods.links") }}</h4>
+          <button type="button" class="flex w-full items-center gap-2 rounded-xl bg-[var(--input)] hover:bg-[var(--hover)] px-3 py-2 text-xs font-semibold text-[color:var(--tx)] transition-all" @click="openExternal('https://www.curseforge.com/projects/' + fileDetailCf.slug)">
+            <AppIcon name="external-link" class="h-3.5 w-3.5 fill-current" />
+            CurseForge
+          </button>
+        </div>
+      </aside>
       </div>
     </div>
     <div v-else class="flex min-h-0 flex-1 items-center justify-center px-4 py-10">

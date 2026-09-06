@@ -153,6 +153,7 @@ const {
   verifyResult,
   logEntries,
   logRef,
+  logAutoScroll,
   handleCopyLog,
   handleClearLog,
   fileDetail,
@@ -245,6 +246,18 @@ const heroMeta = computed(() => {
 function openModsOfActive() {
   (playSubTab as any).value = "mods";
 }
+// ---- Подсветка уровней логов консоли ----
+const LOG_ERR_RE = /(\[ERROR\]|\[SEVERE\]|\[FATAL\]|Exception|Caused by|A fatal error|Minecraft Crashed|FAILED)/i;
+const LOG_WARN_RE = /(\[WARN(ING)?\])/;
+function logLineClass(e: { stream: string; line: string; fatal?: boolean }): string {
+  if (e.fatal || LOG_ERR_RE.test(e.line)) return "text-rose-400 font-medium";
+  if (e.stream === "err") return "text-rose-400";
+  if (LOG_WARN_RE.test(e.line)) return "text-amber-400";
+  if (e.stream === "sys") return "text-[var(--accent)]";
+  if (e.stream === "out") return "text-[color:var(--tx)]";
+  return "";
+}
+
 // ---- Контекстное меню ПКМ по файлу ----
 const fileCtx = ref<{ file: GameFileEntry; x: number; y: number } | null>(null);
 function openFileCtx(e: MouseEvent, f: GameFileEntry) {
@@ -905,6 +918,11 @@ async function enableAllFiles(enabled: boolean) {
   class="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 pb-8"
   @scroll="fileListScroll"
   >
+  <div class="sticky top-0 z-10 mb-1 flex shrink-0 items-center gap-4 rounded-lg bg-[var(--bg)] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[color:var(--tx-muted)]">
+  <div class="min-w-0 flex-1 pl-[52px]">{{ t("files.colName") }}</div>
+  <div class="hidden w-28 shrink-0 sm:block">{{ t("files.colSource") }}</div>
+  <div class="w-24 shrink-0 text-right">{{ t("files.colActions") }}</div>
+  </div>
   <div class="relative" :style="{ height: `${fileListTotal}px` }">
   <div
   class="absolute left-0 right-0 space-y-2"
@@ -1491,41 +1509,61 @@ async function enableAllFiles(enabled: boolean) {
   </template>
 
   <!-- Консоль / логи -->
-  <section v-else class="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl  bg-[var(--panel)] shadow-sm">
-  <div class="flex items-center justify-between border-b border-[var(--border)]  bg-[var(--input-50)] px-4 py-2">
-  <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("console.title") }}</h3>
-  <div class="flex items-center gap-3">
-  <span class="text-xs tabular-nums text-[var(--tx-muted)]">
+  <section v-else class="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-black/40">
+  <div class="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-4 py-2">
+  <div class="flex min-w-0 items-center gap-2.5">
+  <span class="relative flex h-2.5 w-2.5 shrink-0">
+  <span v-if="gameRunning" class="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#3fb950] opacity-60"></span>
+  <span class="relative inline-flex h-2.5 w-2.5 rounded-full" :class="gameRunning ? 'bg-[#3fb950]' : 'bg-[color:var(--tx-muted)]'"></span>
+  </span>
+  <span class="truncate text-xs font-semibold" :class="gameRunning ? 'text-[#3fb950]' : 'text-[color:var(--tx-muted)]'">
+  {{ gameRunning ? t("console.running") : t("console.stopped") }}
+  </span>
+  <span class="text-xs tabular-nums text-[color:var(--tx-muted)]">
   {{ t("console.lines", { n: logEntries.length }) }}
   </span>
-  <div class="flex gap-2">
+  </div>
+  <div class="flex shrink-0 items-center gap-1">
   <button
   type="button"
-  class="text-[13px] text-[color:var(--tx-muted)] hover:text-[var(--accent)]"
+  class="flex h-7 w-7 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+  :title="t('console.copy')"
   @click="handleCopyLog"
   >
-  {{ t("console.copy") }}
+  <AppIcon name="copy" class="h-3.5 w-3.5 fill-current" />
   </button>
   <button
   type="button"
-  class="text-[13px] text-[color:var(--tx-muted)] hover:text-[#f85149]"
+  class="flex h-7 w-7 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[#f85149]"
+  :title="t('console.clear')"
   @click="handleClearLog"
   >
-  {{ t("console.clear") }}
+  <AppIcon name="trash" class="h-3.5 w-3.5 fill-current" />
   </button>
   <button
   type="button"
-  class="text-[13px] text-[color:var(--tx-muted)] hover:text-[var(--accent)]"
+  class="flex h-7 w-7 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+  :title="t('console.logs')"
   @click="openFolder('logs')"
   >
-  {{ t("console.logs") }}
+  <AppIcon name="folder" class="h-3.5 w-3.5 fill-current" />
   </button>
-  </div>
+  <button
+  type="button"
+  role="switch"
+  :aria-checked="logAutoScroll"
+  class="relative ml-1 h-5 w-9 shrink-0 rounded-full transition-colors"
+  :class="logAutoScroll ? 'bg-[var(--accent)]' : 'bg-[var(--input)] border border-[var(--border)]'"
+  :title="t('console.autoscroll')"
+  @click="logAutoScroll = !logAutoScroll"
+  >
+  <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all" :class="logAutoScroll ? 'left-[18px]' : 'left-0.5'"></span>
+  </button>
   </div>
   </div>
   <div
   ref="logRef"
-  class="flex-1 select-text overflow-y-auto bg-[var(--bg)] p-3 font-mono text-[13px] leading-relaxed text-[color:var(--tx-muted)]"
+  class="flex-1 select-text overflow-y-auto bg-black/40 p-3 font-mono text-xs leading-relaxed"
   >
   <p v-if="logEntries.length === 0" class="italic text-[var(--tx-muted)]">
   {{ t("console.empty") }}
@@ -1533,12 +1571,8 @@ async function enableAllFiles(enabled: boolean) {
   <div
   v-for="(e, i) in logEntries"
   :key="i"
-  :class="{
-  'text-[#f85149]': e.stream === 'err',
-  'text-[var(--accent)]': e.stream === 'sys',
-  'text-[color:var(--tx)]': e.stream === 'out',
-  'font-bold !text-[#f85149]': e.fatal,
-  }"
+  class="whitespace-pre-wrap break-all"
+  :class="logLineClass(e)"
   >
   {{ e.line }}
   </div>

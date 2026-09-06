@@ -961,5 +961,17 @@
   "catalog.installPack": "Усталяваць зборку",
   "catalog.backToCatalog": "Назад да каталога",
   "curse.openPage": "На CurseForge",
-  "pack.managed": "Кіраваная зборка"
+  "pack.managed": "Кіраваная зборка",
+  "mods.aboutProject": "Аб праекце",
+  "mods.links": "Спасылкі",
+  "mods.compat": "Сумяшчальнасць",
+  "mods.latestVersion": "Апошняя версія",
+  "mods.projectId": "ID праекта",
+  "mods.projectType": "Тып",
+  "console.running": "Працэс запушчаны",
+  "console.stopped": "Спынены",
+  "console.autoscroll": "Аўтапракрутка",
+  "files.colName": "Назва",
+  "files.colSource": "Крыніца",
+  "files.colActions": "Дзеянні"
 }

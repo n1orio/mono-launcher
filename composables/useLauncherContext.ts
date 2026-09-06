@@ -473,6 +473,7 @@ export interface LauncherCtx {
   locales: any;
   logEntries: Ref<LaunchLogEntry[]>;
   logRef: Ref<HTMLElement | null>;
+  logAutoScroll: Ref<boolean>;
   loginBusy: any;
   loginError: any;
   loginLogin: any;

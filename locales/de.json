@@ -961,5 +961,17 @@
   "catalog.installPack": "Modpack installieren",
   "catalog.backToCatalog": "Zurück zum Katalog",
   "curse.openPage": "Auf CurseForge",
-  "pack.managed": "Verwaltetes Pack"
+  "pack.managed": "Verwaltetes Pack",
+  "mods.aboutProject": "Über das Projekt",
+  "mods.links": "Links",
+  "mods.compat": "Kompatibilität",
+  "mods.latestVersion": "Neueste Version",
+  "mods.projectId": "Projekt-ID",
+  "mods.projectType": "Typ",
+  "console.running": "Prozess läuft",
+  "console.stopped": "Gestoppt",
+  "console.autoscroll": "Autom. Scrollen",
+  "files.colName": "Name",
+  "files.colSource": "Quelle",
+  "files.colActions": "Aktionen"
 }

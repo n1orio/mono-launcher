@@ -251,7 +251,7 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
             v-model="searchInput"
             type="text"
             :placeholder="searchService === 'modrinth' ? t('mods.searchPlaceholder') : t('curse.searchPlaceholder')"
-            class="w-full rounded-md  bg-[var(--bg)] py-1.5 pl-8 pr-3 text-[13px] text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors "
+            class="h-9 w-full rounded-md bg-[var(--bg)] py-1.5 pl-8 pr-3 text-[13px] text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors"
             @keydown.enter="doSearch"
           />
         </div>
@@ -550,17 +550,24 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
                   <span v-if="status?.minecraft_version">{{ status.minecraft_version }}</span>
                 </div>
               </div>
+              <span
+                v-if="installedModrinthSlugs.has(p.slug)"
+                class="flex shrink-0 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-semibold text-[color:var(--tx-muted)]"
+              >
+                <AppIcon name="check" class="h-3 w-3 fill-current" />
+                {{ t("mods.installedBadge") }}
+              </span>
               <button
+                v-else
                 type="button"
-                class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-                :disabled="quickModBusy !== null || modInstallBusy !== null || installedModrinthSlugs.has(p.slug)"
+                class="flex shrink-0 items-center gap-1.5 rounded-xl bg-[var(--panel)] text-[color:var(--tx)] border border-[var(--border)] hover:bg-[var(--accent)] hover:text-white hover:border-transparent transition-all px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                :disabled="quickModBusy !== null || modInstallBusy !== null"
                 :title="t('mods.downloadHint')"
                 @click="quickDownloadMod(p, $event)"
               >
                 <AppIcon v-if="quickModBusy === p.projectId" name="spinner" class="h-3 w-3 animate-spin fill-current" />
-                <AppIcon v-else-if="installedModrinthSlugs.has(p.slug)" name="check" class="h-3 w-3 fill-current" />
                 <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
-                {{ installedModrinthSlugs.has(p.slug) ? t("mods.installedBadge") : t("mods.download") }}
+                {{ t("mods.download") }}
               </button>
               <AppIcon name="chevron-right" class="mt-1 h-4 w-4 shrink-0 fill-[var(--tx-muted)]" />
             </div>
@@ -787,17 +794,21 @@ async function installCurseFile(f: { fileId: number; fileName: string; displayNa
                 <span>{{ p.downloadCount.toLocaleString() }}</span>
               </p>
             </div>
+            <span
+              v-if="installedCurseIds.has(p.projectId)"
+              class="flex shrink-0 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-xs font-semibold text-[color:var(--tx-muted)]"
+            >
+              <AppIcon name="check" class="h-3 w-3 fill-current" />
+              {{ t("mods.installedBadge") }}
+            </span>
             <button
+              v-else
               type="button"
-              class="shrink-0 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-              :disabled="curseInstallBusy !== null && curseInstallBusy !== p.projectId || installedCurseIds.has(p.projectId)"
+              class="shrink-0 rounded-xl bg-[var(--panel)] text-[color:var(--tx)] border border-[var(--border)] hover:bg-[var(--accent)] hover:text-white hover:border-transparent transition-all px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+              :disabled="curseInstallBusy !== null && curseInstallBusy !== p.projectId"
               @click="installCurse(p)"
             >
-              <template v-if="installedCurseIds.has(p.projectId)">
-                <svg viewBox="0 0 16 16" class="mr-1 inline h-3 w-3 fill-current"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
-                {{ t("mods.installedBadge") }}
-              </template>
-              <template v-else>{{ t("mods.download") }}</template>
+              {{ t("mods.download") }}
             </button>
           </div>
         </div>
