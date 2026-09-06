@@ -948,6 +948,8 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
 
   let lastBytes = { value: 0, at: 0 };
   let speed = 0;
+  // Время последнего коммита progress.value (троттлинг download-progress).
+  let lastProgressCommit = 0;
   const speedHistory = ref<number[]>([]);
   let speedHistoryTimer: ReturnType<typeof setInterval> | null = null;
   let unlistenSync: (() => void) | undefined;
@@ -1847,18 +1849,34 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
       if (p.file_total > 1 && p.file_index >= 0) {
         filesDone.value = Math.max(filesDone.value, p.file_index);
       }
-      progress.value = {
-        phase: p.phase,
-        current: p.current,
-        total: p.total,
-        speed,
-        fileIndex: p.file_index,
-        fileTotal: p.file_total,
-        currentFile: p.current_file,
-      };
-      // Update speed history (keep last 60 samples, ~60 seconds)
-      speedHistory.value.push(speed);
-      if (speedHistory.value.length > 60) speedHistory.value.shift();
+      // Троттлинг UI: Rust шлёт события каждые ~80мс с каждого параллельного
+      // потока — коммитить progress.value на каждый тик значит перерендеривать
+      // весь экран и дёргать win.setTitle (IPC) десятки раз в секунду.
+      // Обновляем реактивное состояние не чаще 4 раз/сек, но фазу/смену файла
+      // и финальные 100% показываем сразу.
+      const phaseChanged = progress.value?.phase !== p.phase;
+      const fileChanged = progress.value?.fileIndex !== p.file_index;
+      const finished = p.total > 0 && p.current >= p.total;
+      if (
+        phaseChanged ||
+        fileChanged ||
+        finished ||
+        now - lastProgressCommit >= 250
+      ) {
+        lastProgressCommit = now;
+        progress.value = {
+          phase: p.phase,
+          current: p.current,
+          total: p.total,
+          speed,
+          fileIndex: p.file_index,
+          fileTotal: p.file_total,
+          currentFile: p.current_file,
+        };
+        // Update speed history (keep last 60 samples)
+        speedHistory.value.push(speed);
+        if (speedHistory.value.length > 60) speedHistory.value.shift();
+      }
     }).then((fn) => (unlistenSync = fn));
     onLaunchLog((entry: LaunchLogEntry) => {
       pushLog([entry]);

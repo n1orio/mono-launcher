@@ -35,6 +35,9 @@ const mouseX = ref(0);
 const mouseY = ref(0);
 const isDragging = ref(false);
 const startPos = ref({ x: 0, y: 0 });
+// rAF-троттлинг pointermove (см. onGlobalPointerMove).
+const pendingPointer = { x: 0, y: 0 };
+let pointerRaf: number | null = null;
 
 const draggingPack = computed(() => {
   if (!draggingPackId.value) return null;
@@ -87,6 +90,10 @@ function resetDragState() {
   draggingPackId.value = null;
   hoverTargetId.value = null;
   isDragging.value = false;
+  if (pointerRaf !== null) {
+    cancelAnimationFrame(pointerRaf);
+    pointerRaf = null;
+  }
 }
 
 function onCardPointerDown(packId: string, e: PointerEvent) {
@@ -102,25 +109,35 @@ function onCardPointerDown(packId: string, e: PointerEvent) {
 
 function onGlobalPointerMove(e: MouseEvent | PointerEvent) {
   if (!draggingPackId.value) return;
+  // Троттлинг через rAF: pointermove стреляет сотнями событий в секунду,
+  // а каждая запись в ref перерендеривает сетку. Копим последнюю позицию
+  // и применяем её максимум раз за кадр.
+  pendingPointer.x = e.clientX;
+  pendingPointer.y = e.clientY;
+  if (pointerRaf !== null) return;
+  pointerRaf = requestAnimationFrame(() => {
+    pointerRaf = null;
+    const x = pendingPointer.x;
+    const y = pendingPointer.y;
+    mouseX.value = x;
+    mouseY.value = y;
 
-  mouseX.value = e.clientX;
-  mouseY.value = e.clientY;
-
-  if (!isDragging.value && Math.hypot(e.clientX - startPos.value.x, e.clientY - startPos.value.y) > 5) {
-    isDragging.value = true;
-  }
-
-  if (isDragging.value) {
-    const elem = document.elementFromPoint(e.clientX, e.clientY);
-    const dropTarget = elem?.closest("[data-drop-target]");
-    const targetId = dropTarget?.getAttribute("data-drop-target");
-
-    if (targetId && targetId !== draggingPackId.value) {
-      hoverTargetId.value = targetId;
-    } else {
-      hoverTargetId.value = null;
+    if (!isDragging.value && Math.hypot(x - startPos.value.x, y - startPos.value.y) > 5) {
+      isDragging.value = true;
     }
-  }
+
+    if (isDragging.value) {
+      const elem = document.elementFromPoint(x, y);
+      const dropTarget = elem?.closest("[data-drop-target]");
+      const targetId = dropTarget?.getAttribute("data-drop-target");
+
+      if (targetId && targetId !== draggingPackId.value) {
+        hoverTargetId.value = targetId;
+      } else {
+        hoverTargetId.value = null;
+      }
+    }
+  });
 }
 
 function onGlobalPointerUp() {

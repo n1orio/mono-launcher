@@ -1063,6 +1063,7 @@ function onGlobalEscapeKey(e: KeyboardEvent) {
 
 /** Прогресс/запуск отражаем в заголовке окна — видно даже в свёрнутом виде. */
 const mainBaseTitle = document.title || "Mono Launcher";
+let lastWindowTitle = mainBaseTitle;
 watch(playSubTab, (t) => {
   if (t === "releases") void refreshRemoteVersions();
 });
@@ -1078,6 +1079,10 @@ watch([gameRunning, progress, percent, activePack], () => {
   const phase = String(progress.value.phase ?? "").trim();
   title = p > 0 ? `${p}%${phase ? ` · ${phase}` : ""}` : (phase || mainBaseTitle);
   }
+  // setTitle — это IPC в Rust; не дёргаем без изменения заголовка,
+  // иначе каждая подписка прогресса будит WebKit-процесс.
+  if (title === lastWindowTitle) return;
+  lastWindowTitle = title;
   void win.setTitle(title);
 });
 const fileListFiltered = computed(() => {
