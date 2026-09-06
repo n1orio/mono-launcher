@@ -957,5 +957,8 @@
   "news.installUpdate": "Install update",
   "author.deleteTitle": "Delete pack from server",
   "author.shotsDrop": "Drop screenshots here or click to choose",
-  "author.shotUrlToggle": "Add via URL"
+  "author.shotUrlToggle": "Add via URL",
+  "catalog.installPack": "Install modpack",
+  "catalog.backToCatalog": "Back to catalog",
+  "curse.openPage": "On CurseForge"
 }

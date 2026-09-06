@@ -55,6 +55,24 @@ const {
   formatDate,
   openModPackModal,
 } = useLauncherCtx();
+
+/** Режим деталей: поиск и фильтры скрыты, только hero + контент. */
+const inPackDetail = computed(() => !!(modPackDetail.value || cpProject.value));
+function closePackDetail() {
+  modPackDetail.value = null;
+  modPackVersions.value = null;
+  cpProject.value = null;
+  cpFiles.value = null;
+  cpDetail.value = null;
+  cpErr.value = "";
+}
+/** Мета сборки для hero: лоадеры и версии игры из списка файлов. */
+const packMetaLine = computed(() => {
+  const vers = (modPackVersions.value ?? []) as any[];
+  const loaders = [...new Set(vers.flatMap((v) => v.loaders ?? []))].slice(0, 3);
+  const mcs = [...new Set(vers.flatMap((v) => v.gameVersions ?? []))].slice(0, 2);
+  return [...loaders, ...mcs].join(" / ");
+});
 </script>
 
 <template>
@@ -64,17 +82,27 @@ const {
     @click.self="modPackOpen = false; modPackVersions = null; modPackDetail = null"
   >
     <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl  bg-[var(--panel)] shadow-2xl">
-      <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)]  px-3.5 py-2.5">
-        <h3 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("mods.packsTitle") }}</h3>
+      <div class="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-3.5 py-2.5">
+        <h3 v-if="!inPackDetail" class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ t("mods.packsTitle") }}</h3>
+        <button
+          v-else
+          type="button"
+          class="flex items-center gap-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:text-[color:var(--tx)]"
+          @click="closePackDetail()"
+        >
+          <AppIcon name="chevron-right" class="h-3.5 w-3.5 fill-current -rotate-180" />
+          {{ t("catalog.backToCatalog") }}
+        </button>
         <button
           type="button"
           class="rounded-md p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]"
+          :title="t('common.close')"
           @click="modPackOpen = false; modPackVersions = null; modPackDetail = null"
         >
-          <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+          <AppIcon name="x" class="h-4 w-4 fill-current" />
         </button>
       </div>
-      <div class="flex shrink-0 items-center gap-2 border-b border-[var(--border)]  px-3.5 py-2.5">
+      <div v-if="!inPackDetail" class="flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-3.5 py-2.5">
         <div class="flex shrink-0 items-center gap-1 rounded-md  bg-[var(--bg)] p-0.5">
           <button
             type="button"
@@ -122,7 +150,7 @@ const {
           {{ t("mods.search") }}
         </button>
       </div>
-      <div v-if="modPackService === 'modrinth'" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)]  px-4 py-2">
+      <div v-if="modPackService === 'modrinth' && !modPackDetail" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2">
         <FilterSelect v-model="packFilters.versions" :options="packVersionOptions" :placeholder="t('mods.fVersion')" @change="searchPacks()" />
         <FilterSelect v-model="packFilters.loaders" :options="packLoaderOptions" :placeholder="t('mods.fLoader')" @change="searchPacks()" />
         <FilterSelect v-model="packVersionTypeSel" :options="versionTypeOptions" :placeholder="t('mods.fType')" :multiple="false" @change="searchPacks()" />
@@ -132,51 +160,59 @@ const {
       </div>
       <div v-if="modPackService === 'modrinth'" class="min-h-0 flex-1 overflow-y-auto p-4">
         <template v-if="modPackDetail">
-          <button
-            type="button"
-            class="mb-3 flex items-center gap-1 text-[13px] text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]"
-            @click="modPackDetail = null; modPackVersions = null"
-          >
-            <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M7.28 3.22a.75.75 0 0 1 0 1.06L3.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Zm4 0a.75.75 0 0 1 0 1.06L7.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"/></svg>
-            {{ t("mods.back") }}
-          </button>
-          <div class="overflow-hidden rounded-md  bg-[var(--bg)]">
-            <div class="flex items-start gap-3 px-3.5 py-2.5">
-              <img v-if="modPackDetail.iconUrl" :src="modPackDetail.iconUrl" alt="" class="h-14 w-14 shrink-0 rounded-md object-cover" />
-              <div v-else class="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-sm font-bold text-[color:var(--tx-muted)]">
+          <div class="rounded-2xl bg-[var(--input)]/30 border border-[var(--border)] p-4 mb-4">
+            <div class="flex items-start gap-4">
+              <img v-if="modPackDetail.iconUrl" :src="modPackDetail.iconUrl" alt="" class="h-14 w-14 shrink-0 rounded-2xl object-cover" />
+              <div v-else class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--input)] text-base font-bold text-[color:var(--tx-muted)]">
                 {{ modPackDetail.title.slice(0, 2).toUpperCase() }}
               </div>
               <div class="min-w-0 flex-1">
-                <h4 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ modPackDetail.title }}</h4>
-                <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--tx-muted)]">
+                <h4 class="text-xl font-bold text-[color:var(--tx)] tracking-tight truncate">{{ modPackDetail.title }}</h4>
+                <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[color:var(--tx-muted)]">
                   <span>{{ t("mods.byAuthor", { author: modPackDetail.author }) }}</span>
+                  <span>•</span>
                   <span class="flex items-center gap-1">
                     <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
                     {{ modPackDetail.downloads.toLocaleString() }}
                   </span>
-                  <span v-if="modPackDetail.categories.length">{{ modPackDetail.categories.slice(0, 4).join(", ") }}</span>
+                  <template v-if="packMetaLine">
+                    <span>•</span>
+                    <span>{{ packMetaLine }}</span>
+                  </template>
                 </div>
               </div>
+            </div>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
+                class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                :disabled="quickPackBusy !== null || modPackInstalling !== null"
+                @click="quickDownloadPack(modPackDetail, $event)"
+              >
+                <AppIcon v-if="quickPackBusy === modPackDetail.projectId" name="spinner" class="h-4 w-4 fill-current" />
+                <AppIcon v-else name="arrow-down" class="h-4 w-4 fill-current" />
+                {{ t("catalog.installPack") }}
+              </button>
+              <button
+                type="button"
+                class="flex items-center gap-1.5 bg-[var(--input)] hover:bg-[var(--panel)] border border-[var(--border)] text-xs text-[color:var(--tx)] px-3.5 py-2 rounded-xl transition-all"
                 @click="openExternal(`https://modrinth.com/modpack/${modPackDetail!.slug}`)"
               >
-                <AppIcon name="external-link" class="h-3 w-3 fill-current" />
                 {{ t("mods.openPage") }}
+                <AppIcon name="external-link" class="h-3 w-3 fill-current" />
               </button>
             </div>
           </div>
 
-          <div class="mt-3 mb-3 flex shrink-0 items-center gap-1 border-b border-[var(--border)]  pb-2">
+          <div class="mt-3 mb-3 flex shrink-0 items-center gap-1.5">
             <button
               v-for="tb in modPackTabs"
               :key="tb.kind"
               type="button"
-              class="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors"
+              class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border"
               :class="modPackTab === tb.kind
-                ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
-                : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
+                ? 'bg-[var(--panel)] text-[color:var(--tx)] border-[var(--border)] shadow-sm'
+                : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] hover:bg-[var(--hover)] border-transparent'"
               @click="modPackTab = tb.kind"
             >
               {{ t("mods.tab" + tb.kind) }}
@@ -275,7 +311,7 @@ const {
           </div>
         </template>
       </div>
-      <div v-if="modPackService === 'curseforge'" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)]  px-4 py-2">
+      <div v-if="modPackService === 'curseforge' && !cpProject" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2">
         <FilterSelect v-model="cpCatSel" :options="cpCatOptions" :placeholder="t('curse.fCategory')" :multiple="false" @change="searchCursePacks" />
         <FilterSelect v-model="cpVerSel" :options="packVersionOptions" :placeholder="t('mods.fVersion')" :multiple="false" @change="searchCursePacks" />
         <FilterSelect v-model="cpSortSel" :options="curseSortOptions" :placeholder="t('mods.fSort')" :multiple="false" @change="searchCursePacks" />
@@ -291,32 +327,53 @@ const {
           <button type="button" class="text-[var(--accent)] hover:underline" @click="searchCursePacks">{{ t("catalog.retry") }}</button>
         </div>
         <template v-else-if="cpProject">
-          <button type="button" class="mb-3 flex items-center gap-1 text-[13px] text-[color:var(--tx-muted)] transition-colors hover:text-[var(--accent)]" @click="cpProject = null; cpFiles = null; cpDetail = null; cpErr = ''">
-            <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M7.28 3.22a.75.75 0 0 1 0 1.06L3.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Zm4 0a.75.75 0 0 1 0 1.06L7.56 8l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"/></svg>
-            {{ t("mods.back") }}
-          </button>
-          <div class="mb-3 rounded-md  bg-[var(--bg)]">
-            <div class="flex items-start gap-3 px-3.5 py-2.5">
-              <img v-if="cpProject.iconUrl" :src="cpProject.iconUrl" alt="" class="h-14 w-14 shrink-0 rounded-md object-cover" />
-              <div v-else class="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-sm font-bold text-[color:var(--tx-muted)]">
+          <div class="rounded-2xl bg-[var(--input)]/30 border border-[var(--border)] p-4 mb-4">
+            <div class="flex items-start gap-4">
+              <img v-if="cpProject.iconUrl" :src="cpProject.iconUrl" alt="" class="h-14 w-14 shrink-0 rounded-2xl object-cover" />
+              <div v-else class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--input)] text-base font-bold text-[color:var(--tx-muted)]">
                 {{ cpProject.name.slice(0, 2).toUpperCase() }}
               </div>
               <div class="min-w-0 flex-1">
-                <h4 class="text-sm font-semibold text-[color:var(--tx-strong)]">{{ cpProject.name }}</h4>
-                <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--tx-muted)]">
+                <h4 class="text-xl font-bold text-[color:var(--tx)] tracking-tight truncate">{{ cpProject.name }}</h4>
+                <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[color:var(--tx-muted)]">
                   <span>{{ t("mods.byAuthor", { author: cpProject.author }) }}</span>
+                  <span>•</span>
                   <span class="flex items-center gap-1">
                     <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
                     {{ cpProject.downloadCount.toLocaleString() }}
                   </span>
-                  <span v-if="cpDetail?.categories.length">{{ cpDetail.categories.slice(0, 4).join(", ") }}</span>
+                  <template v-if="cpDetail?.categories.length">
+                    <span>•</span>
+                    <span>{{ cpDetail.categories.slice(0, 4).join(" / ") }}</span>
+                  </template>
                 </div>
               </div>
             </div>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                :disabled="cpBusy !== null || !(cpFiles?.length)"
+                @click="installCpPack(cpFiles![0])"
+              >
+                <AppIcon v-if="cpBusy !== null" name="spinner" class="h-4 w-4 fill-current" />
+                <AppIcon v-else name="arrow-down" class="h-4 w-4 fill-current" />
+                {{ t("catalog.installPack") }}
+              </button>
+              <button
+                v-if="cpDetail?.websiteUrl"
+                type="button"
+                class="flex items-center gap-1.5 bg-[var(--input)] hover:bg-[var(--panel)] border border-[var(--border)] text-xs text-[color:var(--tx)] px-3.5 py-2 rounded-xl transition-all"
+                @click="openExternal(cpDetail!.websiteUrl)"
+              >
+                {{ t("curse.openPage") }}
+                <AppIcon name="external-link" class="h-3 w-3 fill-current" />
+              </button>
+            </div>
           </div>
 
-          <div class="mt-3 mb-3 flex shrink-0 items-center gap-1 border-b border-[var(--border)]  pb-2">
-            <button v-for="tb in cpTabs" :key="tb" type="button" class="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors" :class="cpTab === tb ? 'bg-[var(--input)] text-[color:var(--tx-strong)]' : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'" @click="cpTab = tb">
+          <div class="mt-3 mb-3 flex shrink-0 items-center gap-1.5">
+            <button v-for="tb in cpTabs" :key="tb" type="button" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border" :class="cpTab === tb ? 'bg-[var(--panel)] text-[color:var(--tx)] border-[var(--border)] shadow-sm' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] hover:bg-[var(--hover)] border-transparent'" @click="cpTab = tb">
               {{ t("curse.tab" + tb) }}
             </button>
           </div>

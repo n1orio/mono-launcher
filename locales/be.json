@@ -957,5 +957,8 @@
   "news.installUpdate": "Усталяваць абнаўленне",
   "author.deleteTitle": "Выдаліць зборку з сервера",
   "author.shotsDrop": "Перацягніце скрыншоты сюды або націсніце для выбару",
-  "author.shotUrlToggle": "Дадаць па спасылцы"
+  "author.shotUrlToggle": "Дадаць па спасылцы",
+  "catalog.installPack": "Усталяваць зборку",
+  "catalog.backToCatalog": "Назад да каталога",
+  "curse.openPage": "На CurseForge"
 }

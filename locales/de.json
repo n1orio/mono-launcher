@@ -957,5 +957,8 @@
   "news.installUpdate": "Update installieren",
   "author.deleteTitle": "Pack vom Server löschen",
   "author.shotsDrop": "Screenshots hierher ziehen oder klicken",
-  "author.shotUrlToggle": "Per URL hinzufügen"
+  "author.shotUrlToggle": "Per URL hinzufügen",
+  "catalog.installPack": "Modpack installieren",
+  "catalog.backToCatalog": "Zurück zum Katalog",
+  "curse.openPage": "Auf CurseForge"
 }

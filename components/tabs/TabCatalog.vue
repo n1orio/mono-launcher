@@ -76,6 +76,7 @@ const {
   cpMoreBusy,
   modPackMore,
 cpMore,
+  createPackOpen,
 } = ctx;
 
 // Grid system for pack display
@@ -120,6 +121,26 @@ function onCatalogScroll() {
   if (!el) return;
   if (catalogSource.value === "modrinth") loadMorePacks();
   else if (catalogSource.value === "curse") loadMoreCpPacks();
+}
+
+// Дебаунс поиска: кнопку «Найти» убрали, ищем по Enter или через 600мс после ввода.
+let packSearchTimer: ReturnType<typeof setTimeout> | null = null;
+function debouncedSearchPacks() {
+  if (packSearchTimer) clearTimeout(packSearchTimer);
+  packSearchTimer = setTimeout(() => searchPacks(), 600);
+}
+let curseSearchTimer: ReturnType<typeof setTimeout> | null = null;
+function debouncedSearchCursePacks() {
+  if (curseSearchTimer) clearTimeout(curseSearchTimer);
+  curseSearchTimer = setTimeout(() => searchCursePacks(), 600);
+}
+
+/** Компактные счётчики: 2.6M вместо 2 600 000. */
+function compactDownloads(n: number): string {
+  if (!Number.isFinite(n)) return "0";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
+  return String(n);
 }
 </script>
 
@@ -483,10 +504,14 @@ function onCatalogScroll() {
   {{ t("catalog.retry") }}
   </button>
   </div>
-  <div v-else-if="monoCatalog.length === 0" class="rounded-xl  bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
-  {{ t("catalog.emptyMono") }}
+  <div v-else-if="monoCatalog.length === 0" class="rounded-2xl border-2 border-dashed border-[var(--border)] p-10 text-center">
+  <AppIcon name="plus" class="mx-auto h-8 w-8 fill-[var(--tx-muted)]" />
+  <p class="mt-3 text-[13px] text-[color:var(--tx-muted)]">{{ t("catalog.emptyMono") }}</p>
+  <button type="button" class="mt-4 px-4 py-2 rounded-xl bg-[var(--accent-deep)] hover:brightness-110 text-white text-xs font-bold shadow-md active:scale-95 transition-all" @click="createPackOpen = true">
+  {{ t("catalog.create") }}
+  </button>
   </div>
-  <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+  <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
   <article
   v-for="entry in monoCatalog"
   :key="entry.id"
@@ -544,7 +569,7 @@ function onCatalogScroll() {
   <button
   type="button"
   v-if="!isMonoPackAdded(entry)"
-  class="flex-1 rounded-lg  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-3 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
+  class="flex-1 rounded-xl bg-[var(--accent-deep)] hover:brightness-110 px-3 py-2 text-xs font-semibold text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
   :disabled="addingPack"
   @click.stop="addMonoPack(entry)"
   >
@@ -637,18 +662,11 @@ function onCatalogScroll() {
   v-model="modPackQuery"
   type="text"
   :placeholder="t('mods.packsPlaceholder')"
-  class="w-full rounded-md  bg-[var(--bg)] py-1.5 pl-8 pr-3 text-[13px] text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors "
+  class="w-full rounded-xl bg-[var(--input)] border border-[var(--border)] pl-8 pr-3 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all"
   @keydown.enter="searchPacks"
+  @input="debouncedSearchPacks"
   />
   </div>
-  <button
-  type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-  :disabled="modPackLoading"
-  @click="searchPacks"
-  >
-  {{ t("mods.search") }}
-  </button>
   </div>
   <div v-if="modPackLoading" class="flex items-center justify-center py-16 text-[13px] text-[color:var(--tx-muted)]">
   <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
@@ -657,32 +675,33 @@ function onCatalogScroll() {
   <div v-else-if="modPackResults.length === 0" class="py-16 text-center text-[13px] text-[color:var(--tx-muted)]">
   {{ modPackQuery ? t("mods.noResults") : t("mods.packsHelp") }}
   </div>
-  <div v-else class="space-y-2">
+  <div v-else class="grid grid-cols-1 gap-3 xl:grid-cols-2">
   <div
   v-for="p in modPackResults"
   :key="p.projectId"
-  class="flex cursor-pointer items-start gap-3 rounded-md  bg-[var(--bg)] px-3 py-2.5 transition-colors "
+  class="flex cursor-pointer items-center gap-3 rounded-xl bg-[var(--input)]/25 hover:bg-[var(--input)]/45 border border-[var(--border)] p-3 transition-all"
   @click="openCatalogModrinthDetail(p)"
   >
-  <img v-if="p.iconUrl" :src="p.iconUrl" alt="" loading="lazy" class="h-10 w-10 shrink-0 rounded-md object-cover" />
-  <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-xs text-[color:var(--tx-muted)]">
+  <img v-if="p.iconUrl" :src="p.iconUrl" alt="" loading="lazy" class="h-12 w-12 shrink-0 rounded-xl object-cover" />
+  <div v-else class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--input)] text-sm font-bold text-[color:var(--tx-muted)]">
   {{ p.title.slice(0, 2).toUpperCase() }}
   </div>
   <div class="min-w-0 flex-1">
   <div class="flex flex-wrap items-center gap-x-2">
-  <svg viewBox="0 0 24 24" class="h-3 w-3 shrink-0 self-center" :title="t('mods.serviceModrinth')"><path fill="#00AF5C" d="M12.252.004a11.78 11.768 0 0 0-8.92 3.73 11 10.999 0 0 0-2.17 3.11 11.37 11.359 0 0 0-1.16 5.169c0 1.42.17 2.5.6 3.77.24.759.77 1.899 1.17 2.529a12.3 12.298 0 0 0 8.85 5.639c.44.05 2.54.07 2.76.02.2-.04.22.1-.26-1.7l-.36-1.37-1.01-.06a8.5 8.489 0 0 1-5.18-1.8 5.34 5.34 0 0 1-1.3-1.26c0-.05.34-.28.74-.5a37.572 37.545 0 0 1 2.88-1.629c.03 0 .5.45 1.06.98l1 .97 2.07-.43 2.06-.43 1.47-1.47c.8-.8 1.48-1.5 1.48-1.52 0-.09-.42-1.63-.46-1.7-.04-.06-.2-.03-1.02.18-.53.13-1.2.3-1.45.4l-.48.15-.53.53-.53.53-.93.1-.93.07-.52-.5a2.7 2.7 0 0 1-.96-1.7l-.13-.6.43-.57c.68-.9.68-.9 1.46-1.1.4-.1.65-.2.83-.33.13-.099.65-.579 1.14-1.069l.9-.9-.7-.7-.7-.7-1.95.54c-1.07.3-1.96.53-1.97.53-.03 0-2.23 2.48-2.63 2.97l-.29.35.28 1.03c.16.56.3 1.16.31 1.34l.03.3-.34.23c-.37.23-2.22 1.3-2.84 1.63-.36.2-.37.2-.44.1-.08-.1-.23-.6-.32-1.03-.18-.86-.17-2.75.02-3.73a8.84 8.839 0 0 1 7.9-6.93c.43-.03.77-.08.78-.1.06-.17.5-2.999.47-3.039-.01-.02-.1-.02-.2-.03Zm3.68.67c-.2 0-.3.1-.37.38-.06.23-.46 2.42-.46 2.52 0 .04.1.11.22.16a8.51 8.499 0 0 1 2.99 2 8.38 8.379 0 0 1 2.16 3.449 6.9 6.9 0 0 1 .4 2.8c0 1.07 0 1.27-.1 1.73a9.37 9.369 0 0 1-1.76 3.769c-.32.4-.98 1.06-1.37 1.38-.38.32-1.54 1.1-1.7 1.14-.1.03-.1.06-.07.26.03.18.64 2.56.7 2.78l.06.06a12.07 12.058 0 0 0 7.27-9.4c.13-.77.13-2.58 0-3.4a11.96 11.948 0 0 0-5.73-8.578c-.7-.42-2.05-1.06-2.25-1.06Z"/></svg>
-  <span class="truncate text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ p.title }}</span>
-  <span class="text-xs text-[color:var(--tx-muted)]">{{ t("mods.byAuthor", { author: p.author }) }}</span>
+  <span class="truncate text-sm font-bold text-[color:var(--tx)]">{{ p.title }}</span>
   </div>
-  <p class="mt-0.5 line-clamp-2 text-[13px] leading-snug text-[color:var(--tx-muted)]">{{ p.description }}</p>
-  <p class="mt-1 flex items-center gap-1 text-xs text-[color:var(--tx-muted)]">
+  <p class="truncate text-xs text-[color:var(--tx-muted)]">{{ t("mods.byAuthor", { author: p.author }) }}</p>
+  <p class="mt-0.5 line-clamp-2 text-xs leading-snug text-[color:var(--tx-muted)]">{{ p.description }}</p>
+  <p class="mt-1 flex items-center gap-2 text-xs text-[color:var(--tx-muted)]">
+  <span class="flex items-center gap-1">
   <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
-  {{ p.downloads.toLocaleString() }}
+  {{ compactDownloads(p.downloads) }}
+  </span>
   </p>
   </div>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 self-center rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 self-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--accent-deep)] hover:brightness-110 text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
   :disabled="quickPackBusy !== null"
   :title="t('mods.downloadHint')"
   @click.stop="quickDownloadPack(p, $event)"
@@ -733,18 +752,11 @@ function onCatalogScroll() {
   v-model="modPackQuery"
   type="text"
   :placeholder="t('curse.packsPlaceholder')"
-  class="w-full rounded-md  bg-[var(--bg)] py-1.5 pl-8 pr-3 text-[13px] text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors "
+  class="w-full rounded-xl bg-[var(--input)] border border-[var(--border)] pl-8 pr-3 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all"
   @keydown.enter="searchCursePacks"
+  @input="debouncedSearchCursePacks"
   />
   </div>
-  <button
-  type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-  :disabled="cpLoading"
-  @click="searchCursePacks"
-  >
-  {{ t("mods.search") }}
-  </button>
   </div>
   <p v-if="!cpSearched" class="py-8 text-center text-[13px] text-[color:var(--tx-muted)]">{{ t("curse.packsHelp") }}</p>
   <p v-else-if="cpLoading" class="flex items-center justify-center gap-2 py-8 text-[13px] text-[color:var(--tx-muted)]">
@@ -758,43 +770,39 @@ function onCatalogScroll() {
   <div v-else-if="cpResults.length === 0" class="py-16 text-center text-[13px] text-[color:var(--tx-muted)]">
   {{ modPackQuery ? t("mods.noResults") : t("curse.packsHelp") }}
   </div>
-  <div v-else class="space-y-2">
+  <div v-else class="grid grid-cols-1 gap-3 xl:grid-cols-2">
   <div
   v-for="p in cpResults"
   :key="p.projectId"
-  class="flex cursor-pointer items-start gap-3 rounded-md  bg-[var(--bg)] px-3 py-2.5 transition-colors "
+  class="flex cursor-pointer items-center gap-3 rounded-xl bg-[var(--input)]/25 hover:bg-[var(--input)]/45 border border-[var(--border)] p-3 transition-all"
   @click="openCatalogCurseDetail(p)"
   >
-  <img v-if="p.iconUrl" :src="p.iconUrl" alt="" loading="lazy" class="h-10 w-10 shrink-0 rounded-md object-cover" />
-  <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--input-50)] text-xs text-[color:var(--tx-muted)]">
+  <img v-if="p.iconUrl" :src="p.iconUrl" alt="" loading="lazy" class="h-12 w-12 shrink-0 rounded-xl object-cover" />
+  <div v-else class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--input)] text-sm font-bold text-[color:var(--tx-muted)]">
   {{ p.name.slice(0, 2).toUpperCase() }}
   </div>
   <div class="min-w-0 flex-1">
-  <div class="flex flex-wrap items-center gap-x-2">
-  <svg viewBox="0 0 24 24" class="h-3 w-3 shrink-0 self-center" :title="t('mods.serviceCurseforge')"><path fill="#F16436" d="M18.326 9.2145S23.2261 8.4418 24 6.1882h-7.5066V4.4H0l2.0318 2.3576V9.173s5.1267-.2665 7.1098 1.2372c2.7146 2.516-3.053 5.917-3.053 5.917L5.0995 19.6c1.5465-1.4726 4.494-3.3775 9.8983-3.2857-2.0565.65-4.1245 1.6651-5.7344 3.2857h10.9248l-1.0288-3.2726s-7.918-4.6688-.8336-7.1127z"/></svg>
-  <span class="truncate text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ p.name }}</span>
-  <span class="text-xs text-[color:var(--tx-muted)]">{{ t("mods.byAuthor", { author: p.author }) }}</span>
-  </div>
-  <p class="mt-0.5 line-clamp-2 text-[13px] leading-snug text-[color:var(--tx-muted)]">{{ p.summary }}</p>
+  <span class="truncate block text-sm font-bold text-[color:var(--tx)]">{{ p.name }}</span>
+  <p class="truncate text-xs text-[color:var(--tx-muted)]">{{ t("mods.byAuthor", { author: p.author }) }}</p>
+  <p class="mt-0.5 line-clamp-2 text-xs leading-snug text-[color:var(--tx-muted)]">{{ p.summary }}</p>
   <p class="mt-1 flex items-center gap-1 text-xs text-[color:var(--tx-muted)]">
   <AppIcon name="download-bars" class="h-3 w-3 fill-current" />
-  {{ p.downloadCount.toLocaleString() }}
+  {{ compactDownloads(p.downloadCount) }}
   </p>
+  </div>
+  <button
+  type="button"
+  class="flex shrink-0 items-center gap-1.5 self-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--accent-deep)] hover:brightness-110 text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
+  :disabled="quickCpBusy !== null"
+  :title="t('mods.downloadHint')"
+  @click.stop="quickDownloadCpPack(p, $event)"
+  >
+   <AppIcon v-if="quickCpBusy === p.projectId" name="spinner" class="h-3 w-3 fill-current" />
+   <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
+   {{ t("mods.download") }}
+   </button>
    </div>
-   <button
-   type="button"
-   class="flex shrink-0 items-center gap-1.5 self-center rounded-md  bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-   :disabled="quickCpBusy !== null"
-   :title="t('mods.downloadHint')"
-   @click="quickDownloadCpPack(p, $event)"
-   >
-    <AppIcon v-if="quickCpBusy === p.projectId" name="spinner" class="h-3 w-3 fill-current" />
-    <AppIcon v-else name="arrow-down" class="h-3 w-3 fill-current" />
-    {{ t("mods.download") }}
-    </button>
-     <AppIcon name="chevron-right" class="h-4 w-4 shrink-0 self-center fill-[var(--tx-muted)]" />
-    </div>
-    </div>
+   </div>
     <div v-if="cpMoreBusy" class="flex items-center justify-center py-4 text-[13px] text-[color:var(--tx-muted)]">
     <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
     {{ t("mods.searchingAll") }}
