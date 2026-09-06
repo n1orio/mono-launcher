@@ -125,13 +125,13 @@ function cardTitle(n: any): string {
       <article
         v-for="n in filteredNews"
         :key="`${n.kind}-${n.url || n.tag}`"
-        class="rounded-2xl bg-[var(--input)]/40 hover:bg-[var(--input)]/70 p-4 mb-3 transition-all"
+        class="rounded-2xl bg-[var(--input)]/35 hover:bg-[var(--input)]/50 border border-[var(--border)] p-4 mb-3 transition-all"
       >
         <div class="flex items-center justify-between gap-4 mb-2">
           <div class="min-w-0">
             <span
               v-if="n.kind === 'update'"
-              class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border"
+              class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border"
               :class="isLauncherPost(n)
                 ? 'bg-[var(--accent)]/15 text-[var(--accent)] border-[var(--accent)]/30'
                 : 'bg-[#16a34a]/15 text-[#22c55e] border-[#16a34a]/30'"
