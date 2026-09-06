@@ -949,5 +949,10 @@
   "releases.timeline": "Доступні версії ({n})",
   "releases.inGame": "Час у грі: {t}",
   "releases.loaderIs": "Завантажувач: {v}",
-  "releases.downloaded": "Завантажена"
+  "releases.downloaded": "Завантажена",
+  "news.launcherBadge": "Оновлення лаунчера",
+  "news.packBadge": "Збірка",
+  "news.currentVersion": "Поточна версія",
+  "news.updateLauncher": "Оновити лаунчер",
+  "news.installUpdate": "Встановити оновлення"
 }

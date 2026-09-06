@@ -1,12 +1,11 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { useLauncherCtx } from '~/composables/useLauncherContext';
 const ctx = useLauncherCtx();
 const {
   t,
-  activePack,
   news,
   openExternal,
-  formatUnixDate,
   newsSources,
   newsFilter,
   filteredNews,
@@ -22,40 +21,86 @@ const {
   isInstalledVersion,
   isActiveNewsTag,
   installNews,
-  busy,
+  installAppUpdate,
+  appUpdating,
+  launcherVer,
   packNameFor,
+  busy,
 } = ctx;
+
+/** Тело-заглушка релиза (CI-дефолт) — не рендерим. */
+const PLACEHOLDER_BODIES = new Set(["Сборка...", "Mono Launcher.", "Mono Launcher", "Сборка"]);
+function hasRealBody(n: any): boolean {
+  const b = (n?.body ?? "").trim();
+  return b.length > 0 && !PLACEHOLDER_BODIES.has(b);
+}
+
+const isLauncherPost = (n: any) => n?.pack_id === "launcher";
+/** Версия из тега launcher-vX.Y.Z → X.Y.Z. */
+function launcherVersionOf(n: any): string {
+  const tag = String(n?.tag ?? "");
+  return tag.startsWith("launcher-v") ? tag.slice("launcher-v".length) : tag.replace(/^v/i, "");
+}
+const currentVer = computed(() => String(launcherVer?.value ?? "").replace(/^v/i, ""));
+
+function cmpVersions(a: string, b: string): number {
+  const pa = a.split(/[^0-9a-zA-Z]+/).filter(Boolean);
+  const pb = b.split(/[^0-9a-zA-Z]+/).filter(Boolean);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] ?? "";
+    const y = pb[i] ?? "";
+    if (x === y) continue;
+    const nx = /^\d+$/.test(x) ? parseInt(x, 10) : null;
+    const ny = /^\d+$/.test(y) ? parseInt(y, 10) : null;
+    if (nx !== null && ny !== null) return nx - ny;
+    return x < y ? -1 : 1;
+  }
+  return 0;
+}
+const isCurrentLauncher = (n: any) =>
+  isLauncherPost(n) && !!launcherVersionOf(n) && launcherVersionOf(n) === currentVer.value;
+const isNewerLauncher = (n: any) =>
+  isLauncherPost(n) && !!launcherVersionOf(n) && !!currentVer.value && cmpVersions(launcherVersionOf(n), currentVer.value) > 0;
+/** Чистый заголовок: у лаунчера — только версия, без дублей имени релиза. */
+function cardTitle(n: any): string {
+  if (isLauncherPost(n) && launcherVersionOf(n)) {
+    const v = launcherVersionOf(n);
+    return v.toLowerCase().startsWith("v") ? v : `v${v}`;
+  }
+  return n.title;
+}
 </script>
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
-    <div class="mb-6 shrink-0 border-b border-[var(--border)]  pb-5">
+    <div class="mb-6 shrink-0 border-b border-[var(--border)] pb-5">
       <h1 class="text-xl font-bold tracking-tight text-[color:var(--tx-strong)]">{{ t("news.title") }}</h1>
       <p class="mt-2 text-[13px] text-[color:var(--tx-muted)]">
         {{ t("news.subtitle") }}
       </p>
-      <div class="mt-4 flex flex-wrap items-center gap-2">
+      <!-- Фильтры ленты: Все первым, дальше источники -->
+      <div class="no-scrollbar mt-4 flex items-center gap-1.5 overflow-x-auto pb-1 mb-4">
+        <button
+          type="button"
+          class="shrink-0 px-3 py-1.5 rounded-xl text-xs transition-all"
+          :class="newsFilter === 'all'
+            ? 'bg-[var(--panel)] text-[color:var(--tx)] font-semibold shadow-sm border border-[var(--border)]'
+            : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] hover:bg-white/5 border border-transparent'"
+          @click="newsFilter = 'all'"
+        >
+          {{ t("news.all") }}
+        </button>
         <button
           v-for="src in newsSources"
           :key="src"
           type="button"
-          class="rounded-full  px-3.5 py-1.5 text-[13px] font-medium transition-colors"
+          class="shrink-0 px-3 py-1.5 rounded-xl text-xs transition-all"
           :class="newsFilter === src
-            ? ' bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] text-white'
-            : ' bg-[var(--input)] text-[color:var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx)]'"
+            ? 'bg-[var(--panel)] text-[color:var(--tx)] font-semibold shadow-sm border border-[var(--border)]'
+            : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] hover:bg-white/5 border border-transparent'"
           @click="newsFilter = src"
         >
           {{ src === "launcher" ? "Mono Launcher" : packNameFor(src) }}
-        </button>
-        <button
-          type="button"
-          class="rounded-full  px-3.5 py-1.5 text-[13px] font-medium transition-colors"
-          :class="newsFilter === 'all'
-            ? ' bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] text-white'
-            : ' bg-[var(--input)] text-[color:var(--tx-muted)] hover:bg-[var(--hover)] hover:text-[color:var(--tx)]'"
-          @click="newsFilter = 'all'"
-        >
-          {{ t("news.all") }}
         </button>
       </div>
     </div>
@@ -67,11 +112,11 @@ const {
       {{ t("news.loading") }}
     </div>
 
-    <div v-else-if="news.length === 0" class="shrink-0 rounded-xl  bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
+    <div v-else-if="news.length === 0" class="shrink-0 rounded-xl bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
       {{ t("news.none") }}
     </div>
 
-    <div v-else-if="filteredNews.length === 0" class="shrink-0 rounded-xl  bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
+    <div v-else-if="filteredNews.length === 0" class="shrink-0 rounded-xl bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
       {{ t("news.emptyCat") }}
     </div>
 
@@ -79,90 +124,93 @@ const {
       <article
         v-for="n in filteredNews"
         :key="`${n.kind}-${n.url || n.tag}`"
-        class="rounded-xl  bg-[var(--panel)] shadow-sm transition-shadow hover:shadow-md"
+        class="rounded-2xl bg-[var(--input)]/25 hover:bg-[var(--input)]/40 border border-[var(--border)] p-4 mb-3 transition-all"
       >
-        <div class="flex items-start justify-between gap-3 border-b border-[var(--border)]  px-3.5 py-2.5">
+        <div class="flex items-center justify-between gap-4 mb-2">
           <div class="min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span
-                class="rounded-full px-2 py-0.5 text-xs font-medium"
-                :class="n.kind === 'update'
-                  ? ' bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] text-[var(--accent)]'
-                  : 'bg-[#9e6a03]/10 text-[#d29922]'"
-              >
-                {{ n.kind === "update" ? t("news.update") : t("news.post") }}
-              </span>
-              <span v-if="n.category" class="rounded-full  bg-[var(--bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--tx-muted)]">
-                {{ n.category }}
-              </span>
-              <span class="rounded-full  bg-[var(--bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--tx-muted)]">
-                {{ n.pack_name }}
-              </span>
-              <span v-if="n.kind === 'update' && n.tag" class="font-mono text-[13px] font-semibold text-[var(--accent)]">
-                {{ n.tag }}
-              </span>
-            </div>
-            <h2 class="mt-1.5 text-sm font-semibold text-[color:var(--tx-strong)] break-words">
-              {{ n.title }}
-            </h2>
-          </div>
-          <div class="flex shrink-0 flex-col items-end gap-1.5">
-            <span class="text-[13px] text-[color:var(--tx-muted)]">
-              {{ formatDate(n.date) }}
+            <span
+              v-if="n.kind === 'update'"
+              class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border"
+              :class="isLauncherPost(n)
+                ? 'bg-[var(--accent)]/15 text-[var(--accent)] border-[var(--accent)]/30'
+                : 'bg-[#16a34a]/15 text-[#22c55e] border-[#16a34a]/30'"
+            >
+              {{ isLauncherPost(n) ? t("news.launcherBadge") : t("news.packBadge") }}
             </span>
-            <div class="flex gap-1.5">
-              <button
-                v-if="n.kind === 'post' && n.url"
-                type="button"
-                class="rounded-md  bg-[var(--input)] px-2.5 py-1 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-white"
-                @click="openNewsLink(n.url)"
-              >
-                {{ t("news.open") }}
-              </button>
-              <button
-                v-else-if="n.kind === 'update' && n.pack_id === 'launcher' && n.url"
-                type="button"
-                class="rounded-md  bg-[var(--input)] px-2.5 py-1 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-white"
-                @click="openNewsLink(n.url)"
-              >
-                {{ t("news.open") }}
-              </button>
-              <button
-                v-if="n.kind === 'update' && n.pack_id !== 'launcher' && n.tag"
-                type="button"
-                class="rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
-                :disabled="busy"
-                @click="installNews(n)"
-              >
-                {{ isInstalledVersion(n.tag) ? (isActiveNewsTag(n.tag) ? t("releases.selected") : t("releases.switch")) : t("releases.install") }}
-              </button>
-            </div>
+            <span
+              v-else
+              class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border border-[var(--border)] text-[color:var(--tx-muted)]"
+            >
+              {{ t("news.post") }}
+            </span>
+            <h2 class="mt-1.5 text-base font-black text-[color:var(--tx)] tracking-tight break-words">
+              {{ cardTitle(n) }}
+            </h2>
+            <p class="mt-0.5 text-xs text-[color:var(--tx-muted)]">
+              {{ formatDate(n.date) }}<span v-if="!isLauncherPost(n)"> · {{ n.pack_name }}</span>
+            </p>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <!-- Лаунчер: текущая версия → тихий тег, новее → обновить -->
+            <span
+              v-if="isCurrentLauncher(n)"
+              class="flex items-center gap-1.5 text-xs font-bold text-[#22c55e] bg-[#16a34a]/10 px-3 py-1.5 rounded-xl border border-[#16a34a]/20"
+            >
+              <AppIcon name="check" class="h-3.5 w-3.5 fill-current" />
+              {{ t("news.currentVersion") }}
+            </span>
+            <button
+              v-else-if="isNewerLauncher(n)"
+              type="button"
+              class="flex items-center gap-1.5 bg-[var(--accent-deep)] hover:brightness-110 text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl shadow-sm active:scale-95 transition-all disabled:opacity-50"
+              :disabled="appUpdating"
+              @click="installAppUpdate()"
+            >
+              <AppIcon v-if="appUpdating" name="spinner" class="h-3.5 w-3.5 fill-current" />
+              <AppIcon v-else name="refresh" class="h-3.5 w-3.5 fill-current" />
+              {{ t("news.updateLauncher") }}
+            </button>
+            <!-- Сборки: установка/переключение версии -->
+            <button
+              v-else-if="n.kind === 'update' && !isLauncherPost(n) && n.tag"
+              type="button"
+              class="bg-[var(--accent-deep)] hover:brightness-110 text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl shadow-sm active:scale-95 transition-all disabled:opacity-50"
+              :disabled="busy"
+              @click="installNews(n)"
+            >
+              {{ isInstalledVersion(n.tag) ? (isActiveNewsTag(n.tag) ? t("releases.selected") : t("releases.switch")) : t("news.installUpdate") }}
+            </button>
+            <button
+              v-else-if="(n.kind === 'post' || isLauncherPost(n)) && n.url"
+              type="button"
+              class="rounded-xl bg-[var(--input)] hover:bg-[var(--panel)] border border-[var(--border)] px-3.5 py-1.5 text-xs font-semibold text-[color:var(--tx)] transition-all"
+              @click="openNewsLink(n.url)"
+            >
+              {{ t("news.open") }}
+            </button>
           </div>
         </div>
 
-        <!-- Тело: ченджлог/пост -->
-        <div v-if="changelogLines(n.body).length > 0" class="p-4 text-[13px] text-[color:var(--tx)] space-y-1.5">
+        <!-- Тело: ченджлог, заглушки скрыты -->
+        <div v-if="hasRealBody(n) && changelogLines(n.body).length > 0" class="text-[13px] text-[color:var(--tx)] space-y-1.5">
           <div class="changelog space-y-1 font-sans" @click="onChangelogLinkClick">
             <template v-for="(line, idx) in visibleNewsLines(n)" :key="idx">
               <div v-if="line.type === 'bullet'" class="flex items-start gap-2 text-[color:var(--tx)]">
-                <span class="text-[color:var(--tx-muted)] select-none">•</span>
-                <span v-html="renderInline(line.text)"></span>
+                <span class="text-[var(--accent)] select-none">•</span>
+                <span class="space-y-1.5 text-xs text-[color:var(--tx-muted)]" v-html="renderInline(line.text)"></span>
               </div>
               <div v-else-if="line.type === 'body'" class="font-semibold text-[color:var(--tx-strong)] pt-1.5" v-html="renderInline(line.text)"></div>
-              <div v-else class="text-[color:var(--tx-muted)]" v-html="renderInline(line.text)"></div>
+              <div v-else class="text-xs text-[color:var(--tx-muted)]" v-html="renderInline(line.text)"></div>
             </template>
           </div>
           <button
             v-if="isNewsExpandable(n)"
             type="button"
-            class="mt-2 inline-block text-[13px] font-medium text-[var(--accent)] hover:underline"
+            class="mt-2 inline-block text-[13px] font-medium text-[var(--accent)] hover:text-[var(--accent-strong)] transition-colors"
             @click="toggleNewsExpanded(n)"
           >
             {{ isNewsExpanded(n) ? t("news.collapse") : t("news.showAll") }}
           </button>
-        </div>
-        <div v-else class="p-4 text-[13px] text-[color:var(--tx-muted)] italic">
-          {{ t("news.noText") }}
         </div>
       </article>
     </div>

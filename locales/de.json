@@ -949,5 +949,10 @@
   "releases.timeline": "Verfügbare Versionen ({n})",
   "releases.inGame": "Spielzeit: {t}",
   "releases.loaderIs": "Loader: {v}",
-  "releases.downloaded": "Heruntergeladen"
+  "releases.downloaded": "Heruntergeladen",
+  "news.launcherBadge": "Launcher-Update",
+  "news.packBadge": "Modpack",
+  "news.currentVersion": "Aktuelle Version",
+  "news.updateLauncher": "Launcher aktualisieren",
+  "news.installUpdate": "Update installieren"
 }

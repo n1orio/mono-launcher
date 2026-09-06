@@ -949,5 +949,10 @@
   "releases.timeline": "Доступные версии ({n})",
   "releases.inGame": "Время в игре: {t}",
   "releases.loaderIs": "Загрузчик: {v}",
-  "releases.downloaded": "Загружена"
+  "releases.downloaded": "Загружена",
+  "news.launcherBadge": "Обновление лаунчера",
+  "news.packBadge": "Сборка",
+  "news.currentVersion": "Текущая версия",
+  "news.updateLauncher": "Обновить лаунчер",
+  "news.installUpdate": "Установить обновление"
 }
