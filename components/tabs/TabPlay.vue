@@ -743,21 +743,6 @@ async function enableAllFiles(enabled: boolean) {
   v-else-if="playSubTab === 'mods' || playSubTab === 'resourcepacks' || playSubTab === 'shaderpacks' || playSubTab === 'saves'"
   class="flex min-h-0 flex-1 flex-col"
   >
-  <div
-  v-if="packLocked"
-  class="mb-3 flex shrink-0 items-center justify-between gap-3 rounded-md  bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-3 py-2 text-[13px] text-[color:var(--tx)]"
-  >
-  <span class="flex items-center gap-2">
-  <AppIcon name="lock" class="h-4 w-4 fill-[var(--accent)]" />
-  {{ t("files.locked") }}
-  </span>
-  <button
-  type="button"
-  class="shrink-0 rounded px-2 py-1 font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]"
-  :title="t('files.unbindHint')"
-  @click="confirmUnbindPack"
-  >{{ unbindArmed ? t("files.unbindConfirm") : t("files.unbind") }}</button>
-  </div>
   <!-- Unified toolbar single row -->
   <div class="flex items-center justify-between gap-3 my-3">
   <div class="gap-2.5 flex items-center flex-1 min-w-0 max-w-xl">
