@@ -23,10 +23,34 @@ const {
   saveCategories,
 } = ctx;
 
-const expandedFolderId = ref<string | null>(null);
+// Раскрытые папки: можно несколько сразу, состояние переживает перезапуск.
+const LIB_EXPANDED_KEY = "mono.libExpanded";
+function loadExpanded(): string[] {
+  try {
+    const raw = localStorage.getItem(LIB_EXPANDED_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+const expandedFolderIds = ref<string[]>(loadExpanded());
+function persistExpanded() {
+  try {
+    localStorage.setItem(LIB_EXPANDED_KEY, JSON.stringify(expandedFolderIds.value));
+  } catch {
+    // приватный режим — просто не сохраняем
+  }
+}
+function isExpanded(id: string): boolean {
+  return expandedFolderIds.value.includes(id);
+}
 
 function toggleFolder(id: string) {
-  expandedFolderId.value = expandedFolderId.value === id ? null : id;
+  const i = expandedFolderIds.value.indexOf(id);
+  if (i >= 0) expandedFolderIds.value.splice(i, 1);
+  else expandedFolderIds.value.push(id);
+  persistExpanded();
 }
 
 const draggingPackId = ref<string | null>(null);
@@ -61,7 +85,7 @@ const gridItems = computed(() => {
     });
 
     if (folderPacks.length >= 2) {
-      if (expandedFolderId.value === cat.id) {
+      if (isExpanded(cat.id)) {
         items.push({
           type: "expanded-category-group",
           folder: cat,
@@ -174,8 +198,9 @@ function onGlobalPointerUp() {
         }
       }
       if (typeof saveCategories === "function") saveCategories();
-    } else if (!targetId && expandedFolderId.value) {
-      extractPackFromFolder(sourceId, expandedFolderId.value);
+    } else if (!targetId && expandedFolderIds.value.length > 0) {
+      // Бросок на пустое место — вытащить пак из последней раскрытой папки.
+      extractPackFromFolder(sourceId, expandedFolderIds.value[expandedFolderIds.value.length - 1]);
     }
   }
 }
@@ -198,7 +223,11 @@ function extractPackFromFolder(packId: string, folderId: string) {
       packLibCats.value[p.id] = Array.isArray(c) ? c.filter((id: string) => id !== folderId) : [];
     });
     libCats.value = (libCats.value || []).filter((c: any) => c.id !== folderId);
-    if (expandedFolderId.value === folderId) expandedFolderId.value = null;
+    const ei = expandedFolderIds.value.indexOf(folderId);
+    if (ei >= 0) {
+      expandedFolderIds.value.splice(ei, 1);
+      persistExpanded();
+    }
   }
 
   if (typeof saveCategories === "function") saveCategories();
@@ -210,6 +239,13 @@ function handlePackClick(packId: string) {
 }
 
 onMounted(() => {
+  // Чистим раскрытие от удалённых папок.
+  const alive = new Set((libCats.value || []).map((c: any) => c.id));
+  const pruned = expandedFolderIds.value.filter((id) => alive.has(id));
+  if (pruned.length !== expandedFolderIds.value.length) {
+    expandedFolderIds.value = pruned;
+    persistExpanded();
+  }
   window.addEventListener("pointermove", onGlobalPointerMove, { capture: true });
   window.addEventListener("pointerup", onGlobalPointerUp, { capture: true });
   window.addEventListener("pointercancel", resetDragState, { capture: true });
@@ -217,7 +253,10 @@ onMounted(() => {
   window.addEventListener("blur", resetDragState);
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      expandedFolderId.value = null;
+      if (expandedFolderIds.value.length > 0) {
+        expandedFolderIds.value = [];
+        persistExpanded();
+      }
       resetDragState();
     }
   });
