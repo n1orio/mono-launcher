@@ -104,7 +104,7 @@ const showShotUrl = ref(false);
   <div class="space-y-3">
   <label class="block text-xs font-semibold text-[color:var(--tx-muted)]">
   {{ t("author.name") }}
-  <input v-model="authorDetail.name" type="text" class="mt-1.5 w-full rounded-xl bg-[var(--input)]/40 border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
+  <input v-model="authorDetail.name" type="text" class="mt-1.5 w-full rounded-xl bg-[var(--input)] border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
   </label>
   <label class="block text-xs font-semibold text-[color:var(--tx-muted)]">
   {{ t("author.desc") }}
@@ -113,21 +113,21 @@ const showShotUrl = ref(false);
   <div class="grid grid-cols-2 gap-3">
   <label class="block text-xs font-semibold text-[color:var(--tx-muted)]">
   {{ t("author.minRamMb") }}
-  <input v-model.number="authorDetail.min_ram_mb" type="number" min="0" class="mt-1.5 w-full rounded-xl bg-[var(--input)]/40 border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
+  <input v-model.number="authorDetail.min_ram_mb" type="number" min="0" class="mt-1.5 w-full rounded-xl bg-[var(--input)] border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
   </label>
   <label class="block text-xs font-semibold text-[color:var(--tx-muted)]">
   {{ t("author.iconUrl") }}
-  <input v-model="authorDetail.icon_url" type="text" class="mt-1.5 w-full rounded-xl bg-[var(--input)]/40 border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
+  <input v-model="authorDetail.icon_url" type="text" class="mt-1.5 w-full rounded-xl bg-[var(--input)] border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
   <img v-if="authorDetail.icon_url" :src="authorDetail.icon_url" class="mt-1.5 h-10 w-10 rounded-md object-cover" loading="lazy" @error="($event.target as HTMLImageElement).style.display = 'none'" />
   </label>
   <label class="col-span-2 block text-xs font-semibold text-[color:var(--tx-muted)]">
   {{ t("author.banner") }}
-  <input v-model="authorOverviewBanner" type="text" class="mt-1.5 w-full rounded-xl bg-[var(--input)]/40 border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
+  <input v-model="authorOverviewBanner" type="text" class="mt-1.5 w-full rounded-xl bg-[var(--input)] border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
   <img v-if="authorOverviewBanner.trim()" :src="authorOverviewBanner" class="mt-1.5 h-16 w-full rounded-md object-cover" loading="lazy" @error="($event.target as HTMLImageElement).style.display = 'none'" />
   </label>
   <label class="col-span-2 block text-xs font-semibold text-[color:var(--tx-muted)]">
   {{ t("author.boosty") }}
-  <input v-model="authorDetail.boosty_blog" type="text" class="mt-1.5 w-full rounded-xl bg-[var(--input)]/40 border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
+  <input v-model="authorDetail.boosty_blog" type="text" class="mt-1.5 w-full rounded-xl bg-[var(--input)] border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
   </label>
   </div>
   <div class="flex items-center gap-2 pt-1">
@@ -183,14 +183,14 @@ const showShotUrl = ref(false);
   </button>
   <div v-if="showShotUrl" class="space-y-2 border-t border-[var(--border)] pt-3">
   <div class="flex items-center gap-2">
-  <input v-model="authorShotUrl" type="text" :placeholder="t('author.shotUrlPh')" class="min-w-0 flex-1 rounded-xl bg-[var(--input)]/40 border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
+  <input v-model="authorShotUrl" type="text" :placeholder="t('author.shotUrlPh')" class="min-w-0 flex-1 rounded-xl bg-[var(--input)] border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
   <button type="button" class="shrink-0 rounded-xl bg-[var(--input)] hover:bg-[var(--panel)] border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[color:var(--tx)] transition-all disabled:opacity-50"
   :disabled="authorBusy || !authorShotUrl.trim()"
   @click="addAuthorShot">
   {{ t("author.addShot") }}
   </button>
   </div>
-  <input v-model="authorShotCaption" type="text" :placeholder="t('author.shotCaptionNew')" class="w-full rounded-xl bg-[var(--input)]/40 border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
+  <input v-model="authorShotCaption" type="text" :placeholder="t('author.shotCaptionNew')" class="w-full rounded-xl bg-[var(--input)] border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
   </div>
   </div>
   </section>
