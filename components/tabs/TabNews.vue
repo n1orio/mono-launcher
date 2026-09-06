@@ -86,7 +86,7 @@ function cardTitle(n: any): string {
           class="shrink-0 px-3 py-1.5 rounded-xl text-xs transition-all"
           :class="newsFilter === 'all'
             ? 'bg-[var(--panel)] text-[color:var(--tx)] font-semibold shadow-sm border border-[var(--border)]'
-            : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] hover:bg-white/5 border border-transparent'"
+            : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] hover:bg-[var(--hover)] border border-transparent'"
           @click="newsFilter = 'all'"
         >
           {{ t("news.all") }}
@@ -98,7 +98,7 @@ function cardTitle(n: any): string {
           class="shrink-0 px-3 py-1.5 rounded-xl text-xs transition-all"
           :class="newsFilter === src
             ? 'bg-[var(--panel)] text-[color:var(--tx)] font-semibold shadow-sm border border-[var(--border)]'
-            : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] hover:bg-white/5 border border-transparent'"
+            : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] hover:bg-[var(--hover)] border border-transparent'"
           @click="newsFilter = src"
         >
           {{ src === "launcher" ? "Mono Launcher" : packNameFor(src) }}
@@ -125,7 +125,7 @@ function cardTitle(n: any): string {
       <article
         v-for="n in filteredNews"
         :key="`${n.kind}-${n.url || n.tag}`"
-        class="rounded-2xl bg-[var(--input)]/25 hover:bg-[var(--input)]/40 border border-[var(--border)] p-4 mb-3 transition-all"
+        class="rounded-2xl bg-[var(--input)]/30 hover:bg-[var(--input)]/45 border border-[var(--border)]/40 p-4 mb-3 transition-all"
       >
         <div class="flex items-center justify-between gap-4 mb-2">
           <div class="min-w-0">
@@ -184,7 +184,7 @@ function cardTitle(n: any): string {
             <button
               v-else-if="(n.kind === 'post' || isLauncherPost(n)) && n.url"
               type="button"
-              class="rounded-xl bg-[var(--input)] hover:bg-[var(--panel)] border border-[var(--border)] px-3.5 py-1.5 text-xs font-semibold text-[color:var(--tx)] transition-all"
+              class="bg-[var(--input)] hover:bg-white/10 text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] text-xs font-semibold px-3.5 py-1.5 rounded-xl transition-all"
               @click="openNewsLink(n.url)"
             >
               {{ t("news.open") }}
