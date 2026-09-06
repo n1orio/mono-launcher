@@ -4,6 +4,7 @@ import { useLauncherCtx } from '~/composables/useLauncherContext';
 const ctx = useLauncherCtx();
 const {
   t,
+  tp,
   activePack,
   activeBanner,
   bannerOk,
@@ -196,13 +197,6 @@ const customModsState = computed(() => {
 const customUncheckedCount = computed(() =>
   (status?.value?.custom_mods || []).filter((f: any) => f.safe !== true && f.safe !== false).length
 );
-function pluralFile(n: number): string {
-  const m10 = n % 10, m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return "файл";
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return "файла";
-  return "файлов";
-}
-
 // ---- Контекстное меню ПКМ по файлу ----
 const fileCtx = ref<{ file: GameFileEntry; x: number; y: number } | null>(null);
 function openFileCtx(e: MouseEvent, f: GameFileEntry) {
@@ -548,7 +542,7 @@ async function enableAllFiles(enabled: boolean) {
       <AppIcon v-else name="shield_alert" class="h-4 w-4 fill-current shrink-0" />
       <span v-if="customModsState === 'safe'">Сторонние файлы проверены сканером (угроз не найдено)</span>
       <span v-else-if="customModsState === 'dangerous'">Сканер обнаружил опасные файлы — запуск небезопасен</span>
-      <span v-else>В сборке есть {{ customUncheckedCount }} непроверенный сторонний {{ pluralFile(customUncheckedCount) }}</span>
+      <span v-else>{{ tp("customMods.unchecked", customUncheckedCount) }}</span>
     </div>
     <div class="flex items-center gap-3 shrink-0">
       <button type="button" class="hover:underline font-semibold cursor-pointer disabled:opacity-50" :disabled="customScanBusy" @click="scanActiveCustomMods">

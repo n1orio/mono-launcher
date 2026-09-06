@@ -351,7 +351,7 @@ const {
   handleMonoConfirmEmail,
 } = __launcher;
 
-const { t, locale, locales, setLocale } = useI18n();
+const { t, tp, locale, locales, setLocale } = useI18n();
 
 const loginOpen = ref(false);
 const loginLogin = ref("");
@@ -4648,6 +4648,7 @@ if (isFileDetailWin.value) {
 provide(LauncherCtxKey, {
   ...__launcher,
   t,
+  tp,
   locale,
   locales,
   setLocale,

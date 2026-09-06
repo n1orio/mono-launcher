@@ -717,6 +717,7 @@ export interface LauncherCtx {
   switchSearchService: any;
   systemRam: Ref<SystemInfo | null>;
   t: any;
+  tp: (...args: any[]) => any;
   tab: Ref<"play" | "settings" | "news" | "catalog" | "dev" | "library" | "author" | "admin">;
   takeAuthorFormBase: (...args: any[]) => any;
   themeLevel: any;

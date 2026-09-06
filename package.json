@@ -8,7 +8,9 @@
     "dev": "nuxt dev",
     "build": "nuxt typecheck && nuxt build",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
+    "postinstall": "nuxt prepare && npm run i18n:keys",
+    "i18n:keys": "node scripts/gen-i18n-keys.mjs",
+    "i18n:check": "node scripts/check-i18n.mjs",
     "tauri": "tauri",
     "tauri:build": "tauri build",
     "tauri:appimage": "NO_STRIP=true tauri build --bundles appimage"

@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import type { I18nKey } from "~/lib/i18n-keys";
 
 /**
  * Метаданные перевода. Лежат в корне файла локали как "__meta__":
@@ -85,16 +86,55 @@ export function useI18n() {
     }
   }
 
-  function t(key: string, params?: Record<string, string | number | unknown>): string {
-    const info = dicts[locale.value] ?? dicts[DEFAULT_LOCALE];
-    let s = info?.dict[key] ?? (dicts.ru?.dict[key] as string | undefined) ?? key;
-    if (params) {
-      for (const [k, v] of Object.entries(params)) {
-        s = s.replaceAll(`{${k}}`, String(v));
-      }
+  function lookup(dict: Record<string, string> | undefined, key: string): string | undefined {
+    return dict?.[key] ?? (dicts.ru?.dict[key] as string | undefined);
+  }
+
+  function fill(s: string, params?: Record<string, string | number | unknown>): string {
+    if (!params) return s;
+    for (const [k, v] of Object.entries(params)) {
+      s = s.replaceAll(`{${k}}`, String(v));
     }
     return s;
   }
 
-  return { locale, locales, setLocale, t };
+  function t(key: I18nKey | (string & {}), params?: Record<string, string | number | unknown>): string {
+    const info = dicts[locale.value] ?? dicts[DEFAULT_LOCALE];
+    return fill(lookup(info?.dict, key) ?? key, params);
+  }
+
+  /** Кэш Intl.PluralRules по коду языка (конструктор не из дешёвых). */
+  const pluralRules = new Map<string, Intl.PluralRules>();
+  function rulesFor(code: string): Intl.PluralRules {
+    let r = pluralRules.get(code);
+    if (!r) {
+      try {
+        r = new Intl.PluralRules(code);
+      } catch {
+        r = new Intl.PluralRules("en");
+      }
+      pluralRules.set(code, r);
+    }
+    return r;
+  }
+
+  /**
+   * Плюрализация через нативный Intl.PluralRules.
+   * В словаре — ключи `{base}.one/.few/.many/.other` (какие нужны языку),
+   * `{n}` подставляется автоматически:
+   *   tp("customMods.unchecked", 5) → "В сборке есть 5 непроверенных сторонних файлов"
+   * Фолбэк: точная категория → `.other` → голый `base` → русская форма → сам base.
+   */
+  function tp(base: string, n: number, params?: Record<string, string | number | unknown>): string {
+    const cat = rulesFor(locale.value).select(n);
+    const info = dicts[locale.value] ?? dicts[DEFAULT_LOCALE];
+    const s =
+      lookup(info?.dict, `${base}.${cat}`) ??
+      lookup(info?.dict, `${base}.other`) ??
+      lookup(info?.dict, base) ??
+      base;
+    return fill(s, { n, ...params });
+  }
+
+  return { locale, locales, setLocale, t, tp };
 }
