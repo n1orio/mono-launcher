@@ -184,6 +184,25 @@ const {
 import type { GameFolderKind, ModrinthSearchKind } from "~/lib/bridge";
 import type { GameFileEntry } from "~/lib/types";
 
+// ---- Баннер сторонних (кастомных) файлов: safe / unchecked / dangerous ----
+const customModsState = computed(() => {
+  const files: any[] = status?.value?.custom_mods || [];
+  const unchecked = files.filter((f) => f.safe !== true && f.safe !== false);
+  const dangerous = files.filter((f) => f.safe === false);
+  if (files.length > 0 && unchecked.length === 0 && dangerous.length === 0) return "safe";
+  if (dangerous.length > 0) return "dangerous";
+  return "unchecked";
+});
+const customUncheckedCount = computed(() =>
+  (status?.value?.custom_mods || []).filter((f: any) => f.safe !== true && f.safe !== false).length
+);
+function pluralFile(n: number): string {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return "файл";
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return "файла";
+  return "файлов";
+}
+
 // ---- Контекстное меню ПКМ по файлу ----
 const fileCtx = ref<{ file: GameFileEntry; x: number; y: number } | null>(null);
 function openFileCtx(e: MouseEvent, f: GameFileEntry) {
@@ -513,22 +532,29 @@ async function enableAllFiles(enabled: boolean) {
   </template>
   </div>
 
-  <!-- Verification Banner -->
+  <!-- Verification Banner: вид зависит от состояния проверки -->
   <div
     v-if="warnCustomMods && (status?.custom_mods?.length || 0) > 0"
-    class="rounded-xl border border-[#16a34a]/30 bg-[#16a34a]/15 text-[#22c55e] px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all"
+    class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all"
+    :class="customModsState === 'safe'
+      ? 'border-emerald-500/25 bg-emerald-500/[0.06] text-emerald-400'
+      : customModsState === 'dangerous'
+        ? 'border-red-500/30 bg-red-500/10 text-red-300'
+        : 'border-amber-500/30 bg-amber-500/10 text-amber-300'"
   >
     <div class="flex items-center gap-2 font-medium">
-      <span v-if="(status?.custom_mods || []).some((f:any)=>f.safe===false)">🚨</span>
-      <span v-else-if="(status?.custom_mods?.length || 0) > 0">⚠️</span>
-      <span v-else>✓</span>
-      <span>{{ t("warn.customMods", { n: status?.custom_mods?.length || 0 }) }}</span>
+      <span v-if="customModsState === 'safe'">🛡️</span>
+      <span v-else-if="customModsState === 'dangerous'">🚨</span>
+      <span v-else>⚠️</span>
+      <span v-if="customModsState === 'safe'">Сторонние файлы проверены сканером (угроз не найдено)</span>
+      <span v-else-if="customModsState === 'dangerous'">Сканер обнаружил опасные файлы — запуск небезопасен</span>
+      <span v-else>В сборке есть {{ customUncheckedCount }} непроверенный сторонний {{ pluralFile(customUncheckedCount) }}</span>
     </div>
     <div class="flex items-center gap-3 shrink-0">
-      <button type="button" class="hover:underline font-semibold cursor-pointer" @click="scanActiveCustomMods">
-        Сканировать
+      <button type="button" class="hover:underline font-semibold cursor-pointer" :disabled="customScanBusy" @click="scanActiveCustomMods">
+        {{ customModsState === 'safe' ? 'Пересканировать' : 'Сканировать' }}
       </button>
-      <button type="button" class="hover:underline font-semibold cursor-pointer" @click="customModsOpen = !customModsOpen">
+      <button v-if="customModsState === 'safe'" type="button" class="hover:underline font-semibold cursor-pointer" @click="customModsOpen = !customModsOpen">
         {{ customModsOpen ? 'Скрыть список' : 'Список' }}
       </button>
       <button type="button" class="text-current opacity-60 hover:opacity-100 ml-1" @click="warnCustomMods = false">
@@ -538,12 +564,13 @@ async function enableAllFiles(enabled: boolean) {
   </div>
 
   <!-- Expandable Custom Mods List -->
-  <div v-if="customModsOpen && status?.custom_mods?.length" class="rounded-xl bg-[var(--input)]/30 border border-[var(--border)] p-3 mb-3 flex flex-col gap-1.5 text-xs">
-    <div class="font-bold text-[color:var(--tx)] mb-1">Кастомные / непроверенные файлы:</div>
-    <div v-for="f in (status?.custom_mods || [])" :key="f.path" class="flex items-center justify-between py-1 px-2 rounded-lg bg-[var(--panel)] border border-[var(--border)] font-mono text-[11px] text-[color:var(--tx-muted)]">
+  <div v-if="customModsOpen && customModsState === 'safe' && status?.custom_mods?.length" class="rounded-xl bg-[var(--input)]/30 border border-[var(--border)] p-3 mb-3 flex flex-col gap-1.5 text-xs">
+    <div class="font-bold text-[color:var(--tx)] mb-1">Кастомные файлы в сборке:</div>
+    <div v-for="f in (status?.custom_mods || [])" :key="f.path" class="flex items-center justify-between gap-2 py-1 px-2 rounded-lg bg-[var(--panel)] border border-[var(--border)] font-mono text-[11px] text-[color:var(--tx-muted)]">
       <span class="truncate">{{ f.path }}</span>
-      <span class="text-[#22c55e] font-sans font-semibold">Кастомный</span>
+      <span class="shrink-0 bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded text-[11px] font-semibold font-sans">✓ Безопасно</span>
     </div>
+    <span class="text-[11px] text-[color:var(--tx-muted)]/70 mt-1 block">Файлы успешно прошли проверку на вредоносный код. Ответственность за совместимость и стабильность лежит на пользователе.</span>
   </div>
   </div>
 
