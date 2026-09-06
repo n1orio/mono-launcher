@@ -757,7 +757,7 @@ async function enableAllFiles(enabled: boolean) {
   <button
   type="button"
   class="hidden"
-  :class="fileSortKey === 'name' ? 'bg-[var(--accent)] text-white' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+  :class="fileSortKey === 'name' ? 'bg-[var(--accent-deep)] text-white' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
   :title="fileSortKey === 'name' ? (fileSortDir === 'asc' ? t('files.sortNameAsc') : t('files.sortNameDesc')) : t('files.sortNameHint')"
   @click="toggleFileSort('name')"
   >
@@ -768,7 +768,7 @@ async function enableAllFiles(enabled: boolean) {
   <button
   type="button"
   class="flex items-center gap-1 rounded-md px-2.5 py-1 text-[13px] font-medium transition-colors"
-  :class="fileSortKey === 'date' ? 'bg-[var(--accent)] text-white' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+  :class="fileSortKey === 'date' ? 'bg-[var(--accent-deep)] text-white' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
   :title="fileSortKey === 'date' ? (fileSortDir === 'desc' ? t('files.sortDateNew') : t('files.sortDateOld')) : t('files.sortDateHint')"
   @click="toggleFileSort('date')"
   >
@@ -792,21 +792,21 @@ async function enableAllFiles(enabled: boolean) {
   type="button"
   class="rounded-md px-2.5 py-1 text-[13px] font-medium transition-colors"
   :title="t('files.fEnabledHint')"
-  :class="fileStatusFilter === 'enabled' ? 'bg-[var(--accent)] text-white' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+  :class="fileStatusFilter === 'enabled' ? 'bg-[var(--accent-deep)] text-white' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
   @click="setFileStatusFilter('enabled')"
   >{{ t("files.fEnabled") }}</button>
   <button
   type="button"
   class="rounded-md px-2.5 py-1 text-[13px] font-medium transition-colors"
   :title="t('files.fDisabledHint')"
-  :class="fileStatusFilter === 'disabled' ? 'bg-[var(--accent)] text-white' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+  :class="fileStatusFilter === 'disabled' ? 'bg-[var(--accent-deep)] text-white' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
   @click="setFileStatusFilter('disabled')"
   >{{ t("files.fDisabled") }}</button>
   <button
   type="button"
   class="rounded-md px-2.5 py-1 text-[13px] font-medium transition-colors"
   :title="t('files.fUpdatesHint')"
-  :class="fileStatusFilter === 'updates' ? 'bg-[var(--accent)] text-white' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+  :class="fileStatusFilter === 'updates' ? 'bg-[var(--accent-deep)] text-white' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
   @click="setFileStatusFilter('updates')"
   >{{ t("files.fUpdates") }}</button>
   </div>
