@@ -301,12 +301,12 @@ async function enableAllFiles(enabled: boolean) {
   </p>
   <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
   <span
-  class="rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider  shadow-sm"
-  :class="status?.installed
-  ? 'bg-[#16a34a]/15 text-[#22c55e] border border-[#16a34a]/30 font-bold'
-  : ' bg-[var(--input)] text-[color:var(--tx-muted)]'"
+  v-if="packLocked"
+  class="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider shadow-sm bg-[#16a34a]/15 text-[#22c55e] border border-[#16a34a]/30"
+  :title="t('files.locked')"
   >
-  {{ status?.installed ? t("pack.installed") : t("pack.notInstalled") }}
+  <AppIcon name="shield-check" class="h-3.5 w-3.5 fill-current" />
+  {{ t("pack.managed") }}
   </span>
   <span
   v-if="activePack?.minRam"

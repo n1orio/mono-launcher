@@ -960,5 +960,6 @@
   "author.shotUrlToggle": "Дадаць па спасылцы",
   "catalog.installPack": "Усталяваць зборку",
   "catalog.backToCatalog": "Назад да каталога",
-  "curse.openPage": "На CurseForge"
+  "curse.openPage": "На CurseForge",
+  "pack.managed": "Кіраваная зборка"
 }

@@ -960,5 +960,6 @@
   "author.shotUrlToggle": "Add via URL",
   "catalog.installPack": "Install modpack",
   "catalog.backToCatalog": "Back to catalog",
-  "curse.openPage": "On CurseForge"
+  "curse.openPage": "On CurseForge",
+  "pack.managed": "Managed pack"
 }
