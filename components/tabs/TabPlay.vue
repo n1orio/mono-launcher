@@ -301,16 +301,6 @@ async function enableAllFiles(enabled: boolean) {
   </p>
   <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
   <span
-  v-if="packLocked"
-  class="flex items-center gap-1.5 text-xs font-bold text-[#3fb950]"
-  :title="t('files.locked')"
-  >
-  <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#3fb950]/15">
-  <AppIcon name="shield-check" class="h-3.5 w-3.5 fill-current" />
-  </span>
-  {{ t("pack.managed") }}
-  </span>
-  <span
   v-if="activePack?.minRam"
   class="inline-flex items-center gap-1 rounded-full  px-2 py-0.5 text-[13px] font-semibold"
   :class="(ram * 1024) < activePack.minRam
@@ -574,6 +564,16 @@ async function enableAllFiles(enabled: boolean) {
   </button>
   </div>
   </template>
+  </div>
+
+  <!-- Managed pack Banner: там же и в том же корпусе, что баннер проверки -->
+  <div
+    v-if="packLocked"
+    class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center gap-2 font-medium transition-all border-[#16a34a]/30 bg-[#16a34a]/15 text-[#22c55e]"
+    :title="t('files.locked')"
+  >
+    <AppIcon name="shield-check" class="h-4 w-4 fill-current shrink-0" />
+    <span>{{ t("pack.managed") }}</span>
   </div>
 
   <!-- Verification Banner: вид зависит от состояния проверки -->
