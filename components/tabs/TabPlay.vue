@@ -698,7 +698,7 @@ async function enableAllFiles(enabled: boolean) {
       <button
         v-if="!row.installed && row.remote"
         type="button"
-        class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--accent)] hover:brightness-110 text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
+        class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--accent-deep)] hover:brightness-110 text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
         :disabled="busy || remoteInstallingId === row.remote.id"
         @click="installRemoteVersion(row.remote)"
       >
@@ -813,8 +813,8 @@ async function enableAllFiles(enabled: boolean) {
   </div>
   <div class="flex items-center gap-2 shrink-0">
   <span class="text-xs text-[color:var(--tx-muted)] tabular-nums mr-2">{{ fileVisibleCount }} мода</span>
-  <button v-if="modUpdatesTab.length>0" class="px-3 py-1.5 rounded-xl bg-[var(--accent)] hover:brightness-110 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md active:scale-95 transition-all" @click="updateAllMods"><span>Обновить все</span><span class="px-1.5 py-0.2 rounded-md bg-white/25 text-[10px] font-bold">{{ modUpdatesTab.length }}</span></button>
-  <button class="px-3.5 py-1.5 rounded-xl bg-[var(--accent)] hover:brightness-110 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md" @click="openSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind, 'modrinth')"><span>+ Добавить мод</span></button>
+  <button v-if="modUpdatesTab.length>0" class="px-3 py-1.5 rounded-xl bg-[var(--accent-deep)] hover:brightness-110 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md active:scale-95 transition-all" @click="updateAllMods"><span>Обновить все</span><span class="px-1.5 py-0.2 rounded-md bg-white/25 text-[10px] font-bold">{{ modUpdatesTab.length }}</span></button>
+  <button class="px-3.5 py-1.5 rounded-xl bg-[var(--accent-deep)] hover:brightness-110 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md" @click="openSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind, 'modrinth')"><span>+ Добавить мод</span></button>
   <div ref="fileMenuRef" class="relative">
   <button
   type="button"
@@ -984,7 +984,7 @@ async function enableAllFiles(enabled: boolean) {
   <button
   v-if="playSubTab !== 'saves' && modUpdateFor(f)"
   type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-xl bg-[var(--accent)] hover:brightness-110 px-3 py-1.5 text-xs font-semibold text-white shadow-md transition-all active:scale-95 disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-xl bg-[var(--accent-deep)] hover:brightness-110 px-3 py-1.5 text-xs font-semibold text-white shadow-md transition-all active:scale-95 disabled:opacity-50"
   :disabled="updatingMod !== null || packLocked"
   :title="`${modUpdateFor(f)!.newVersion.name} (${modUpdateFor(f)!.newVersion.versionNumber})`"
   @click.stop="updateOneMod(modUpdateFor(f)!)"
