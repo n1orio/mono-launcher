@@ -242,29 +242,13 @@ async fn download_mrpack_once(
     url: &str,
     path: &Path,
 ) -> Result<()> {
-    let resp = client
+    let base = client
         .get(url)
-        .send()
-        .await
-        .context("Не удалось скачать .mrpack")?
-        .error_for_status()
-        .with_context(|| {
-            format!("GitHub не отдал .mrpack (возможно, релиз удалён или переименован): {url}")
-        })?;
-
-    let total = resp.content_length().unwrap_or(0);
-    let mut stream = resp.bytes_stream();
-    let mut file = tokio::fs::File::create(path).await?;
-
-    let mut downloaded: u64 = 0;
+        .build()
+        .context("Не удалось подготовить запрос .mrpack")?;
+    let part = part_path(path);
     let mut last_report = std::time::Instant::now();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.context("Ошибка чтения потока скачивания")?;
-        crate::check_download_cancelled_or_paused()
-            .await
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-        downloaded += chunk.len() as u64;
-        file.write_all(&chunk).await?;
+    stream_to_part(client, base, &part, &mut |downloaded, total| {
         if last_report.elapsed().as_millis() >= 150 {
             emit_progress(
                 app,
@@ -280,8 +264,15 @@ async fn download_mrpack_once(
             );
             last_report = std::time::Instant::now();
         }
-    }
-    file.flush().await?;
+    })
+    .await
+    .with_context(|| {
+        format!("GitHub не отдал .mrpack (возможно, релиз удалён или переименован): {url}")
+    })?;
+    // У .mrpack нет эталонного хэша — переносим как есть.
+    tokio::fs::rename(&part, path)
+        .await
+        .context("Не удалось переместить .mrpack")?;
     Ok(())
 }
 
@@ -513,20 +504,21 @@ fn hashes_ok(path: &Path, hashes: &HashMap<String, String>) -> bool {
 }
 
 /// Скачивает файл по URL с повторами при обрыве потока (до 3 попыток).
-/// Хэши всё равно сверяются после скачивания, поэтому частичный файл
-/// не переживёт — `File::create` перезаписывает с нуля.
+/// Пишет через `{dest}.part` с докачкой по HTTP Range; в `dest` файл
+/// попадает только после проверки хэша (см. `download_file_once`).
 async fn download_file(
     client: &Client,
     url: &str,
     dest: &Path,
     semaphore: Arc<Semaphore>,
     ctx: DlCtx,
+    hashes: &HashMap<String, String>,
 ) -> Result<u64> {
     let _permit = semaphore.acquire().await?;
     fs::create_dir_all(dest.parent().unwrap_or(Path::new(".")))?;
     let mut last_err: Option<anyhow::Error> = None;
     for attempt in 0..3 {
-        match download_file_once(client, url, dest, &ctx).await {
+        match download_file_once(client, url, dest, &ctx, hashes).await {
             Ok(len) => return Ok(len),
             Err(e) => {
                 last_err = Some(e);
@@ -539,11 +531,140 @@ async fn download_file(
     Err(last_err.unwrap())
 }
 
+// ---------- Докачка: временный `.part` + HTTP Range ----------
+
+/// Временный файл загрузки: `{dest}.part`. Качаем всегда в него, а в `dest`
+/// файл попадает только атомарным rename после проверки хэша — в сборке
+/// никогда не окажется битый полузаписанный файл при краше/выключении ПК.
+fn part_path(dest: &Path) -> PathBuf {
+    let mut s = dest.as_os_str().to_owned();
+    s.push(".part");
+    PathBuf::from(s)
+}
+
+/// Решение по итогам ответа сервера при докачке.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ResumeAction {
+    /// `206 Partial Content` — дописываем хвост в существующий `.part`.
+    Append { base: u64 },
+    /// `200 OK` (сервер не поддерживает Range), `416`, пустой `.part` —
+    /// качаем с нуля, пересоздавая `.part`.
+    Restart,
+}
+
+fn resume_action(status: reqwest::StatusCode, existing: u64) -> ResumeAction {
+    if existing > 0 && status == reqwest::StatusCode::PARTIAL_CONTENT {
+        ResumeAction::Append { base: existing }
+    } else {
+        ResumeAction::Restart
+    }
+}
+
+/// Льёт готовый GET-запрос `base` (без Range) в `part` с докачкой:
+/// при непустом `.part` сначала пробует `Range: bytes=N-`.
+/// Возвращает полный размер собранного файла.
+/// `progress(done, total)` вызывается на каждый чанк — троттлинг на вызывающем.
+/// Пауза/отмена проверяются между чанками через общий флаг загрузок.
+pub(crate) async fn stream_to_part(
+    client: &Client,
+    base: reqwest::Request,
+    part: &Path,
+    progress: &mut (dyn FnMut(u64, u64) + Send),
+) -> Result<u64> {
+    let existing = fs::metadata(part).map(|m| m.len()).unwrap_or(0);
+    let resp = if existing > 0 {
+        let mut ranged = base
+            .try_clone()
+            .context("Не удалось подготовить Range-запрос")?;
+        ranged.headers_mut().insert(
+            reqwest::header::RANGE,
+            format!("bytes={existing}-")
+                .parse()
+                .context("Некорректный Range")?,
+        );
+        let r = client
+            .execute(ranged)
+            .await
+            .context("Не удалось скачать файл")?;
+        // 416 (Range Not Satisfiable — .part больше файла на сервере):
+        // удаляем хвост и качаем с нуля.
+        if r.status() == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
+            let _ = fs::remove_file(part);
+            client
+                .execute(base)
+                .await
+                .context("Не удалось скачать файл")?
+        } else {
+            r
+        }
+    } else {
+        client
+            .execute(base)
+            .await
+            .context("Не удалось скачать файл")?
+    };
+    let resp = resp
+        .error_for_status()
+        .context("CDN вернул ошибку при скачивании")?;
+    let (mut file, base_off) = match resume_action(resp.status(), existing) {
+        ResumeAction::Append { base } => (
+            tokio::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(part)
+                .await
+                .with_context(|| format!("Не удалось открыть {}", part.display()))?,
+            base,
+        ),
+        ResumeAction::Restart => (
+            tokio::fs::File::create(part)
+                .await
+                .with_context(|| format!("Не удалось создать {}", part.display()))?,
+            0,
+        ),
+    };
+    let total = base_off + resp.content_length().unwrap_or(0);
+    let mut done = base_off;
+    progress(done, total);
+    let mut stream = resp.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.context("Ошибка чтения файла")?;
+        crate::check_download_cancelled_or_paused()
+            .await
+            .map_err(|e| anyhow!("{e}"))?;
+        file.write_all(&chunk).await?;
+        done += chunk.len() as u64;
+        progress(done, total);
+    }
+    file.flush().await?;
+    Ok(done)
+}
+
+/// Финал закачки: проверка хэша всего собранного `.part` и атомарный
+/// rename в `dest`. Хэш не совпал (повреждение при склейке) → `.part`
+/// удаляется, ошибка; верхний retry-цикл перекачает файл с нуля.
+async fn finalize_part(
+    part: &Path,
+    dest: &Path,
+    hashes: &HashMap<String, String>,
+) -> Result<u64> {
+    if !hashes.is_empty() && !hashes_ok(part, hashes) {
+        let _ = fs::remove_file(part);
+        anyhow::bail!("Хэш файла не совпал после скачивания — .part удалён, файл будет перекачан");
+    }
+    let len = fs::metadata(part).map(|m| m.len()).unwrap_or(0);
+    tokio::fs::rename(part, dest)
+        .await
+        .with_context(|| format!("Не удалось переместить {}", dest.display()))?;
+    Ok(len)
+}
+
 async fn download_file_once(
     client: &Client,
     url: &str,
     dest: &Path,
     ctx: &DlCtx,
+    hashes: &HashMap<String, String>,
 ) -> Result<u64> {
     let mut req = client.get(url);
     // CurseForge CDN требует x-api-key для скачивания файлов.
@@ -552,31 +673,17 @@ async fn download_file_once(
             req = req.header("x-api-key", &key);
         }
     }
-    let resp = req
-        .send()
-        .await
-        .with_context(|| format!("Не удалось скачать {url}"))?
-        .error_for_status()?;
-
-    let total = resp.content_length().unwrap_or(0);
-    let mut file = tokio::fs::File::create(dest).await?;
-    let mut stream = resp.bytes_stream();
-    let mut done: u64 = 0;
+    let base = req.build().context("Не удалось подготовить запрос")?;
+    let part = part_path(dest);
     let mut last = Instant::now();
-    emit_file_progress(ctx, 0, total, &mut last, true);
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.context("Ошибка чтения файла")?;
-        crate::check_download_cancelled_or_paused()
-            .await
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-        file.write_all(&chunk).await?;
-        done += chunk.len() as u64;
+    emit_file_progress(ctx, 0, 0, &mut last, true);
+    stream_to_part(client, base, &part, &mut |done, total| {
         emit_file_progress(ctx, done, total, &mut last, false);
-    }
-    file.flush().await?;
-    let len = fs::metadata(dest)?.len();
+    })
+    .await?;
+    let len = fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
     emit_file_progress(ctx, len, len, &mut last, true);
-    Ok(len)
+    finalize_part(&part, dest, hashes).await
 }
 
 /// Скачивает все файлы из индекса параллельно (или копирует из других версий,
@@ -663,7 +770,7 @@ pub async fn download_all_files(
                 }
                 Ok(tokio::fs::metadata(&dest).await?.len())
             } else {
-                download_file(&client, &url, &dest, semaphore, ctx).await
+                download_file(&client, &url, &dest, semaphore, ctx, &hashes).await
             };
             // Пост-загрузочная проверка целостности против хэшей из индекса:
             // ловит подмену файла по пути от источника до диска.
@@ -1315,7 +1422,7 @@ pub async fn download_pack_libraries(
                 file_total: total,
                 current_file: lib.path.clone(),
             };
-            download_file_once(client, &url, &dest, &ctx).await.with_context(|| {
+            download_file_once(client, &url, &dest, &ctx, &lib.hashes).await.with_context(|| {
                 format!("Не удалось скачать библиотеку сборки {url}")
             })?;
             if !hashes_ok(&dest, &lib.hashes) {
@@ -1471,5 +1578,110 @@ mod tests {
             env: None,
         };
         assert!(custom_file(&f).is_none());
+    }
+
+    // ---------- Докачка: .part + Range ----------
+
+    #[test]
+    fn part_path_appends_part_suffix() {
+        assert_eq!(
+            part_path(Path::new("/a/b/mod.jar")),
+            PathBuf::from("/a/b/mod.jar.part")
+        );
+    }
+
+    #[test]
+    fn resume_action_matrix() {
+        use reqwest::StatusCode;
+        // 206 + непустой .part → дописываем.
+        assert_eq!(
+            resume_action(StatusCode::PARTIAL_CONTENT, 100),
+            ResumeAction::Append { base: 100 }
+        );
+        // 200 при непустом .part → сервер Range не понял, качаем с нуля.
+        assert_eq!(
+            resume_action(StatusCode::OK, 100),
+            ResumeAction::Restart
+        );
+        // 416 → качаем с нуля.
+        assert_eq!(
+            resume_action(StatusCode::RANGE_NOT_SATISFIABLE, 100),
+            ResumeAction::Restart
+        );
+        // Пустого .part нет — всегда с нуля, даже при 206.
+        assert_eq!(
+            resume_action(StatusCode::PARTIAL_CONTENT, 0),
+            ResumeAction::Restart
+        );
+    }
+
+    /// Уникальная временная папка для тестов финализации.
+    fn resume_test_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "mono-resume-test-{}-{}",
+            name,
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn sha1_of(data: &[u8]) -> String {
+        use sha1::Digest;
+        hex_of(&Sha1::digest(data))
+    }
+
+    fn hex_of(bytes: &[u8]) -> String {
+        bytes.iter().map(|b| format!("{b:02x}")).collect()
+    }
+
+    #[tokio::test]
+    async fn finalize_part_renames_after_hash_ok() {
+        let dir = resume_test_dir("ok");
+        let part = dir.join("mod.jar.part");
+        let dest = dir.join("mod.jar");
+        let data = b"fake-jar-bytes";
+        fs::write(&part, data).unwrap();
+        let mut hashes = HashMap::new();
+        hashes.insert("sha1".into(), sha1_of(data));
+        let len = finalize_part(&part, &dest, &hashes).await.unwrap();
+        assert_eq!(len, data.len() as u64);
+        assert!(dest.exists());
+        assert!(!part.exists());
+        assert_eq!(fs::read(&dest).unwrap(), data);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn finalize_part_deletes_part_on_hash_mismatch() {
+        let dir = resume_test_dir("bad");
+        let part = dir.join("mod.jar.part");
+        let dest = dir.join("mod.jar");
+        fs::write(&part, b"corrupted").unwrap();
+        let mut hashes = HashMap::new();
+        hashes.insert("sha1".into(), sha1_of(b"original"));
+        let err = finalize_part(&part, &dest, &hashes).await.unwrap_err();
+        assert!(err.to_string().contains("Хэш"));
+        assert!(!part.exists());
+        assert!(!dest.exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn finalize_part_without_hashes_renames_as_is() {
+        let dir = resume_test_dir("nohash");
+        let part = dir.join("mod.jar.part");
+        let dest = dir.join("mod.jar");
+        fs::write(&part, b"no-hash-file").unwrap();
+        let len = finalize_part(&part, &dest, &HashMap::new())
+            .await
+            .unwrap();
+        assert_eq!(len, 12);
+        assert!(dest.exists());
+        assert!(!part.exists());
+        let _ = fs::remove_dir_all(&dir);
     }
 }

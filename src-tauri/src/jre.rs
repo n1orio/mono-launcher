@@ -3,10 +3,8 @@ use std::path::{Path, PathBuf};
 use std::os::windows::process::CommandExt;
 
 use anyhow::{anyhow, Context, Result};
-use futures::StreamExt;
 use reqwest::Client;
 use tauri::{AppHandle, Emitter};
-use tokio::io::AsyncWriteExt;
 
 use crate::config;
 
@@ -458,23 +456,18 @@ pub async fn ensure_java(app: &AppHandle, client: &Client, major: u32) -> Result
         },
     );
 
-    let resp = client
-        .get(&url)
-        .send()
-        .await
-        .context("Не удалось скачать Java с api.adoptium.net")?
-        .error_for_status()
-        .context("Adoptium не отдал Java")?;
-    let total = resp.content_length().unwrap_or(0);
-    let mut downloaded: u64 = 0;
-    let mut stream = resp.bytes_stream();
     let archive_path = root.join("jre-download.bin");
-    let mut file = tokio::fs::File::create(&archive_path).await?;
+    let part = {
+        let mut s = archive_path.as_os_str().to_owned();
+        s.push(".part");
+        PathBuf::from(s)
+    };
+    let base = client
+        .get(&url)
+        .build()
+        .context("Не удалось подготовить запрос Java")?;
     let mut last_report = std::time::Instant::now();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.context("Ошибка чтения архива Java")?;
-        downloaded += chunk.len() as u64;
-        file.write_all(&chunk).await?;
+    crate::mrpack::stream_to_part(client, base, &part, &mut |downloaded, total| {
         if last_report.elapsed().as_millis() >= 200 {
             let pct = if total > 0 {
                 format!("{}%", downloaded.checked_mul(100).map(|v| v / total).unwrap_or(0))
@@ -490,8 +483,13 @@ pub async fn ensure_java(app: &AppHandle, client: &Client, major: u32) -> Result
             );
             last_report = std::time::Instant::now();
         }
-    }
-    file.flush().await?;
+    })
+    .await
+    .context("Adoptium не отдал Java")?;
+    // JRE (~60-100 МБ) тоже качаем через .part: только целый архив идёт в распаковку.
+    tokio::fs::rename(&part, &archive_path)
+        .await
+        .context("Не удалось переместить архив Java")?;
 
     // Распаковка: zip (Windows) или tar.gz (Linux/macOS) — определяем по magic.
     let tmp = root.join(format!("jre-tmp-{}", uuid::Uuid::new_v4()));
