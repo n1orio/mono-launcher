@@ -1,6 +1,16 @@
 # Changelog
 
-## [2.0.0-alpha.6] — 2026-08-30
+## [2.0.0-alpha.7] — 2026-09-06
+
+### Library
+- Unified expanded category plate with pixel-perfect grid alignment.
+- Library grid rework (folder-card grid polish).
+
+### UI
+- Unified `AppIcon` component (replaces 184 inline SVGs).
+- Improved markdown editor; missing translation keys added.
+- Enhanced download panel, network settings, infinite-scroll catalog.
+- Settings / Play / Catalog polish; CurseForge CDN fix.
 
 ### CurseForge
 - **Loader filter** — CurseForge modpack search now filters by `modLoaderType` (forge / fabric / quilt / neoforge) instead of `categoryId`.
