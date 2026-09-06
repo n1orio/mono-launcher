@@ -950,7 +950,7 @@
   "releases.inGame": "Час у грі: {t}",
   "releases.loaderIs": "Завантажувач: {v}",
   "releases.downloaded": "Завантажена",
-  "news.launcherBadge": "Оновлення лаунчера",
+  "news.launcherBadge": "Лаунчер",
   "news.packBadge": "Збірка",
   "news.currentVersion": "Поточна версія",
   "news.updateLauncher": "Оновити лаунчер",

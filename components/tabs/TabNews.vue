@@ -35,7 +35,8 @@ function hasRealBody(n: any): boolean {
   return b.length > 0 && !PLACEHOLDER_BODIES.has(b);
 }
 
-const isLauncherPost = (n: any) => n?.pack_id === "launcher";
+const isLauncherPost = (n: any) =>
+  n?.pack_id === "launcher" || String(n?.tag ?? "").startsWith("launcher-v");
 /** Версия из тега launcher-vX.Y.Z → X.Y.Z. */
 function launcherVersionOf(n: any): string {
   const tag = String(n?.tag ?? "");
@@ -147,7 +148,7 @@ function cardTitle(n: any): string {
               {{ cardTitle(n) }}
             </h2>
             <p class="mt-0.5 text-xs text-[color:var(--tx-muted)]">
-              {{ formatDate(n.date) }}<span v-if="!isLauncherPost(n)"> · {{ n.pack_name }}</span>
+              {{ formatDate(n.date) }}<span v-if="!isLauncherPost(n) && n.pack_name"> · {{ n.pack_name }}</span>
             </p>
           </div>
           <div class="flex shrink-0 items-center gap-2">

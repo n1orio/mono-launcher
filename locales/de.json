@@ -950,7 +950,7 @@
   "releases.inGame": "Spielzeit: {t}",
   "releases.loaderIs": "Loader: {v}",
   "releases.downloaded": "Heruntergeladen",
-  "news.launcherBadge": "Launcher-Update",
+  "news.launcherBadge": "Launcher",
   "news.packBadge": "Modpack",
   "news.currentVersion": "Aktuelle Version",
   "news.updateLauncher": "Launcher aktualisieren",
