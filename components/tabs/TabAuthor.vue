@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { packGradient } from "~/lib/misc";
 import { useLauncherCtx } from '~/composables/useLauncherContext';
 const ctx = useLauncherCtx();
 const {
@@ -57,8 +58,8 @@ const showShotUrl = ref(false);
 
   <section class="rounded-2xl bg-[var(--input)]/30 border border-[var(--border)] p-4 mb-4 flex items-center justify-between gap-4 shadow-sm">
   <div class="flex items-center gap-3.5 min-w-0">
-  <img v-if="authorDetail.icon_url" :src="authorDetail.icon_url" class="w-12 h-12 shrink-0 rounded-xl object-cover border border-[var(--border)]" />
-  <div v-else class="w-12 h-12 shrink-0 rounded-xl bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30 flex items-center justify-center font-black text-xl select-none">
+  <img v-if="authorDetail.icon_url" :src="authorDetail.icon_url" class="w-12 h-12 shrink-0 rounded-xl object-cover" />
+  <div v-else class="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center font-black text-xl text-white select-none" :style="{ background: packGradient(authorDetail.name || 'T') }">
   {{ authorDetail.name?.[0]?.toUpperCase() || 'T' }}
   </div>
   <div class="flex flex-col text-left min-w-0">
