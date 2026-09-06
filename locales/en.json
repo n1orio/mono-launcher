@@ -954,5 +954,8 @@
   "news.packBadge": "Modpack",
   "news.currentVersion": "Current version",
   "news.updateLauncher": "Update launcher",
-  "news.installUpdate": "Install update"
+  "news.installUpdate": "Install update",
+  "author.deleteTitle": "Delete pack from server",
+  "author.shotsDrop": "Drop screenshots here or click to choose",
+  "author.shotUrlToggle": "Add via URL"
 }

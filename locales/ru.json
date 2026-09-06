@@ -954,5 +954,8 @@
   "news.packBadge": "Сборка",
   "news.currentVersion": "Текущая версия",
   "news.updateLauncher": "Обновить лаунчер",
-  "news.installUpdate": "Установить обновление"
+  "news.installUpdate": "Установить обновление",
+  "author.deleteTitle": "Удалить сборку с сервера",
+  "author.shotsDrop": "Перетащите скриншоты сюда или нажмите для выбора",
+  "author.shotUrlToggle": "Добавить по ссылке"
 }

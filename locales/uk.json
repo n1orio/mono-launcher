@@ -954,5 +954,8 @@
   "news.packBadge": "Збірка",
   "news.currentVersion": "Поточна версія",
   "news.updateLauncher": "Оновити лаунчер",
-  "news.installUpdate": "Встановити оновлення"
+  "news.installUpdate": "Встановити оновлення",
+  "author.deleteTitle": "Видалити збірку із сервера",
+  "author.shotsDrop": "Перетягніть скриншоти сюди або натисніть для вибору",
+  "author.shotUrlToggle": "Додати за посиланням"
 }
