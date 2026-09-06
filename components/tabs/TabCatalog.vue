@@ -77,6 +77,10 @@ const {
   modPackMore,
 cpMore,
   createPackOpen,
+  modPackFullPage,
+  modPackDetail,
+  cpProject,
+  closeModPackFullPage,
 } = ctx;
 
 // Grid system for pack display
@@ -142,6 +146,21 @@ function compactDownloads(n: number): string {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
   return String(n);
 }
+
+/** Full-page профиль сборки (вместо модалки). Скролл сетки сохраняем/возвращаем. */
+const profileOpen = computed(() => !!(modPackFullPage.value && (modPackDetail.value || cpProject.value)));
+let savedCatalogScroll = 0;
+watch(profileOpen, (open) => {
+  const el = catalogScrollRef.value;
+  if (open) {
+    if (el) savedCatalogScroll = el.scrollTop;
+  } else if (el) {
+    nextTick(() => { el.scrollTop = savedCatalogScroll; });
+  }
+});
+function backToCatalogList() {
+  closeModPackFullPage();
+}
 </script>
 
 <template>
@@ -163,7 +182,7 @@ function compactDownloads(n: number): string {
   </div>
   </div>
 
-  <div v-if="!catalogDetail" class="mb-4 flex shrink-0 items-center gap-1 rounded-xl  bg-[var(--panel)] p-1 shadow-sm">
+  <div v-if="!catalogDetail && !profileOpen" class="mb-4 flex shrink-0 items-center gap-1 rounded-xl  bg-[var(--panel)] p-1 shadow-sm">
   <button
   v-for="src in (['mono', 'modrinth', 'curse'] as const)"
   :key="src"
@@ -507,7 +526,7 @@ function compactDownloads(n: number): string {
   <div v-else-if="monoCatalog.length === 0" class="rounded-2xl border-2 border-dashed border-[var(--border)] p-10 text-center">
   <AppIcon name="plus" class="mx-auto h-8 w-8 fill-[var(--tx-muted)]" />
   <p class="mt-3 text-[13px] text-[color:var(--tx-muted)]">{{ t("catalog.emptyMono") }}</p>
-  <button type="button" class="mt-4 px-4 py-2 rounded-xl bg-[var(--accent-deep)] hover:brightness-110 text-white text-xs font-bold shadow-md active:scale-95 transition-all" @click="createPackOpen = true">
+  <button type="button" class="mt-4 px-4 py-2 rounded-xl bg-[var(--accent)] hover:brightness-110 text-white text-xs font-bold shadow-md active:scale-95 transition-all" @click="createPackOpen = true">
   {{ t("catalog.create") }}
   </button>
   </div>
@@ -569,7 +588,7 @@ function compactDownloads(n: number): string {
   <button
   type="button"
   v-if="!isMonoPackAdded(entry)"
-  class="flex-1 rounded-xl bg-[var(--accent-deep)] hover:brightness-110 px-3 py-2 text-xs font-semibold text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
+  class="flex-1 rounded-xl bg-[var(--accent)] hover:brightness-110 px-3 py-2 text-xs font-semibold text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
   :disabled="addingPack"
   @click.stop="addMonoPack(entry)"
   >
@@ -614,6 +633,8 @@ function compactDownloads(n: number): string {
   </template>
 
   <template v-else-if="catalogSource === 'modrinth'">
+  <CatalogPackProfile v-if="profileOpen" @back="backToCatalogList" />
+  <template v-else>
   <div class="mb-3 flex shrink-0 flex-wrap items-center gap-2">
   <FilterSelect
   v-model="packFilters.versions"
@@ -701,7 +722,7 @@ function compactDownloads(n: number): string {
   </div>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 self-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--accent-deep)] hover:brightness-110 text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 self-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--accent)] hover:brightness-110 text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
   :disabled="quickPackBusy !== null"
   :title="t('mods.downloadHint')"
   @click.stop="quickDownloadPack(p, $event)"
@@ -717,8 +738,11 @@ function compactDownloads(n: number): string {
    {{ t("mods.searchingAll") }}
    </div>
    </template>
+   </template>
 
    <template v-else-if="catalogSource === 'curse'">
+  <CatalogPackProfile v-if="profileOpen" @back="backToCatalogList" />
+  <template v-else>
   <div class="mb-3 flex shrink-0 flex-wrap items-center gap-2">
   <FilterSelect
   v-model="cpCatSel"
@@ -792,7 +816,7 @@ function compactDownloads(n: number): string {
   </div>
   <button
   type="button"
-  class="flex shrink-0 items-center gap-1.5 self-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--accent-deep)] hover:brightness-110 text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 self-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--accent)] hover:brightness-110 text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
   :disabled="quickCpBusy !== null"
   :title="t('mods.downloadHint')"
   @click.stop="quickDownloadCpPack(p, $event)"
@@ -807,6 +831,7 @@ function compactDownloads(n: number): string {
     <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-current" />
     {{ t("mods.searchingAll") }}
     </div>
+    </template>
     </template>
   </div>
   </div>

@@ -535,14 +535,27 @@ function switchCatalogSource(s: "mono" | "modrinth" | "curse") {
 
 async function openCatalogModrinthDetail(p: ModrinthProject) {
   modPackService.value = "modrinth";
-  modPackOpen.value = true;
+  modPackFullPage.value = true;
+  modPackOpen.value = false;
   await openPackDetail(p);
 }
 
 async function openCatalogCurseDetail(p: CurseSearchHit) {
   modPackService.value = "curseforge";
-  modPackOpen.value = true;
+  modPackFullPage.value = true;
+  modPackOpen.value = false;
   await openCpFiles(p);
+}
+
+/** Закрывает full-page профиль сборки в каталоге (возврат к сетке). */
+function closeModPackFullPage() {
+  modPackFullPage.value = false;
+  modPackDetail.value = null;
+  modPackVersions.value = null;
+  cpProject.value = null;
+  cpFiles.value = null;
+  cpDetail.value = null;
+  cpErr.value = "";
 }
 
 /** Категории сборок в сайдбаре: авторские (GitHub), свои, с Modrinth, с CurseForge. */
@@ -1551,6 +1564,7 @@ const modUpdatesTab = computed(() =>
 );
 
 const modPackOpen = ref(false);
+const modPackFullPage = ref(false);
 const modPackService = ref<"modrinth" | "curseforge">("modrinth");
 const modPackQuery = ref("");
 const modPackLoading = ref(false);
@@ -1926,6 +1940,7 @@ async function loadCpCategories() {
 /** Открывает модалку скачивания сборки (Modrinth по умолчанию, либо CurseForge).
  *  Сразу грузит теги, проставляет автофильтры и запускает поиск — чтобы не ждать Enter. */
 async function openModPackModal(service: "modrinth" | "curseforge" = "modrinth") {
+  modPackFullPage.value = false;
   modPackOpen.value = true;
   modPackQuery.value = "";
   modPackService.value = service;
@@ -4923,6 +4938,8 @@ customBannerState,
   modPackInstalling,
   modPackLoading,
   modPackOpen,
+  modPackFullPage,
+  closeModPackFullPage,
   modPackQuery,
   modPackResults,
   modPackService,

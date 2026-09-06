@@ -494,6 +494,8 @@ export interface LauncherCtx {
   modPackInstalling: any;
   modPackLoading: any;
   modPackOpen: any;
+  modPackFullPage: any;
+  closeModPackFullPage: (...args: any[]) => any;
   modPackQuery: any;
   modPackResults: any;
   modPackService: any;

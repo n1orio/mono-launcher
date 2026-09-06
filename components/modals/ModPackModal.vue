@@ -185,7 +185,7 @@ const packMetaLine = computed(() => {
             <div class="mt-3 flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                class="flex items-center gap-2 bg-[var(--accent)] hover:brightness-110 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg active:scale-95 transition-all disabled:opacity-50"
                 :disabled="quickPackBusy !== null || modPackInstalling !== null"
                 @click="quickDownloadPack(modPackDetail, $event)"
               >
@@ -352,7 +352,7 @@ const packMetaLine = computed(() => {
             <div class="mt-3 flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                class="flex items-center gap-2 bg-[var(--accent)] hover:brightness-110 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg active:scale-95 transition-all disabled:opacity-50"
                 :disabled="cpBusy !== null || !(cpFiles?.length)"
                 @click="installCpPack(cpFiles![0])"
               >
