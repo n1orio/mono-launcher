@@ -75,18 +75,51 @@ const {
   modPackMoreBusy,
   cpMoreBusy,
   modPackMore,
-  cpMore,
+cpMore,
 } = ctx;
+
+// Grid system for pack display
+const isCategoryExpanded = ref({'mono': false, 'modrinth': false, 'curse': false});
+
+const GRID_COLS = 2;
+const PACKS_PER_SQUARE = 4;
+
+function calculateGridLayout(totalPacks: number) {
+  const fullSquares = Math.floor(totalPacks / PACKS_PER_SQUARE);
+  const remainingPacks = totalPacks % PACKS_PER_SQUARE;
+  return { fullSquares, remainingPacks };
+}
+
+function getRemainingColumns(remainingPacks: number) {
+  if (remainingPacks <= 2) return remainingPacks;
+  return 3;
+}
+
+function getPackGridInfo(packIndex: number, totalPacks: number) {
+  const { fullSquares, remainingPacks } = calculateGridLayout(totalPacks);
+  const remainingColumns = getRemainingColumns(remainingPacks);
+  
+  if (packIndex < fullSquares * PACKS_PER_SQUARE) {
+    const squareIndex = Math.floor(packIndex / PACKS_PER_SQUARE);
+    const posInSquare = packIndex % PACKS_PER_SQUARE;
+    const col = posInSquare % GRID_COLS;
+    const row = Math.floor(posInSquare / GRID_COLS);
+    return { col, row, squareIndex, isFullSquare: true };
+  } else {
+    const posInRemaining = packIndex - fullSquares * PACKS_PER_SQUARE;
+    const col = posInRemaining % remainingColumns;
+    const row = Math.floor(posInRemaining / remainingColumns);
+    return { col, row, isRemaining: true };
+  }
+}
 
 const catalogScrollRef = ref<HTMLElement | null>(null);
 
 function onCatalogScroll() {
   const el = catalogScrollRef.value;
   if (!el) return;
-  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
-    if (catalogSource.value === "modrinth") loadMorePacks();
-    else if (catalogSource.value === "curse") loadMoreCpPacks();
-  }
+  if (catalogSource.value === "modrinth") loadMorePacks();
+  else if (catalogSource.value === "curse") loadMoreCpPacks();
 }
 </script>
 

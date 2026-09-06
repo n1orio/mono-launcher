@@ -24,6 +24,9 @@ pub struct UserPack {
     /// Минимальная оперативка (МБ): попадает из pack.json при добавлении.
     #[serde(default, rename = "minRam")]
     pub min_ram_mb: Option<u32>,
+    /// Цвет аватарки (hex без #, например "e74c3c"). Если задан — генерирует градиент.
+    #[serde(default)]
+    pub color: Option<String>,
 }
 
 fn default_kind() -> String {
@@ -47,6 +50,8 @@ pub struct PackInfo {
     pub icon: Option<String>,
     /// Локальный баннер сборки (путь к `packs/<id>/banner.png`), если есть.
     pub banner: Option<String>,
+    /// Цвет аватарки (hex без #).
+    pub color: Option<String>,
 }
 
 /// Первая пользовательская сборка как дефолтная (иначе пустая строка).
@@ -161,6 +166,7 @@ pub fn all_packs() -> Result<Vec<PackInfo>> {
                 min_ram_mb: p.min_ram_mb,
                 icon,
                 banner,
+                color: p.color,
             }
         })
         .collect())
@@ -184,6 +190,7 @@ pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
                 min_ram_mb: p.min_ram_mb,
                 icon,
                 banner,
+                color: p.color,
             }
         }))
 }
@@ -293,6 +300,7 @@ pub fn add_user_pack(
     kind: &str,
     boosty_blog: Option<&str>,
     min_ram_mb: Option<u32>,
+    color: Option<&str>,
 ) -> Result<()> {
     let mut list = user_packs()?;
     if list.iter().any(|p| p.id == id) {
@@ -308,6 +316,9 @@ pub fn add_user_pack(
             .filter(|b| !b.is_empty()),
         boosty_tiers: None,
         min_ram_mb,
+        color: color
+            .map(|c| c.trim().to_string())
+            .filter(|c| !c.is_empty() && c.len() == 6),
     });
     save_user_packs(&list)
 }

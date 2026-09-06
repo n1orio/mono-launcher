@@ -183,6 +183,7 @@ export interface LauncherCtx {
   createPackBusy: any;
   createPackIcon: any;
   createPackLoader: any;
+  createPackColor: any;
   createPackLoaderLvOpen: any;
   createPackLoaderVersion: any;
   createPackLoaderVersions: any;
@@ -211,7 +212,6 @@ export interface LauncherCtx {
   customBannerClass: any;
   customBannerNoteClass: any;
   customBannerState: any;
-  customLibSections: any;
   customModsOpen: any;
   customScanBusy: Ref<any>;
   deepLinkExample: any;
@@ -390,13 +390,41 @@ export interface LauncherCtx {
   jvmArgsSaving: any;
   keepOne: any;
   launcherVer: Ref<any>;
-  libCatModal: any;
-  libCatName: any;
   libCats: any;
   libCopyLink: any;
   libDoPlay: any;
   libMenuPack: any;
   libMenuPos: any;
+  // Library grid items
+  gridItems: any;
+  folderPacks: any;
+  rootPacks: any;
+  createEmptyFolder: any;
+  // Drag & Drop folder -> root
+  dragOverFolderId: any;
+  onFolderDragOver: any;
+  onFolderDragLeave: any;
+  removePackFromFolder: any;
+  onFolderDrop: any;
+  // Multi-select
+  selectedPacks: any;
+  togglePackSelect: any;
+  clearSelection: any;
+  isPackSelected: any;
+   createCategoryFromSelection: any;
+   saveCategories: any;
+   // Drag & Drop for grouping
+    dragOverPackId: any;
+    draggedPackId: any;
+    draggingPackId: any;
+   onPackDragStart: any;
+   onPackDragOver: any;
+   onPackDragLeave: any;
+   onPackDrop: any;
+   onPackDragEnd: any;
+   createFolderWithPacks: any;
+  // Category preview
+  catPreviewPacks: any;
   libOpenSettings: any;
   libPercent: any;
   libQuery: any;
@@ -519,8 +547,6 @@ export interface LauncherCtx {
   openAuthorDetail: (...args: any[]) => any;
   openAuthorExport: any;
   openBugReportIssue: (...args: any[]) => any;
-  openCatCreate: any;
-  openCatRename: any;
   openCatalogCurseDetail: any;
   openCatalogDetail: (...args: any[]) => any;
   openCatalogModrinthDetail: any;
@@ -686,7 +712,6 @@ export interface LauncherCtx {
   status: Ref<AppStatus | null>;
   subTabCount: any;
   submitAuthorVersion: any;
-  submitCatModal: any;
   switchCatalogSource: any;
   switchPackService: any;
   switchSearchService: any;
@@ -747,6 +772,10 @@ export interface LauncherCtx {
 export const LauncherCtxKey: InjectionKey<LauncherCtx> = Symbol("launcher-ctx");
 
 export function useLauncherCtx(): LauncherCtx {
-  return inject(LauncherCtxKey)!;
+  const ctx = inject(LauncherCtxKey);
+  if (!ctx) {
+    throw new Error("[LauncherCtx] Context not provided. Make sure provide(LauncherCtxKey, ...) is called in a parent component.");
+  }
+  return ctx;
 }
 

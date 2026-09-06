@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useLauncherCtx } from "~/composables/useLauncherContext";
 import { useI18n } from "#imports";
+import { packGradient } from "~/lib/misc";
 
 const { t } = useI18n();
 const {
@@ -20,6 +21,7 @@ const {
   createPackLoaderVersions,
   createPackIcon,
   createPackBanner,
+  createPackColor,
   createPackBusy,
   CREATE_LOADERS,
   chooseCreateVersion,
@@ -196,21 +198,26 @@ const {
             >{{ t("mods.createRemove") }}</button>
           </div>
           <div>
-            <label class="mb-1 block text-[13px] font-medium text-[color:var(--tx-muted)]">{{ t("mods.createBanner") }}</label>
-            <button
-              type="button"
-              class="flex w-full items-center justify-center gap-1.5 rounded-md  bg-[var(--input)] px-3 py-2 text-[13px] font-medium text-[color:var(--tx)] hover:bg-[var(--hover)]"
-              @click="pickCreateFile('banner')"
-            >
-              <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3.5 1.75A1.75 1.75 0 0 1 5.25 0h5.5c.966 0 1.75.784 1.75 1.75v12.5a.75.75 0 0 1-1.2.6L8 12.313l-3.3 2.537A.75.75 0 0 1 3.5 14.25V1.75Z"/></svg>
-              <span class="min-w-0 truncate">{{ createPackBanner ? createPackBanner.split(/[\\/]/).pop() : t("mods.createChoose") }}</span>
-            </button>
-            <button
-              v-if="createPackBanner"
-              type="button"
-              class="mt-1 w-full rounded-md px-2 py-0.5 text-xs font-medium text-[var(--accent)] hover:opacity-80"
-              @click="createPackBanner = null"
-            >{{ t("mods.createRemove") }}</button>
+            <label class="mb-1 block text-[13px] font-medium text-[color:var(--tx-muted)]">Цвет аватарки</label>
+            <div class="flex gap-2 items-center">
+              <input
+                :value="createPackColor ? `#${createPackColor}` : '#000000'"
+                type="color"
+                class="h-9 w-9 rounded cursor-pointer bg-transparent border border-[var(--border)]"
+                @input="createPackColor = ($event.target as HTMLInputElement).value.replace('#', '').toLowerCase()"
+              />
+              <div
+                v-if="createPackColor"
+                class="h-9 w-9 rounded-lg border border-[var(--border)]"
+                :style="{ background: packGradient(createPackColor) }"
+              />
+              <div v-else class="h-9 w-9 rounded-lg bg-[var(--input)] border border-dashed border-[var(--border)]" />
+              <button
+                type="button"
+                class="text-xs text-[color:var(--tx-muted)] hover:text-[var(--accent)]"
+                @click="createPackColor = null"
+              >сбросить</button>
+            </div>
           </div>
         </div>
         <button

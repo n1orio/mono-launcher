@@ -241,6 +241,10 @@ export function curseforgeKeyConfigured(): Promise<boolean> {
   return invoke("curseforge_key_configured_command");
 }
 
+export function curseforgeFetchKey(accessToken: string): Promise<boolean> {
+  return invoke("curseforge_fetch_key_command", { accessToken });
+}
+
 export function launchGame(
   packId: string,
   ramGb: number,
@@ -725,7 +729,8 @@ export function createLocalPack(
   loader: string | null,
   icon: string | null = null,
   banner: string | null = null,
-  loaderVersion: string | null = null
+  loaderVersion: string | null = null,
+  color: string | null = null
 ): Promise<PackDescriptor> {
   return invoke("create_local_pack_command", {
     name,
@@ -734,6 +739,7 @@ export function createLocalPack(
     loaderVersion,
     icon,
     banner,
+    color,
   });
 }
 

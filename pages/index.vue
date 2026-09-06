@@ -657,8 +657,9 @@ const filteredPacks = computed<PackDescriptor[]>(() => {
   );
 });
 
-/** Пользовательские категории библиотеки (создаются/переименовываются/удаляются).
- *  Привязки сборок хранятся отдельно: packId → [catId, ...]. */
+/** Пользовательские категории библиотеки (папки).
+ *  По умолчанию сборки НЕ в папках — они лежат в корне.
+ *  Папка создается только когда пользователь явно объединяет сборки (DnD) или создает папку вручную. */
 interface LibCat { id: string; name: string }
 const LIB_CATS_KEY = "mono.libCats";
 const LIB_PACK_CATS_KEY = "mono.libPackCats";
@@ -671,87 +672,88 @@ function loadJson<T>(key: string, fallback: T): T {
   }
 }
 const libCats = ref<LibCat[]>(loadJson<LibCat[]>(LIB_CATS_KEY, []));
-const packLibCats = reactive<Record<string, string[]>>(loadJson<Record<string, string[]>>(LIB_PACK_CATS_KEY, {}));
+const packLibCats = ref<Record<string, string[]>>(loadJson<Record<string, string[]>>(LIB_PACK_CATS_KEY, {}));
 function saveLibCats() {
+  // дедупликация по id и по составу сборок — лечит "категории дублируются"
+  const seen = new Set<string>();
+  libCats.value = libCats.value.filter(c => c && c.id && !seen.has(c.id) && seen.add(c.id));
+  // удаление дублей по одинаковому набору сборок (разные id, одинаковые packs)
+  const packSetSeen = new Set<string>();
+  const uniqCats: typeof libCats.value = [];
+  for (const c of libCats.value) {
+    const packsInCat = (packLibCats.value ? Object.entries(packLibCats.value).filter(([,cats]) => (cats as string[]).includes(c.id)).map(([pid])=>pid).sort().join(",") : "");
+    // packsInCat пусто — оставляем (пустые папки создаёт UI)
+    if (!packsInCat) { uniqCats.push(c); continue; }
+    const key = packsInCat;
+    if (packSetSeen.has(key) && key.split(",").length === 2) {
+      // дубль папки с тем же набором из 2 сборок — чистим связи
+      for (const pid of key.split(",")) {
+        packLibCats.value[pid] = (packLibCats.value[pid]||[]).filter(id=>id!==c.id);
+        if (!packLibCats.value[pid]?.length) delete packLibCats.value[pid];
+      }
+      continue;
+    }
+    packSetSeen.add(key);
+    uniqCats.push(c);
+  }
+  if (uniqCats.length !== libCats.value.length) libCats.value = uniqCats;
   localStorage.setItem(LIB_CATS_KEY, JSON.stringify(libCats.value));
 }
 function savePackLibCats() {
-  localStorage.setItem(LIB_PACK_CATS_KEY, JSON.stringify(packLibCats));
-}
-function makeCatId(name: string): string {
-  const slug = name.trim().toLowerCase().replace(/[^a-zа-яё0-9]+/gi, "-").replace(/^-+|-+$/g, "");
-  let id = `c-${slug || "cat"}`;
-  let n = 2;
-  while (libCats.value.some((c) => c.id === id)) id = `c-${slug || "cat"}-${n++}`;
-  return id;
-}
-function createLibCat(name: string): boolean {
-  const n = name.trim();
-  if (!n) return false;
-  if (libCats.value.some((c) => c.name.toLowerCase() === n.toLowerCase())) return false;
-  libCats.value.push({ id: makeCatId(n), name: n });
-  saveLibCats();
-  return true;
-}
-function renameLibCat(id: string, name: string): boolean {
-  const n = name.trim();
-  if (!n) return false;
-  const cat = libCats.value.find((c) => c.id === id);
-  if (!cat || libCats.value.some((c) => c.id !== id && c.name.toLowerCase() === n.toLowerCase())) return false;
-  cat.name = n;
-  saveLibCats();
-  return true;
-}
-function deleteLibCat(id: string) {
-  libCats.value = libCats.value.filter((c) => c.id !== id);
-  for (const k of Object.keys(packLibCats)) {
-  packLibCats[k] = (packLibCats[k] ?? []).filter((cid) => cid !== id);
-  if (packLibCats[k].length === 0) delete packLibCats[k];
+  for (const k of Object.keys(packLibCats.value)) {
+    const uniq = [...new Set((packLibCats.value[k] || []).filter(Boolean))];
+    if (uniq.length) packLibCats.value[k] = uniq; else delete packLibCats.value[k];
   }
-  delete sidebarCat[id];
+  localStorage.setItem(LIB_PACK_CATS_KEY, JSON.stringify(packLibCats.value));
+}
+// чистим дубликаты сразу после загрузки (по id и по одинаковому составу)
+{
+  const s = new Set<string>();
+  const dedup = (libCats.value || []).filter(c => c && c.id && !s.has(c.id) && s.add(c.id));
+  if (dedup.length !== libCats.value.length) libCats.value = dedup;
+  const before = JSON.stringify(libCats.value);
   saveLibCats();
-  savePackLibCats();
-  persistSidebarCat();
+  if (JSON.stringify(libCats.value) !== before) savePackLibCats();
 }
-function packHasCat(packId: string, catId: string): boolean {
-  return (packLibCats[packId] ?? []).includes(catId);
-}
-function togglePackCat(packId: string, catId: string) {
-  const cur = packLibCats[packId] ?? [];
-  packLibCats[packId] = cur.includes(catId) ? cur.filter((c) => c !== catId) : [...cur, catId];
-  if (packLibCats[packId].length === 0) delete packLibCats[packId];
-  savePackLibCats();
-}
-/** Секции пользовательских категорий: только непустые после фильтра поиска. */
-const customLibSections = computed(() =>
-  libCats.value
-  .map((c) => ({
-  cat: c,
-  packs: filteredPacks.value.filter((p) => packHasCat(p.id, c.id)),
-  }))
-  .filter((s) => s.packs.length > 0),
-);
+function makeCatId(name: string): string { const slug = name.trim().toLowerCase().replace(/[^a-zа-яё0-9]+/gi, "-").replace(/^-+|-+$/g, ""); let id = `c-${slug || "cat"}`; let n = 2; while (libCats.value.some((c) => c.id === id)) id = `c-${slug || "cat"}-${n++}`; return id; }
+function createLibCat(name: string): boolean { const n = name.trim(); if (!n) return false; if (libCats.value.some((c) => c.name.toLowerCase() === n.toLowerCase())) return false; libCats.value.push({ id: makeCatId(n), name: n }); saveLibCats(); return true; }
+function renameLibCat(id: string, name: string): boolean { const n = name.trim(); if (!n) return false; const cat = libCats.value.find((c) => c.id === id); if (!cat || libCats.value.some((c) => c.id !== id && c.name.toLowerCase() === n.toLowerCase())) return false; cat.name = n; saveLibCats(); return true; }
+function deleteLibCat(id: string) { libCats.value = libCats.value.filter((c) => c.id !== id); for (const k of Object.keys(packLibCats.value)) { packLibCats.value[k] = (packLibCats.value[k] ?? []).filter((cid) => cid !== id); if (packLibCats.value[k].length === 0) delete packLibCats.value[k]; } delete sidebarCat[id]; saveLibCats(); savePackLibCats(); persistSidebarCat(); }
+function packHasCat(packId: string, catId: string): boolean { return (packLibCats.value[packId] ?? []).includes(catId); }
+function togglePackCat(packId: string, catId: string) { const cur = packLibCats.value[packId] ?? []; packLibCats.value[packId] = cur.includes(catId) ? cur.filter((c) => c !== catId) : [...cur, catId]; if (packLibCats.value[packId].length === 0) delete packLibCats.value[packId]; savePackLibCats(); }
 
-/** Модалка создания/переименования категории. */
-const libCatModal = ref<{ mode: "create" | "rename"; id?: string } | null>(null);
-const libCatName = ref("");
-function openCatCreate() {
-  libCatName.value = "";
-  libCatModal.value = { mode: "create" };
-}
-function openCatRename(id: string) {
-  const cat = libCats.value.find((c) => c.id === id);
-  if (!cat) return;
-  libCatName.value = cat.name;
-  libCatModal.value = { mode: "rename", id };
-}
-function submitCatModal() {
-  const m = libCatModal.value;
-  if (!m) return;
-  const ok = m.mode === "create" ? createLibCat(libCatName.value) : m.id !== undefined && renameLibCat(m.id, libCatName.value);
-  if (!ok) notify(t("library.catDuplicate"), "error");
-  libCatModal.value = null;
-}
+/** Сборки в каждой папке (для FolderCard превью). */
+const folderPacks = computed(() => {
+  const map: Record<string, PackDescriptor[]> = {};
+  for (const cat of libCats.value) {
+    map[cat.id] = filteredPacks.value.filter((p) => packHasCat(p.id, cat.id));
+  }
+  return map;
+});
+
+/** Сборки НЕ в папках (корневой уровень). */
+const rootPacks = computed(() => filteredPacks.value.filter((p) => (packLibCats.value[p.id] ?? []).length === 0));
+
+/** Плоская сетка: сначала папки (у которых есть сборки), потом одиночные сборки из корня. */
+const gridItems = computed(() => {
+  const items: Array<{ type: "folder"; cat: LibCat; packs: PackDescriptor[] } | { type: "pack"; pack: PackDescriptor }> = [];
+  for (const cat of libCats.value) {
+    const catPacks = folderPacks.value[cat.id] ?? [];
+    if (catPacks.length > 0) items.push({ type: "folder", cat, packs: catPacks });
+  }
+  for (const p of rootPacks.value) items.push({ type: "pack", pack: p });
+  return items;
+});
+
+/** Создать пустую папку (кнопка в хедере). */
+function createEmptyFolder() { const name = `Новая папка ${libCats.value.length + 1}`; const catId = makeCatId(name); libCats.value.push({ id: catId, name }); saveLibCats(); }
+
+/** Drag & Drop: вытащить сборку из папки в корень. */
+const dragOverFolderId = ref<string | null>(null);
+function onFolderDragOver(e: DragEvent, folderId: string) { e.preventDefault(); if (draggedPackId.value) { if (e.dataTransfer) e.dataTransfer.dropEffect = "move"; dragOverFolderId.value = folderId; } }
+function onFolderDragLeave() { dragOverFolderId.value = null; }
+function removePackFromFolder(packId: string, folderId: string) { const cur = packLibCats.value[packId] ?? []; if (cur.includes(folderId)) { packLibCats.value[packId] = cur.filter((c) => c !== folderId); if (packLibCats.value[packId].length === 0) delete packLibCats.value[packId]; savePackLibCats(); } }
+function onFolderDrop(e: DragEvent, folderId: string) { e.preventDefault(); const srcId = draggedPackId.value; draggedPackId.value = null; dragOverFolderId.value = null; if (!srcId) return; removePackFromFolder(srcId, folderId); }
 
 /** Drag&drop .mrpack-файлов в окно лаунчера. */
 const dragMrpack = ref(false);
@@ -2105,6 +2107,7 @@ const createPackVersionBox = ref<HTMLElement | null>(null);
 let createPackVersionClose: ((e: MouseEvent) => void) | null = null;
 const createPackIcon = ref<string | null>(null);
 const createPackBanner = ref<string | null>(null);
+const createPackColor = ref<string | null>(null);
 
 /** Фильтры поиска Modrinth (теги грузятся по типам проектов). */
 const modrinthTagsMap = ref<Record<string, ModrinthTags | null>>({});
@@ -3096,19 +3099,21 @@ async function createPack() {
   }
   createPackBusy.value = true;
   try {
-  const pack = await createLocalPack(
+const pack = await createLocalPack(
   name,
   createPackMc.value.trim(),
   createPackLoader.value,
   createPackIcon.value,
   createPackBanner.value,
-  createPackLoaderVersion.value || null
-  );
-  notify(t("mods.packCreated", { name: pack.name }), "success");
-  createPackOpen.value = false;
-  createPackName.value = "";
-  createPackIcon.value = null;
-  createPackBanner.value = null;
+  createPackLoaderVersion.value || null,
+  createPackColor.value
+);
+notify(t("mods.packCreated", { name: pack.name }), "success");
+createPackOpen.value = false;
+createPackName.value = "";
+createPackIcon.value = null;
+createPackBanner.value = null;
+createPackColor.value = null;
   await loadPacks();
   await nextTick();
   openPackTab(pack.id);
@@ -4169,6 +4174,83 @@ async function playLibraryPack(p: PackDescriptor) {
 const libMenuPack = ref<PackDescriptor | null>(null);
 const libMenuPos = ref<{ x: number; y: number } | null>(null);
 
+// ─── Множественное выделение сборок ──────────────────────────────────
+const selectedPacks = ref<Set<string>>(new Set());
+const dragOverPackId = ref<string | null>(null);
+const draggedPackId = ref<string | null>(null);
+const draggingPackId = ref<string | null>(null);
+
+function togglePackSelect(id: string, ctrlOrMeta: boolean) {
+  if (ctrlOrMeta) {
+    const s = new Set(selectedPacks.value);
+    if (s.has(id)) s.delete(id); else s.add(id);
+    selectedPacks.value = s;
+  } else {
+    selectedPacks.value = new Set([id]);
+  }
+}
+function clearSelection() { selectedPacks.value = new Set(); }
+function isPackSelected(id: string): boolean { return selectedPacks.value.has(id); }
+
+function createCategoryFromSelection(name?: string) {
+  const ids = [...selectedPacks.value];
+  if (ids.length < 2) return;
+  const catName = name || `Категория ${libCats.value.length + 1}`;
+  const catId = makeCatId(catName);
+  libCats.value.push({ id: catId, name: catName });
+  saveLibCats();
+  for (const pid of ids) {
+    const cur = packLibCats.value[pid] ?? [];
+    if (!cur.includes(catId)) packLibCats.value[pid] = [...cur, catId];
+  }
+  savePackLibCats();
+  clearSelection();
+}
+
+function onPackDragStart(e: DragEvent, id: string) {
+  draggedPackId.value = id;
+  if (e.dataTransfer) {
+    e.dataTransfer.setData("text/plain", id);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setDragImage(e.currentTarget as Element, 24, 24);
+  }
+}
+function onPackDragOver(e: DragEvent, targetId: string) {
+  e.preventDefault();
+  if (draggedPackId.value && draggedPackId.value !== targetId) {
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    dragOverPackId.value = targetId;
+  }
+}
+function onPackDragLeave() { dragOverPackId.value = null; }
+function onPackDrop(e: DragEvent, targetId: string) {
+  e.preventDefault();
+  const srcId = draggedPackId.value;
+  draggedPackId.value = null;
+  dragOverPackId.value = null;
+  if (!srcId || srcId === targetId) return;
+  const srcCats = packLibCats.value[srcId] ?? [];
+  const tgtCats = packLibCats.value[targetId] ?? [];
+  if (srcCats.some((c) => tgtCats.includes(c))) return;
+  const srcPack = packs.value.find((p) => p.id === srcId);
+  const tgtPack = packs.value.find((p) => p.id === targetId);
+  const catName = `${tgtPack?.name || "Сборка"} + ${srcPack?.name || "Сборка"}`;
+  const catId = makeCatId(catName);
+  libCats.value.push({ id: catId, name: catName });
+  saveLibCats();
+  for (const pid of [srcId, targetId]) {
+    const cur = packLibCats.value[pid] ?? [];
+    if (!cur.includes(catId)) packLibCats.value[pid] = [...cur, catId];
+  }
+  savePackLibCats();
+}
+function onPackDragEnd() { draggedPackId.value = null; dragOverPackId.value = null; }
+
+function catPreviewPacks(catId: string): Array<{ id: string; name: string; icon: string | null }> {
+  const packIds = packLibCats.value[catId] ?? [];
+  return packIds.map((pid) => packs.value.find((p) => p.id === pid)).filter((p): p is NonNullable<typeof p> => !!p).slice(0, 8);
+}
+
 function openLibMenu(e: MouseEvent, p: PackDescriptor) {
   const menuW = 224;
   const menuH = 120;
@@ -4582,8 +4664,9 @@ provide(LauncherCtxKey, {
   startSidebarDrag,
   onSidebarDrag,
   endSidebarDrag,
-  createPackOpen,
-  customModsOpen,
+createPackOpen,
+   createPackColor,
+   customModsOpen,
   customScanBusy,
   scanActiveCustomMods,
   openEditVersion,
@@ -4690,8 +4773,11 @@ provide(LauncherCtxKey, {
   curseVerSel,
   customBannerClass,
   customBannerNoteClass,
-  customBannerState,
-  customLibSections,
+customBannerState,
+   gridItems,
+   folderPacks,
+   rootPacks,
+   createEmptyFolder,
   deepLinkExample,
   deleteLibCat,
   doSearch,
@@ -4783,10 +4869,9 @@ provide(LauncherCtxKey, {
   isSearchWin,
   jvmArgs,
   jvmArgsSaving,
-  libCatModal,
-  libCatName,
-  libCats,
-  libCopyLink,
+   libCats,
+   saveCategories: saveLibCats,
+   libCopyLink,
   libMenuPack,
   libMenuPos,
   libOpenSettings,
@@ -4797,6 +4882,29 @@ provide(LauncherCtxKey, {
   libTile,
   loaderOptions,
   makeCatId,
+  // Multi-select
+  selectedPacks,
+  togglePackSelect,
+  clearSelection,
+  isPackSelected,
+  createCategoryFromSelection,
+   // Drag & Drop for grouping
+   dragOverPackId,
+   draggedPackId,
+   draggingPackId,
+  onPackDragStart,
+  onPackDragOver,
+  onPackDragLeave,
+  onPackDrop,
+  onPackDragEnd,
+  // Drag & Drop folder -> root
+  dragOverFolderId,
+  onFolderDragOver,
+  onFolderDragLeave,
+  removePackFromFolder,
+  onFolderDrop,
+  // Category preview helper
+  catPreviewPacks,
   modDatapackWorldSel,
   modDetail,
   modDetailTab,
@@ -4834,8 +4942,6 @@ provide(LauncherCtxKey, {
   multiSelBusy,
   onJavaChange,
   openAuthorExport,
-  openCatCreate,
-  openCatRename,
   openCrashIssue,
   openLibMenu,
   openModScanner,
@@ -4889,7 +4995,6 @@ provide(LauncherCtxKey, {
   sidebarCat,
   sortSelectOptions,
   subTabCount,
-  submitCatModal,
   switchCatalogSource,
   switchPackService,
   themePreview,

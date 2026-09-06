@@ -924,5 +924,6 @@
   "settings.netProxyNone": "Direct connection (no proxy)",
   "settings.netIpv4": "Force IPv4",
   "settings.netIpv4Note": "Prefer IPv4 over IPv6 (fixes some connection issues)",
-  "settings.netSaved": "Network settings saved"
+   "settings.netSaved": "Network settings saved",
+  "library.extract": "Extract"
 }

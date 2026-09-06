@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { packGradient } from "~/lib/misc";
 import { useLauncherCtx } from '~/composables/useLauncherContext';
 const ctx = useLauncherCtx();
 const {
@@ -225,10 +226,8 @@ async function enableAllFiles(enabled: boolean) {
   class="h-[60px] w-[60px] shrink-0 rounded-xl  bg-[var(--panel)] object-cover shadow-lg"
   @error="(e: any) => (e.target.style.display = 'none')"
   />
-  <div v-else class="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-xl  bg-[var(--panel)] shadow-lg">
-  <svg viewBox="0 0 16 16" class="h-6 w-6 fill-[var(--tx-muted)]">
-  <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-1 1v.878A2.25 2.25 0 1 1 2 13.378V2.5Z"/>
-  </svg>
+  <div v-else class="w-[60px] h-[60px] rounded-2xl flex items-center justify-center text-white font-black text-xl select-none shrink-0 shadow-lg" :style="{ background: packGradient(activePack?.name || 'T') }">
+  <span>{{ (activePack?.name || 'T')[0].toUpperCase() }}</span>
   </div>
   <div class="min-w-0 pb-1">
   <h1 class="truncate text-3xl font-bold leading-tight tracking-tight text-[color:var(--tx-strong)]">
@@ -243,7 +242,7 @@ async function enableAllFiles(enabled: boolean) {
   <span
   class="rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider  shadow-sm"
   :class="status?.installed
-  ? 'bg-[#238636]/10 text-[#3fb950]'
+  ? 'bg-[#16a34a]/15 text-[#22c55e] border border-[#16a34a]/30 font-bold'
   : ' bg-[var(--input)] text-[color:var(--tx-muted)]'"
   >
   {{ status?.installed ? t("pack.installed") : t("pack.notInstalled") }}
@@ -290,7 +289,7 @@ async function enableAllFiles(enabled: boolean) {
   :class="status?.installed
   ? gameRunning
   ? 'bg-[#b91c1c] hover:bg-[#dc2626]'
-  : 'bg-[#238636] hover:bg-[#2ea043]'
+  : 'bg-[#16a34a] hover:bg-[#15803d] text-white shadow-lg'
   : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)]'"
   :disabled="busy"
   @click="status?.installed ? (gameRunning ? handleStop() : handlePlay()) : handleInstall()"
@@ -373,45 +372,7 @@ async function enableAllFiles(enabled: boolean) {
   </div>
   </div>
 
-  <p class="mt-2 text-[13px] text-[color:var(--tx-muted)] flex items-center gap-2">
-  <span>{{ t("pack.mono") }}</span>
-  <span>•</span>
-  <span v-if="loaderLabel">{{ t("pack.loader", { name: loaderLabel }) }}</span>
-  <button
-  v-if="activePack?.kind === 'local'"
-  type="button"
-  class="inline-flex items-center gap-1 rounded  bg-[var(--input)] px-1.5 py-0.5 text-xs font-medium text-[var(--accent)] transition-colors  hover:bg-[var(--hover)]"
-  :title="t('pack.versionChange')"
-  @click="openEditVersion"
-  >
-  <AppIcon name="pencil" class="h-3 w-3 fill-current" />
-  {{ t("pack.versionChange") }}
-  </button>
-  <span v-if="activePack?.author">•</span>
-  <span v-if="activePack?.author" class="font-mono text-[var(--accent)]">@{{ activePack.author }}</span>
-  <button
-  v-if="activePackRepo"
-  type="button"
-  class="inline-flex items-center gap-1.5 rounded-md  bg-[var(--input)] px-2.5 py-1 text-[13px] font-medium text-[color:var(--tx)] transition-colors  hover:text-[var(--accent)]"
-  :title="activePackRepo"
-  @click="openExternal(activePackRepo)"
-  >
-  <AppIcon name="link" class="h-4 w-4 fill-current" />
-  {{ t("pack.repo") }}
-  </button>
-  <button
-  v-if="activePackRepo"
-  type="button"
-  class="inline-flex items-center gap-1.5 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-2.5 py-1 text-[13px] font-medium text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)]"
-  :title="t('pack.reportBugTitle')"
-  @click="reportPackBug()"
-  >
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
-  <path d="M8 1c-1.04 0-1.9.81-2 1.84-.1-.06-.21-.11-.32-.16l-.12-.05a1.75 1.75 0 0 0-1.3 3.24c-.5.6-.8 1.36-.8 2.2v.6h.75a.75.75 0 0 1 0 1.5H3a.75.75 0 0 1 0-1.5h.3v-.6a2.6 2.6 0 0 0-.2-1 .75.75 0 0 1 .9-1c.3.2.57.4.8.65V5.8c0-.33.05-.65.16-.95.07.71.63 1.29 1.34 1.38L6.2 6.2c.44.15.86.34 1.24.58.44.28.81.58 1.12.9.47.5.94 1.15 1.44 1.94.2.32.3.69.3 1.07v1.31c.48.1.94.3 1.33.58.31.22.7.32 1.07.28a.9.9 0 1 1 .1 1.8c-.8.08-1.59-.22-2.22-.76-.43-.36-.8-.56-1.14-.61v.69c0 .64-.19 1.24-.52 1.74.8.37 1.3 1.18 1.3 2.16 0 .55-.45 1-1 1H8.25c-.55 0-1-.45-1-1s.45-1 1-1H9v-2.32c-.26.2-.55.35-.87.45-.46.14-.96.14-1.42 0a2.77 2.77 0 0 1-.71-.32V15.5c0 .55-.45 1-1 1H3.75c-.55 0-1-.45-1-1s.45-1 1-1h.61c-.58-.62-1-1.09-1.3-1.42l-.18-.17a2.25 2.25 0 0 1-1.68-2.19v-5.8c0-1.14.84-2.08 1.92-2.26A2 2 0 0 1 3.96.88l.03-.02A2 2 0 0 1 6.09 1H8Z"/>
-  </svg>
-  {{ t("pack.reportBug") }}
-  </button>
-  </p>
+
 
   <div v-if="updateInfo?.has_update && updateInfo.latest_version" class="mt-4 flex items-center justify-between gap-4 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-3.5 py-2.5 text-[13px] text-[var(--accent)]">
   <span class="min-w-0">
@@ -435,7 +396,7 @@ async function enableAllFiles(enabled: boolean) {
   v-if="activePack?.boostyBlog"
   class="mt-4 rounded-md  px-3.5 py-2.5 text-[13px]"
   :class="licenseInfo?.subscribed
-  ? 'bg-[#238636]/10 text-[#3fb950]'
+  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
   : ' bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)]'"
   >
   <div v-if="licenseInfo?.subscribed" class="flex items-center justify-between gap-3">
@@ -552,49 +513,37 @@ async function enableAllFiles(enabled: boolean) {
   </template>
   </div>
 
-  <!-- Предупреждение о кастомных файлах (не с Modrinth/CurseForge).
-       Цвет плашки: зелёный — всё проверено и безопасно, красный — есть опасные,
-       жёлтый — есть непроверенные. -->
+  <!-- Verification Banner -->
   <div
-  v-if="warnCustomMods && status?.installed && status.custom_mods.length > 0"
-  class="mt-4 rounded-md px-3.5 py-2.5 text-[13px]"
-  :class="customBannerClass"
+    v-if="warnCustomMods && (status?.custom_mods?.length || 0) > 0"
+    class="rounded-xl border border-[#16a34a]/30 bg-[#16a34a]/15 text-[#22c55e] px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all"
   >
-  <button
-  type="button"
-  class="flex w-full items-center justify-between gap-3 text-left"
-  @click="customModsOpen = !customModsOpen"
-  >
-  <span class="flex min-w-0 items-center gap-2">
-  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-current">
-  <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM8 7.25a.74.74 0 0 1 .74.75v2.5a.74.74 0 0 1-1.48 0V8a.74.74 0 0 1 .74-.75Zm0 5.25a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>
-  </svg>
-  <span class="min-w-0">
-  {{ t("warn.customMods", { n: status.custom_mods.length }) }}
-  </span>
-  <button
-  type="button"
-  class="shrink-0 underline decoration-dotted underline-offset-2 disabled:opacity-50"
-  :disabled="customScanBusy"
-  @click.stop="scanActiveCustomMods()"
-  >
-  {{ customScanBusy ? t("scanner.scanning") : t("scanner.checkNow") }}
-  </button>
-  </span>
-  <span class="shrink-0 underline decoration-dotted underline-offset-2">
-  {{ customModsOpen ? t("warn.hide") : t("warn.show") }}
-  </span>
-  </button>
-  <div v-if="customModsOpen" class="mt-2 space-y-1 border-t border-[var(--border)] pt-2">
-  <ul class="space-y-1 font-mono text-[13px]">
-  <li v-for="f in status.custom_mods" :key="f.path" class="flex items-start gap-2">
-  <span class="truncate" :title="f.url">{{ f.path }}</span>
-  <span v-if="f.scan_result" class="ml-auto shrink-0" :class="f.safe ? 'text-[#3fb950]' : 'text-[#f85149]'">{{ f.safe ? t("scanner.safe") : f.scan_result }}</span>
-  <span v-else-if="f.sha256" class="ml-auto shrink-0 text-[color:var(--tx-muted)]">{{ t("scanner.unchecked") }}</span>
-  </li>
-  </ul>
-  <p class="pt-1" :class="customBannerNoteClass">{{ customBannerState === "safe" ? t("warn.safeNote") : t("warn.note") }}</p>
+    <div class="flex items-center gap-2 font-medium">
+      <span v-if="(status?.custom_mods || []).some((f:any)=>f.safe===false)">🚨</span>
+      <span v-else-if="(status?.custom_mods?.length || 0) > 0">⚠️</span>
+      <span v-else>✓</span>
+      <span>{{ t("warn.customMods", { n: status?.custom_mods?.length || 0 }) }}</span>
+    </div>
+    <div class="flex items-center gap-3 shrink-0">
+      <button type="button" class="hover:underline font-semibold cursor-pointer" @click="scanActiveCustomMods">
+        Сканировать
+      </button>
+      <button type="button" class="hover:underline font-semibold cursor-pointer" @click="customModsOpen = !customModsOpen">
+        {{ customModsOpen ? 'Скрыть список' : 'Список' }}
+      </button>
+      <button type="button" class="text-current opacity-60 hover:opacity-100 ml-1" @click="warnCustomMods = false">
+        ✕
+      </button>
+    </div>
   </div>
+
+  <!-- Expandable Custom Mods List -->
+  <div v-if="customModsOpen && status?.custom_mods?.length" class="rounded-xl bg-[var(--input)]/30 border border-[var(--border)] p-3 mb-3 flex flex-col gap-1.5 text-xs">
+    <div class="font-bold text-[color:var(--tx)] mb-1">Кастомные / непроверенные файлы:</div>
+    <div v-for="f in (status?.custom_mods || [])" :key="f.path" class="flex items-center justify-between py-1 px-2 rounded-lg bg-[var(--panel)] border border-[var(--border)] font-mono text-[11px] text-[color:var(--tx-muted)]">
+      <span class="truncate">{{ f.path }}</span>
+      <span class="text-[#22c55e] font-sans font-semibold">Кастомный</span>
+    </div>
   </div>
   </div>
 
@@ -727,81 +676,17 @@ async function enableAllFiles(enabled: boolean) {
   @click="confirmUnbindPack"
   >{{ unbindArmed ? t("files.unbindConfirm") : t("files.unbind") }}</button>
   </div>
-  <!-- Панель действий: строка 1 -->
-  <div class="mb-2 flex shrink-0 items-center justify-between gap-3">
-  <span class="flex shrink-0 items-center gap-2 text-[13px] text-[color:var(--tx-muted)]">
-  {{ playSubTab === "saves" ? t("files.worldsCount", { n: fileVisibleCount }) : t("files.count", { n: fileVisibleCount }) }}
-  <span
-  v-if="playSubTab !== 'saves' && fileVisibleCount > 0"
-  class="rounded-full bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-2 py-0.5 text-xs font-medium text-[var(--accent)]"
-  >
-  {{ t("files.enabledOf", { n: enabledCountIn(playSubTab as GameFolderKind), m: fileVisibleCount }) }}
-  </span>
-  </span>
-  <div class="flex min-w-0 items-center gap-1.5">
-  <template v-if="playSubTab !== 'saves' && modUpdatesTab.length > 0">
-  <button
-  type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
-  :disabled="updateAllBusy || updatingMod !== null || packLocked"
-  @click="updateAllMods"
-  >
-  <AppIcon v-if="updateAllBusy" name="spinner" class="h-3.5 w-3.5 fill-current" />
-  <AppIcon v-else name="refresh" class="h-3.5 w-3.5 fill-current" />
-  {{ t("mods.updateAll") }}
-  <span class="rounded-full bg-[var(--accent)] px-1.5 text-xs font-bold text-[var(--bg)]">{{ modUpdatesTab.length }}</span>
-  </button>
-  </template>
-  <button
-  v-if="playSubTab !== 'saves'"
-  type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md bg-[var(--accent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
-  :disabled="packLocked"
-  :title="t('mods.addHint')"
-  @click="openSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind, 'modrinth')"
-  >
-  <AppIcon name="plus" class="h-3.5 w-3.5 fill-current" />
-  {{ playSubTab === 'mods' ? t("mods.add") : playSubTab === 'resourcepacks' ? t("mods.addRP") : t("mods.addShaders") }}
-  </button>
-  <button
-  v-if="playSubTab === 'saves'"
-  type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md bg-[var(--accent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:opacity-90"
-  @click="openSearch('datapack', 'modrinth')"
-  >
-  <AppIcon name="plus" class="h-3.5 w-3.5 fill-current" />
-  {{ t("mods.addDatapack") }}
-  </button>
-  <button
-  v-if="playSubTab === 'mods' && !packLocked"
-  type="button"
-  class="flex shrink-0 items-center gap-1.5 rounded-md bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--tx)]"
-  :title="t('scanner.hint')"
-  @click="openModScanner"
-  >
-  <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 fill-current"><path d="M8 1.25a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V2A.75.75 0 0 1 8 1.25Zm0 9.75a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5Zm0 1.5a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5Zm6.75-4.75a.75.75 0 0 0-1.5 0V8a.75.75 0 0 0 1.5 0V7.75ZM8 12.5a.75.75 0 0 1 .75.75V14a.75.75 0 0 1-1.5 0v-.75A.75.75 0 0 1 8 12.5Zm-5.25-4.75a.75.75 0 0 1 .75.75v.25a.75.75 0 0 1-1.5 0V8.5a.75.75 0 0 1 .75-.75Zm8.96-4.46a.75.75 0 0 1 0 1.06l-1.06 1.06a.75.75 0 1 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0Zm-8.42 8.42a.75.75 0 0 1 0 1.06L2.23 14.53a.75.75 0 0 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0Zm-1.06-8.42a.75.75 0 0 1 1.06 0l1.06 1.06A.75.75 0 1 1 3.29 4.89L2.23 3.83a.75.75 0 0 1 0-1.06Z"/></svg>
-  {{ t("scanner.btn") }}
-  </button>
+  <!-- Unified toolbar single row -->
+  <div class="flex items-center justify-between gap-3 my-3">
+  <div class="gap-2.5 flex items-center flex-1 min-w-0 max-w-xl">
+  <div class="relative flex-1 min-w-0">
+  <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 fill-[var(--tx-muted)]"><path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/></svg>
+  <input v-model="fileSearch" type="text" placeholder="Поиск файлов..." class="w-64 min-w-[180px] rounded-xl bg-[var(--input)] border border-[var(--border)] pl-8 pr-3 py-1.5 text-xs text-[color:var(--tx)] placeholder:text-[color:var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
   </div>
-  </div>
-
-  <!-- Панель действий: строка 2 — поиск + сортировка + фильтры -->
-  <div v-if="playSubTab !== 'saves'" class="mb-3 flex shrink-0 items-center gap-2">
-  <div class="relative min-w-0 flex-1">
-  <svg viewBox="0 0 16 16" class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 fill-[var(--tx-muted)]">
-  <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
-  </svg>
-  <input
-  v-model="fileSearch"
-  type="text"
-  :placeholder="t('files.search')"
-  class="w-full rounded-lg bg-[var(--bg)] py-1.5 pl-8 pr-3 text-[13px] text-[color:var(--tx)] placeholder-[var(--tx-muted)] outline-none transition-colors focus:ring-1 focus:ring-[var(--accent)]/30"
-  />
-  </div>
-  <div class="flex shrink-0 items-center gap-0.5 rounded-lg bg-[var(--bg)] p-0.5">
+  <div class="flex items-center p-0.5 rounded-xl bg-[var(--input)] border border-[var(--border)] text-xs shrink-0">
   <button
   type="button"
-  class="flex items-center gap-1 rounded-md px-2.5 py-1 text-[13px] font-medium transition-colors"
+  class="hidden"
   :class="fileSortKey === 'name' ? 'bg-[var(--accent)] text-white' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
   :title="fileSortKey === 'name' ? (fileSortDir === 'asc' ? t('files.sortNameAsc') : t('files.sortNameDesc')) : t('files.sortNameHint')"
   @click="toggleFileSort('name')"
@@ -829,12 +714,8 @@ async function enableAllFiles(enabled: boolean) {
   @click="clearFileSort"
   >×</button>
   </div>
-  <div class="flex shrink-0 items-center gap-0.5 rounded-lg bg-[var(--bg)] p-0.5">
-  <button
-  type="button"
-  class="rounded-md px-2.5 py-1 text-[13px] font-medium transition-colors"
-  :title="t('files.fAllHint')"
-  :class="fileStatusFilter === 'all' ? 'bg-[var(--accent)] text-white' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
+  <div class="flex items-center p-0.5 rounded-xl bg-[var(--input)] border border-[var(--border)] text-xs shrink-0">
+  <button :class="fileStatusFilter === 'all' ? 'bg-[var(--panel)] text-[color:var(--tx)] font-semibold shadow-sm' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)]'" class="px-2.5 py-1 rounded-lg transition-all" :title="t('files.fAllHint')"
   @click="setFileStatusFilter('all')"
   >{{ t("files.fAll") }}</button>
   <button
@@ -859,6 +740,11 @@ async function enableAllFiles(enabled: boolean) {
   @click="setFileStatusFilter('updates')"
   >{{ t("files.fUpdates") }}</button>
   </div>
+  </div>
+  <div class="flex items-center gap-2 shrink-0">
+  <span class="text-xs text-[color:var(--tx-muted)] tabular-nums mr-2">{{ fileVisibleCount }} мода</span>
+  <button v-if="modUpdatesTab.length>0" class="px-3 py-1.5 rounded-xl bg-[var(--accent)] hover:brightness-110 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md active:scale-95 transition-all" @click="updateAllMods"><span>Обновить все</span><span class="px-1.5 py-0.2 rounded-md bg-white/25 text-[10px] font-bold">{{ modUpdatesTab.length }}</span></button>
+  <button class="px-3.5 py-1.5 rounded-xl bg-[var(--accent)] hover:brightness-110 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md" @click="openSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind, 'modrinth')"><span>+ Добавить мод</span></button>
   <div ref="fileMenuRef" class="relative">
   <button
   type="button"
@@ -874,25 +760,6 @@ async function enableAllFiles(enabled: boolean) {
   >
   <!-- Управление сборкой -->
   <template v-if="!packLocked">
-  <button
-  type="button"
-  class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
-  @click="fileMenuOpen = false; openSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind, 'modrinth')"
-  >
-  <AppIcon name="plus" class="h-4 w-4 fill-current" />
-  {{ playSubTab === 'mods' ? t("mods.add") : playSubTab === 'resourcepacks' ? t("mods.addRP") : t("mods.addShaders") }}
-  </button>
-  <button
-  v-if="modUpdatesTab.length > 0 && playSubTab === 'mods'"
-  type="button"
-  class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
-  :disabled="updateAllBusy || updatingMod !== null"
-  @click="fileMenuOpen = false; updateAllMods()"
-  >
-  <AppIcon v-if="updateAllBusy" name="spinner" class="h-4 w-4 fill-current" />
-  <AppIcon v-else name="refresh" class="h-4 w-4 fill-current" />
-  {{ t("mods.updateAll") }} <span class="ml-auto rounded-full bg-[var(--accent)] px-1.5 text-xs font-bold text-[var(--bg)]">{{ modUpdatesTab.length }}</span>
-  </button>
   <button
   type="button"
   class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
@@ -951,6 +818,7 @@ async function enableAllFiles(enabled: boolean) {
   </div>
   </div>
   </div>
+  </div>
 
   <div v-if="!gameFiles[playSubTab]" class="flex flex-1 items-center justify-center text-[13px] text-[color:var(--tx-muted)]">
   <AppIcon name="spinner" class="mr-2 h-4 w-4 fill-[var(--accent)]" />
@@ -981,50 +849,41 @@ async function enableAllFiles(enabled: boolean) {
 <div
   v-for="f in fileListVisible"
   :key="f.name"
-  class="file-row flex cursor-pointer items-center gap-3 rounded-lg  px-3 py-2 transition-colors"
-  :class="[
-  isFileSelected(playSubTab, f)
-  ? ' bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)]'
-  : ' bg-[var(--panel)] ',
-  { 'opacity-60': !f.enabled },
-  ]"
+  class="file-row flex cursor-pointer items-center justify-between gap-4 rounded-xl bg-[var(--input)]/25 hover:bg-[var(--input)]/50 border border-[var(--border)] p-3 mb-2 transition-all"
+  :class="{ 'opacity-60': !f.enabled }"
   @click="toggleFileSelect(playSubTab as GameFolderKind, f)"
   @contextmenu.prevent="openFileCtx($event, f)"
   >
-  <svg
-  viewBox="0 0 16 16"
-  class="h-4 w-4 shrink-0"
-  :class="isFileSelected(playSubTab, f) ? 'fill-[var(--accent)]' : 'fill-[var(--tx-muted)]'"
-  >
-  <path v-if="isFileSelected(playSubTab, f)" d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-  <path v-else d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914a1.75 1.75 0 0 1 .513 1.237V12.25A1.75 1.75 0 0 1 14.25 14H5.75A1.75 1.75 0 0 1 4 12.25Zm1.75-.25a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5Z"/>
-  </svg>
-  <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md  bg-[var(--bg)]">
+
+  <!-- LEFT GROUP: Icon + (Title & Subtitle) -->
+  <div class="flex items-center gap-3.5 min-w-0 flex-1">
+  <div class="w-10 h-10 rounded-xl bg-[var(--input)] border border-[var(--border)] flex items-center justify-center shrink-0 overflow-hidden">
   <img
   v-if="modrinthMetaFor(f)?.icon || curseMetaFor(f)?.icon || gameFileIcon(playSubTab, f.name)"
   :src="modrinthMetaFor(f)?.icon || curseMetaFor(f)?.icon || gameFileIcon(playSubTab, f.name)"
   alt=""
   loading="lazy"
-  class="h-full w-full object-contain"
+  draggable="false"
+  class="h-full w-full object-contain p-1"
   />
-  <svg v-else viewBox="0 0 16 16" class="h-5 w-5 fill-[var(--tx-muted)]">
-  <path d="M.75 6.25a1.75 1.75 0 0 1 1.75-1.75h2.054l1.17-1.17A1.74 1.74 0 0 1 6.902 2.75h1.536l-.055.836a1.44 1.44 0 0 0 .432 1.123l.022.022c.059.059.12.108.183.148.523.34 1.074.405 1.528.429.755.04 1.452.044 1.766.044h3.44v.586c0 .527-.211 1.032-.587 1.404l-3.318 3.318a1.5 1.5 0 0 1-1.06.44H4.78l-.824-.412a1.75 1.75 0 0 1-.736-2.383.5.5 0 0 1-.368-.454A1.75 1.75 0 0 1 .75 6.25Zm13.24 0h-3.14c-.249 0-.679-.004-1.112-.03-.36-.022-.622-.066-.783-.111.05-.066.11-.129.176-.194l.483-.483c.344-.344.416-.861.18-1.283A1.75 1.75 0 0 0 8.5 2.75H4.75A1.75 1.75 0 0 1 4.75 1.5c.692-.06 1.4-.086 2.127-.086.63 0 1.255.022 1.873.064a.75.75 0 0 1 .5.25.75.75 0 0 1 .246.5l.293 2.927.178.04c.646.147 1.548.377 2.615.614.17.038.2.07.22.098a.6.6 0 0 1 .074.233.75.75 0 0 1-.075.4.6.6 0 0 1-.235.23ZM3.75 10.75h5.38l1.5-1.5H3.75a.75.75 0 0 1-.143 1.482l-.14.014a.75.75 0 0 1 .283-.004L3.75 10.75Z"/>
-  </svg>
+  <span v-else class="text-sm font-black text-[color:var(--tx-muted)]">{{ fileMetaTitle(f)[0]?.toUpperCase() }}</span>
   </div>
-  <div class="min-w-0 flex-1">
+  <div class="min-w-0 flex-1 text-left flex flex-col gap-0.5">
   <div
-  class="truncate text-[13px] font-medium text-[color:var(--tx)]"
+  class="truncate text-sm font-bold text-[color:var(--tx)] tracking-tight leading-tight"
   :title="fileMetaTitle(f)"
   >
   {{ fileMetaTitle(f) }}
   </div>
-  <div class="truncate text-xs text-[color:var(--tx-muted)]">
-  <template v-if="modrinthMetaFor(f)?.title || curseMetaFor(f)?.title">
-  <template v-if="modrinthVersionFor(f)">{{ modrinthVersionFor(f) }} · </template>
-  <template v-else-if="curseMetaFor(f)?.title">{{ f.displayName }} · </template>
-  </template>{{ f.kind === "dir" ? t("files.dir") : `${formatBytes(f.sizeBytes)} · ${formatUnixDate(f.modified)} · ${f.enabled ? t("files.enabled") : t("files.disabled")}` }}
+  <div class="flex items-center gap-2 text-xs text-[color:var(--tx-muted)] truncate">
+  <span>{{ f.kind === "dir" ? t("files.dir") : formatBytes(f.sizeBytes) }}</span>
+  <span class="opacity-40">•</span>
+  <span :class="f.enabled ? '' : 'text-rose-400/80 font-medium'">{{ f.enabled ? t("files.enabled") : t("files.disabled") }}</span>
   </div>
   </div>
+  </div>
+  <!-- RIGHT GROUP: Badge + Eye + Update + Toggle -->
+  <div class="flex items-center gap-3 shrink-0">
   <button
   v-if="playSubTab !== 'saves' && f.curseforgeProjectId"
   type="button"
@@ -1046,7 +905,7 @@ async function enableAllFiles(enabled: boolean) {
   <button
   v-if="playSubTab !== 'saves' && (f.modrinthProjectId || f.modrinthUrl || f.curseforgeProjectId)"
   type="button"
-  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md  bg-[var(--input)] text-[color:var(--tx-muted)] transition-colors  hover:text-[var(--accent)]"
+  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl hover:bg-[var(--input)] text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] transition-all"
   :title="t('files.view')"
   @click.stop="openFileDetail(playSubTab as GameFolderKind, f)"
   >
@@ -1055,7 +914,7 @@ async function enableAllFiles(enabled: boolean) {
   <button
   v-if="playSubTab !== 'saves' && modUpdateFor(f)"
   type="button"
-  class="flex shrink-0 items-center gap-1 rounded-md  bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-2 py-1 text-xs font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:opacity-50"
+  class="flex shrink-0 items-center gap-1.5 rounded-xl bg-[var(--accent)] hover:brightness-110 px-3 py-1.5 text-xs font-semibold text-white shadow-md transition-all active:scale-95 disabled:opacity-50"
   :disabled="updatingMod !== null || packLocked"
   :title="`${modUpdateFor(f)!.newVersion.name} (${modUpdateFor(f)!.newVersion.versionNumber})`"
   @click.stop="updateOneMod(modUpdateFor(f)!)"
@@ -1067,10 +926,10 @@ async function enableAllFiles(enabled: boolean) {
   <button
   v-if="f.kind === 'file'"
   type="button"
-  class="relative h-5 w-9 shrink-0 rounded-full transition-all duration-200"
+  class="relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 cursor-pointer shadow-inner"
   :class="[
-  f.enabled ? 'bg-[#238636]' : 'bg-[var(--tx-muted)]',
-  isFileToggling(playSubTab, f) ? 'opacity-50 cursor-wait' : 'hover:bg-[var(--input-50)]',
+  f.enabled ? 'bg-[#16a34a]' : 'bg-[var(--input)] border border-[var(--border)]',
+  isFileToggling(playSubTab, f) ? 'opacity-50 cursor-wait' : '',
   ]"
   role="switch"
   :aria-checked="f.enabled"
@@ -1079,12 +938,13 @@ async function enableAllFiles(enabled: boolean) {
   @click.stop="handleToggleFile(playSubTab as GameFolderKind, f)"
   >
   <span
-  class="absolute top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white shadow-sm transition-all duration-200"
-  :class="f.enabled ? 'left-[18px]' : 'left-0.5'"
+  class="absolute top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-md transition-all duration-200"
+  :class="f.enabled ? 'left-[22px]' : 'left-0.5'"
   >
   <AppIcon v-if="isFileToggling(playSubTab, f)" name="spinner" class="h-2.5 w-2.5 fill-[var(--accent)]" />
   </span>
   </button>
+  </div>
   </div>
   </div>
   </div>

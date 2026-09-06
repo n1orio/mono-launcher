@@ -54,13 +54,14 @@
   alt=""
   class="h-9 w-9 rounded-lg object-cover"
   />
-  <div
-  v-else
-  class="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--input)] text-[13px] font-bold text-[var(--accent)]"
-  >
-  {{ p.name?.[0]?.toUpperCase() ?? "?" }}
-  </div>
-  <span
+   <div
+   v-else
+   class="flex h-9 w-9 items-center justify-center rounded-lg text-white text-[13px] font-bold"
+   :style="{ background: packGradient(p.color || p.name) }"
+   >
+   {{ p.name?.[0]?.toUpperCase() ?? "?" }}
+   </div>
+   <span
   v-if="p.id === packId"
   class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[var(--panel)] "
   :class="status?.installed ? 'bg-[#3fb950]' : 'bg-[var(--tx-muted)]'"
@@ -87,8 +88,8 @@
    <AppIcon name="play" class="h-4 w-4 fill-current" />
    </button>
    <button
-   type="button"
-   class="flex h-7 w-7 items-center justify-center rounded-md transition-colors disabled:opacity-50"
+  type="button"
+  class="flex h-7 w-7 items-center justify-center rounded-md transition-colors disabled:opacity-50"
    :class="removeArmed === p.id ? 'bg-[#f85149]/15 text-[#f85149]' : 'text-[color:var(--tx-muted)] hover:bg-[#f85149]/10 hover:text-[#f85149]'"
    :title="removeArmed === p.id ? t('dev.removeConfirm') : t('dev.remove')"
    :disabled="busy || removingPack === p.id"
@@ -121,12 +122,13 @@
   alt=""
   class="h-10 w-10 rounded-lg object-cover"
   />
-  <div
-  v-else
-  class="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--input)] text-sm font-bold text-[var(--accent)]"
-  >
-  {{ p.name?.[0]?.toUpperCase() ?? "?" }}
-  </div>
+   <div
+   v-else
+   class="flex h-10 w-10 items-center justify-center rounded-lg text-white text-sm font-bold"
+   :style="{ background: packGradient(p.color || p.name) }"
+   >
+   {{ p.name?.[0]?.toUpperCase() ?? "?" }}
+   </div>
   <span
   v-if="p.id === packId"
   class="absolute -right-1 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-[var(--accent)]"
@@ -282,6 +284,7 @@
 <script setup lang="ts">
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { computed } from "vue";
+import { packGradient } from "~/lib/misc";
 import { useLauncherCtx } from "~/composables/useLauncherContext";
 import { useI18n } from "~/composables/useI18n";
 

@@ -119,6 +119,7 @@ import {
   monoForgotPassword as monoForgotPasswordCmd,
   monoResetPassword as monoResetPasswordCmd,
   monoConfirmEmail as monoConfirmEmailCmd,
+  curseforgeFetchKey,
 } from "~/lib/bridge";
 import type {
   AppStatus,
@@ -162,6 +163,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useI18n } from "~/composables/useI18n";
 import { useTheme } from "~/composables/useTheme";
 import { getCachedIcon, setCachedIcon } from "~/lib/iconCache";
+import { useLibrary } from "~/composables/useLibrary";
 import {
   formatBytes as _formatBytes,
   formatDate as _formatDate,
@@ -1155,9 +1157,9 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     discordRp.value = s.discord_rp_enabled;
     warnCustomMods.value = s.warn_custom_mods;
     if (
-      s.custom_mods.length > 0 &&
+      (s.custom_mods?.length ?? 0) > 0 &&
       s.active_version &&
-      s.custom_mods.some((f) => !f.scan_result)
+      (s.custom_mods ?? []).some((f) => !f.scan_result)
     ) {
       void autoScanCustomMods(s.active_version);
     }
@@ -1812,9 +1814,9 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     } catch {
       packId.value = "untold-legends";
     }
-    await load();
-    refreshVersions();
-    loadLocalSkin();
+     await load().catch(() => {});
+     refreshVersions();
+     loadLocalSkin();
     getSystemInfo()
       .then((sys) => {
         const total = Math.max(2, sys.total_ram_gb);
@@ -2186,6 +2188,10 @@ notify(t("err.switch", { e }));
     if (!isTauri()) return;
     try {
       monoProfile.value = await monoProfileCmd();
+      // Загружаем CurseForge ключ с бэкенда (если залогинены).
+      if (monoProfile.value?.access_token) {
+        void curseforgeFetchKey(monoProfile.value.access_token).catch(() => {});
+      }
     } catch {
       monoProfile.value = null;
     }
@@ -2202,6 +2208,10 @@ notify(t("err.switch", { e }));
     try {
       const s = await monoLogin(monoName.value.trim(), monoPass.value);
       monoProfile.value = s;
+      // Загружаем CurseForge ключ сразу после входа.
+      if (s?.access_token) {
+        void curseforgeFetchKey(s.access_token).catch(() => {});
+      }
       monoPass.value = "";
     } catch (e) {
       notify(t("err.mono", { e }));
@@ -2221,6 +2231,10 @@ notify(t("err.switch", { e }));
     try {
       const s = await monoRegister(monoName.value.trim(), monoPass.value);
       monoProfile.value = s;
+      // Загружаем CurseForge ключ сразу после регистрации.
+      if (s?.access_token) {
+        void curseforgeFetchKey(s.access_token).catch(() => {});
+      }
       monoPass.value = "";
     } catch (e) {
       notify(t("err.mono", { e }));
@@ -3215,6 +3229,8 @@ notify(t("err.switch", { e }));
     return "";
   });
 
+  const library = useLibrary({ packs, notify, selectPack, tab, packId, status, handlePlay, handleInstall });
+
   return {
     status,
     username,
@@ -3481,5 +3497,6 @@ notify(t("err.switch", { e }));
     resetRemoveArm,
     loadPacks,
     load,
+    ...library,
   };
 }

@@ -108,35 +108,58 @@ pub fn tracked_meta(
         .collect()
 }
 
-/// Общий API-ключ CurseForge, встроенный в лаунчер (чтобы всем пользователям
-/// не нужно было вводить свой). Заполните своим значением вместо `CHANGE_ME`.
-/// Можно переопределить переменной окружения MONO_CURSEFORGE_KEY (напр. в CI).
-const CURSEFORGE_API_KEY: &str = "$2a$10$xSHIQILV.MP7ms3Rld9qn.IGY.UrQW996e9T2vWKgH6q.j6DXISlK";
+/// Ключ CurseForge, кэшированный после запроса с бэкенда.
+/// `None` — ещё не запрашивали; `Some(None)` — запросили, ключа нет.
+static CACHED_CF_KEY: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
 
 /// API-ключ CurseForge. Приоритет (сверху вниз):
-/// 1) переменная окружения MONO_CURSEFORGE_KEY,
-/// 2) локальный файл `curseforge-key.txt` в корне репозитория (не коммитится),
-/// 3) встроенная константа CURSEFORGE_API_KEY.
+/// 1) кэш, загруженный с бэкенда (`fetch_key_from_backend`),
+/// 2) переменная окружения MONO_CURSEFORGE_KEY (для CI / дебага),
+/// 3) локальный файл `curseforge-key.txt` в корне репозитория (не коммитится).
 pub fn api_key_from_cfg() -> Option<String> {
+    // 1) Кэш с бэкенда (приоритет).
+    if let Some(Some(key)) = CACHED_CF_KEY.get() {
+        return Some(key.clone());
+    }
+    // 2) Переменная окружения.
     if let Ok(env) = std::env::var("MONO_CURSEFORGE_KEY") {
         let t = env.trim().to_string();
         if !t.is_empty() && t != "CHANGE_ME" {
             return Some(t);
         }
     }
-    // Файл в корне репозитория (для локальной разработки без шитья секрета
-    // в исходники). Файл добавлен в .gitignore.
+    // 3) Локальный файл (для локальной разработки без шитья секрета в исходники).
     if let Ok(raw) = std::fs::read_to_string("curseforge-key.txt") {
         let t = raw.trim().to_string();
         if !t.is_empty() && t != "CHANGE_ME" {
             return Some(t);
         }
     }
-    let t = CURSEFORGE_API_KEY.trim();
-    if !t.is_empty() && t != "CHANGE_ME" {
-        Some(t.to_string())
-    } else {
-        None
+    None
+}
+
+/// Загружает ключ CurseForge с бэкенда Mono и кэширует.
+/// Вызывается при старте лаунчера (если пользователь залогинен).
+pub async fn fetch_key_from_backend(client: &reqwest::Client, access_token: &str) {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/auth/curseforge-key");
+    match client.get(&url).bearer_auth(access_token).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            if let Ok(text) = resp.text().await {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
+                    if let Some(key) = v["key"].as_str() {
+                        if !key.is_empty() {
+                            let _ = CACHED_CF_KEY.set(Some(key.to_string()));
+                            return;
+                        }
+                    }
+                }
+            }
+            let _ = CACHED_CF_KEY.set(None);
+        }
+        _ => {
+            let _ = CACHED_CF_KEY.set(None);
+        }
     }
 }
 
@@ -144,8 +167,8 @@ pub fn require_api_key() -> Result<String> {
     api_key_from_cfg().ok_or_else(|| {
         anyhow!(
             "CurseForge требует API-ключ.\n\
-             Получите его на console.curseforge.com → API keys (бесплатно, нужен аккаунт CurseForge),\n\
-             затем впишите его в константу CURSEFORGE_API_KEY в src-tauri/src/curseforge.rs."
+             Войдите в аккаунт Mono в лаунчере — ключ подтянется автоматически,\n\
+             или задайте переменную окружения MONO_CURSEFORGE_KEY."
         )
     })
 }

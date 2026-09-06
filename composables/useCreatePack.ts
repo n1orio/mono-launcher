@@ -32,8 +32,9 @@ export function useCreatePack(deps: UseCreatePackDeps) {
   const createPackVersionQuery = ref("");
   const createPackVersionBox = ref<HTMLElement | null>(null);
   let createPackVersionClose: ((e: MouseEvent) => void) | null = null;
-  const createPackIcon = ref<string | null>(null);
-  const createPackBanner = ref<string | null>(null);
+const createPackIcon = ref<string | null>(null);
+const createPackBanner = ref<string | null>(null);
+const createPackColor = ref<string | null>(null);
 
   /** При открытии модалки создания — грузим список версий Minecraft и сбрасываем выбор файлов. */
   watch(createPackOpen, async (open) => {
@@ -165,13 +166,15 @@ export function useCreatePack(deps: UseCreatePackDeps) {
         createPackLoader.value,
         createPackIcon.value,
         createPackBanner.value,
-        createPackLoaderVersion.value || null
+        createPackLoaderVersion.value || null,
+        createPackColor.value
       );
       notify(t("mods.packCreated", { name: pack.name }), "success");
       createPackOpen.value = false;
       createPackName.value = "";
       createPackIcon.value = null;
       createPackBanner.value = null;
+      createPackColor.value = null;
       await loadPacks();
       await nextTick();
       openPackTab(pack.id);
@@ -199,6 +202,7 @@ export function useCreatePack(deps: UseCreatePackDeps) {
     createPackVersionBox,
     createPackIcon,
     createPackBanner,
+    createPackColor,
     chooseCreateLoaderVersion,
     filteredCreateReleases,
     filteredCreateSnapshots,

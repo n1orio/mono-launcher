@@ -75,11 +75,47 @@ function shade(hex: string, amt: number): string {
   return `#${c.map((v) => toHex(v + (t - v) * Math.abs(amt))).join("")}`;
 }
 
-/**
- * Генерирует акцентную тему из одного цвета (семейство accent-переменных).
- * Нейтральные ключи (bg/panel/.../tx*) оставлены пустыми, чтобы лаунчер
- * подставлял текущий светлый/тёмный базовый цвет.
- */
+/** Хеш строки в число [0, 360) для детерминированного цвета по имени сборки. */
+export function packColorHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    hash |= 0;
+  }
+  return Math.abs(hash) % 360;
+}
+
+/** Градиент из одного оттенка (светлый → тёмный вариант того же цвета).
+ *  Если передан hex-цвет (например "e74c3c"), используется его оттенок.
+ *  Иначе — детерминированный оттенок по строке. */
+export function packGradient(str: string): string {
+  let h: number;
+  if (/^[0-9a-fA-F]{6}$/.test(str)) {
+    const n = normalizeHex(str);
+    if (n) {
+      const c = rgb(n);
+      if (c) {
+        const r = c[0] / 255, g = c[1] / 255, b = c[2] / 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let hue = 0;
+        if (max !== min) {
+          const d = max - min;
+          if (max === r) hue = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+          else if (max === g) hue = ((b - r) / d + 2) * 60;
+          else hue = ((r - g) / d + 4) * 60;
+        }
+        h = Math.round(hue);
+      } else {
+        h = packColorHash(str);
+      }
+    } else {
+      h = packColorHash(str);
+    }
+  } else {
+    h = packColorHash(str);
+  }
+  return `linear-gradient(135deg, hsl(${h}, 65%, 50%), hsl(${h}, 65%, 35%))`;
+}
 /** Смешивает два цвета: t=0 → a, t=1 → b. */
 function mix(a: string, b: string, t: number): string {
   const ca = rgb(a);

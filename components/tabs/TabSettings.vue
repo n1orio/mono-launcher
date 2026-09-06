@@ -110,15 +110,78 @@ const {
 const activeLocaleAuthor = computed(() => getLocaleMeta(locale.value).author ?? "");
 const activeLocaleVersion = computed(() => getLocaleMeta(locale.value).version ?? "");
 
-// --- Settings sub-tabs ---
+type SettingsTab = "accounts" | "game" | "appearance" | "network";
+const settingsTab = ref<SettingsTab>("accounts");
 
-const settingsTab = ref<"accounts" | "appearance" | "network">("accounts");
-
-const SETTINGS_TAB_ICONS: Record<"accounts" | "appearance" | "network", string> = {
+const SETTINGS_TAB_ICONS: Record<SettingsTab, string> = {
   accounts: 'user',
+  game: 'bolt',
   appearance: 'half-circle',
   network: 'bars',
 };
+
+const SETTINGS_TABS: { id: SettingsTab; label: string; icon: string }[] = [
+  { id: "accounts", label: "Аккаунты", icon: "user" },
+  { id: "game", label: "Запуск игры", icon: "bolt" },
+  { id: "appearance", label: "Интерфейс", icon: "half-circle" },
+  { id: "network", label: "Сеть и система", icon: "bars" },
+];
+
+// --- RAM helpers ---
+const totalSystemRam = computed(() => systemRam?.value?.total_ram_gb ?? maxRam?.value ?? 16);
+const ramPct = computed(() => (totalSystemRam.value > 0 ? (ram.value / totalSystemRam.value) * 100 : 0));
+const ramOver = computed(() => ramPct.value > 70);
+
+// --- Resolution presets ---
+function setResolution(w: number, h: number) {
+  windowWidth.value = w;
+  windowHeight.value = h;
+}
+
+// --- JVM reset ---
+const DEFAULT_JVM_ARGS = "";
+function resetJvmArgs() {
+  jvmArgs.value = DEFAULT_JVM_ARGS;
+  void saveJvmArgs();
+}
+
+// --- Java browse ---
+async function browseJava() {
+  if (!isTauri()) { notify(t("skin.tauriOnly"), "info"); return; }
+  try {
+    const p = await openDialog({ multiple: false, filters: [{ name: "Java", extensions: ["exe", "bin", ""] }] });
+    if (typeof p === "string" && p) selectJava(p);
+  } catch (e) { notify(String(e)); }
+}
+
+// --- Proxy split fields ---
+const proxyProto = ref("HTTP");
+const proxyHost = ref("");
+const proxyPort = ref("");
+function syncProxyFromRaw() {
+  const raw = netProxy.value.trim();
+  const m = raw.match(/^(https?|socks5?):\/\/([^:]+)(?::(\d+))?/i);
+  if (m) {
+    proxyProto.value = m[1].toLowerCase().startsWith("socks") ? "SOCKS5" : "HTTP";
+    proxyHost.value = m[2];
+    proxyPort.value = m[3] ?? "";
+  } else if (raw) {
+    const hp = raw.split(":");
+    proxyHost.value = hp[0] ?? "";
+    proxyPort.value = hp[1] ?? "";
+  }
+}
+function syncProxyToRaw() {
+  if (!proxyHost.value.trim()) { netProxy.value = ""; return; }
+  const scheme = proxyProto.value === "SOCKS5" ? "socks5" : "http";
+  netProxy.value = `${scheme}://${proxyHost.value.trim()}${proxyPort.value ? ":" + proxyPort.value : ""}`;
+}
+
+// --- Speed unlimited ---
+const speedUnlimited = computed(() => netSpeedLimit.value === 0);
+function setSpeedUnlimited(on: boolean) {
+  netSpeedLimit.value = on ? 0 : 1024;
+}
 
 // --- System: tray + autostart ---
 
@@ -206,6 +269,7 @@ async function loadNetworkSettings() {
     netSpeedLimit.value = s.speed_limit_kb;
     netProxy.value = s.proxy;
     netForceIpv4.value = s.force_ipv4;
+    syncProxyFromRaw();
   } catch {
     /* ignore */
   }
@@ -215,6 +279,7 @@ async function saveNetworkSettings() {
   if (!isTauri() || netSaving.value) return;
   netSaving.value = true;
   try {
+    syncProxyToRaw();
     await setNetworkSettings({
       concurrent: netConcurrent.value,
       speed_limit_kb: netSpeedLimit.value,
@@ -280,18 +345,17 @@ async function copySkinApi() {
       <div class="border-b border-[var(--border)] pb-3">
         <h1 class="text-xl font-bold tracking-tight text-[color:var(--tx-strong)]">{{ t("settings.title") }}</h1>
         <p class="text-[13px] text-[color:var(--tx-muted)]">{{ t("settings.subtitle") }}</p>
-        <div class="mt-3 flex gap-1">
+        <div class="mt-3 flex items-center gap-1.5 p-1 rounded-2xl bg-[var(--input)]/40 border border-[var(--border)] w-fit mb-5">
           <button
-            v-for="st in ([['accounts', t('settings.tabAccounts')], ['appearance', t('settings.tabAppearance')], ['network', t('settings.tabNetwork')]] as const)"
-            :key="st[0]"
+            v-for="st in SETTINGS_TABS"
+            :key="st.id"
             type="button"
-            class="relative inline-flex items-center gap-1.5 px-3 pb-2 pt-1 text-[13px] font-semibold transition-colors"
-            :class="settingsTab === st[0] ? 'text-[var(--accent)]' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx-strong)]'"
-            @click="settingsTab = st[0]"
+            class="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs transition-all"
+            :class="settingsTab === st.id ? 'bg-[var(--panel)] text-[color:var(--tx)] font-semibold shadow-sm' : 'text-[color:var(--tx-muted)] hover:text-[color:var(--tx)]'"
+            @click="settingsTab = st.id"
           >
-            <AppIcon :name="SETTINGS_TAB_ICONS[st[0]]" class="h-4 w-4 fill-current" />
-            {{ st[1] }}
-            <span v-if="settingsTab === st[0]" class="absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-full bg-[var(--accent)]"></span>
+            <AppIcon :name="st.icon" class="h-3.5 w-3.5 fill-current" />
+            {{ st.label }}
           </button>
         </div>
       </div>
@@ -793,15 +857,16 @@ async function copySkinApi() {
 
       <template v-else-if="settingsTab === 'appearance'">
         <div class="space-y-4">
-          <!-- Тема -->
-          <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
+          <!-- Тема: слайдер -->
+          <section class="rounded-2xl bg-[var(--input)]/25 border border-[var(--border)] p-4 mb-4">
             <div class="flex items-center justify-between border-b border-[var(--border)] px-3.5 py-2.5">
-              <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.theme") }}</h3>
-              <span class="text-xs font-medium text-[color:var(--tx-muted)]">
+              <h3 class="text-[13px] font-semibold text-[color:var(--tx)]">{{ t("settings.theme") }}</h3>
+              <span class="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--tx-muted)]">
+                <AppIcon :name="themeLevel >= 0.5 ? 'moon' : 'sun'" class="h-3.5 w-3.5 fill-current" />
                 {{ themeLevel >= 0.5 ? t("theme.dark") : t("theme.light") }}
               </span>
             </div>
-            <div class="p-4 space-y-3">
+            <div class="space-y-3 p-4">
               <input
                 type="range"
                 min="0"
@@ -820,7 +885,7 @@ async function copySkinApi() {
               >
                 {{ t("settings.themeToggle") }}
               </button>
-              <p v-if="packThemeActive" class="text-[13px] text-[var(--accent)]">
+              <p v-if="packThemeActive" class="mt-2 text-[13px] text-[var(--accent)]">
                 {{ t("theme.disabled") }}
               </p>
             </div>
@@ -849,15 +914,47 @@ async function copySkinApi() {
               </p>
             </div>
           </section>
+
+          <!-- Discord Rich Presence toggle row -->
+          <section class="rounded-2xl bg-[var(--input)]/25 border border-[var(--border)] p-4 mb-4">
+            <label class="flex cursor-pointer items-center justify-between gap-3">
+              <span>
+                <span class="block text-[13px] font-medium text-[color:var(--tx)]">Discord Rich Presence</span>
+                <span class="block text-xs text-[color:var(--tx-muted)]">{{ t("settings.discordLabel") }}</span>
+              </span>
+              <input
+                type="checkbox"
+                class="h-4 w-4 accent-[#5865F2]"
+                :checked="discordRp"
+                @change="toggleDiscordRp(($event.target as HTMLInputElement).checked)"
+              />
+            </label>
+          </section>
+
+          <!-- Custom mods warning toggle row -->
+          <section class="rounded-2xl bg-[var(--input)]/25 border border-[var(--border)] p-4 mb-4">
+            <label class="flex cursor-pointer items-center justify-between gap-3">
+              <span>
+                <span class="block text-[13px] font-medium text-[color:var(--tx)]">{{ t("settings.warnCustomMods") }}</span>
+                <span class="block text-xs text-[color:var(--tx-muted)]">{{ t("settings.warnCustomModsLabel") }}</span>
+              </span>
+              <input
+                type="checkbox"
+                class="h-4 w-4 accent-[#f0883e]"
+                :checked="warnCustomMods"
+                @change="toggleWarnCustomMods(($event.target as HTMLInputElement).checked)"
+              />
+            </label>
+          </section>
         </div>
       </template>
 
-      <template v-else>
+      <template v-else-if="settingsTab === 'network'">
         <div class="space-y-4">
           <!-- Одновременные скачивания -->
-          <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
-            <div class="border-b border-[var(--border)] px-3.5 py-2.5 flex justify-between items-center">
-              <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.netConcurrent") }}</h3>
+          <section class="rounded-2xl bg-[var(--input)]/25 border border-[var(--border)] p-4 mb-4">
+            <div class="flex justify-between items-center">
+              <h3 class="text-[13px] font-semibold text-[color:var(--tx)]">{{ t("settings.netConcurrent") }}</h3>
               <span class="font-mono text-[13px] font-semibold text-[var(--accent)]">{{ netConcurrent }}</span>
             </div>
             <div class="p-4 space-y-2">
@@ -874,14 +971,23 @@ async function copySkinApi() {
           </section>
 
           <!-- Ограничение скорости -->
-          <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
-            <div class="border-b border-[var(--border)] px-3.5 py-2.5 flex justify-between items-center">
-              <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.netSpeedLimit") }}</h3>
+          <section class="rounded-2xl bg-[var(--input)]/25 border border-[var(--border)] p-4 mb-4">
+            <div class="flex justify-between items-center">
+              <h3 class="text-[13px] font-semibold text-[color:var(--tx)]">{{ t("settings.netSpeedLimit") }}</h3>
               <span class="font-mono text-[13px] font-semibold text-[var(--accent)]">
                 {{ netSpeedLimit === 0 ? t("settings.netSpeedLimitUnlimited") : netSpeedLimit + " КБ/с" }}
               </span>
             </div>
             <div class="p-4 space-y-2">
+              <label class="flex cursor-pointer items-center justify-between gap-3">
+                <span class="text-[13px] text-[color:var(--tx)]">[ Без ограничений ]</span>
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 accent-[var(--accent-deep)]"
+                  :checked="speedUnlimited"
+                  @change="setSpeedUnlimited(($event.target as HTMLInputElement).checked)"
+                />
+              </label>
               <input
                 type="range"
                 min="0"
@@ -894,26 +1000,46 @@ async function copySkinApi() {
             </div>
           </section>
 
-          <!-- Прокси -->
-          <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
+          <!-- Прокси: protocol + host/port -->
+          <section class="rounded-2xl bg-[var(--input)]/25 border border-[var(--border)] p-4 mb-4">
             <div class="border-b border-[var(--border)] px-3.5 py-2.5">
-              <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.netProxy") }}</h3>
+              <h3 class="text-[13px] font-semibold text-[color:var(--tx)]">{{ t("settings.netProxy") }}</h3>
             </div>
             <div class="p-4 space-y-2">
-              <input
-                v-model="netProxy"
-                type="text"
-                :placeholder="t('settings.netProxyPlaceholder')"
-                class="w-full rounded-md bg-[var(--input)] border border-[var(--border)] px-3 py-2 font-mono text-[13px] text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)]"
-              />
+              <div class="flex gap-2">
+                <select
+                  v-model="proxyProto"
+                  class="shrink-0 rounded-md bg-[var(--input)] px-2.5 py-2 text-[13px] text-[color:var(--tx)] focus:outline-none"
+                  @change="syncProxyToRaw"
+                >
+                  <option value="HTTP">HTTP</option>
+                  <option value="SOCKS5">SOCKS5</option>
+                </select>
+                <input
+                  v-model="proxyHost"
+                  type="text"
+                  placeholder="proxy.example.com"
+                  class="min-w-0 flex-1 rounded-md bg-[var(--input)] border border-[var(--border)] px-3 py-2 font-mono text-[13px] text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)]"
+                  @input="syncProxyToRaw"
+                />
+                <input
+                  v-model="proxyPort"
+                  type="number"
+                  min="1"
+                  max="65535"
+                  placeholder="8080"
+                  class="w-24 shrink-0 rounded-md bg-[var(--input)] border border-[var(--border)] px-3 py-2 font-mono text-[13px] text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)]"
+                  @input="syncProxyToRaw"
+                />
+              </div>
               <p class="text-[13px] text-[color:var(--tx-muted)]">{{ t("settings.netProxyNote") }}</p>
             </div>
           </section>
 
           <!-- IPv4 -->
-          <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
+          <section class="rounded-2xl bg-[var(--input)]/25 border border-[var(--border)] p-4 mb-4">
             <div class="border-b border-[var(--border)] px-3.5 py-2.5">
-              <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.netIpv4") }}</h3>
+              <h3 class="text-[13px] font-semibold text-[color:var(--tx)]">{{ t("settings.netIpv4") }}</h3>
             </div>
             <div class="p-4">
               <label class="flex cursor-pointer items-center gap-3">
@@ -924,6 +1050,33 @@ async function copySkinApi() {
                   @change="netForceIpv4 = ($event.target as HTMLInputElement).checked"
                 />
                 <span class="text-[13px] text-[color:var(--tx)]">{{ t("settings.netIpv4Note") }}</span>
+              </label>
+            </div>
+          </section>
+
+          <!-- System behavior toggles -->
+          <section class="rounded-2xl bg-[var(--input)]/25 border border-[var(--border)] p-4 mb-4">
+            <div class="border-b border-[var(--border)] px-3.5 py-2.5">
+              <h3 class="text-[13px] font-semibold text-[color:var(--tx)]">{{ t("settings.system") }}</h3>
+            </div>
+            <div class="space-y-3 p-4">
+              <label class="flex cursor-pointer items-center justify-between gap-3">
+                <span class="text-[13px] text-[color:var(--tx)]">{{ t("settings.closeToTray") }}</span>
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 accent-[#5865F2]"
+                  :checked="closeToTray"
+                  @change="toggleCloseToTray(($event.target as HTMLInputElement).checked)"
+                />
+              </label>
+              <label class="flex cursor-pointer items-center justify-between gap-3">
+                <span class="text-[13px] text-[color:var(--tx)]">{{ t("settings.autostart") }}</span>
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 accent-[#5865F2]"
+                  :checked="autostartOn"
+                  @change="toggleAutostart(($event.target as HTMLInputElement).checked)"
+                />
               </label>
             </div>
           </section>
@@ -940,13 +1093,14 @@ async function copySkinApi() {
         </div>
       </template>
 
-      <!-- System settings (always visible below sub-tabs) -->
+      <!-- GAME: only when game tab active (no longer duplicated) -->
+      <template v-else-if="settingsTab === 'game'">
       <div class="space-y-4">
         <!-- ОЗУ -->
-        <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
-          <div class="border-b border-[var(--border)] px-3.5 py-2.5 flex justify-between items-center">
-            <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.ram") }}</h3>
-            <span class="font-mono text-[13px] font-semibold text-[var(--accent)]">{{ ram }} {{ t("units.gb") }}</span>
+        <section class="rounded-2xl bg-[var(--input)]/25 border border-[var(--border)] p-4 mb-4">
+          <div class="flex justify-between items-center">
+            <h3 class="text-[13px] font-semibold text-[color:var(--tx)]">{{ t("settings.ram") }}</h3>
+            <span class="rounded-xl bg-[var(--accent)] px-3 py-1 font-mono text-[13px] font-semibold text-white">[ {{ ram }} {{ t("units.gb") }} ]</span>
           </div>
           <div class="p-4 space-y-2">
             <input
@@ -957,35 +1111,50 @@ async function copySkinApi() {
               v-model.number="ram"
               class="w-full accent-[var(--accent-deep)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
             />
-            <div class="flex justify-between text-[13px] text-[color:var(--tx-muted)] font-mono">
-              <span>2 {{ t("units.gb") }}</span>
-              <span>{{ t("settings.ramMax", { n: maxRam }) }}</span>
+            <div class="flex justify-between text-[13px] font-mono">
+              <span class="text-[color:var(--tx-muted)]">Мин: 2 ГБ</span>
+              <span class="text-[color:var(--tx-muted)]">Рекомендуется: 4–8 ГБ</span>
+              <span class="text-[color:var(--tx-muted)]">Макс: {{ totalSystemRam }} ГБ</span>
             </div>
+            <p v-if="ramOver" class="flex items-center gap-1.5 rounded-xl bg-[#f0883e]/10 px-3 py-1.5 text-xs font-medium text-[#f0883e]">
+              <AppIcon name="alert-circle" class="h-3.5 w-3.5 fill-current" />
+              <span>Выделено больше 70% системной памяти ({{ Math.round(ramPct) }}%)</span>
+            </p>
             <p v-if="systemRam && systemRam.total_ram_gb > 0" class="text-[13px] text-[color:var(--tx-muted)]">
               {{ t("settings.ramTotal", { total: systemRam.total_ram_gb, avail: systemRam.available_ram_gb }) }}
             </p>
             <p
               v-if="activePack?.minRam"
               class="text-[13px]"
-              :class="(ram * 1024) < activePack.minRam ? 'font-medium text-[#f0883e]' : 'text-[color:var(--tx-muted)]'"
+              :class="(ram * 1024) < (activePack?.minRam ?? 0) ? 'font-medium text-[#f0883e]' : 'text-[color:var(--tx-muted)]'"
             >
-              {{ t("settings.ramMin", { name: activePack.name, min: activePack.minRam / 1024, gb: ram }) }}
+              {{ t("settings.ramMin", { name: activePack?.name ?? '', min: (activePack?.minRam ?? 0) / 1024, gb: ram }) }}
             </p>
           </div>
         </section>
 
         <!-- JVM-аргументы -->
-        <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
-          <div class="border-b border-[var(--border)] px-3.5 py-2.5 flex justify-between items-center">
-            <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.jvmArgs") }}</h3>
-            <button
-              type="button"
-              class="text-[13px] underline decoration-dotted underline-offset-2 disabled:opacity-50"
-              :disabled="jvmArgsSaving"
-              @click="saveJvmArgs"
-            >
-              {{ jvmArgsSaving ? t("common.saving") : t("common.save") }}
-            </button>
+        <section class="rounded-2xl bg-[var(--input)]/25 border border-[var(--border)] p-4 mb-4">
+          <div class="flex justify-between items-center">
+            <h3 class="text-[13px] font-semibold text-[color:var(--tx)]">{{ t("settings.jvmArgs") }}</h3>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="rounded-xl px-3 py-1 text-xs text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] transition-all"
+                :disabled="jvmArgsSaving"
+                @click="resetJvmArgs"
+              >
+                [ Сбросить по умолчанию ]
+              </button>
+              <button
+                type="button"
+                class="text-[13px] underline decoration-dotted underline-offset-2 disabled:opacity-50"
+                :disabled="jvmArgsSaving"
+                @click="saveJvmArgs"
+              >
+                {{ jvmArgsSaving ? t("common.saving") : t("common.save") }}
+              </button>
+            </div>
           </div>
           <div class="p-4 space-y-2">
             <textarea
@@ -1000,14 +1169,14 @@ async function copySkinApi() {
         </section>
 
         <!-- Размер окна игры -->
-        <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
-          <div class="border-b border-[var(--border)] px-3.5 py-2.5 flex justify-between items-center">
-            <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.win") }}</h3>
+        <section class="rounded-2xl bg-[var(--input)]/25 border border-[var(--border)] p-4 mb-4">
+          <div class="flex justify-between items-center">
+            <h3 class="text-[13px] font-semibold text-[color:var(--tx)]">{{ t("settings.win") }}</h3>
             <span class="font-mono text-[13px] font-semibold text-[var(--accent)]">{{ windowWidth }}×{{ windowHeight }}</span>
           </div>
           <div class="p-4 space-y-2">
-            <div class="flex items-center gap-3">
-              <label class="w-16 text-[13px] text-[color:var(--tx-muted)]" for="ts-win-width">{{ t("settings.width") }}</label>
+            <div class="flex items-center gap-2">
+              <span class="text-[13px] text-[color:var(--tx-muted)]">Ширина</span>
               <input
                 id="ts-win-width"
                 type="number"
@@ -1015,9 +1184,11 @@ async function copySkinApi() {
                 max="7680"
                 step="1"
                 v-model.number="windowWidth"
+                placeholder="854"
                 class="flex-1 rounded-md bg-[var(--bg)] px-3 py-2 text-[13px] text-[color:var(--tx)] focus:outline-none"
               />
-              <label class="w-16 text-[13px] text-[color:var(--tx-muted)]" for="ts-win-height">{{ t("settings.height") }}</label>
+              <span class="text-[color:var(--tx-muted)]">×</span>
+              <span class="text-[13px] text-[color:var(--tx-muted)]">Высота</span>
               <input
                 id="ts-win-height"
                 type="number"
@@ -1025,8 +1196,14 @@ async function copySkinApi() {
                 max="4320"
                 step="1"
                 v-model.number="windowHeight"
+                placeholder="480"
                 class="flex-1 rounded-md bg-[var(--bg)] px-3 py-2 text-[13px] text-[color:var(--tx)] focus:outline-none"
               />
+            </div>
+            <div class="flex gap-2">
+              <button type="button" class="rounded-xl px-3 py-1.5 text-xs text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] bg-[var(--input)]/40 border border-[var(--border)] transition-all" @click="setResolution(1920, 1080)">[ 1080p ]</button>
+              <button type="button" class="rounded-xl px-3 py-1.5 text-xs text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] bg-[var(--input)]/40 border border-[var(--border)] transition-all" @click="setResolution(1280, 720)">[ 720p ]</button>
+              <button type="button" class="rounded-xl px-3 py-1.5 text-xs text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] bg-[var(--input)]/40 border border-[var(--border)] transition-all" @click="setResolution(854, 480)">[ Полный экран ]</button>
             </div>
             <p class="text-[13px] text-[color:var(--tx-muted)]">
               {{ t("settings.winNote") }}
@@ -1035,9 +1212,9 @@ async function copySkinApi() {
         </section>
 
         <!-- Java -->
-        <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
+        <section class="rounded-2xl bg-[var(--input)]/25 border border-[var(--border)] p-4 mb-4">
           <div class="border-b border-[var(--border)] px-3.5 py-2.5">
-            <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.java") }}</h3>
+            <h3 class="text-[13px] font-semibold text-[color:var(--tx)]">{{ t("settings.java") }}</h3>
           </div>
           <div class="p-4 space-y-3">
             <div class="flex items-center gap-2">
@@ -1056,9 +1233,17 @@ async function copySkinApi() {
                 type="button"
                 class="shrink-0 rounded-md bg-[var(--input)] px-3 py-2 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
                 :disabled="javaBusy || busy"
+                @click="browseJava"
+              >
+                [ Обзор... ]
+              </button>
+              <button
+                type="button"
+                class="shrink-0 rounded-md bg-[var(--input)] px-3 py-2 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
+                :disabled="javaBusy || busy"
                 @click="downloadJava"
               >
-                {{ javaBusy ? t("settings.javaDownloading") : t("settings.javaDownload") }}
+                {{ javaBusy ? t("settings.javaDownloading") : "[ Скачать JRE ]" }}
               </button>
             </div>
             <p v-if="javaMsg" class="text-[13px] text-[color:var(--tx-muted)] break-all">{{ javaMsg }}</p>
@@ -1068,77 +1253,8 @@ async function copySkinApi() {
           </div>
         </section>
 
-        <!-- Discord Rich Presence -->
-        <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
-          <div class="border-b border-[var(--border)] px-3.5 py-2.5">
-            <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.discord") }}</h3>
-          </div>
-          <div class="p-4">
-            <label class="flex cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                class="h-4 w-4 accent-[#5865F2]"
-                :checked="discordRp"
-                @change="toggleDiscordRp(($event.target as HTMLInputElement).checked)"
-              />
-              <span class="text-[13px] text-[color:var(--tx)]">{{ t("settings.discordLabel") }}</span>
-            </label>
-            <p class="mt-2 text-[13px] text-[color:var(--tx-muted)]">
-              {{ t("settings.discordNote") }}
-            </p>
-          </div>
-        </section>
-
-        <!-- Система: трей + автозапуск -->
-        <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
-          <div class="border-b border-[var(--border)] px-3.5 py-2.5">
-            <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.system") }}</h3>
-          </div>
-          <div class="space-y-3 p-4">
-            <label class="flex cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                class="h-4 w-4 accent-[#5865F2]"
-                :checked="closeToTray"
-                @change="toggleCloseToTray(($event.target as HTMLInputElement).checked)"
-              />
-              <span class="text-[13px] text-[color:var(--tx)]">{{ t("settings.closeToTray") }}</span>
-            </label>
-            <label class="flex cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                class="h-4 w-4 accent-[#5865F2]"
-                :checked="autostartOn"
-                @change="toggleAutostart(($event.target as HTMLInputElement).checked)"
-              />
-              <span class="text-[13px] text-[color:var(--tx)]">{{ t("settings.autostart") }}</span>
-            </label>
-          </div>
-        </section>
-
-        <!-- Предупреждение о кастомных модах -->
-        <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
-          <div class="border-b border-[var(--border)] px-3.5 py-2.5">
-            <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.warnCustomMods") }}</h3>
-          </div>
-          <div class="p-4">
-            <label class="flex cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                class="h-4 w-4 accent-[#f0883e]"
-                :checked="warnCustomMods"
-                @change="toggleWarnCustomMods(($event.target as HTMLInputElement).checked)"
-              />
-              <span class="text-[13px] text-[color:var(--tx)]">{{ t("settings.warnCustomModsLabel") }}</span>
-            </label>
-            <p class="mt-2 text-[13px] text-[color:var(--tx-muted)]">
-              {{ t("settings.warnCustomModsNote") }}
-            </p>
-          </div>
-        </section>
-
         <!-- Проверка целостности -->
-        <section class="rounded-xl bg-[var(--panel)] shadow-sm overflow-hidden">
+        <section class="rounded-2xl bg-[var(--input)]/25 border border-[var(--border)] p-4 mb-4">
           <div class="border-b border-[var(--border)] px-3.5 py-2.5 flex justify-between items-center">
             <h3 class="text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ t("settings.verify") }}</h3>
           </div>
@@ -1169,6 +1285,7 @@ async function copySkinApi() {
           </div>
         </section>
       </div>
+      </template>
     </div>
   </div>
 </template>

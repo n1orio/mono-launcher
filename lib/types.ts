@@ -16,6 +16,8 @@ export interface PackDescriptor {
   icon: string | null;
   /** Локальный баннер сборки (путь к packs/<id>/banner.png), если есть. */
   banner: string | null;
+  /** Цвет аватарки (hex без #). Если задан — генерирует градиент при отсутствии иконки. */
+  color: string | null;
 }
 
 /** Карточка проекта Modrinth (мод или модпак). */

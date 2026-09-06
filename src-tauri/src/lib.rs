@@ -81,6 +81,8 @@ pub struct PackDescriptor {
     pub icon: Option<String>,
     /// Локальный баннер сборки (абсолютный путь `packs/<id>/banner.png`), если есть.
     pub banner: Option<String>,
+    /// Цвет аватарки (hex без #, например "e74c3c").
+    pub color: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -167,6 +169,7 @@ fn list_packs() -> Result<Vec<PackDescriptor>, String> {
                     min_ram_mb: p.min_ram_mb,
                     icon: p.icon,
                     banner: p.banner,
+                    color: p.color,
                 })
                 .collect()
         })
@@ -206,7 +209,7 @@ async fn add_pack_impl(
         .unwrap_or_else(|| file_stem.clone());
     let pack_id = config::unique_pack_id(&config::sanitize_pack_name(&pack_name));
     let blog = blog.map(str::trim).filter(|b| !b.is_empty()).map(String::from);
-    config::add_user_pack(&pack_id, &pack_name, &url, "remote", blog.as_deref(), None)
+    config::add_user_pack(&pack_id, &pack_name, &url, "remote", blog.as_deref(), None, None)
         .map_err(|e| e.to_string())?;
     // Синхронизация библиотеки на бэкенд (fire-and-forget).
     let c = client.clone();
@@ -237,6 +240,7 @@ async fn add_pack_impl(
         min_ram_mb: None,
         icon: None,
         banner: None,
+        color: None,
     })
 }
 
@@ -719,6 +723,17 @@ fn curseforge_key_configured_command() -> bool {
     curseforge::api_key_from_cfg().is_some()
 }
 
+/// Загружает API-ключ CurseForge с бэкенда Mono и кэширует.
+/// Вызывается при старте лаунчера (если пользователь залогинен).
+#[tauri::command]
+async fn curseforge_fetch_key_command(
+    state: State<'_, AppState>,
+    access_token: String,
+) -> Result<bool, String> {
+    curseforge::fetch_key_from_backend(&state.client, &access_token).await;
+    Ok(curseforge::api_key_from_cfg().is_some())
+}
+
 /// Скачивает и устанавливает сборку CurseForge как отдельную сборку
 /// (id = `cf-<projectId>`). Повторный вызов с той же версией — обновление.
 #[tauri::command]
@@ -743,15 +758,16 @@ async fn curseforge_install_pack_command(
         config::unique_pack_id(&config::sanitize_pack_name(&project.name))
     };
     if existing.is_none() {
-        config::add_user_pack(
-            &pack_id,
-            &project.name,
-            &cf_url,
-            "local",
-            None,
-            None,
-        )
-        .map_err(|e| e.to_string())?;
+config::add_user_pack(
+             &pack_id,
+             &project.name,
+             &cf_url,
+             "local",
+             None,
+             None,
+             None,
+         )
+         .map_err(|e| e.to_string())?;
     }
     // Синхронизация библиотеки на бэкенд (fire-and-forget).
     {
@@ -791,6 +807,7 @@ async fn curseforge_install_pack_command(
         min_ram_mb: None,
         icon,
         banner: config::pack_banner_path(&pack_id),
+        color: None,
     })
 }
 
@@ -1231,17 +1248,19 @@ async fn modrinth_install_pack_command(
             min_ram_mb: None,
             icon,
             banner,
+            color: p.color.clone(),
         })
     }
-    config::add_user_pack(
-        &pack_id,
-        &project.title,
-        &mrpack.url,
-        "local",
-        None,
-        None,
-    )
-    .map_err(|e| e.to_string())?;
+config::add_user_pack(
+         &pack_id,
+         &project.title,
+         &mrpack.url,
+         "local",
+         None,
+         None,
+         None,
+     )
+     .map_err(|e| e.to_string())?;
     // Синхронизация библиотеки на бэкенд (fire-and-forget).
     {
         let c = state.client.clone();
@@ -1283,6 +1302,7 @@ async fn modrinth_install_pack_command(
         min_ram_mb: None,
         icon,
         banner,
+        color: None,
     })
 }
 
@@ -1546,6 +1566,7 @@ async fn create_local_pack_command(
     loader_version: Option<String>,
     icon: Option<String>,
     banner: Option<String>,
+    color: Option<String>,
 ) -> Result<PackDescriptor, String> {
     let name = name.trim().to_string();
     if name.is_empty() {
@@ -1621,7 +1642,7 @@ async fn create_local_pack_command(
     if banner.is_some() {
         copy_pack_asset(banner.as_deref(), &pack_dir.join("banner.png"))?;
     }
-    config::add_user_pack(&pack_id, &name, &url, "local", None, None).map_err(|e| e.to_string())?;
+    config::add_user_pack(&pack_id, &name, &url, "local", None, None, color.as_deref()).map_err(|e| e.to_string())?;
     let icon_path = config::pack_icon_path(&pack_id);
     let banner_path = config::pack_banner_path(&pack_id);
     Ok(PackDescriptor {
@@ -1635,6 +1656,7 @@ async fn create_local_pack_command(
         min_ram_mb: None,
         icon: icon_path,
         banner: banner_path,
+        color: color.clone(),
     })
 }
 
@@ -1843,6 +1865,7 @@ async fn ensure_pack_from_link(
                     min_ram_mb: existing.min_ram_mb,
                     icon: existing.icon,
                     banner: existing.banner,
+                    color: existing.color.clone(),
                 },
                 true,
             ));
@@ -4159,6 +4182,7 @@ pub fn run() {
             curseforge_file_by_id_command,
             curseforge_install_pack_command,
             curseforge_key_configured_command,
+            curseforge_fetch_key_command,
             list_accounts_command,
             switch_account_command,
             remove_account_command,
