@@ -131,10 +131,10 @@ function cardTitle(n: any): string {
           <div class="min-w-0">
             <span
               v-if="n.kind === 'update'"
-              class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border"
+              class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
               :class="isLauncherPost(n)
-                ? 'bg-[var(--accent)]/15 text-[var(--accent)] border-[var(--accent)]/30'
-                : 'bg-[#16a34a]/15 text-[#22c55e] border-[#16a34a]/30'"
+                ? 'bg-[var(--accent)] text-white'
+                : 'bg-[#16a34a]/15 text-[#22c55e] border border-[#16a34a]/30'"
             >
               {{ isLauncherPost(n) ? t("news.launcherBadge") : t("news.packBadge") }}
             </span>
