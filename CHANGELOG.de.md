@@ -12,6 +12,30 @@
 - Besseres Download-Panel, Netzwerkeinstellungen, Infinite-Scroll-Katalog.
 - Feinschliff an Einstellungen / Spiel / Katalog; CurseForge-CDN-Fix.
 
+### CurseForge
+- **Loader-Filter** — CurseForge-Suche filtert jetzt nach `modLoaderType` (forge / fabric / quilt / neoforge) statt `categoryId`.
+- **Auto-Filter** — beim Öffnen eines Packs werden Filter aus dem Pack-Status übernommen.
+- **Vollständige Beschreibungen** — Modpack-Karten zeigen volles HTML (Prose-Stile) statt Kurz-Summary.
+- **Infinite Scroll** für Suchergebnisse.
+
+### Kontextmenüs
+- Rechtsklick auf Pack in der Sidebar → Spielen / Einstellungen / News / Löschen.
+- Rechtsklick auf Datei → Details / Update / An-Aus / Löschen / Ordner öffnen.
+- Wiederverwendbare `AppContextMenu`- und `AppContextMenuItem`-Komponenten.
+
+### Toolbar
+- „..."-Menü mit Bereichen: Mod-Verwaltung, Dateioperationen, Löschen.
+- Löschen-Button ins Dropdown verschoben (rotes Icon).
+
+### Interface
+- Schriftgröße: 13px → 14px.
+- Fenstergröße: 1200×750, Minimum 950×650.
+- `enableAllFiles()`-Helper für Bulk-An/Aus-Operationen.
+
+### Fixes
+- Fehlende Komponenten-Dateien wiederhergestellt (tabs/, modals/).
+- Version auf 2.0.0-alpha.7 angehoben (package.json, tauri.conf.json, Cargo.toml, Locales).
+
 ## [1.3.1] — 2026-08-18
 
 ### Mods & Speicher
