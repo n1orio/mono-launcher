@@ -199,10 +199,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
           <div class="min-w-0 flex-1">
             <div class="text-sm font-bold text-[color:var(--tx)] truncate">{{ v.name }}</div>
             <div class="mt-0.5 truncate text-xs text-[color:var(--tx-muted)]">
-              {{ (v.gameVersions ?? []).slice(0, 2).join(", ") }} • {{ (v.loaders ?? []).join(", ") }} • {{ formatDate(v.datePublished) }}
+              {{ v.versionNumber }} • {{ (v.gameVersions ?? []).slice(0, 2).join(", ") }} • {{ (v.loaders ?? []).join(", ") }} • {{ formatDate(v.datePublished) }}
             </div>
           </div>
-          <span class="shrink-0 rounded bg-[var(--input)] px-1.5 py-0.5 font-mono text-[11px] text-[color:var(--tx-muted)]">{{ v.versionNumber }}</span>
           <button
             type="button"
             class="flex shrink-0 items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--accent)] hover:brightness-110 text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
@@ -255,8 +254,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
     <!-- Gallery -->
     <div v-else class="max-w-4xl">
       <div v-if="gallery.length" class="grid grid-cols-2 gap-3">
-        <div v-for="g in gallery" :key="g.url" class="group relative cursor-pointer overflow-hidden rounded-xl" @click="openExternal(g.url)">
-          <img :src="g.url" :alt="g.title ?? ''" loading="lazy" class="w-full object-cover transition-transform group-hover:scale-[1.02]" />
+        <div v-for="g in gallery" :key="g.url" class="group relative cursor-pointer overflow-hidden rounded-xl aspect-video bg-black/20" @click="openExternal(g.url)">
+          <img :src="g.url" :alt="g.title ?? ''" loading="lazy" class="h-full w-full object-cover transition-transform group-hover:scale-[1.02]" />
           <div v-if="g.title" class="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-1.5 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">{{ g.title }}</div>
         </div>
       </div>

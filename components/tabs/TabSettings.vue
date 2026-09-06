@@ -874,7 +874,7 @@ async function copySkinApi() {
                 step="0.01"
                 :value="themeLevel"
                 :disabled="packThemeActive"
-                class="w-full accent-[var(--accent-deep)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
+                class="w-full accent-[var(--accent)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
                 @input="setThemeLevel(Number(($event.target as HTMLInputElement).value))"
               />
               <button
@@ -964,7 +964,7 @@ async function copySkinApi() {
                 max="32"
                 step="1"
                 v-model.number="netConcurrent"
-                class="w-full accent-[var(--accent-deep)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
+                class="w-full accent-[var(--accent)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
               />
               <p class="text-[13px] text-[color:var(--tx-muted)]">{{ t("settings.netConcurrentNote") }}</p>
             </div>
@@ -983,7 +983,7 @@ async function copySkinApi() {
                 <span class="text-[13px] text-[color:var(--tx)]">[ Без ограничений ]</span>
                 <input
                   type="checkbox"
-                  class="h-4 w-4 accent-[var(--accent-deep)]"
+                  class="h-4 w-4 accent-[var(--accent)]"
                   :checked="speedUnlimited"
                   @change="setSpeedUnlimited(($event.target as HTMLInputElement).checked)"
                 />
@@ -994,7 +994,7 @@ async function copySkinApi() {
                 max="10240"
                 step="64"
                 v-model.number="netSpeedLimit"
-                class="w-full accent-[var(--accent-deep)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
+                class="w-full accent-[var(--accent)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
               />
               <p class="text-[13px] text-[color:var(--tx-muted)]">{{ t("settings.netSpeedLimitNote") }}</p>
             </div>
@@ -1045,7 +1045,7 @@ async function copySkinApi() {
               <label class="flex cursor-pointer items-center gap-3">
                 <input
                   type="checkbox"
-                  class="h-4 w-4 accent-[var(--accent-deep)]"
+                  class="h-4 w-4 accent-[var(--accent)]"
                   :checked="netForceIpv4"
                   @change="netForceIpv4 = ($event.target as HTMLInputElement).checked"
                 />
@@ -1109,7 +1109,7 @@ async function copySkinApi() {
               :max="maxRam"
               step="1"
               v-model.number="ram"
-              class="w-full accent-[var(--accent-deep)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
+              class="w-full accent-[var(--accent)] bg-[var(--input)] h-1.5 rounded-lg appearance-none cursor-pointer"
             />
             <div class="flex justify-between text-[13px] font-mono">
               <span class="text-[color:var(--tx-muted)]">Мин: 2 ГБ</span>

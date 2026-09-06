@@ -710,7 +710,7 @@ async function enableAllFiles(enabled: boolean) {
       <button
         v-if="!row.installed && row.remote"
         type="button"
-        class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--accent-deep)] hover:brightness-110 text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
+        class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--accent)] hover:brightness-110 text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
         :disabled="busy || remoteInstallingId === row.remote.id"
         @click="installRemoteVersion(row.remote)"
       >

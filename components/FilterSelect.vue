@@ -2,7 +2,7 @@
   <div ref="root" class="relative">
   <button
   type="button"
-  class="flex max-w-[180px] items-center gap-1.5 rounded-md  bg-[var(--bg)] px-2.5 py-1.5 text-xs text-[color:var(--tx)] transition-colors  disabled:opacity-50"
+  class="flex h-9 max-w-[180px] items-center gap-1.5 rounded-md  bg-[var(--bg)] px-2.5 py-1.5 text-xs text-[color:var(--tx)] transition-colors  disabled:opacity-50"
   :disabled="disabled || !options.length"
   @click="open = !open"
   >

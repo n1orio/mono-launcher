@@ -182,14 +182,14 @@ function backToCatalogList() {
   </div>
   </div>
 
-  <div v-if="!catalogDetail && !profileOpen" class="mb-4 flex shrink-0 items-center gap-1 rounded-xl  bg-[var(--panel)] p-1 shadow-sm">
+  <div v-if="!catalogDetail && !profileOpen" class="mb-4 inline-flex w-fit shrink-0 items-center gap-1 rounded-xl bg-[var(--panel)] p-1 shadow-sm">
   <button
   v-for="src in (['mono', 'modrinth', 'curse'] as const)"
   :key="src"
   type="button"
-  class="flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors"
+  class="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold transition-colors"
   :class="catalogSource === src
-  ? 'bg-[var(--input)] text-[color:var(--tx-strong)]'
+  ? 'bg-[var(--input)] text-[var(--accent)]'
   : 'text-[color:var(--tx-muted)] hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]'"
   @click="switchCatalogSource(src)"
   >
@@ -568,7 +568,7 @@ function backToCatalogList() {
   </span>
   </div>
   </div>
-  <p v-if="entry.description" class="mt-3 min-h-0 flex-1 text-sm leading-relaxed text-[color:var(--tx-muted)] line-clamp-3">
+  <p v-if="entry.description" class="mt-3 min-h-0 flex-1 text-sm leading-relaxed text-[color:var(--tx-muted)] line-clamp-2">
   {{ entry.description }}
   </p>
   <div class="mt-3 flex flex-wrap items-center gap-1.5">
@@ -683,7 +683,7 @@ function backToCatalogList() {
   v-model="modPackQuery"
   type="text"
   :placeholder="t('mods.packsPlaceholder')"
-  class="w-full rounded-xl bg-[var(--input)] border border-[var(--border)] pl-8 pr-3 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all"
+  class="h-9 w-full rounded-xl bg-[var(--input)] border border-[var(--border)] pl-8 pr-3 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all"
   @keydown.enter="searchPacks"
   @input="debouncedSearchPacks"
   />
@@ -776,7 +776,7 @@ function backToCatalogList() {
   v-model="modPackQuery"
   type="text"
   :placeholder="t('curse.packsPlaceholder')"
-  class="w-full rounded-xl bg-[var(--input)] border border-[var(--border)] pl-8 pr-3 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all"
+  class="h-9 w-full rounded-xl bg-[var(--input)] border border-[var(--border)] pl-8 pr-3 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all"
   @keydown.enter="searchCursePacks"
   @input="debouncedSearchCursePacks"
   />
