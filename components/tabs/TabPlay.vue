@@ -537,28 +537,28 @@ async function enableAllFiles(enabled: boolean) {
     v-if="warnCustomMods && (status?.custom_mods?.length || 0) > 0"
     class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all"
     :class="customModsState === 'safe'
-      ? 'border-emerald-500/25 bg-emerald-500/[0.06] text-emerald-400'
+      ? 'border-[#16a34a]/30 bg-[#16a34a]/15 text-[#22c55e]'
       : customModsState === 'dangerous'
         ? 'border-red-500/30 bg-red-500/10 text-red-300'
         : 'border-amber-500/30 bg-amber-500/10 text-amber-300'"
   >
     <div class="flex items-center gap-2 font-medium">
-      <span v-if="customModsState === 'safe'">🛡️</span>
-      <span v-else-if="customModsState === 'dangerous'">🚨</span>
-      <span v-else>⚠️</span>
+      <AppIcon v-if="customModsState === 'safe'" name="shield-check" class="h-4 w-4 fill-current shrink-0" />
+      <AppIcon v-else-if="customModsState === 'dangerous'" name="alert-circle" class="h-4 w-4 fill-current shrink-0" />
+      <AppIcon v-else name="shield_alert" class="h-4 w-4 fill-current shrink-0" />
       <span v-if="customModsState === 'safe'">Сторонние файлы проверены сканером (угроз не найдено)</span>
       <span v-else-if="customModsState === 'dangerous'">Сканер обнаружил опасные файлы — запуск небезопасен</span>
       <span v-else>В сборке есть {{ customUncheckedCount }} непроверенный сторонний {{ pluralFile(customUncheckedCount) }}</span>
     </div>
     <div class="flex items-center gap-3 shrink-0">
-      <button type="button" class="hover:underline font-semibold cursor-pointer" :disabled="customScanBusy" @click="scanActiveCustomMods">
+      <button type="button" class="hover:underline font-semibold cursor-pointer disabled:opacity-50" :disabled="customScanBusy" @click="scanActiveCustomMods">
         {{ customModsState === 'safe' ? 'Пересканировать' : 'Сканировать' }}
       </button>
       <button v-if="customModsState === 'safe'" type="button" class="hover:underline font-semibold cursor-pointer" @click="customModsOpen = !customModsOpen">
         {{ customModsOpen ? 'Скрыть список' : 'Список' }}
       </button>
-      <button type="button" class="text-current opacity-60 hover:opacity-100 ml-1" @click="warnCustomMods = false">
-        ✕
+      <button type="button" class="text-current opacity-60 hover:opacity-100 ml-1 flex items-center" @click="warnCustomMods = false" aria-label="Закрыть">
+        <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
       </button>
     </div>
   </div>
@@ -568,7 +568,7 @@ async function enableAllFiles(enabled: boolean) {
     <div class="font-bold text-[color:var(--tx)] mb-1">Кастомные файлы в сборке:</div>
     <div v-for="f in (status?.custom_mods || [])" :key="f.path" class="flex items-center justify-between gap-2 py-1 px-2 rounded-lg bg-[var(--panel)] border border-[var(--border)] font-mono text-[11px] text-[color:var(--tx-muted)]">
       <span class="truncate">{{ f.path }}</span>
-      <span class="shrink-0 bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded text-[11px] font-semibold font-sans">✓ Безопасно</span>
+      <span class="shrink-0 flex items-center gap-1 bg-[#16a34a]/15 text-[#22c55e] border border-[#16a34a]/30 px-2 py-0.5 rounded text-[11px] font-semibold font-sans"><AppIcon name="check" class="h-3 w-3 fill-current" />Безопасно</span>
     </div>
     <span class="text-[11px] text-[color:var(--tx-muted)]/70 mt-1 block">Файлы успешно прошли проверку на вредоносный код. Ответственность за совместимость и стабильность лежит на пользователе.</span>
   </div>
