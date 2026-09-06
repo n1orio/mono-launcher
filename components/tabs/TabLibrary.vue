@@ -1,308 +1,373 @@
 <script setup lang="ts">
-import { useLauncherCtx } from '~/composables/useLauncherContext';
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { packGradient } from "~/lib/misc";
+import { useLauncherCtx } from "~/composables/useLauncherContext";
+import ModpackCard from "~/components/ModpackCard.vue";
+import LibraryFolderCard from "~/components/LibraryFolderCard.vue";
+
 const ctx = useLauncherCtx();
-const { t, packs, filteredPacks, packsBySource, sidebarCat, toggleSidebarCat, libQuery, libScale, libTile, setLibScale, libPercent, libStatus, loadLibraryStatus, playLibraryPack, openPackTab, libMenuPack, libMenuPos, openLibMenu, closeLibMenu, libDoPlay, libCopyLink, libOpenSettings, openModPackModal, createPackOpen, customLibSections, libCats, packLibCats, togglePackCat, libCatModal, libCatName, openCatCreate, openCatRename, submitCatModal, packHasCat, makeCatId, createLibCat, renameLibCat, deleteLibCat, packId, convertFileSrc, busy, gameRunning, PACK_CATS, PACK_CAT_LABELS } = ctx;
+const {
+  packs,
+  filteredPacks,
+  libQuery,
+  libScale,
+  libTile,
+  setLibScale,
+  libPercent,
+  playLibraryPack,
+  openPackTab,
+  openLibMenu,
+  libCats,
+  packLibCats,
+  saveCategories,
+} = ctx;
+
+const expandedFolderId = ref<string | null>(null);
+
+function toggleFolder(id: string) {
+  expandedFolderId.value = expandedFolderId.value === id ? null : id;
+}
+
+const draggingPackId = ref<string | null>(null);
+const hoverTargetId = ref<string | null>(null);
+const mouseX = ref(0);
+const mouseY = ref(0);
+const isDragging = ref(false);
+const startPos = ref({ x: 0, y: 0 });
+
+const draggingPack = computed(() => {
+  if (!draggingPackId.value) return null;
+  return (packs.value || []).find((p: any) => p.id === draggingPackId.value) || null;
+});
+
+const draggingIconSrc = computed(() => {
+  if (!draggingPack.value) return null;
+  const icon = (draggingPack.value as any).icon || (draggingPack.value as any).icon_url;
+  return icon && typeof icon === "string" ? convertFileSrc(icon) : null;
+});
+
+const gridItems = computed(() => {
+  const items: any[] = [];
+  const assignedPackIds = new Set<string>();
+
+  for (const cat of libCats.value || []) {
+    const folderPacks = (filteredPacks.value || []).filter((p: any) => {
+      const cats = packLibCats.value[p.id];
+      return Array.isArray(cats) ? cats.includes(cat.id) : cats === cat.id;
+    });
+
+    if (folderPacks.length >= 2) {
+      if (expandedFolderId.value === cat.id) {
+        items.push({
+          type: "expanded-category-group",
+          folder: cat,
+          packs: folderPacks,
+        });
+        folderPacks.forEach((p: any) => assignedPackIds.add(p.id));
+      } else {
+        // Collapsed folder tile
+        items.push({ type: "folder", cat, packs: folderPacks });
+        folderPacks.forEach((p: any) => assignedPackIds.add(p.id));
+      }
+    }
+  }
+
+  // Regular single packs
+  for (const pack of filteredPacks.value || []) {
+    if (!assignedPackIds.has(pack.id)) {
+      items.push({ type: "pack", pack });
+    }
+  }
+
+  return items;
+});
+
+function resetDragState() {
+  draggingPackId.value = null;
+  hoverTargetId.value = null;
+  isDragging.value = false;
+}
+
+function onCardPointerDown(packId: string, e: PointerEvent) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+
+  draggingPackId.value = packId;
+  startPos.value = { x: e.clientX, y: e.clientY };
+  mouseX.value = e.clientX;
+  mouseY.value = e.clientY;
+  isDragging.value = false;
+}
+
+function onGlobalPointerMove(e: MouseEvent | PointerEvent) {
+  if (!draggingPackId.value) return;
+
+  mouseX.value = e.clientX;
+  mouseY.value = e.clientY;
+
+  if (!isDragging.value && Math.hypot(e.clientX - startPos.value.x, e.clientY - startPos.value.y) > 5) {
+    isDragging.value = true;
+  }
+
+  if (isDragging.value) {
+    const elem = document.elementFromPoint(e.clientX, e.clientY);
+    const dropTarget = elem?.closest("[data-drop-target]");
+    const targetId = dropTarget?.getAttribute("data-drop-target");
+
+    if (targetId && targetId !== draggingPackId.value) {
+      hoverTargetId.value = targetId;
+    } else {
+      hoverTargetId.value = null;
+    }
+  }
+}
+
+function onGlobalPointerUp() {
+  if (!draggingPackId.value) return;
+
+  const sourceId = draggingPackId.value;
+  const targetId = hoverTargetId.value;
+  const wasDragging = isDragging.value;
+
+  resetDragState();
+
+  if (wasDragging) {
+    if (targetId && targetId !== sourceId) {
+      const isTargetFolder = (libCats.value || []).some((c: any) => c.id === targetId);
+
+      if (isTargetFolder) {
+        const current = packLibCats.value[sourceId] || [];
+        const set = new Set(Array.isArray(current) ? current : [current]);
+        set.add(targetId);
+        packLibCats.value = { ...packLibCats.value, [sourceId]: [...set] };
+      } else {
+        const curSrc = (packLibCats.value[sourceId] || []) as string[];
+        const curTgt = (packLibCats.value[targetId] || []) as string[];
+        const common = curSrc.find(id => curTgt.includes(id) && (libCats.value || []).some((c: any) => c.id === id));
+
+        if (!common) {
+          const newCatId = "cat_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+          libCats.value = [...(libCats.value || []), { id: newCatId, name: "Категория" }];
+          packLibCats.value = {
+            ...packLibCats.value,
+            [sourceId]: [...curSrc, newCatId],
+            [targetId]: [...curTgt, newCatId],
+          };
+        }
+      }
+      if (typeof saveCategories === "function") saveCategories();
+    } else if (!targetId && expandedFolderId.value) {
+      extractPackFromFolder(sourceId, expandedFolderId.value);
+    }
+  }
+}
+
+function extractPackFromFolder(packId: string, folderId: string) {
+  const current = packLibCats.value[packId] || [];
+  packLibCats.value = {
+    ...packLibCats.value,
+    [packId]: Array.isArray(current) ? current.filter((id: string) => id !== folderId) : [],
+  };
+
+  const remaining = (packs.value || []).filter((p: any) => {
+    const cats = packLibCats.value[p.id];
+    return Array.isArray(cats) ? cats.includes(folderId) : cats === folderId;
+  });
+
+  if (remaining.length <= 1) {
+    remaining.forEach((p: any) => {
+      const c = packLibCats.value[p.id] || [];
+      packLibCats.value[p.id] = Array.isArray(c) ? c.filter((id: string) => id !== folderId) : [];
+    });
+    libCats.value = (libCats.value || []).filter((c: any) => c.id !== folderId);
+    if (expandedFolderId.value === folderId) expandedFolderId.value = null;
+  }
+
+  if (typeof saveCategories === "function") saveCategories();
+}
+
+function handlePackClick(packId: string) {
+  if (isDragging.value) return;
+  openPackTab(packId);
+}
+
+onMounted(() => {
+  window.addEventListener("pointermove", onGlobalPointerMove, { capture: true });
+  window.addEventListener("pointerup", onGlobalPointerUp, { capture: true });
+  window.addEventListener("pointercancel", resetDragState, { capture: true });
+  window.addEventListener("mouseup", onGlobalPointerUp, { capture: true });
+  window.addEventListener("blur", resetDragState);
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      expandedFolderId.value = null;
+      resetDragState();
+    }
+  });
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("pointermove", onGlobalPointerMove, { capture: true });
+  window.removeEventListener("pointerup", onGlobalPointerUp, { capture: true });
+  window.removeEventListener("pointercancel", resetDragState, { capture: true });
+  window.removeEventListener("mouseup", onGlobalPointerUp, { capture: true });
+  window.removeEventListener("blur", resetDragState);
+});
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-1 flex-col">
-  <div class="mb-5 flex shrink-0 items-center justify-between gap-4 border-b border-[var(--border)]  pb-4">
-  <div>
-  <h2 class="text-xl font-bold tracking-tight text-[color:var(--tx-strong)]">{{ t("nav.library") }}</h2>
-  <p class="mt-1 text-[13px] text-[color:var(--tx-muted)]">{{ t("library.subtitle") }}</p>
-  </div>
-  <div class="flex shrink-0 items-center gap-1.5">
-  <div class="relative">
-  <input
-  v-model="libQuery"
-  type="text"
-  class="w-44 rounded-md  bg-[var(--input)] px-2.5 py-1.5 pr-6 text-[13px] text-[color:var(--tx)] placeholder-[color:var(--tx-muted)]  focus:outline-none"
-  :placeholder="t('library.search')"
-  />
-  <button
-  v-if="libQuery"
-  type="button"
-  class="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-[color:var(--tx-muted)] hover:text-[color:var(--tx)]"
-  @click="libQuery = ''"
-  >
-  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
-  </button>
-  </div>
-  <button
-  type="button"
-  class="rounded-md  bg-[var(--input)] px-2 py-1.5 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
-  :title="t('library.newCat')"
-  @click="openCatCreate()"
-  >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M8 3.25a.75.75 0 0 1 .75.75v3.25H12a.75.75 0 0 1 0 1.5H8.75V12a.75.75 0 0 1-1.5 0V8.75H4a.75.75 0 0 1 0-1.5h3.25V4a.75.75 0 0 1 .75-.75Z"/></svg>
-  </button>
-  <button
-  type="button"
-  class="rounded-md  bg-[var(--input)] p-1.5 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)] disabled:opacity-40"
-  :title="t('library.zoomOut')"
-  :disabled="libScale <= 1"
-  @click="setLibScale(libScale - 1)"
-  >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M3 8a.75.75 0 0 1 .75-.75h8.5a.75.75 0 0 1 0 1.5h-8.5A.75.75 0 0 1 3 8Z"/></svg>
-  </button>
-  <span class="w-11 text-center text-[13px] font-semibold tabular-nums text-[color:var(--tx-muted)]">{{ libPercent }}%</span>
-  <button
-  type="button"
-  class="rounded-md  bg-[var(--input)] p-1.5 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)] disabled:opacity-40"
-  :title="t('library.zoomIn')"
-  :disabled="libScale >= 4"
-  @click="setLibScale(libScale + 1)"
-  >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 fill-current"><path d="M8 3.25a.75.75 0 0 1 .75.75v3.25H12a.75.75 0 0 1 0 1.5H8.75V12a.75.75 0 0 1-1.5 0V8.75H4a.75.75 0 0 1 0-1.5h3.25V4a.75.75 0 0 1 .75-.75Z"/></svg>
-  </button>
-  </div>
-  </div>
-  <div class="min-h-0 flex-1 overflow-y-auto pr-1">
-  <template v-for="cat in PACK_CATS" :key="cat">
-  <section v-if="packsBySource[cat].length > 0" class="mb-6">
-  <h3 class="mb-3 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">
-  <button
-  type="button"
-  class="flex h-4 w-4 shrink-0 items-center justify-center rounded transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]"
-  :title="t('library.toggleCat')"
-  @click="toggleSidebarCat(cat)"
-  >
-   <AppIcon name="chevron-right" class="h-3 w-3 fill-current transition-transform" :class="sidebarCat[cat] ? 'rotate-90' : ''" />
-  </button>
-  {{ t(PACK_CAT_LABELS[cat]) }}
-  <span class="rounded-full bg-[var(--input)] px-1.5 py-0.5 text-[11px] font-bold tabular-nums">{{ packsBySource[cat].length }}</span>
-  </h3>
-  <div v-if="sidebarCat[cat]" class="grid gap-3" :class="libTile.col">
-  <div
-  v-for="p in packsBySource[cat]"
-  :key="p.id"
-  class="flex aspect-square flex-col items-center justify-center gap-2 rounded-md  p-3 text-center transition-colors"
-  :class="packId === p.id
-  ? ' bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]'
-  : ' bg-[var(--panel)]  hover:bg-[var(--input-50)]'"
-  @contextmenu.prevent="openLibMenu($event, p)"
-  >
-  <button
-  type="button"
-  class="flex w-full flex-col items-center justify-center gap-2"
-  :title="p.name"
-  @click="openPackTab(p.id)"
-  >
-  <img
-  v-if="p.icon"
-  :src="convertFileSrc(p.icon)"
-  :alt="p.name"
-  class="shrink-0 aspect-square rounded-none  object-cover"
-  :class="libTile.icon"
-  />
-  <svg v-else viewBox="0 0 16 16" class="shrink-0 rounded-none fill-current text-[var(--tx-muted)]" :class="libTile.icon">
-  <path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Z"/>
-  </svg>
-  <span class="w-full min-w-0 truncate text-[13px] font-medium" :class="packId === p.id ? 'text-[var(--accent)]' : 'text-[color:var(--tx)]'">{{ p.name }}</span>
-  </button>
-  <button
-  type="button"
-  class="flex w-full items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-semibold text-white shadow-sm transition-colors"
-  :class="libStatus[p.id]?.installed ? 'bg-[#238636] hover:bg-[#2ea043]' : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)]'"
-  :disabled="busy || gameRunning"
-  @click="playLibraryPack(p)"
-  >
-  <AppIcon name="play" class="h-4 w-4 fill-current" />
-  {{ libStatus[p.id]?.installed ? t("side.play") : t("side.downloadPlay") }}
-  </button>
-  </div>
-  </div>
-  </section>
-  </template>
-  <template v-for="s in customLibSections" :key="s.cat.id">
-  <section class="mb-6">
-  <h3 class="mb-3 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">
-  <button
-  type="button"
-  class="flex h-4 w-4 shrink-0 items-center justify-center rounded transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]"
-  :title="t('library.toggleCat')"
-  @click="toggleSidebarCat(s.cat.id)"
-  >
-   <AppIcon name="chevron-right" class="h-3 w-3 fill-current transition-transform" :class="sidebarCat[s.cat.id] ? 'rotate-90' : ''" />
-  </button>
-  {{ s.cat.name }}
-  <span class="rounded-full bg-[var(--input)] px-1.5 py-0.5 text-[11px] font-bold tabular-nums">{{ s.packs.length }}</span>
-  <span class="flex items-center gap-0.5">
-  <button
-  type="button"
-  class="rounded p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx)]"
-  :title="t('library.renameCat')"
-  @click="openCatRename(s.cat.id)"
-  >
-   <AppIcon name="pencil" class="h-3 w-3 fill-current" />
-  </button>
-  <button
-  type="button"
-  class="rounded p-1 text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-red-400"
-  :title="t('library.deleteCat')"
-  @click="deleteLibCat(s.cat.id)"
-  >
-   <AppIcon name="trash" class="h-3 w-3 fill-current" />
-  </button>
-  </span>
-  </h3>
-  <div v-if="sidebarCat[s.cat.id]" class="grid gap-3" :class="libTile.col">
-  <div
-  v-for="p in s.packs"
-  :key="p.id"
-  class="flex aspect-square flex-col items-center justify-center gap-2 rounded-md  p-3 text-center transition-colors"
-  :class="packId === p.id
-  ? ' bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]'
-  : ' bg-[var(--panel)]  hover:bg-[var(--input-50)]'"
-  @contextmenu.prevent="openLibMenu($event, p)"
-  >
-  <button
-  type="button"
-  class="flex w-full flex-col items-center justify-center gap-2"
-  :title="p.name"
-  @click="openPackTab(p.id)"
-  >
-  <img
-  v-if="p.icon"
-  :src="convertFileSrc(p.icon)"
-  :alt="p.name"
-  class="shrink-0 aspect-square rounded-none  object-cover"
-  :class="libTile.icon"
-  />
-  <svg v-else viewBox="0 0 16 16" class="shrink-0 rounded-none fill-current text-[var(--tx-muted)]" :class="libTile.icon">
-  <path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Z"/>
-  </svg>
-  <span class="w-full min-w-0 truncate text-[13px] font-medium" :class="packId === p.id ? 'text-[var(--accent)]' : 'text-[color:var(--tx)]'">{{ p.name }}</span>
-  </button>
-  <button
-  type="button"
-  class="flex w-full items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-semibold text-white shadow-sm transition-colors"
-  :class="libStatus[p.id]?.installed ? 'bg-[#238636] hover:bg-[#2ea043]' : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)]'"
-  :disabled="busy || gameRunning"
-  @click="playLibraryPack(p)"
-  >
-  <AppIcon name="play" class="h-4 w-4 fill-current" />
-  {{ libStatus[p.id]?.installed ? t("side.play") : t("side.downloadPlay") }}
-  </button>
-  </div>
-  </div>
-  </section>
-  </template>
-  <div
-  v-if="packs.length > 0 && filteredPacks.length === 0 && customLibSections.length === 0"
-  class="rounded-xl  bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]"
-  >
-  {{ t("library.noSearch") }}
-  </div>
-  <div
-  v-if="packs.length === 0"
-  class="rounded-xl  bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]"
-  >
-  {{ t("library.empty") }}
-  </div>
-  </div>
+  <div class="flex min-h-0 flex-1 flex-col select-none relative overflow-hidden">
+    <!-- Header -->
+    <div class="mb-5 flex shrink-0 items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
+      <div class="relative">
+        <input
+          v-model="libQuery"
+          type="text"
+          class="w-52 rounded-xl bg-[var(--input)] border border-[var(--border)] px-3.5 py-1.5 text-[13px] text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all"
+          placeholder="Поиск..."
+        />
+      </div>
 
-  <!-- Контекстное меню: ПКМ по экземпляру в библиотеке -->
-  <div
-  v-if="libMenuPack && libMenuPos"
-  class="fixed inset-0 z-[70]"
-  @mousedown="closeLibMenu"
-  @contextmenu.prevent="closeLibMenu"
-  >
-  <div
-  class="fixed z-[71] w-56 overflow-hidden rounded-xl  bg-[var(--panel)] shadow-sm py-1 shadow-2xl"
-  :style="{ left: `${libMenuPos.x}px`, top: `${libMenuPos.y}px` }"
-  @mousedown.stop
-  @contextmenu.stop
-  >
-  <div class="px-2.5 py-1.5">
-  <div class="truncate text-[13px] font-semibold text-[color:var(--tx-strong)]">{{ libMenuPack.name }}</div>
-  <div class="truncate font-mono text-xs text-[color:var(--tx-muted)]">{{ libMenuPack.id }}</div>
-  </div>
-  <div class="mx-3 border-t border-[var(--border)] "></div>
-  <button
-  type="button"
-  class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
-  :disabled="busy || gameRunning"
-  @click="libDoPlay"
-  >
-   <AppIcon name="play" class="h-4 w-4 fill-current" />
-   {{ libMenuPack && libStatus[libMenuPack.id]?.installed ? t("side.play") : t("side.downloadPlay") }}
-  </button>
-  <button
-  v-if="libMenuPack?.url"
-  type="button"
-  class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
-  @click="libCopyLink"
-  >
-   <AppIcon name="link" class="h-4 w-4 fill-current" />
-  {{ t("pack.copyLink") }}
-  </button>
-  <button
-  type="button"
-  class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
-  @click="libOpenSettings"
-  >
-   <AppIcon name="settings" class="h-4 w-4 fill-current" />
-  {{ t("nav.settings") }}
-  </button>
-  <template v-if="libCats.length > 0">
-  <div class="mx-3 border-t border-[var(--border)] "></div>
-  <div class="px-3 pb-0.5 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("library.catsTitle") }}</div>
-  <div class="max-h-40 overflow-y-auto">
-  <label
-  v-for="c in libCats"
-  :key="c.id"
-  class="flex cursor-pointer items-center gap-2 px-3 py-1 text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
-  >
-  <input
-  type="checkbox"
-  class="h-3 w-3 accent-[var(--accent)]"
-  :checked="libMenuPack ? packHasCat(libMenuPack.id, c.id) : false"
-  @change="libMenuPack && togglePackCat(libMenuPack.id, c.id)"
-  />
-  <span class="min-w-0 truncate">{{ c.name }}</span>
-  </label>
-  </div>
-  </template>
-  </div>
-  </div>
+      <div class="flex shrink-0 items-center gap-1.5 bg-[var(--input)] p-1 rounded-xl border border-[var(--border)]">
+        <button
+          type="button"
+          class="w-7 h-7 rounded-lg bg-[var(--panel)] hover:brightness-125 flex items-center justify-center text-sm font-bold text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] active:scale-95 disabled:opacity-20 transition-all"
+          :disabled="libScale <= 1"
+          @click="setLibScale(libScale - 1)"
+        >
+          -
+        </button>
+        <span class="w-11 text-center text-xs font-semibold tabular-nums text-[color:var(--tx)]">{{ libPercent }}%</span>
+        <button
+          type="button"
+          class="w-7 h-7 rounded-lg bg-[var(--panel)] hover:brightness-125 flex items-center justify-center text-sm font-bold text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] active:scale-95 disabled:opacity-20 transition-all"
+          :disabled="libScale >= 4"
+          @click="setLibScale(libScale + 1)"
+        >
+          +
+        </button>
+      </div>
+    </div>
 
-  <!-- Модалка: создать/переименовать категорию -->
-  <div
-  v-if="libCatModal"
-  class="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-6"
-  @mousedown.self="libCatModal = null"
-  >
-  <div class="w-full max-w-sm rounded-xl  bg-[var(--panel)] p-5 shadow-2xl" @keydown.escape="libCatModal = null">
-  <h3 class="text-sm font-bold text-[color:var(--tx-strong)]">
-  {{ libCatModal.mode === "create" ? t("library.newCat") : t("library.renameCat") }}
-  </h3>
-  <input
-  v-model="libCatName"
-  type="text"
-  class="mt-3 w-full rounded-md  bg-[var(--input)] px-3 py-2 text-[13px] text-[color:var(--tx)] placeholder-[color:var(--tx-muted)]  focus:outline-none"
-  :placeholder="t('library.catName')"
-  @keydown.enter.prevent="submitCatModal"
-  />
-  <div class="mt-4 flex justify-end gap-2">
-  <button
-  type="button"
-  class="rounded-md  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx)] hover:bg-[var(--hover)]"
-  @click="libCatModal = null"
-  >
-  {{ t("files.cancel") }}
-  </button>
-  <button
-  type="button"
-  class="rounded-md bg-[var(--accent-deep)] px-2.5 py-1.5 text-[13px] font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
-  :disabled="!libCatName.trim()"
-  @click="submitCatModal"
-  >
-  {{ t("settings.save") }}
-  </button>
-  </div>
-  </div>
-  </div>
+    <!-- PURE GRID: Every single item is 1 cell. No broken rows, no shelves, no gaps! -->
+    <div class="min-h-0 flex-1 overflow-y-auto pr-1 pt-3 pb-6">
+      <div class="grid gap-4 items-center px-1 transition-all" :class="libTile.col">
+        <template v-for="item in gridItems" :key="item.type + (item.folder?.id || item.cat?.id || item.pack?.id) + (item.pack?.id || '')">
+
+          <!-- UNIFIED EXPANDED CATEGORY (LOCKED GRID ROW HEIGHT) -->
+          <div
+            v-if="item.type === 'expanded-category-group'"
+            :data-drop-target="item.folder.id"
+            class="relative grid rounded-3xl bg-white/[0.05] p-2 -m-2 items-center transition-all shadow-inner"
+            :style="{
+              gridColumn: `span ${1 + item.packs.length}`,
+              gridTemplateColumns: `repeat(${1 + item.packs.length}, minmax(0, 1fr))`,
+              gap: '1rem'
+            }"
+          >
+            <!-- 1. RED CLOSE BUTTON (EXACT SAME SQUARE SIZE AS CARDS) -->
+            <button
+              type="button"
+              class="aspect-square w-full h-full rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center group select-none shadow-sm"
+              @click="toggleFolder(item.folder.id)"
+              title="Закрыть категорию"
+            >
+              <div class="w-12 h-12 rounded-full bg-rose-500/20 group-hover:bg-rose-500 flex items-center justify-center transition-all group-hover:scale-110">
+                <svg viewBox="0 0 24 24" class="w-7 h-7 stroke-rose-400 group-hover:stroke-white stroke-[2.5] fill-none stroke-linecap-round stroke-linejoin-round transition-colors">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </div>
+            </button>
+
+            <!-- 2. PACK CARDS INSIDE (PERFECT SQUARES) -->
+            <div
+              v-for="pack in item.packs"
+              :key="pack.id"
+              class="relative aspect-square w-full"
+            >
+              <ModpackCard
+                :pack="pack"
+                class="w-full h-full shadow-md !border-none !ring-0"
+                :class="{ 'opacity-30 scale-95': draggingPackId === pack.id }"
+                @pointerdown="onCardPointerDown(pack.id, $event)"
+                @click="handlePackClick(pack.id)"
+                @contextmenu="openLibMenu"
+                @play="playLibraryPack"
+              />
+
+              <!-- Extract button on hover -->
+              <button
+                type="button"
+                class="absolute bottom-2 right-2 z-30 w-6 h-6 rounded-full bg-black/80 border border-white/20 text-white/80 opacity-0 group-hover:opacity-100 hover:bg-rose-600 hover:text-white hover:border-rose-600 transition-all shadow-md active:scale-90 flex items-center justify-center text-xs"
+                @click.stop="extractPackFromFolder(pack.id, item.folder.id)"
+                title="Извлечь из категории"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. COLLAPSED FOLDER 2x2 (1 cell) -->
+          <div
+            v-else-if="item.type === 'folder'"
+            :data-drop-target="item.cat.id"
+            class="aspect-square w-full rounded-2xl transition-all duration-200"
+            :class="{
+              'ring-2 ring-[var(--accent)] scale-105 shadow-xl': hoverTargetId === item.cat.id
+            }"
+          >
+            <LibraryFolderCard
+              :folder="item.cat"
+              :folder-packs="item.packs"
+              class="w-full h-full"
+              @click="toggleFolder(item.cat.id)"
+            />
+          </div>
+
+          <!-- 3. ORDINARY PACK (1 cell) -->
+          <div
+            v-else-if="item.type === 'pack'"
+            :data-drop-target="item.pack.id"
+            class="aspect-square w-full rounded-2xl transition-all duration-200"
+            :class="{
+              'opacity-30 scale-95': draggingPackId === item.pack.id,
+              'ring-2 ring-[var(--accent)] scale-105 shadow-xl': hoverTargetId === item.pack.id
+            }"
+          >
+            <ModpackCard
+              :pack="item.pack"
+              class="w-full h-full"
+              @pointerdown="onCardPointerDown(item.pack.id, $event)"
+              @click="handlePackClick(item.pack.id)"
+              @contextmenu="openLibMenu"
+              @play="playLibraryPack"
+            />
+          </div>
+
+        </template>
+      </div>
+    </div>
+
+    <!-- Drag Ghost -->
+    <div
+      v-if="isDragging && draggingPack"
+      class="fixed pointer-events-none z-[99999] w-20 h-20 rounded-2xl bg-[var(--panel)] border-2 border-[var(--accent)] p-1.5 shadow-2xl flex items-center justify-center -translate-x-1/2 -translate-y-1/2 rotate-3 select-none"
+      :style="{ left: `${mouseX}px`, top: `${mouseY}px` }"
+    >
+      <img
+        v-if="draggingIconSrc"
+        :src="draggingIconSrc"
+        class="w-full h-full object-contain rounded-xl select-none"
+        draggable="false"
+      />
+      <div
+        v-else
+        class="w-full h-full rounded-xl flex items-center justify-center text-white font-black text-2xl select-none"
+        :style="{ background: packGradient((draggingPack as any).color || draggingPack.name || 'M') }"
+      >
+        {{ (draggingPack.name || 'M')[0].toUpperCase() }}
+      </div>
+    </div>
   </div>
 </template>
