@@ -1,5 +1,17 @@
 # Änderungen
 
+## [2.0.0-alpha.7] — 2026-09-06
+
+### Bibliothek
+- Einheitliche aufgeklappte Kategorie-Kachel mit pixelgenauem Grid-Alignment.
+- Grid-Überarbeitung (Feinschliff der Ordner-Karten).
+
+### UI
+- Einheitliche `AppIcon`-Komponente (ersetzt 184 Inline-SVGs).
+- Verbesserter Markdown-Editor; fehlende Übersetzungs-Keys ergänzt.
+- Besseres Download-Panel, Netzwerkeinstellungen, Infinite-Scroll-Katalog.
+- Feinschliff an Einstellungen / Spiel / Katalog; CurseForge-CDN-Fix.
+
 ## [1.3.1] — 2026-08-18
 
 ### Mods & Speicher
