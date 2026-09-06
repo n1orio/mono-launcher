@@ -302,10 +302,12 @@ async function enableAllFiles(enabled: boolean) {
   <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
   <span
   v-if="packLocked"
-  class="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider shadow-sm bg-[#16a34a]/15 text-[#22c55e] border border-[#16a34a]/30"
+  class="flex items-center gap-1.5 text-xs font-bold text-[#3fb950]"
   :title="t('files.locked')"
   >
+  <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#3fb950]/15">
   <AppIcon name="shield-check" class="h-3.5 w-3.5 fill-current" />
+  </span>
   {{ t("pack.managed") }}
   </span>
   <span
