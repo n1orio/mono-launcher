@@ -943,5 +943,11 @@
   "customMods.unchecked.one": "Enthält {n} ungeprüfte Drittanbieter-Datei",
   "customMods.unchecked.few": "Enthält {n} ungeprüfte Drittanbieter-Dateien",
   "customMods.unchecked.many": "Enthält {n} ungeprüfte Drittanbieter-Dateien",
-  "customMods.unchecked.other": "Enthält {n} ungeprüfte Drittanbieter-Dateien"
+  "customMods.unchecked.other": "Enthält {n} ungeprüfte Drittanbieter-Dateien",
+  "releases.current": "Aktuelle Version",
+  "releases.modsOfVersion": "Mods dieser Version",
+  "releases.timeline": "Verfügbare Versionen ({n})",
+  "releases.inGame": "Spielzeit: {t}",
+  "releases.loaderIs": "Loader: {v}",
+  "releases.downloaded": "Heruntergeladen"
 }

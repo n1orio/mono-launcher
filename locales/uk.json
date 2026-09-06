@@ -943,5 +943,11 @@
   "customMods.unchecked.one": "У збірці є {n} неперевірений сторонній файл",
   "customMods.unchecked.few": "У збірці є {n} неперевірені сторонні файли",
   "customMods.unchecked.many": "У збірці є {n} неперевірених сторонніх файлів",
-  "customMods.unchecked.other": "У збірці є {n} неперевірених сторонніх файлів"
+  "customMods.unchecked.other": "У збірці є {n} неперевірених сторонніх файлів",
+  "releases.current": "Поточна версія",
+  "releases.modsOfVersion": "Моди цієї версії",
+  "releases.timeline": "Доступні версії ({n})",
+  "releases.inGame": "Час у грі: {t}",
+  "releases.loaderIs": "Завантажувач: {v}",
+  "releases.downloaded": "Завантажена"
 }

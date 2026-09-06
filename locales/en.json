@@ -943,5 +943,11 @@
   "customMods.unchecked.one": "Pack contains {n} unchecked third-party file",
   "customMods.unchecked.few": "Pack contains {n} unchecked third-party files",
   "customMods.unchecked.many": "Pack contains {n} unchecked third-party files",
-  "customMods.unchecked.other": "Pack contains {n} unchecked third-party files"
+  "customMods.unchecked.other": "Pack contains {n} unchecked third-party files",
+  "releases.current": "Current version",
+  "releases.modsOfVersion": "Mods in this version",
+  "releases.timeline": "Available versions ({n})",
+  "releases.inGame": "Playtime: {t}",
+  "releases.loaderIs": "Loader: {v}",
+  "releases.downloaded": "Downloaded"
 }

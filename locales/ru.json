@@ -943,5 +943,11 @@
   "customMods.unchecked.one": "В сборке есть {n} непроверенный сторонний файл",
   "customMods.unchecked.few": "В сборке есть {n} непроверенных сторонних файла",
   "customMods.unchecked.many": "В сборке есть {n} непроверенных сторонних файлов",
-  "customMods.unchecked.other": "В сборке есть {n} непроверенных сторонних файлов"
+  "customMods.unchecked.other": "В сборке есть {n} непроверенных сторонних файлов",
+  "releases.current": "Текущая версия",
+  "releases.modsOfVersion": "Список модов версии",
+  "releases.timeline": "Доступные версии ({n})",
+  "releases.inGame": "Время в игре: {t}",
+  "releases.loaderIs": "Загрузчик: {v}",
+  "releases.downloaded": "Загружена"
 }

@@ -197,6 +197,54 @@ const customModsState = computed(() => {
 const customUncheckedCount = computed(() =>
   (status?.value?.custom_mods || []).filter((f: any) => f.safe !== true && f.safe !== false).length
 );
+
+// ---- Вкладка «Релизы»: hero активной версии + единый таймлайн без дублей ----
+const normTag = (s: string | null | undefined) => (s ?? "").trim().replace(/^v/i, "");
+const withV = (s: string | null | undefined) => {
+  const t = (s ?? "").trim();
+  return t ? (t.toLowerCase().startsWith("v") ? t : `v${t}`) : "";
+};
+const activeInstalled = computed(() => {
+  const v = versions?.value;
+  if (!v?.active) return null;
+  return (v.installed ?? []).find((r: any) => r.version_id === v.active) ?? null;
+});
+interface TimelineRow { tag: string; display: string; installed: any | null; remote: any | null }
+const versionTimeline = computed<TimelineRow[]>(() => {
+  const rows: TimelineRow[] = [];
+  const byTag = new Map<string, TimelineRow>();
+  for (const rv of (remoteVersions?.value ?? []) as any[]) {
+    const tag = normTag(rv.version);
+    const row: TimelineRow = { tag, display: withV(rv.version), installed: null, remote: rv };
+    rows.push(row);
+    if (tag && !byTag.has(tag)) byTag.set(tag, row);
+  }
+  for (const ins of (versions?.value?.installed ?? []) as any[]) {
+    const tag = normTag(ins.source_tag ?? ins.version_id);
+    const ex = tag ? byTag.get(tag) : undefined;
+    if (ex) {
+      ex.installed = ins;
+    } else {
+      rows.push({ tag, display: withV(ins.source_tag ?? ins.version_id), installed: ins, remote: null });
+    }
+  }
+  return rows;
+});
+const isRowActive = (row: TimelineRow) =>
+  !!versions?.value?.active && !!row.installed && row.installed.version_id === versions.value.active;
+const heroMeta = computed(() => {
+  const parts: string[] = [];
+  const secs = activeInstalled.value?.total_seconds ?? 0;
+  if (secs > 0) parts.push(t("releases.inGame", { t: formatPlaytimeShort(secs) }));
+  const st = status?.value;
+  const loader = [st?.loader, st?.loader_version].filter(Boolean).join(" ");
+  if (loader) parts.push(t("releases.loaderIs", { v: loader }));
+  else if (st?.minecraft_version) parts.push(st.minecraft_version);
+  return parts.join(" • ");
+});
+function openModsOfActive() {
+  (playSubTab as any).value = "mods";
+}
 // ---- Контекстное меню ПКМ по файлу ----
 const fileCtx = ref<{ file: GameFileEntry; x: number; y: number } | null>(null);
 function openFileCtx(e: MouseEvent, f: GameFileEntry) {
@@ -592,87 +640,90 @@ async function enableAllFiles(enabled: boolean) {
   </template>
   </div>
 
-  <!-- Список установленных версий -->
+  <!-- Управление версиями: hero активной + единый таймлайн -->
   <template v-if="playSubTab === 'releases'">
   <div class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-  <div class="flex items-center justify-end">
-  <button type="button" class="rounded-md  bg-[var(--input)] px-2 py-1 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50" :disabled="remoteVersionsLoading" @click="refreshRemoteVersions()">
-  <AppIcon v-if="remoteVersionsLoading" name="spinner" class="h-3 w-3 fill-current" />
-  <template v-else>{{ t("catalog.refresh") }}</template>
-  </button>
-  </div>
-  <div v-if="versions && versions.installed.length > 0" class="flex items-center justify-between text-[13px] text-[color:var(--tx-muted)]">
-  <span class="font-medium">{{ t("releases.count", { n: versions.installed.length }) }}</span>
+
+  <!-- Hero: текущая установленная версия -->
+  <div v-if="activeInstalled" class="rounded-2xl bg-[var(--input)]/40 border border-[var(--border)] p-4 mb-5 flex items-center justify-between gap-4 shadow-sm">
+    <div class="flex items-center gap-3.5 min-w-0">
+      <div class="w-10 h-10 shrink-0 rounded-xl bg-[#16a34a]/15 border border-[#16a34a]/30 flex items-center justify-center text-[#22c55e]">
+        <AppIcon name="check" class="h-5 w-5 fill-current" />
+      </div>
+      <div class="flex flex-col min-w-0">
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-[color:var(--tx-muted)]">{{ t("releases.current") }}</div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-base font-black text-[color:var(--tx)]">{{ withV(activeInstalled.source_tag ?? activeInstalled.version_id) }}</span>
+          <span class="px-2 py-0.5 rounded-md bg-[#16a34a]/15 text-[#22c55e] text-[11px] font-bold border border-[#16a34a]/25">{{ t("releases.active") }}</span>
+        </div>
+        <span v-if="heroMeta" class="text-xs text-[color:var(--tx-muted)] mt-0.5 truncate">{{ heroMeta }}</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <button type="button" class="px-3.5 py-1.5 rounded-xl bg-[var(--input)] hover:bg-white/10 text-[color:var(--tx)] text-xs font-semibold border border-[var(--border)] transition-all" @click="openModsOfActive">
+        {{ t("releases.modsOfVersion") }}
+      </button>
+    </div>
   </div>
 
-  <article
-  v-for="r in versions?.installed ?? []"
-  :key="r.version_id"
-  class="rounded-xl  bg-[var(--panel)] shadow-sm transition-shadow hover:shadow-md"
-  >
-  <div class="flex items-center justify-between px-3.5 py-2.5">
-  <div class="flex items-center gap-2.5 flex-wrap">
-  <span class="font-mono text-sm font-semibold text-[var(--accent)]">
-  {{ r.source_tag ?? r.version_id }}
-  </span>
-  <span v-if="versions && r.version_id === versions.active" class="rounded-full  bg-[#238636]/10 px-2 py-0.5 text-xs font-medium text-[#3fb950]">
-  {{ t("releases.active") }}
-  </span>
-  </div>
-
-  <div class="flex items-center gap-3">
-  <span v-if="r.total_seconds > 0" class="font-mono text-[13px] text-[#d29922]" :title="t('releases.playtime')">
-  {{ formatPlaytime(r.total_seconds) }}
-  </span>
-  <button
-  v-if="versions && r.version_id !== versions.active"
-  type="button"
-  class="rounded-md  bg-[var(--input)] px-2.5 py-1 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-white disabled:opacity-50"
-  :disabled="busy"
-  @click="handleSelectVersion(r.source_tag ?? r.version_id)"
-  >
-  {{ t("releases.switch") }}
-  </button>
-  </div>
-  </div>
-  </article>
-
-  <!-- Доступные версии на сервере -->
-  <div v-if="remoteVersions && remoteVersions.length > 0" class="pt-2">
+  <!-- Таймлайн: серверные версии + локальные, дубли склеены -->
   <div class="flex items-center justify-between text-[13px] text-[color:var(--tx-muted)]">
-  <span class="font-medium">{{ t("releases.serverTitle", { n: remoteVersions.length }) }}</span>
-  </div>
-  <article
-  v-for="v in remoteVersions"
-  :key="v.id"
-  class="mt-3 rounded-xl  bg-[var(--panel)] shadow-sm transition-shadow hover:shadow-md"
-  >
-  <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
-  <div class="min-w-0 flex-1">
-  <p class="font-mono text-sm font-semibold text-[var(--accent)]">v{{ v.version }}</p>
-  <p class="mt-0.5 text-xs text-[color:var(--tx-muted)]">
-  {{ formatDate(v.created_at) }} · {{ formatBytes(v.size) }}
-  </p>
-  <p v-if="v.changelog" class="mt-1 line-clamp-1 text-xs text-[color:var(--tx-muted)]">{{ v.changelog }}</p>
-  </div>
-  <button
-  type="button"
-  class="shrink-0 rounded-md  bg-[var(--input)] px-2.5 py-1 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-white disabled:opacity-50"
-  :disabled="busy || remoteInstallingId === v.id"
-  @click="installRemoteVersion(v)"
-  >
-  <AppIcon v-if="remoteInstallingId === v.id" name="spinner" class="h-3.5 w-3.5 fill-current" />
-  <template v-else>{{ t("releases.install") }}</template>
-  </button>
-  </div>
-  </article>
-  </div>
+    <span class="font-medium">{{ t("releases.timeline", { n: versionTimeline.length }) }}</span>
+    <button type="button" class="flex items-center gap-1.5 rounded-md bg-[var(--input)] px-2 py-1 text-xs font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50" :disabled="remoteVersionsLoading" @click="refreshRemoteVersions()">
+      <AppIcon v-if="remoteVersionsLoading" name="spinner" class="h-3 w-3 fill-current" />
+      <AppIcon v-else name="refresh" class="h-3 w-3 fill-current" />
+      {{ t("catalog.refresh") }}
+    </button>
   </div>
 
-  <div v-if="remoteVersionsLoading" class="shrink-0 rounded-xl  bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
+  <article
+    v-for="row in versionTimeline"
+    :key="row.tag || row.display"
+    class="rounded-xl bg-[var(--panel)] shadow-sm transition-shadow hover:shadow-md"
+  >
+    <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-mono text-sm font-semibold text-[var(--accent)]">{{ row.display }}</span>
+          <span v-if="isRowActive(row)" class="rounded-full bg-[#238636]/10 px-2 py-0.5 text-xs font-medium text-[#3fb950]">{{ t("releases.active") }}</span>
+          <span v-else-if="row.installed" class="rounded-full bg-white/5 border border-[var(--border)] px-2 py-0.5 text-xs font-medium text-[color:var(--tx-muted)]">{{ t("releases.downloaded") }}</span>
+        </div>
+        <p v-if="row.remote" class="mt-0.5 text-xs text-[color:var(--tx-muted)]">
+          {{ formatDate(row.remote.created_at) }} · {{ formatBytes(row.remote.size) }}<span v-if="row.installed && row.installed.total_seconds > 0" :title="t('releases.playtime')"> · {{ formatPlaytime(row.installed.total_seconds) }}</span>
+        </p>
+        <p v-else-if="row.installed && row.installed.total_seconds > 0" class="mt-0.5 font-mono text-xs text-[#d29922]" :title="t('releases.playtime')">
+          {{ formatPlaytime(row.installed.total_seconds) }}
+        </p>
+        <p v-if="row.remote?.changelog" class="mt-1 line-clamp-1 text-xs text-[color:var(--tx-muted)]">{{ row.remote.changelog }}</p>
+      </div>
+      <button
+        v-if="!row.installed && row.remote"
+        type="button"
+        class="shrink-0 rounded-md bg-[var(--input)] px-2.5 py-1 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-white disabled:opacity-50"
+        :disabled="busy || remoteInstallingId === row.remote.id"
+        @click="installRemoteVersion(row.remote)"
+      >
+        <AppIcon v-if="remoteInstallingId === row.remote.id" name="spinner" class="h-3.5 w-3.5 fill-current" />
+        <template v-else>{{ t("releases.install") }}</template>
+      </button>
+      <button
+        v-else-if="row.installed && !isRowActive(row)"
+        type="button"
+        class="shrink-0 rounded-md bg-[var(--input)] px-2.5 py-1 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-white disabled:opacity-50"
+        :disabled="busy"
+        @click="handleSelectVersion(row.installed.source_tag ?? row.installed.version_id)"
+      >
+        {{ t("releases.switch") }}
+      </button>
+    </div>
+  </article>
+
+  </div>
+
+  <div v-if="remoteVersionsLoading && versionTimeline.length === 0" class="shrink-0 rounded-xl bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
   {{ t("files.loading") }}
   </div>
-  <div v-else-if="!remoteVersions" class="shrink-0 rounded-xl  bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
+  <div v-else-if="!remoteVersions && versionTimeline.length === 0" class="shrink-0 rounded-xl bg-[var(--panel)] shadow-sm p-8 text-center text-[13px] text-[color:var(--tx-muted)]">
   {{ t("releases.loadError") }}
   </div>
   </template>

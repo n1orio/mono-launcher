@@ -943,5 +943,11 @@
   "customMods.unchecked.one": "У зборцы ёсць {n} неправераны старонні файл",
   "customMods.unchecked.few": "У зборцы ёсць {n} неправераныя староннія файлы",
   "customMods.unchecked.many": "У зборцы ёсць {n} неправераных старонніх файлаў",
-  "customMods.unchecked.other": "У зборцы ёсць {n} неправераных старонніх файлаў"
+  "customMods.unchecked.other": "У зборцы ёсць {n} неправераных старонніх файлаў",
+  "releases.current": "Бягучая версія",
+  "releases.modsOfVersion": "Моды гэтай версіі",
+  "releases.timeline": "Даступныя версіі ({n})",
+  "releases.inGame": "Час у гульні: {t}",
+  "releases.loaderIs": "Загрузчык: {v}",
+  "releases.downloaded": "Запампаваная"
 }
