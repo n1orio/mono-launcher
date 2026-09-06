@@ -660,7 +660,7 @@ async function enableAllFiles(enabled: boolean) {
       </div>
     </div>
     <div class="flex items-center gap-2 shrink-0">
-      <button type="button" class="px-3.5 py-1.5 rounded-xl bg-[var(--input)] hover:bg-white/10 text-[color:var(--tx)] text-xs font-semibold border border-[var(--border)] transition-all" @click="openModsOfActive">
+      <button type="button" class="px-3.5 py-2 rounded-xl bg-[var(--input)] hover:bg-[var(--panel)] border border-[var(--border)] text-xs font-semibold text-[color:var(--tx)] transition-all active:scale-95 shadow-sm" @click="openModsOfActive">
         {{ t("releases.modsOfVersion") }}
       </button>
     </div>
@@ -679,12 +679,11 @@ async function enableAllFiles(enabled: boolean) {
   <article
     v-for="row in versionTimeline"
     :key="row.tag || row.display"
-    class="rounded-xl bg-[var(--panel)] shadow-sm transition-shadow hover:shadow-md"
+    class="rounded-xl bg-[var(--input)]/20 hover:bg-[var(--input)]/40 border border-[var(--border)] p-3 mb-2 flex items-center justify-between gap-4 transition-all"
   >
-    <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
-      <div class="min-w-0 flex-1">
+    <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="font-mono text-sm font-semibold text-[var(--accent)]">{{ row.display }}</span>
+          <span class="text-sm font-bold text-[color:var(--tx)]">{{ row.display }}</span>
           <span v-if="isRowActive(row)" class="rounded-full bg-[#238636]/10 px-2 py-0.5 text-xs font-medium text-[#3fb950]">{{ t("releases.active") }}</span>
           <span v-else-if="row.installed" class="rounded-full bg-white/5 border border-[var(--border)] px-2 py-0.5 text-xs font-medium text-[color:var(--tx-muted)]">{{ t("releases.downloaded") }}</span>
         </div>
@@ -699,7 +698,7 @@ async function enableAllFiles(enabled: boolean) {
       <button
         v-if="!row.installed && row.remote"
         type="button"
-        class="shrink-0 rounded-md bg-[var(--input)] px-2.5 py-1 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-white disabled:opacity-50"
+        class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--accent)] hover:brightness-110 text-white shadow-sm active:scale-95 transition-all disabled:opacity-50"
         :disabled="busy || remoteInstallingId === row.remote.id"
         @click="installRemoteVersion(row.remote)"
       >
@@ -709,13 +708,12 @@ async function enableAllFiles(enabled: boolean) {
       <button
         v-else-if="row.installed && !isRowActive(row)"
         type="button"
-        class="shrink-0 rounded-md bg-[var(--input)] px-2.5 py-1 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-white disabled:opacity-50"
+        class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--input)] hover:bg-[var(--panel)] text-[color:var(--tx)] border border-[var(--border)] transition-all disabled:opacity-50"
         :disabled="busy"
         @click="handleSelectVersion(row.installed.source_tag ?? row.installed.version_id)"
       >
         {{ t("releases.switch") }}
       </button>
-    </div>
   </article>
 
   </div>
