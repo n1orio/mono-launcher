@@ -569,11 +569,21 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Managed pack Banner: там же и в том же корпусе, что баннер проверки -->
   <div
     v-if="packLocked"
-    class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center gap-2 font-medium transition-all border-[#16a34a]/30 bg-[#16a34a]/15 text-[#22c55e]"
+    class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all border-[var(--accent)]/30 bg-[var(--accent)]/10 text-[var(--accent)]"
     :title="t('files.locked')"
   >
-    <AppIcon name="shield-check" class="h-4 w-4 fill-current shrink-0" />
-    <span>{{ t("pack.managed") }}</span>
+    <div class="flex items-center gap-2 font-medium">
+      <AppIcon name="lock" class="h-4 w-4 fill-current shrink-0" />
+      <span>{{ t("pack.managed") }}</span>
+    </div>
+    <div class="flex items-center gap-3 shrink-0">
+      <button
+        type="button"
+        class="hover:underline font-semibold cursor-pointer"
+        :title="t('files.unbindHint')"
+        @click="confirmUnbindPack"
+      >{{ unbindArmed ? t("files.unbindConfirm") : t("files.unbind") }}</button>
+    </div>
   </div>
 
   <!-- Verification Banner: вид зависит от состояния проверки -->
