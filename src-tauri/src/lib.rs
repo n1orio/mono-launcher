@@ -1340,13 +1340,32 @@ fn copy_pack_asset(src: Option<&str>, dest: &std::path::Path) -> Result<(), Stri
     Ok(())
 }
 
+/// GET с ретраями: первая ошибка сети (обрыв, DNS, Cloudflare-hiccup)
+/// не должна сразу ронять создание сборки. 3 попытки, задержка 1с → 2с.
+async fn get_with_retry(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<reqwest::Response, reqwest::Error> {
+    let mut last_err = None;
+    for attempt in 0..3 {
+        if attempt > 0 {
+            tokio::time::sleep(Duration::from_secs(attempt as u64)).await;
+        }
+        match client.get(url).send().await {
+            Ok(resp) => return Ok(resp),
+            Err(e) if e.is_timeout() || e.is_connect() || e.is_request() => {
+                last_err = Some(e);
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Err(last_err.expect("retry loop must attempt at least once"))
+}
+
 /// Определяет версию загрузчика под версию Minecraft. Возвращает (ключ зависимости
 /// в .mono-index.json, версию загрузчика) или None для ванили.
 async fn meta_json(client: &reqwest::Client, url: &str) -> Result<serde_json::Value, String> {
-    client
-        .get(url)
-        .header("User-Agent", "mono-launcher")
-        .send()
+    get_with_retry(client, url)
         .await
         .map_err(|e| format!("Не удалось получить метаданные загрузчика: {e}"))?
         .error_for_status()
@@ -1361,10 +1380,7 @@ async fn neoforge_versions(client: &reqwest::Client, mc: &str) -> Result<Vec<Str
     let url = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
     let prefix = neoforge_prefix(mc)
         .ok_or_else(|| format!("Не удалось определить версию NeoForge для Minecraft {mc}"))?;
-    let text = client
-        .get(url)
-        .header("User-Agent", "mono-launcher")
-        .send()
+    let text = get_with_retry(client, url)
         .await
         .map_err(|e| format!("Не удалось получить версии NeoForge: {e}"))?
         .error_for_status()
@@ -4072,8 +4088,17 @@ async fn get_skin_command(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Общий HTTP-клиент: браузерный User-Agent (CDN/Cloudflare режут
+    // дефолтный reqwest-UA), вменяемые таймауты вместо бесконечного
+    // ожидания Client::new().
+    const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 MonoLauncher/2.0";
     let state = AppState {
-        client: reqwest::Client::new(),
+        client: reqwest::Client::builder()
+            .user_agent(UA)
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .timeout(std::time::Duration::from_secs(20))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new()),
     };
 
     tauri::Builder::default()
