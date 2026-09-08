@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.0.0-alpha.8] — 2026-09-08
+
+### Backend
+- Fixed release ID retrieval via `gh api` instead of `gh release view --json id` (GraphQL node ID → numeric ID)
+- Fixed `authlib-injector` `-javaagent` format: removed invalid `api=` prefix
+- Fixed `mono_api` auth: removed `access_token` gate, now always uses backend when `use_authlib` is enabled
+- Fixed `userType`: passes `"mojang"` instead of `"offline"` when authlib-injector is active
+- Added `load_mono_profile()` check in `launch_game` — disables authlib-injector if no Mono profile exists
+
+### Frontend
+- Added `watch(packId)` in `useLauncher.ts` to auto-refresh `versions`/`remoteVersions` on tab switch
+- Fixed `syncPackWithBackend`: `d.id !== backendId` check, `resolvedBackendId` tracking
+- Fixed `installRemoteVersion`: verifies `remoteVersions` contains version before install
+- Fixed `versionTimeline` deduplication by tag in `TabPlay.vue`
+
+### Pack Management
+- Added `.mono-installed.json` version validation: skips entries where `versionId` ≠ directory name
+- Added `DISTINCT ON (version)` dedup and duplicate check in `list_versions_rows`/`add_version`
+- Added `err.wrongPack` locale strings
+
 ## [2.0.0-alpha.7] — 2026-09-06
 
 ### Library
