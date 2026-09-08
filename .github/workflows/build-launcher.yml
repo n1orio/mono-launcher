@@ -27,7 +27,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ID="$(gh release view "$GITHUB_REF_NAME" --repo n1orio/mono-launcher --json id --jq .id || true)"
+          ID="$(gh api repos/n1orio/mono-launcher/releases --jq '.[] | select(.tag_name=="$GITHUB_REF_NAME") | .id')"
           echo "release_id=$ID" >> "$GITHUB_OUTPUT"
           echo "release_id=$ID"
 
