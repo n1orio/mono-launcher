@@ -344,6 +344,7 @@ export interface LauncherCtx {
   handleMonoRegister: (...args: any[]) => any;
   handleMonoReset: (...args: any[]) => any;
   handleOffline: (...args: any[]) => any;
+  saveDisplayName: (...args: any[]) => any;
   handleOpenPackDir: (...args: any[]) => any;
   handlePlay: (...args: any[]) => any;
   handleRemoveAccount: (...args: any[]) => any;
@@ -356,6 +357,9 @@ export interface LauncherCtx {
   handleVerify: (...args: any[]) => any;
   importAuthorPack: (...args: any[]) => any;
   installAppUpdate: (...args: any[]) => any;
+  readPackTheme: (...args: any[]) => any;
+  savePackTheme: (...args: any[]) => any;
+  doSaveAuthorTheme: (...args: any[]) => any;
   installCpPack: any;
   installCurse: any;
   curseDetail: any;
@@ -530,6 +534,7 @@ export interface LauncherCtx {
   monoName: Ref<any>;
   monoPass: Ref<any>;
   monoProfile: Ref<MonoProfile | null>;
+  monoUseAuthlib: Ref<boolean>;
   monoResetDone: Ref<any>;
   monoResetPass: Ref<any>;
   monoResetToken: Ref<any>;

@@ -75,7 +75,7 @@ watch(showPanel, (v) => {
 
 <template>
   <Transition name="dlpanel">
-    <div v-if="showPanel" class="border-t border-[var(--border)] bg-[var(--panel-soft)]">
+    <div v-if="showPanel" class="absolute bottom-0 left-0 right-0 z-30 border-t border-[var(--border)] bg-[var(--panel)] shadow-[0_-4px_20px_rgba(0,0,0,0.4)]">
       <!-- Compact header (always visible) -->
       <div class="px-3 pt-2.5 pb-2">
         <div class="mb-1.5 flex items-center justify-between">
@@ -226,18 +226,17 @@ watch(showPanel, (v) => {
 
 .dlpanel-enter-active,
 .dlpanel-leave-active {
-  transition: all 0.25s ease;
+  transition: transform 0.25s ease, opacity 0.25s ease;
 }
 .dlpanel-enter-from,
 .dlpanel-leave-to {
   opacity: 0;
-  max-height: 0;
-  overflow: hidden;
+  transform: translateY(100%);
 }
 .dlpanel-enter-to,
 .dlpanel-leave-from {
   opacity: 1;
-  max-height: 400px;
+  transform: translateY(0);
 }
 
 .dlpanel-expand-enter-active,
@@ -253,6 +252,6 @@ watch(showPanel, (v) => {
 .dlpanel-expand-enter-to,
 .dlpanel-expand-leave-from {
   opacity: 1;
-  max-height: 200px;
+  max-height: 300px;
 }
 </style>

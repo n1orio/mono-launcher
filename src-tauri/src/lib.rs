@@ -25,8 +25,8 @@ use sysinfo::System;
 use tauri::{AppHandle, Manager, State};
 use tauri::{Emitter, Listener};
 
-use crate::auth::{login_offline, save_session, UserSession};
-use crate::config::{default_pack_id, PackInfo};
+use crate::auth::{login_offline, save_display_name, save_session, UserSession};
+use crate::config::{default_pack_id, PackInfo, read_pack_theme};
 use crate::author::export_author_pack_command;
 use crate::export::{export_list_command, export_pack_command};
 
@@ -83,6 +83,8 @@ pub struct PackDescriptor {
     pub banner: Option<String>,
     /// Цвет аватарки (hex без #, например "e74c3c").
     pub color: Option<String>,
+    /// Тема лаунчера из theme.json.
+    pub theme: Option<crate::config::AuthorTheme>,
 }
 
 #[derive(Debug, Serialize)]
@@ -170,10 +172,23 @@ fn list_packs() -> Result<Vec<PackDescriptor>, String> {
                     icon: p.icon,
                     banner: p.banner,
                     color: p.color,
+                    theme: p.theme,
                 })
                 .collect()
         })
         .map_err(|e| e.to_string())
+}
+
+/// Читает theme.json из папки сборки.
+#[tauri::command]
+fn read_pack_theme_command(pack_id: String) -> Result<Option<crate::config::AuthorTheme>, String> {
+    read_pack_theme(&pack_id).map_err(|e| e.to_string())
+}
+
+/// Сохраняет theme.json в папку сборки.
+#[tauri::command]
+fn save_pack_theme_command(pack_id: String, theme: crate::config::AuthorTheme) -> Result<(), String> {
+    crate::config::save_pack_theme(&pack_id, &theme).map_err(|e| e.to_string())
 }
 
 /// Добавляет сборку по прямой ссылке на `.mrpack`.
@@ -209,7 +224,7 @@ async fn add_pack_impl(
         .unwrap_or_else(|| file_stem.clone());
     let pack_id = config::unique_pack_id(&config::sanitize_pack_name(&pack_name));
     let blog = blog.map(str::trim).filter(|b| !b.is_empty()).map(String::from);
-    config::add_user_pack(&pack_id, &pack_name, &url, "remote", blog.as_deref(), None, None)
+    config::add_user_pack(&pack_id, &pack_name, &url, "remote", blog.as_deref(), None, None, None)
         .map_err(|e| e.to_string())?;
     // Синхронизация библиотеки на бэкенд (fire-and-forget).
     let c = client.clone();
@@ -241,6 +256,7 @@ async fn add_pack_impl(
         icon: None,
         banner: None,
         color: None,
+        theme: None,
     })
 }
 
@@ -766,6 +782,7 @@ config::add_user_pack(
              None,
              None,
              None,
+             None,
          )
          .map_err(|e| e.to_string())?;
     }
@@ -808,6 +825,7 @@ config::add_user_pack(
         icon,
         banner: config::pack_banner_path(&pack_id),
         color: None,
+        theme: None,
     })
 }
 
@@ -1249,18 +1267,20 @@ async fn modrinth_install_pack_command(
             icon,
             banner,
             color: p.color.clone(),
+            theme: None,
         })
     }
 config::add_user_pack(
-         &pack_id,
-         &project.title,
-         &mrpack.url,
-         "local",
-         None,
-         None,
-         None,
-     )
-     .map_err(|e| e.to_string())?;
+          &pack_id,
+          &project.title,
+          &mrpack.url,
+          "local",
+          None,
+          None,
+          None,
+          None,
+      )
+      .map_err(|e| e.to_string())?;
     // Синхронизация библиотеки на бэкенд (fire-and-forget).
     {
         let c = state.client.clone();
@@ -1303,6 +1323,7 @@ config::add_user_pack(
         icon,
         banner,
         color: None,
+        theme: None,
     })
 }
 
@@ -1658,7 +1679,7 @@ async fn create_local_pack_command(
     if banner.is_some() {
         copy_pack_asset(banner.as_deref(), &pack_dir.join("banner.png"))?;
     }
-    config::add_user_pack(&pack_id, &name, &url, "local", None, None, color.as_deref()).map_err(|e| e.to_string())?;
+    config::add_user_pack(&pack_id, &name, &url, "local", None, None, color.as_deref(), None).map_err(|e| e.to_string())?;
     let icon_path = config::pack_icon_path(&pack_id);
     let banner_path = config::pack_banner_path(&pack_id);
     Ok(PackDescriptor {
@@ -1673,6 +1694,7 @@ async fn create_local_pack_command(
         icon: icon_path,
         banner: banner_path,
         color: color.clone(),
+        theme: None,
     })
 }
 
@@ -1881,6 +1903,7 @@ async fn ensure_pack_from_link(
                     icon: existing.icon,
                     banner: existing.banner,
                     color: existing.color.clone(),
+                    theme: existing.theme,
                 },
                 true,
             ));
@@ -2593,6 +2616,12 @@ async fn login_offline_command(username: String) -> Result<UserSession, String> 
     Ok(session)
 }
 
+/// Сохраняет отображаемое имя в текущей сессии.
+#[tauri::command]
+async fn save_display_name_command(name: String) -> Result<(), String> {
+    auth::save_display_name(&name).map_err(|e| e.to_string())
+}
+
 /// Microsoft OAuth2, фаза 1: запрашиваем device code для показа в UI.
 #[tauri::command]
 async fn ms_device_code_command(
@@ -3274,6 +3303,17 @@ async fn mono_confirm_email_command(
         .map_err(|e| e.to_string())
 }
 
+/// Запрос игрового токена сессии (для авторизации на серверах).
+#[tauri::command]
+async fn request_session_token_command(
+    state: State<'_, AppState>,
+    access_token: String,
+) -> Result<auth::MonoSessionToken, String> {
+    auth::request_session_token(&state.client, &access_token)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Запуск игры.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)] // Tauri-сигнатура фиксированная.
@@ -3286,12 +3326,31 @@ async fn launch_game_command(
     width: u32,
     height: u32,
     server_address: Option<String>,
+    use_authlib: bool,
 ) -> Result<(), String> {
     let pack_id = pack_id.unwrap_or_else(default_pack_id);
     // Гейт лицензии: платные сборки требуют активную подписку Boosty.
     license::ensure_license(&state.client, &pack_id)
         .await
         .map_err(|e| e.to_string())?;
+    // Запрашиваем игровой токен сессии (для авторизации на серверах).
+    let mono_token = {
+        let profile = crate::auth::load_mono_profile().ok().flatten();
+        profile.and_then(|p| {
+            if p.access_token.is_empty() {
+                None
+            } else {
+                Some(p.access_token.clone())
+            }
+        })
+    };
+    let session_token = if let Some(ref token) = mono_token {
+        crate::auth::request_session_token(&state.client, token)
+            .await
+            .ok()
+    } else {
+        None
+    };
     // Авто-коннект ("host" или "host:port") — пустая строка игнорируется.
     let server = server_address
         .as_deref()
@@ -3305,6 +3364,8 @@ async fn launch_game_command(
         width.max(320),
         height.max(240),
         server,
+        session_token.as_ref().map(|s| s.token.as_str()),
+        use_authlib,
     )
     .await
     .map_err(|e| e.to_string())?;
@@ -4188,8 +4249,9 @@ pub fn run() {
             system_info,
             install_mrpack,
             get_status,
-            login_offline_command,
-            ms_device_code_command,
+login_offline_command,
+             save_display_name_command,
+             ms_device_code_command,
             ms_poll_command,
             ms_refresh_session_command,
             ely_device_code_command,
@@ -4226,6 +4288,7 @@ pub fn run() {
             pack_delete_news_command,
             pack_rate_command,
             launch_game_command,
+            request_session_token_command,
             game::stop_game_command,
             ping_server_command,
             get_local_skin_command,
@@ -4266,6 +4329,8 @@ pub fn run() {
             toggle_game_file_command,
             pack_locked_command,
             set_pack_locked_command,
+            read_pack_theme_command,
+            save_pack_theme_command,
             delete_game_files_command,
             get_game_file_icon_command,
             get_game_file_icons_command,

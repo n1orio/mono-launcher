@@ -45,6 +45,7 @@ const {
   doExport,
   doAuthorExport,
   doAuthorImport,
+  doSaveAuthorTheme,
   themePreview,
   AUTHOR_MAX_SERVERS,
   AUTHOR_MAX_SOCIALS,
@@ -275,6 +276,14 @@ const {
           <input type="checkbox" v-model="exportUpload" class="h-3.5 w-3.5 accent-[var(--accent)]" />
           {{ t("pack.uploadMono") }}
         </label>
+        <button
+          v-if="exportFormat === 'author'"
+          type="button"
+          class="rounded-md bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+          @click="doSaveAuthorTheme(authorTheme.value)"
+        >
+          {{ t("pack.saveTheme") }}
+        </button>
         <button
           type="button"
           class="rounded-md bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"

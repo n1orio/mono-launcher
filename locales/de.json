@@ -538,7 +538,7 @@
   "mods.fSort": "Sortierung",
   "mods.fWorld": "Welt für das Datenpaket",
   "mods.pickWorld": "Wählen Sie zuerst die Welt, in die das Datenpaket gelegt werden soll",
-  "curse.noKey": "CurseForge benötigt einen API-Key. Fügen Sie ihn in der Konstante CURSEFORGE_API_KEY in src-tauri/src/curseforge.rs ein.",
+  "curse.noKey": "CurseForge ist vorübergehend nicht verfügbar — versuchen Sie es später erneut.",
   "curse.search": "Suchen",
   "curse.searchPlaceholder": "Name auf CurseForge",
   "curse.help": "Geben Sie eine Anfrage ein, um eine Datei auf CurseForge zu finden. Installiert wird die neueste Version, passend zur Minecraft-Version des Packs.",
@@ -631,6 +631,7 @@
   "pack.exportAuthorSocials": "Soziale Netzwerke (socials.json)",
   "pack.exportAuthorTheme": "Designfarben (theme.json)",
   "pack.exportAuthorThemeAuto": "Auto-Generierung",
+  "pack.saveTheme": "Thema speichern",
   "pack.exportAuthorAccentHint": "Fügen Sie eine Akzentfarbe ein — das Design füllt sich von selbst",
   "pack.exportAuthorAccentPicker": "Akzentfarbe wählen",
   "pack.exportThemeAccent": "Hauptakzent",
@@ -652,6 +653,8 @@
   "pack.exportSocialUrlPh": "URL",
   "pack.exportSocialColorPh": "#hex",
   "pack.exportAuthorDone": "Autor-Pack-Archiv mit README und Anleitung erstellt",
+  "pack.themeSaved": "Thema gespeichert",
+  "pack.themeErr": "Thema konnte nicht gespeichert werden: {e}",
   "pack.exportAuthorErr": "Autor-Pack konnte nicht erstellt werden: {e}",
   "pack.versionMc": "Minecraft-Version",
   "pack.versionLoader": "Loader",
@@ -973,5 +976,11 @@
   "console.autoscroll": "Autom. Scrollen",
   "files.colName": "Name",
   "files.colSource": "Quelle",
-  "files.colActions": "Aktionen"
+  "files.colActions": "Aktionen",
+  "empty.title": "Willkommen bei Mono",
+  "empty.subtitle": "Erstelle dein erstes Pack oder füge ein bestehendes hinzu",
+  "empty.createPack": "Pack erstellen",
+  "empty.browseCatalog": "Katalog durchsuchen",
+  "empty.noPackTitle": "Kein Pack ausgewählt",
+  "empty.noPackHint": "Wähle links ein Pack aus oder erstelle ein neues"
 }

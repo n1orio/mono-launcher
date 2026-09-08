@@ -5,6 +5,7 @@ const ctx = useLauncherCtx();
 const {
   t,
   tp,
+  tab,
   activePack,
   activeBanner,
   bannerOk,
@@ -182,6 +183,7 @@ const {
   licenseError,
   handleSelectVersion,
   selectAllFiles,
+  createPackOpen,
 } = ctx;
 import type { GameFolderKind, ModrinthSearchKind } from "~/lib/bridge";
 import type { GameFileEntry } from "~/lib/types";
@@ -214,21 +216,20 @@ interface TimelineRow { tag: string; display: string; installed: any | null; rem
 const versionTimeline = computed<TimelineRow[]>(() => {
   const rows: TimelineRow[] = [];
   const byTag = new Map<string, TimelineRow>();
-  for (const rv of (remoteVersions?.value ?? []) as any[]) {
-    const tag = normTag(rv.version);
-    const row: TimelineRow = { tag, display: withV(rv.version), installed: null, remote: rv };
-    rows.push(row);
-    if (tag && !byTag.has(tag)) byTag.set(tag, row);
-  }
-  for (const ins of (versions?.value?.installed ?? []) as any[]) {
-    const tag = normTag(ins.source_tag ?? ins.version_id);
-    const ex = tag ? byTag.get(tag) : undefined;
-    if (ex) {
-      ex.installed = ins;
-    } else {
-      rows.push({ tag, display: withV(ins.source_tag ?? ins.version_id), installed: ins, remote: null });
-    }
-  }
+ for (const rv of (remoteVersions?.value ?? []) as any[]) {
+     const tag = normTag(rv.version);
+     if (tag && byTag.has(tag)) continue;
+     const row: TimelineRow = { tag, display: withV(rv.version), installed: null, remote: rv };
+     rows.push(row);
+     if (tag) byTag.set(tag, row);
+   }
+   for (const ins of (versions?.value?.installed ?? []) as any[]) {
+     const tag = normTag(ins.source_tag ?? ins.version_id);
+     if (!tag) { rows.push({ tag: ins.version_id, display: withV(ins.version_id), installed: ins, remote: null }); continue; }
+     const ex = byTag.get(tag);
+     if (ex) { ex.installed = ins; }
+     else { rows.push({ tag, display: withV(ins.source_tag ?? ins.version_id), installed: ins, remote: null }); byTag.set(tag, rows[rows.length - 1]); }
+   }
   return rows;
 });
 const isRowActive = (row: TimelineRow) =>
@@ -280,6 +281,34 @@ async function enableAllFiles(enabled: boolean) {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
+
+  <!-- Пустое состояние: сборка не выбрана -->
+  <div v-if="!activePack" class="absolute inset-0 z-10 flex flex-1 flex-col items-center justify-center gap-5 bg-[var(--bg)] text-center">
+    <div class="flex h-20 w-20 items-center justify-center rounded-3xl bg-[var(--input)]">
+      <svg viewBox="0 0 24 24" class="h-10 w-10 fill-none stroke-[var(--tx-muted)]" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+        <line x1="12" y1="22.08" x2="12" y2="12"/>
+      </svg>
+    </div>
+    <div>
+      <h2 class="text-xl font-bold text-[color:var(--tx-strong)]">{{ t("empty.noPackTitle") }}</h2>
+      <p class="mt-1 text-sm text-[color:var(--tx-muted)]">{{ t("empty.noPackHint") }}</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <button
+        type="button"
+        class="px-5 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold shadow-md hover:brightness-110 active:scale-95 transition-all"
+        @click="createPackOpen = true"
+      >{{ t("empty.createPack") }}</button>
+      <button
+        type="button"
+        class="px-5 py-2.5 rounded-xl bg-[var(--input)] border border-[var(--border)] text-sm font-semibold text-[color:var(--tx)] hover:bg-[var(--hover)] active:scale-95 transition-all"
+        @click="tab = 'catalog'"
+      >{{ t("empty.browseCatalog") }}</button>
+    </div>
+  </div>
+
   <!-- Header сборки -->
   <div class="mb-6 shrink-0 border-b border-[var(--border)]  pb-5">
   <div v-if="activeBanner && bannerOk" class="relative mb-4 h-44 w-full overflow-hidden rounded-xl ">
@@ -820,8 +849,8 @@ async function enableAllFiles(enabled: boolean) {
   </div>
   <div class="flex items-center gap-2 shrink-0">
   <span class="text-xs text-[color:var(--tx-muted)] tabular-nums mr-2">{{ fileVisibleCount }} мода</span>
-  <button v-if="modUpdatesTab.length>0" class="px-3 py-1.5 rounded-xl bg-[var(--accent-deep)] hover:brightness-110 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md active:scale-95 transition-all" @click="updateAllMods"><span>Обновить все</span><span class="px-1.5 py-0.2 rounded-md bg-white/25 text-[10px] font-bold">{{ modUpdatesTab.length }}</span></button>
-  <button class="px-3.5 py-1.5 rounded-xl bg-[var(--accent-deep)] hover:brightness-110 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md" @click="openSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind, 'modrinth')"><span>+ Добавить мод</span></button>
+  <button v-if="modUpdatesTab.length>0 && !packLocked" class="px-3 py-1.5 rounded-xl bg-[var(--accent-deep)] hover:brightness-110 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md active:scale-95 transition-all" @click="updateAllMods"><span>Обновить все</span><span class="px-1.5 py-0.2 rounded-md bg-white/25 text-[10px] font-bold">{{ modUpdatesTab.length }}</span></button>
+  <button v-if="!packLocked" class="px-3.5 py-1.5 rounded-xl bg-[var(--accent-deep)] hover:brightness-110 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md" @click="openSearch((playSubTab === 'mods' ? 'mod' : playSubTab === 'resourcepacks' ? 'resourcepack' : 'shaderpack') as ModrinthSearchKind, 'modrinth')"><span>+ Добавить мод</span></button>
   <div ref="fileMenuRef" class="relative">
   <button
   type="button"
@@ -865,6 +894,7 @@ async function enableAllFiles(enabled: boolean) {
   {{ t("files.selectAll") }}
   </button>
   <button
+  v-if="!packLocked"
   type="button"
   class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click="fileMenuOpen = false; enableAllFiles(true)"
@@ -873,6 +903,7 @@ async function enableAllFiles(enabled: boolean) {
   {{ t("files.enable") }} ({{ t("files.fAll") }})
   </button>
   <button
+  v-if="!packLocked"
   type="button"
   class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click="fileMenuOpen = false; enableAllFiles(false)"
@@ -882,7 +913,7 @@ async function enableAllFiles(enabled: boolean) {
   </button>
   <div class="mx-3 my-1 border-t border-[var(--border)]"></div>
   <button
-  v-if="Object.keys(selectedFiles).length > 0"
+  v-if="!packLocked && Object.keys(selectedFiles).length > 0"
   type="button"
   class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] text-[#f85149] transition-colors hover:bg-[#f85149]/10 disabled:opacity-50"
   :disabled="fileDeleteBusy"

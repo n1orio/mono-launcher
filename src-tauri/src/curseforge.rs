@@ -1,11 +1,8 @@
 //! CurseForge: поиск файлов (моды/ресурспаки/шейдеры) и установка в сборку.
 //!
-//! API v1 (api.curseforge.com) требует ключ: `x-api-key`. Общий ключ встроен
-//! в лаунчер (константа CURSEFORGE_API_KEY); переопределяется переменной
-//! окружения MONO_CURSEFORGE_KEY (напр. в CI).
-//!
-//! Получить ключ: console.curseforge.com → API keys (нужен аккаунт Twitch/CurseForge).
-//! Файлы скачиваются с CDN forgecdn.net — отдельный доступ не нужен.
+//! API-вызовы идут через прокси бэкенда (`/curseforge/v1/...`), который
+//! автоматически подставляет `x-api-key`. Локальный ключ не нужен.
+//! CDN-скачивания (forgecdn.net) используют ключ из env/файла (если есть).
 
 use std::path::Path;
 
@@ -14,7 +11,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::config;
 
-const API_BASE: &str = "https://api.curseforge.com/v1";
+/// CurseForge API base URL — routes through the backend proxy when possible
+/// (no API key needed from the launcher), falls back to direct API.
+fn cf_api_base() -> String {
+    let backend = config::backend_url().trim_end_matches('/').to_string();
+    format!("{backend}/curseforge/v1")
+}
 
 /// Маркер «проект/файл удалён на CurseForge» — такие записи манифеста
 /// пропускаем, в отличие от сетевых/серверных ошибок.
@@ -166,7 +168,7 @@ pub async fn fetch_key_from_backend(client: &reqwest::Client, access_token: &str
 pub fn require_api_key() -> Result<String> {
     api_key_from_cfg().ok_or_else(|| {
         anyhow!(
-            "CurseForge требует API-ключ.\n\
+            "CurseForge требует API-ключ для CDN-скачивания.\n\
              Войдите в аккаунт Mono в лаунчере — ключ подтянется автоматически,\n\
              или задайте переменную окружения MONO_CURSEFORGE_KEY."
         )
@@ -263,10 +265,9 @@ pub async fn search(
     mod_loader_type: Option<u32>,
     index: Option<u32>,
 ) -> Result<Vec<CurseSearchHit>> {
-    let key = require_api_key()?;
+    let api_base = cf_api_base();
     let mut req = client
-        .get(format!("{API_BASE}/mods/search"))
-        .header("x-api-key", &key)
+        .get(format!("{api_base}/mods/search"))
         .header("User-Agent", ua())
         .query(&[
             ("gameId", GAME_MINECRAFT.to_string()),
@@ -297,9 +298,8 @@ pub async fn search(
         let body = resp.text().await.unwrap_or_default();
         let tip = match status.as_u16() {
             401 | 403 => {
-                "ключ не принят, либо CurseForge временно ограничивает поиск \
-                 (лимит запросов или сбой на их стороне — поиск может \
-                 «отвалиться» даже при валидном ключе; проверьте ключ и повторите позже)"
+                "CurseForge отклонил запрос (проблема с API-ключом на бэкенде \
+                 или временные ограничения CurseForge — повторите позже)"
             }
             429 => "CurseForge ограничил частоту запросов — повторите чуть позже",
             _ => "повторите позже",
@@ -354,17 +354,16 @@ pub async fn categories(
     client: &reqwest::Client,
     class_id: u32,
 ) -> Result<Vec<CurseCategory>> {
-    let key = require_api_key()?;
+    let api_base = cf_api_base();
     let resp: CategoriesResp = client
-        .get(format!("{API_BASE}/categories"))
-        .header("x-api-key", &key)
+        .get(format!("{api_base}/categories"))
         .header("User-Agent", ua())
         .query(&[("gameId", GAME_MINECRAFT.to_string())])
         .send()
         .await
         .context("Не удалось получить категории CurseForge")?
         .error_for_status()
-        .context("CurseForge отклонил запрос (проверьте API-ключ)")?
+        .context("CurseForge отклонил запрос categories")?
         .json()
         .await?;
     let mut out: Vec<CurseCategory> = resp
@@ -472,17 +471,16 @@ pub async fn pack_files(
     client: &reqwest::Client,
     project_id: u32,
 ) -> Result<Vec<CursePackFile>> {
-    let key = require_api_key()?;
+    let api_base = cf_api_base();
     let resp: FilesResp = client
-        .get(format!("{API_BASE}/mods/{project_id}/files"))
-        .header("x-api-key", &key)
+        .get(format!("{api_base}/mods/{project_id}/files"))
         .header("User-Agent", ua())
         .query(&[("pageSize", "50")])
         .send()
         .await
         .context("Не удалось получить файлы проекта CurseForge")?
         .error_for_status()
-        .context("CurseForge отклонил запрос (проверьте API-ключ)")?
+        .context("CurseForge отклонил запрос")?
         .json()
         .await?;
     let mut out: Vec<CursePackFile> = resp
@@ -534,11 +532,10 @@ pub async fn resolve_download_url(
     project_id: u32,
     file_id: u32,
 ) -> Result<String> {
-    let key = require_api_key()?;
-    let url = format!("{API_BASE}/mods/{project_id}/files/{file_id}/download-url");
+    let api_base = cf_api_base();
+    let url = format!("{api_base}/mods/{project_id}/files/{file_id}/download-url");
     let resp: serde_json::Value = client
         .get(&url)
-        .header("x-api-key", &key)
         .header("User-Agent", ua())
         .send()
         .await
@@ -609,10 +606,9 @@ pub async fn file_by_id(
     project_id: u32,
     file_id: u32,
 ) -> Result<CurseFile> {
-    let key = require_api_key()?;
+    let api_base = cf_api_base();
     let resp = client
-        .get(format!("{API_BASE}/mods/{project_id}/files/{file_id}"))
-        .header("x-api-key", &key)
+        .get(format!("{api_base}/mods/{project_id}/files/{file_id}"))
         .header("User-Agent", ua())
         .send()
         .await
@@ -624,7 +620,7 @@ pub async fn file_by_id(
     }
     let resp: SingleFileResp = resp
         .error_for_status()
-        .context("CurseForge отклонил запрос (проверьте API-ключ)")?
+        .context("CurseForge отклонил запрос")?
         .json()
         .await?;
     Ok(curse_file_from_item(project_id, resp.data))
@@ -730,16 +726,15 @@ pub struct CurseScreenshot {
 }
 
 pub async fn project(client: &reqwest::Client, project_id: u32) -> Result<CfProject> {
-    let key = require_api_key()?;
+    let api_base = cf_api_base();
     let resp: ProjectResp = client
-        .get(format!("{API_BASE}/mods/{project_id}"))
-        .header("x-api-key", &key)
+        .get(format!("{api_base}/mods/{project_id}"))
         .header("User-Agent", ua())
         .send()
         .await
         .context("Не удалось получить проект CurseForge")?
         .error_for_status()
-        .context("CurseForge отклонил запрос (проверьте API-ключ)")?
+        .context("CurseForge отклонил запрос")?
         .json()
         .await?;
     Ok(CfProject {
@@ -759,16 +754,15 @@ pub async fn project_detail(
     client: &reqwest::Client,
     project_id: u32,
 ) -> Result<CurseProjectDetail> {
-    let key = require_api_key()?;
+    let api_base = cf_api_base();
     let resp: ProjectResp = client
-        .get(format!("{API_BASE}/mods/{project_id}"))
-        .header("x-api-key", &key)
+        .get(format!("{api_base}/mods/{project_id}"))
         .header("User-Agent", ua())
         .send()
         .await
         .context("Не удалось получить проект CurseForge")?
         .error_for_status()
-        .context("CurseForge отклонил запрос (проверьте API-ключ)")?
+        .context("CurseForge отклонил запрос")?
         .json()
         .await?;
     let d = resp.data;
@@ -813,10 +807,9 @@ struct DescResp {
 }
 
 async fn fetch_mod_description(client: &reqwest::Client, mod_id: u32) -> Option<String> {
-    let key = require_api_key().ok()?;
+    let api_base = cf_api_base();
     let resp = client
-        .get(format!("{API_BASE}/mods/{mod_id}/description"))
-        .header("x-api-key", &key)
+        .get(format!("{api_base}/mods/{mod_id}/description"))
         .header("User-Agent", ua())
         .send()
         .await
@@ -835,17 +828,16 @@ pub async fn latest_file(
     project_id: u32,
     mc_version: Option<&str>,
 ) -> Result<CurseFile> {
-    let key = require_api_key()?;
+    let api_base = cf_api_base();
     let resp: FilesResp = client
-        .get(format!("{API_BASE}/mods/{project_id}/files"))
-        .header("x-api-key", &key)
+        .get(format!("{api_base}/mods/{project_id}/files"))
         .header("User-Agent", ua())
         .query(&[("pageSize", "50")])
         .send()
         .await
         .context("Не удалось получить файлы проекта CurseForge")?
         .error_for_status()
-        .context("CurseForge отклонил запрос (проверьте API-ключ)")?
+        .context("CurseForge отклонил запрос")?
         .json()
         .await?;
 

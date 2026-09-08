@@ -574,12 +574,8 @@ export function useModSearch(deps: UseModSearchDeps) {
   const curseKeyOk = ref(true);
 
   async function loadCurseKeyStatus() {
-    if (!isTauri()) return;
-    try {
-      curseKeyOk.value = await curseforgeKeyConfigured();
-    } catch {
-      curseKeyOk.value = false;
-    }
+    // CurseForge API requests go through the backend proxy (no local key needed).
+    curseKeyOk.value = true;
   }
 
   /** Запускает первичный поиск при открытии окна: подгружает фильтры/теги,

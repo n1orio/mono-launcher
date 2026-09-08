@@ -53,7 +53,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open as openDialog, save } from "@tauri-apps/plugin-dialog";
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, editPackVersion, exportPack as exportPackFn, exportSourceList, exportAuthorPack, uploadPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, installedModSha1, setPackIcon, setPackBanner, setPackName, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles, getStatus, addPackFile, setCloseToTray, autostartSet, autostartGet, getUserJvmArgs, setUserJvmArgs } from "~/lib/bridge";
+import { isTauri, openExternal, pingServer, createLocalPack, localLoaderVersions, minecraftVersions, editPackVersion, exportPack as exportPackFn, exportSourceList, exportAuthorPack, uploadPack, modrinthCheckUpdates, modrinthInstallMod, modrinthInstallPack, modrinthProject, modrinthProjectVersions, modrinthSearch, modrinthTags as fetchModrinthTags, modrinthUpdateMod, installedModSha1, setPackIcon, setPackBanner, setPackName, elyDeviceCode, elyPoll, curseforgeSearch, curseforgeCategories, curseforgeLatestFile, curseforgeInstallFile, curseforgeModpackFiles, curseforgeInstallPack, curseforgeKeyConfigured, curseforgeProjectDetail, deleteGameFiles, getStatus, addPackFile, setCloseToTray, autostartSet, autostartGet, getUserJvmArgs, setUserJvmArgs, readPackTheme, savePackTheme } from "~/lib/bridge";
 import type { GameFolderKind, ModrinthInstallFolder, ModrinthSearchKind, CurseSearchHit, CurseFile, CursePackFile, CurseProjectDetail } from "~/lib/bridge";
 import type { AuthorPackConfig, AuthorServer, AuthorSocial, AuthorTheme, CrashAnalysis, CurseInstallResult, ExportSourceItem, GameFileEntry, McVersionInfo, ModrinthProject, ModrinthTags, ModrinthVersion, ModUpdate, NewsItem, PackCatalog, PackDescriptor, ServerStatus, TrackedMod, AppStatus, DuplicateGroup } from "~/lib/types";
 import { useLauncher } from "~/composables/useLauncher";
@@ -2408,12 +2408,8 @@ const installedCurseIds = computed(() => {
 });
 
 async function loadCurseKeyStatus() {
-  if (!isTauri()) return;
-  try {
-  curseKeyOk.value = await curseforgeKeyConfigured();
-  } catch {
-  curseKeyOk.value = false;
-  }
+  // CurseForge API requests go through the backend proxy (no local key needed).
+  curseKeyOk.value = true;
 }
 
 /** Категории CurseForge для фильтра (грузим по классу проекта). */
@@ -3315,36 +3311,39 @@ watch(authorDetail, (d) => {
 }, { immediate: true });
 
 const authorDirty = computed(() => {
-  const base = authorFormBase.value;
-  const d = authorDetail.value;
-  if (!base || !d) return false;
-  return (
-  (d.name ?? "") !== base.name ||
-  (d.description ?? "") !== base.description ||
-  (d.min_ram_mb ?? 0) !== base.minRamMb ||
-  (d.boosty_blog ?? "") !== base.boostyBlog ||
-  (d.icon_url ?? "") !== base.iconUrl ||
-  authorOverviewBanner.value.trim() !== base.banner
-  );
-});
+   const base = authorFormBase.value;
+   const d = authorDetail.value;
+   if (!base || !d) return false;
+   const currentUseAuthlib = (d.meta as Record<string, unknown> | null)?.use_authlib === true;
+   return (
+   (d.name ?? "") !== base.name ||
+   (d.description ?? "") !== base.description ||
+   (d.min_ram_mb ?? 0) !== base.minRamMb ||
+   (d.boosty_blog ?? "") !== base.boostyBlog ||
+   (d.icon_url ?? "") !== base.iconUrl ||
+   authorOverviewBanner.value.trim() !== base.banner ||
+   currentUseAuthlib !== base.useAuthlib
+   );
+ });
 
-/** Сохраняет мету «Обзора», включая баннер в meta.banner. */
-async function saveAuthorOverview() {
-  const d = authorDetail.value;
-  if (!d || !authorDirty.value) return;
-  const meta = { ...((d.meta as Record<string, unknown> | null) ?? {}) };
-  const banner = authorOverviewBanner.value.trim();
-  if (banner) meta.banner = banner;
-  else delete meta.banner;
-  await updateAuthorMeta({
-  name: d.name,
-  description: d.description,
-  min_ram_mb: d.min_ram_mb,
-  boosty_blog: d.boosty_blog,
-  icon_url: d.icon_url,
-  meta,
-  });
-}
+ /** Сохраняет мету «Обзора», включая баннер в meta.banner. */
+ async function saveAuthorOverview() {
+   const d = authorDetail.value;
+   if (!d || !authorDirty.value) return;
+   const meta = { ...((d.meta as Record<string, unknown> | null) ?? {}) };
+   meta.use_authlib = (d.meta as Record<string, unknown> | null)?.use_authlib === true;
+   const banner = authorOverviewBanner.value.trim();
+   if (banner) meta.banner = banner;
+   else delete meta.banner;
+   await updateAuthorMeta({
+   name: d.name,
+   description: d.description,
+   min_ram_mb: d.min_ram_mb,
+   boosty_blog: d.boosty_blog,
+   icon_url: d.icon_url,
+   meta,
+   });
+ }
 
 /** Откатывает несохранённые правки формы к сохранённому состоянию. */
 function resetAuthorForm() {
@@ -3357,6 +3356,8 @@ function resetAuthorForm() {
   d.boosty_blog = base.boostyBlog;
   d.icon_url = base.iconUrl;
   authorOverviewBanner.value = base.banner;
+  if (!d.meta) d.meta = {};
+  (d.meta as Record<string, unknown>).use_authlib = base.useAuthlib;
 }
 
 /** Двухшаговое удаление сборки вместо системного confirm(). */
@@ -3723,11 +3724,15 @@ function openAuthorExport() {
   authorMinRamMb.value = mr ? Math.round(mr / 1024) : null;
   authorServers.value = [{ name: "", ip: "", port: null, desc: "" }];
   authorSocials.value = [{ name: "", url: "", color: "" }];
-  authorTheme.value = {};
   authorAccent.value = "";
   exportOpen.value = true;
   exportExpanded.value = new Set();
   void loadExportList();
+  void (async () => {
+    const theme = await readPackTheme(packId.value!);
+    authorTheme.value = theme ?? {};
+    if (theme?.accent) authorAccent.value = theme.accent;
+  })();
 }
 
 const authorThemeFields: Array<{ key: keyof AuthorTheme; cap: string }> = [
@@ -3767,28 +3772,29 @@ function themePreview(hex?: string | null): string {
   return normalizeHex(hex ?? "") ?? "#000";
 }
 
-function authorConfig(): AuthorPackConfig {
-  return {
-  name: authorName.value.trim() || activePack?.value?.name || "pack",
-  author: authorAuthor.value.trim(),
-  description: authorDesc.value.trim() ? authorDesc.value.trim() : null,
-  boostyBlog: authorBoosty.value.trim() ? authorBoosty.value.trim() : null,
-  minRam: authorMinRam.value ? (authorMinRamMb.value ?? null) : null,
-  servers: authorServers.value
-  .filter((s) => s.name.trim() || s.ip.trim())
-  .map((s) => ({ name: s.name.trim(), ip: s.ip.trim(), port: s.port ?? null, desc: s.desc?.trim() ? s.desc.trim() : null })),
-  socials: authorSocials.value
-  .filter((s) => s.name.trim() && s.url.trim())
-  .map((s) => ({ name: s.name.trim(), url: s.url.trim(), color: s.color?.trim() ? s.color.trim() : null })),
-  theme: authorThemeFields.some((f) => (authorTheme.value[f.key] ?? "").trim())
-  ? Object.fromEntries(
-  authorThemeFields
-  .filter((f) => (authorTheme.value[f.key] ?? "").trim())
-  .map((f) => [f.key, authorTheme.value[f.key]!.trim()])
-  ) as AuthorTheme
-  : null,
-  };
-}
+ function authorConfig(): AuthorPackConfig {
+   return {
+   name: authorName.value.trim() || activePack?.value?.name || "pack",
+   author: authorAuthor.value.trim(),
+   description: authorDesc.value.trim() ? authorDesc.value.trim() : null,
+   boostyBlog: authorBoosty.value.trim() ? authorBoosty.value.trim() : null,
+   minRam: authorMinRam.value ? (authorMinRamMb.value ?? null) : null,
+   servers: authorServers.value
+   .filter((s) => s.name.trim() || s.ip.trim())
+   .map((s) => ({ name: s.name.trim(), ip: s.ip.trim(), port: s.port ?? null, desc: s.desc?.trim() ? s.desc.trim() : null })),
+   socials: authorSocials.value
+   .filter((s) => s.name.trim() && s.url.trim())
+   .map((s) => ({ name: s.name.trim(), url: s.url.trim(), color: s.color?.trim() ? s.color.trim() : null })),
+   theme: authorThemeFields.some((f) => (authorTheme.value[f.key] ?? "").trim())
+   ? Object.fromEntries(
+   authorThemeFields
+   .filter((f) => (authorTheme.value[f.key] ?? "").trim())
+   .map((f) => [f.key, authorTheme.value[f.key]!.trim()])
+   ) as AuthorTheme
+   : null,
+   useAuthlib: (activePack?.value?.meta as Record<string, unknown> | null)?.use_authlib === true,
+   };
+ }
 
 async function doAuthorExport() {
   if (exportBusy.value || !packId.value || !isTauri()) return;

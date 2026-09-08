@@ -48,6 +48,7 @@ import type {
   PackNewsPublic,
   PackVersionPublic,
   UpdatePackRequest,
+  AuthorTheme,
 } from "./types";
 
 export const isTauri = () =>
@@ -123,6 +124,14 @@ export function getStatus(packId: string): Promise<AppStatus> {
   return invoke("get_status", { packId });
 }
 
+export function readPackTheme(packId: string): Promise<AuthorTheme | null> {
+  return invoke("read_pack_theme", { packId });
+}
+
+export function savePackTheme(packId: string, theme: AuthorTheme): Promise<void> {
+  return invoke("save_pack_theme", { packId, theme });
+}
+
 export function checkForUpdates(packId: string): Promise<UpdateInfo> {
   return invoke("check_for_updates", { packId });
 }
@@ -145,6 +154,10 @@ export function installMrpack(packId: string, tag?: string): Promise<PackInfo> {
 
 export function loginOffline(username: string): Promise<UserSession> {
   return invoke("login_offline_command", { username });
+}
+
+export function saveDisplayName(name: string): Promise<void> {
+  return invoke("save_display_name_command", { name });
 }
 
 export function msDeviceCode(): Promise<MsDeviceCodeInfo> {
@@ -245,15 +258,27 @@ export function curseforgeFetchKey(accessToken: string): Promise<boolean> {
   return invoke("curseforge_fetch_key_command", { accessToken });
 }
 
+export interface MonoSessionToken {
+  token: string;
+  uuid: string;
+  username: string;
+  expiresAt: string;
+}
+
+export function requestSessionToken(accessToken: string): Promise<MonoSessionToken> {
+  return invoke("request_session_token_command", { accessToken });
+}
+
 export function launchGame(
   packId: string,
   ramGb: number,
   session: UserSession,
   width: number,
   height: number,
-  serverAddress: string | null = null
+  serverAddress: string | null = null,
+  useAuthlib: boolean = true,
 ): Promise<void> {
-  return invoke("launch_game_command", { packId, ramGb, session, width, height, serverAddress });
+  return invoke("launch_game_command", { packId, ramGb, session, width, height, serverAddress, useAuthlib });
 }
 
 export function stopGame(): Promise<void> {

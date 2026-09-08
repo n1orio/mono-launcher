@@ -118,12 +118,8 @@ export function useCurseSearch(deps: UseCurseSearchDeps) {
 
   // ---- Ключ API ----
   async function loadCurseKeyStatus() {
-    if (!isTauri()) return;
-    try {
-      curseKeyOk.value = await curseforgeKeyConfigured();
-    } catch {
-      curseKeyOk.value = false;
-    }
+    // CurseForge API requests go through the backend proxy (no local key needed).
+    curseKeyOk.value = true;
   }
 
   // ---- Категории CurseForge для фильтра (грузим по классу проекта) ----

@@ -1,8 +1,45 @@
+use std::fs;
 use std::path::PathBuf;
 
 use anyhow::Result;
 use dirs::data_dir;
 use serde::{Deserialize, Serialize};
+
+/// Тема лаунчера (`theme.json`, все поля — hex `#rrggbb`).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorTheme {
+    pub bg: Option<String>,
+    pub panel: Option<String>,
+    pub input: Option<String>,
+    pub border: Option<String>,
+    pub tx: Option<String>,
+    pub tx_strong: Option<String>,
+    pub tx_muted: Option<String>,
+    pub accent: Option<String>,
+    pub accent_strong: Option<String>,
+    pub accent_hover: Option<String>,
+    pub accent_deep: Option<String>,
+}
+
+/// Читает `theme.json` из папки сборки, если существует.
+pub fn read_pack_theme(pack_id: &str) -> Result<Option<AuthorTheme>> {
+    let path = pack_dir(pack_id)?.join("theme.json");
+    if !path.exists() {
+        return Ok(None);
+    }
+    let raw = std::fs::read_to_string(&path)?;
+    let theme: AuthorTheme = serde_json::from_str(&raw)?;
+    Ok(Some(theme))
+}
+
+/// Сохраняет `theme.json` в папку сборки.
+pub fn save_pack_theme(pack_id: &str, theme: &AuthorTheme) -> Result<()> {
+    let path = pack_dir(pack_id)?.join("theme.json");
+    fs::create_dir_all(pack_dir(pack_id)?)?;
+    fs::write(path, serde_json::to_string_pretty(theme)?)?;
+    Ok(())
+}
 
 /// Пользовательская сборка из реестра `packs.json`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +64,9 @@ pub struct UserPack {
     /// Цвет аватарки (hex без #, например "e74c3c"). Если задан — генерирует градиент.
     #[serde(default)]
     pub color: Option<String>,
+    /// Тема лаунчера из theme.json.
+    #[serde(default)]
+    pub theme: Option<AuthorTheme>,
 }
 
 fn default_kind() -> String {
@@ -52,6 +92,8 @@ pub struct PackInfo {
     pub banner: Option<String>,
     /// Цвет аватарки (hex без #).
     pub color: Option<String>,
+    /// Тема лаунчера из theme.json.
+    pub theme: Option<AuthorTheme>,
 }
 
 /// Первая пользовательская сборка как дефолтная (иначе пустая строка).
@@ -167,6 +209,7 @@ pub fn all_packs() -> Result<Vec<PackInfo>> {
                 icon,
                 banner,
                 color: p.color,
+                theme: p.theme,
             }
         })
         .collect())
@@ -191,6 +234,7 @@ pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
                 icon,
                 banner,
                 color: p.color,
+                theme: p.theme,
             }
         }))
 }
@@ -301,6 +345,7 @@ pub fn add_user_pack(
     boosty_blog: Option<&str>,
     min_ram_mb: Option<u32>,
     color: Option<&str>,
+    theme: Option<AuthorTheme>,
 ) -> Result<()> {
     let mut list = user_packs()?;
     if list.iter().any(|p| p.id == id) {
@@ -319,6 +364,7 @@ pub fn add_user_pack(
         color: color
             .map(|c| c.trim().to_string())
             .filter(|c| !c.is_empty() && c.len() == 6),
+        theme,
     });
     save_user_packs(&list)
 }
@@ -345,7 +391,7 @@ pub fn remove_user_pack(id: &str) -> Result<bool> {
 /// 1) переменная окружения MONO_BACKEND_URL,
 /// 2) файл `<данные лаунчера>/backend-url` (одной строкой),
 /// 3) константа DEFAULT_BACKEND_URL.
-pub const DEFAULT_BACKEND_URL: &str = "http://2.27.200.74";
+pub const DEFAULT_BACKEND_URL: &str = "http://2.27.200.74:8080";
 
 /// Внешний URL бэкенда Mono (без хвостового слэша).
 pub fn backend_url() -> String {

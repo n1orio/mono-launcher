@@ -953,16 +953,28 @@ pub fn installed_details(pack_id: &str) -> Vec<InstalledVersion> {
                 let version_id = entry.file_name().to_string_lossy().to_string();
                 let mut name = version_id.clone();
                 let mut tag: Option<String> = None;
-                if let Ok(raw) = fs::read_to_string(&marker) {
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&raw) {
-                        name = json["name"].as_str().unwrap_or(&name).to_string();
-                        tag = json["sourceTag"]
-                            .as_str()
-                            .map(|s| s.to_string())
-                            .filter(|s| !s.is_empty());
-                    }
-                }
-                let total_seconds = read_playtime(&dir);
+                 let marker_content = match fs::read_to_string(&marker) {
+                     Ok(raw) => raw,
+                     Err(_) => continue,
+                 };
+                 let marker_json: serde_json::Value = match serde_json::from_str(&marker_content) {
+                     Ok(v) => v,
+                     Err(_) => continue,
+                 };
+                 let marker_version_id = marker_json["versionId"].as_str().unwrap_or("");
+                 if !marker_version_id.is_empty() && marker_version_id != version_id {
+                     continue;
+                 }
+                 let mut name = version_id.clone();
+                 let mut tag: Option<String> = None;
+                 if let Some(json) = marker_json.as_object() {
+                     name = json["name"].as_str().unwrap_or(&version_id).to_string();
+                     tag = json["sourceTag"]
+                         .as_str()
+                         .map(|s| s.to_string())
+                         .filter(|s| !s.is_empty());
+                 }
+                 let total_seconds = read_playtime(&dir);
                 out.push(InstalledVersion {
                     version_id,
                     name,
@@ -1514,6 +1526,17 @@ pub async fn install_mrpack(
     )?;
 
     config::set_active_version(pack_id, &info.version_id)?;
+
+    // Копируем метаданные сборки (theme.json, pack.json, servers.json, socials.json)
+    // из распакованного .mrpack в папку пакета, чтобы лаунчер мог читать theme.json.
+    let pack_dir = config::pack_dir(pack_id)?;
+    std::fs::create_dir_all(&pack_dir).ok();
+    for meta_file in ["theme.json", "pack.json", "servers.json", "socials.json"] {
+      let src = extract_dir.join(meta_file);
+      if src.exists() {
+        let _ = fs::copy(&src, pack_dir.join(meta_file));
+      }
+    }
 
     let _ = fs::remove_dir_all(&extract_dir);
 

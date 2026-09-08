@@ -37,21 +37,7 @@ pub struct AuthorSocial {
 }
 
 /// Тема лаунчера (`theme.json`, все поля — hex `#rrggbb`).
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AuthorTheme {
-    pub bg: Option<String>,
-    pub panel: Option<String>,
-    pub input: Option<String>,
-    pub border: Option<String>,
-    pub tx: Option<String>,
-    pub tx_strong: Option<String>,
-    pub tx_muted: Option<String>,
-    pub accent: Option<String>,
-    pub accent_strong: Option<String>,
-    pub accent_hover: Option<String>,
-    pub accent_deep: Option<String>,
-}
+pub use crate::config::AuthorTheme;
 
 /// Удобная конфигурация авторской сборки, заполняемая в мастере экспорта.
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -70,8 +56,10 @@ pub struct AuthorPackConfig {
     pub servers: Vec<AuthorServer>,
     #[serde(default)]
     pub socials: Vec<AuthorSocial>,
-    #[serde(default)]
-    pub theme: Option<AuthorTheme>,
+ #[serde(default)]
+ pub theme: Option<AuthorTheme>,
+ #[serde(default, rename = "useAuthlib")]
+ pub use_authlib: bool,
 }
 
 fn write_json<T: Serialize>(dir: &Path, name: &str, value: &T) -> Result<()> {
@@ -132,7 +120,7 @@ pub fn export_author_pack(
             write_json(&tmp, "socials.json", &config.socials)?;
         }
         if let Some(theme) = &config.theme {
-            if theme.accent.is_some() {
+            if theme.bg.is_some() || theme.panel.is_some() || theme.input.is_some() || theme.border.is_some() || theme.tx.is_some() || theme.tx_strong.is_some() || theme.tx_muted.is_some() || theme.accent.is_some() || theme.accent_strong.is_some() || theme.accent_hover.is_some() || theme.accent_deep.is_some() {
                 write_json(&tmp, "theme.json", theme)?;
             }
         }

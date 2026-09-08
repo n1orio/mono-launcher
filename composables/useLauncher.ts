@@ -29,6 +29,7 @@ import {
   deleteGameFiles,
   listVersions,
   loginOffline,
+  saveDisplayName as saveDisplayNameCmd,
   msDeviceCode,
   msPoll,
   onCrashAnalyzed,
@@ -120,11 +121,14 @@ import {
   monoResetPassword as monoResetPasswordCmd,
   monoConfirmEmail as monoConfirmEmailCmd,
   curseforgeFetchKey,
+  readPackTheme,
+  savePackTheme,
 } from "~/lib/bridge";
 import type {
   AppStatus,
   Accounts,
   DownloadProgress,
+  AuthorTheme,
   GameFileEntry,
   JavaInfo,
   LaunchLogEntry,
@@ -255,6 +259,9 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const monoPass = ref("");
   const monoBusy = ref(false);
   const monoProfile = ref<MonoProfile | null>(null);
+  const monoUseAuthlib = ref<boolean>(
+    typeof localStorage !== "undefined" ? localStorage.getItem("mono.useAuthlib") !== "false" : true
+  );
 
   // ==== Панель автора (сборки на бэкенде Mono) ====
   const authorPacks = ref<PackCatalog[]>([]);
@@ -1644,6 +1651,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const remoteVersions = ref<PackVersionPublic[] | null>(null);
   const remoteVersionsLoading = ref(false);
   const remoteInstallingId = ref<string | null>(null);
+  let resolvedBackendId: string | null = null;
 
   /** Резолвит бэкенд-сборку по URL дескриптора и синхронизирует имя/последнюю версию. */
   async function syncPackWithBackend(id?: string | null, opts?: { forceLatest?: boolean }): Promise<PackVersionPublic[] | null> {
@@ -1665,8 +1673,14 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     if (!backendId) {
       backendId = id; // для сборок из каталога id уже uuid
     }
-    const d = await packDetailCmd("", backendId);
-    remoteVersions.value = d.versions ?? [];
+     const d = await packDetailCmd("", backendId);
+     if (!d || d.id !== backendId) {
+       resolvedBackendId = null;
+       remoteVersions.value = [];
+       return [];
+     }
+     resolvedBackendId = backendId;
+     remoteVersions.value = d.versions ?? [];
     if (p) {
       // Имя: только для автосгенерированных (имя == id, диплинк без name).
       if (p.name === p.id && d.name && d.name !== p.name) {
@@ -1705,6 +1719,17 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   async function installRemoteVersion(v: PackVersionPublic): Promise<boolean> {
     const id = packId.value;
     if (!id || !isTauri() || busy.value || remoteInstallingId.value) return false;
+    if (resolvedBackendId) {
+      const pack = await packDetailCmd("", resolvedBackendId).catch(() => null);
+      if (!pack || pack.id !== resolvedBackendId) {
+        notify(t("err.wrongPack"), "error");
+        return false;
+      }
+    }
+    if (!remoteVersions.value?.some((rv) => rv.id === v.id)) {
+      notify(t("err.wrongPack"), "error");
+      return false;
+    }
     remoteInstallingId.value = v.id;
     busy.value = true;
     filesDone.value = 0;
@@ -1797,15 +1822,65 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     }
   }
 
-  async function selectPack(id: string) {
-    if (id === packId.value) return;
-    packId.value = id;
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(PACK_KEY, id);
-    }
-    await load();
-    refreshVersions();
+  /** Маппинг полей AuthorTheme на CSS-переменные. */
+const THEME_CSS_VAR_MAP: Record<string, string> = {
+  bg: "--bg", panel: "--panel", input: "--input", border: "--border",
+  tx: "--tx", txStrong: "--tx-strong", txMuted: "--tx-muted",
+  accent: "--accent", accentStrong: "--accent-strong",
+  accentHover: "--accent-hover", accentDeep: "--accent-deep",
+};
+
+/** Применяет тему сборки, читая theme.json из локальной папки. */
+async function applyPackTheme(packId: string) {
+  const theme = await readPackTheme(packId);
+  if (!theme) {
+    setPackThemeVars(new Set());
+    return;
   }
+  const root = document.documentElement;
+  const keys = new Set<string>();
+  for (const [field, cssVar] of Object.entries(THEME_CSS_VAR_MAP)) {
+    const val = (theme as Record<string, unknown>)[field] as string | undefined;
+    if (val && val.trim()) {
+      root.style.setProperty(cssVar, val.trim());
+      keys.add(cssVar);
+    }
+  }
+  setPackThemeVars(keys);
+}
+
+/** Сохраняет theme.json в папку сборки и применяет тему к UI. */
+async function doSaveAuthorTheme(theme: AuthorTheme) {
+  if (!packId.value || !isTauri()) return;
+  try {
+    await savePackTheme(packId.value, theme);
+    const root = document.documentElement;
+    const map: Record<string, string> = {
+      bg: "--bg", panel: "--panel", input: "--input", border: "--border",
+      tx: "--tx", txStrong: "--tx-strong", txMuted: "--tx-muted",
+      accent: "--accent", accentStrong: "--accent-strong",
+      accentHover: "--accent-hover", accentDeep: "--accent-deep",
+    };
+    for (const [field, cssVar] of Object.entries(map)) {
+      const val = (theme as Record<string, unknown>)[field] as string | undefined;
+      if (val && val.trim()) root.style.setProperty(cssVar, val.trim());
+    }
+    notify(t("pack.themeSaved"), "success");
+  } catch (e) {
+    notify(t("pack.themeErr", { e }), "error");
+  }
+}
+
+async function selectPack(id: string) {
+  if (id === packId.value) return;
+  packId.value = id;
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem(PACK_KEY, id);
+  }
+  await applyPackTheme(id);
+  await load();
+  refreshVersions();
+}
 
   onMounted(async () => {
     if (!isTauri()) {
@@ -2031,27 +2106,43 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     { flush: "post" }
   );
 
-  watch(
-    [windowWidth, windowHeight],
-    ([w, h]) => {
-      if (typeof localStorage === "undefined") return;
-      localStorage.setItem(WIN_W_KEY, String(w));
-      localStorage.setItem(WIN_H_KEY, String(h));
-    },
-    { flush: "post" }
-  );
+watch(
+     [windowWidth, windowHeight],
+     ([w, h]) => {
+       if (typeof localStorage === "undefined") return;
+       localStorage.setItem(WIN_W_KEY, String(w));
+       localStorage.setItem(WIN_H_KEY, String(h));
+     },
+     { flush: "post" }
+   );
 
-  watch(
-    logEntries,
-    () => {
-      if (logAutoScroll.value && logRef.value) {
-        logRef.value.scrollTop = logRef.value.scrollHeight;
-      }
-    },
-    { flush: "post" }
-  );
+   watch(
+     monoUseAuthlib,
+     (v) => {
+       if (typeof localStorage !== "undefined") {
+         localStorage.setItem("mono.useAuthlib", String(v));
+       }
+     },
+     { flush: "post" }
+   );
 
-  async function handleInstall(tag?: string) {
+    watch(
+      logEntries,
+     () => {
+       if (logAutoScroll.value && logRef.value) {
+         logRef.value.scrollTop = logRef.value.scrollHeight;
+       }
+     },
+     { flush: "post" }
+   );
+
+    watch(
+      packId,
+      () => { void refreshVersions(); },
+      { flush: "post" }
+    );
+
+   async function handleInstall(tag?: string) {
     if (!isTauri() || !packId.value) return;
     busy.value = true;
     filesDone.value = 0;
@@ -2148,6 +2239,22 @@ notify(t("err.switch", { e }));
       const s = await loginOffline(username.value.trim());
       session.value = s;
       await load();
+      await loadAccounts();
+    } catch (e) {
+      notify(t("err.login", { e }));
+    }
+  }
+
+  /** Сохраняет отображаемое имя в текущей сессии. */
+  async function saveDisplayNameFn() {
+    const name = username.value.trim();
+    if (!name) {
+      notify(t("err.nickname"), "info");
+      return;
+    }
+    try {
+      await saveDisplayNameCmd(name);
+      if (session.value) session.value.username = name;
       await loadAccounts();
     } catch (e) {
       notify(t("err.login", { e }));
@@ -2561,6 +2668,7 @@ notify(t("err.switch", { e }));
     boostyBlog: string;
     iconUrl: string;
     banner: string;
+    useAuthlib: boolean;
   } | null>(null);
 
   /** Перезапоминает текущие значения формы как «сохранённые». */
@@ -2578,6 +2686,7 @@ notify(t("err.switch", { e }));
       boostyBlog: d.boosty_blog ?? "",
       iconUrl: d.icon_url ?? "",
       banner: m && typeof m.banner === "string" ? m.banner : "",
+      useAuthlib: (m && m.use_authlib === true) ?? false,
     };
   }
 
@@ -3113,14 +3222,17 @@ notify(t("err.switch", { e }));
     logEntries.value = [];
     pendingLog.length = 0;
     try {
-      await launchGame(
-        packId.value,
-        ram.value,
-        session.value,
-        windowWidth.value,
-        windowHeight.value,
-        server
-      );
+     const packMeta = activePack.value?.meta as Record<string, unknown> | null | undefined;
+     const packUseAuthlib = packMeta?.use_authlib !== undefined ? packMeta.use_authlib === true : monoUseAuthlib.value;
+     await launchGame(
+         packId.value,
+         ram.value,
+         session.value,
+         windowWidth.value,
+         windowHeight.value,
+         server,
+         packUseAuthlib,
+       );
       crashMarkerNotified = false;
       gameRunning.value = true;
     } catch (e) {
@@ -3275,6 +3387,9 @@ notify(t("err.switch", { e }));
     setActivePackLocked,
     setPackThemeVars,
     packThemeActive,
+    readPackTheme,
+    savePackTheme,
+    doSaveAuthorTheme,
     toggleTheme,
     packs,
     packId,
@@ -3295,6 +3410,7 @@ notify(t("err.switch", { e }));
     handleUpdate,
     handleSelectVersion,
     handleOffline,
+    saveDisplayName: saveDisplayNameFn,
     handleMicrosoft,
     handleEly,
     openMsAuthPage,
@@ -3307,6 +3423,7 @@ notify(t("err.switch", { e }));
     monoPass,
     monoBusy,
     monoProfile,
+    monoUseAuthlib,
     handleMonoLogin,
     handleMonoRegister,
     handleMonoLogout,

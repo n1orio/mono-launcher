@@ -840,7 +840,17 @@ pub async fn launch_game(
     width: u32,
     height: u32,
     server_address: Option<ServerAddress>,
+    mono_session_token: Option<&str>,
+     use_authlib: bool,
 ) -> Result<()> {
+    let use_authlib = if use_authlib {
+        match crate::auth::load_mono_profile() {
+            Ok(Some(_)) => true,
+            _ => false,
+        }
+    } else {
+        false
+    };
     if let Some(srv) = &server_address {
         emit_log(
             &app,
@@ -1136,7 +1146,7 @@ pub async fn launch_game(
     placeholders.insert("${auth_xuid}".into(), String::new());
     placeholders.insert("${clientid}".into(), String::new());
     placeholders.insert("${user_properties}".into(), "{}".into());
-    placeholders.insert("${user_type}".into(), session.user_type.clone());
+     placeholders.insert("${user_type}".into(), if use_authlib && !session.access_token.is_empty() { "mojang".into() } else { session.user_type.clone() });
     placeholders.insert("${version_name}".into(), launch_id.clone());
     placeholders.insert("${version_type}".into(), "release".into());
     placeholders.insert(
@@ -1164,14 +1174,36 @@ pub async fn launch_game(
     final_args.push(format!("-Xms{}G", xms_gb));
 
     // Альтернативная авторизация через authlib-injector:
-    // оффлайн — свой скин-API, Ely.by — официальный алиас `ely.by`.
+    // Mono — наш бэкенд (если есть аккаунт), оффлайн — свой скин-API, Ely.by — официальный алиас `ely.by`.
     // У Microsoft-сессий авторизация от Mojang — агент не нужен.
     let (agent_api, agent_note): (&str, &str) = match session.user_type.as_str() {
         "offline" => (crate::skins::SKINS_API_URL, "Оффлайн-скины"),
         "ely" => ("ely.by", "Ely.by"),
         _ => ("", ""),
     };
-    if !agent_api.is_empty() {
+    // Mono: если есть access_token и use_authlib — используем наш бэкенд как auth-сервер.
+     let (mono_api, mono_note) = if use_authlib {
+         let backend = crate::config::backend_url();
+         let url = format!("{}/auth/game", backend.trim_end_matches('/'));
+         (url, "Mono Auth")
+     } else {
+        (String::new(), "")
+    };
+    if !mono_api.is_empty() {
+        match ensure_authlib_agent(&app, &client, &mono_api).await {
+            Ok(agent_arg) => {
+                final_args.push(agent_arg);
+                emit_log(&app, "sys", &format!("{mono_note}: подключён authlib-injector"));
+            }
+            Err(e) => {
+                emit_log(
+                    &app,
+                    "sys",
+                    &format!("{mono_note} недоступны: {e} (запуск без них)"),
+                );
+            }
+        }
+    } else if !agent_api.is_empty() {
         match ensure_authlib_agent(&app, &client, agent_api).await {
             Ok(agent_arg) => {
                 final_args.push(agent_arg);
@@ -1196,6 +1228,11 @@ pub async fn launch_game(
     let tmp_str = launcher_tmp.to_string_lossy().to_string();
     final_args.push(format!("-Djava.io.tmpdir={tmp_str}"));
     final_args.push(format!("-Dorg.lwjgl.system.SharedLibraryExtractPath={tmp_str}"));
+
+    // Mono game session token (для авторизации на серверах через плагин/мод).
+    if let Some(token) = mono_session_token {
+        final_args.push(format!("-Dmono.session={token}"));
+    }
 
     // Моды вроде Roxy/Voxy тащат lwjgl-zstd/lwjgl-lmdb как jar-in-jar: классы
     // загружаются через свой module layer, а нативные .so LWJGL по classpath

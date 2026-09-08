@@ -162,80 +162,83 @@
 
   <div class="flex-1" />
 
-  <!-- Расширенная панель загрузки -->
-  <DownloadPanel />
+  <!-- Нижний блок: относительный контейнер для оверлея загрузки -->
+  <div class="relative shrink-0">
+    <!-- Расширенная панель загрузки (абсолютный оверлей, не сдвигает контент) -->
+    <DownloadPanel />
 
-  <!-- Учётная запись -->
-  <div
-  class="flex items-center gap-2.5 border-t border-[var(--border)]  p-3"
-  :class="sidebarCollapsed ? 'flex-col gap-2 p-2' : ''"
-  >
-  <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--input)] font-mono text-sm font-bold text-[color:var(--tx-strong)]">
-  <img v-if="skinUrl" :src="skinUrl" :alt="t('side.skin')" class="h-full w-full object-cover" />
-  <template v-else>{{ session?.username?.[0]?.toUpperCase() ?? "?" }}</template>
-  </div>
-  <div v-if="!sidebarCollapsed" class="min-w-0 flex-1">
-  <div class="truncate text-sm font-semibold leading-tight text-[color:var(--tx)]">
-  {{ session?.username ?? t("side.guest") }}
-  </div>
-  <div class="truncate text-xs leading-tight text-[color:var(--tx-muted)]">
-  {{ session ? session.user_type : t("side.offline") }}
-  </div>
-  </div>
-  <div class="flex shrink-0 items-center gap-1.5">
-  <button
-  v-if="sidebarCollapsed"
-  type="button"
-  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx-strong)]"
-  :title="t('theme.switch')"
-  @click="toggleTheme()"
-  >
-  <!-- Тёмная тема активна → показываем солнце (переключить на светлую) -->
-  <svg v-if="themeLevel >= 0.5" viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8ZM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0Zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13ZM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 1 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06Zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061ZM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8ZM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8Zm10.657-5.657a.75.75 0 0 1 0 1.06l-1.061 1.061a.75.75 0 1 1-1.06-1.06l1.06-1.061a.75.75 0 0 1 1.06 0ZM4.464 11.536a.75.75 0 0 1 0 1.06l-1.06 1.061a.75.75 0 0 1-1.061-1.06l1.06-1.061a.75.75 0 0 1 1.061 0Z"/></svg>
-  <svg v-else viewBox="0 0 16 16" class="h-5 w-5 fill-current"><path d="M9.598 1.591a.749.749 0 0 1 .785-.175 7.001 7.001 0 1 1-8.967 8.967.75.75 0 0 1 .961-.96 5.5 5.5 0 0 0 7.046-7.046.75.75 0 0 1 .175-.786Zm1.616 1.945a7 7 0 0 1-7.678 7.678 5.499 5.499 0 1 0 7.678-7.678Z"/></svg>
-  </button>
-  <button
-  v-if="!sidebarCollapsed"
-  type="button"
-  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx-strong)]"
-  :title="t('nav.settings')"
-  @click="tab = 'settings'"
-  >
-  <svg viewBox="0 0 24 24" class="h-5 w-5 fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="12" cy="12" r="3"></circle>
-  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
-  </svg>
-  </button>
-  </div>
-  </div>
+    <!-- Учётная запись -->
+    <div
+    class="flex items-center gap-2.5 border-t border-[var(--border)]  p-3"
+    :class="sidebarCollapsed ? 'flex-col gap-2 p-2' : ''"
+    >
+    <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--input)] font-mono text-sm font-bold text-[color:var(--tx-strong)]">
+    <img v-if="skinUrl" :src="skinUrl" :alt="t('side.skin')" class="h-full w-full object-cover" />
+    <template v-else>{{ session?.username?.[0]?.toUpperCase() ?? "?" }}</template>
+    </div>
+    <div v-if="!sidebarCollapsed" class="min-w-0 flex-1">
+    <div class="truncate text-sm font-semibold leading-tight text-[color:var(--tx)]">
+    {{ session?.username ?? t("side.guest") }}
+    </div>
+    <div class="truncate text-xs leading-tight text-[color:var(--tx-muted)]">
+    {{ session ? session.user_type : t("side.offline") }}
+    </div>
+    </div>
+    <div class="flex shrink-0 items-center gap-1.5">
+    <button
+    v-if="sidebarCollapsed"
+    type="button"
+    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx-strong)]"
+    :title="t('theme.switch')"
+    @click="toggleTheme()"
+    >
+    <!-- Тёмная тема активна → показываем солнце (переключить на светлую) -->
+    <svg v-if="themeLevel >= 0.5" viewBox="0 0 16 16" class="h-[18px] w-[18px] fill-current"><path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8ZM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0Zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13ZM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 1 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06Zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061ZM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8ZM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8Zm10.657-5.657a.75.75 0 0 1 0 1.06l-1.061 1.061a.75.75 0 1 1-1.06-1.06l1.06-1.061a.75.75 0 0 1 1.06 0ZM4.464 11.536a.75.75 0 0 1 0 1.06l-1.06 1.061a.75.75 0 0 1-1.061-1.06l1.06-1.061a.75.75 0 0 1 1.061 0Z"/></svg>
+    <svg v-else viewBox="0 0 16 16" class="h-5 w-5 fill-current"><path d="M9.598 1.591a.749.749 0 0 1 .785-.175 7.001 7.001 0 1 1-8.967 8.967.75.75 0 0 1 .961-.96 5.5 5.5 0 0 0 7.046-7.046.75.75 0 0 1 .175-.786Zm1.616 1.945a7 7 0 0 1-7.678 7.678 5.499 5.499 0 1 0 7.678-7.678Z"/></svg>
+    </button>
+    <button
+    v-if="!sidebarCollapsed"
+    type="button"
+    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--input-50)] hover:text-[color:var(--tx-strong)]"
+    :title="t('nav.settings')"
+    @click="tab = 'settings'"
+    >
+    <svg viewBox="0 0 24 24" class="h-5 w-5 fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3"></circle>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+    </svg>
+    </button>
+    </div>
+    </div>
 
-  <!-- Ползунок темы: плавная смена цветов (0 = светлая, 1 = тёмная) -->
-  <div v-if="!sidebarCollapsed" class="border-t border-[var(--border)]  px-4 py-2.5">
-  <div class="flex items-center gap-2.5" :title="t('theme.switch')">
-  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)]"><path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8ZM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0Zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13ZM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 1 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06Zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061ZM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8ZM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8Zm10.657-5.657a.75.75 0 0 1 0 1.06l-1.061 1.061a.75.75 0 1 1-1.06-1.06l1.06-1.061a.75.75 0 0 1 1.06 0ZM4.464 11.536a.75.75 0 0 1 0 1.06l-1.06 1.061a.75.75 0 0 1-1.061-1.06l1.06-1.061a.75.75 0 0 1 1.061 0Z"/></svg>
-  <input
-  type="range"
-  min="0"
-  max="1"
-  step="0.01"
-  :value="themeLevel"
-  :disabled="packThemeActive"
-  class="h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-lg bg-[var(--input)] accent-[var(--accent-deep)] disabled:opacity-50"
-  @input="setThemeLevel(Number(($event.target as HTMLInputElement).value))"
-  >
-  <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)]"><path d="M9.598 1.591a.749.749 0 0 1 .785-.175 7.001 7.001 0 1 1-8.967 8.967.75.75 0 0 1 .961-.96 5.5 5.5 0 0 0 7.046-7.046.75.75 0 0 1 .175-.786Zm1.616 1.945a7 7 0 0 1-7.678 7.678 5.499 5.499 0 1 0 7.678-7.678Z"/></svg>
-  </div>
-  <p v-if="packThemeActive" class="mt-1.5 text-[11px] leading-tight text-[var(--accent)]">{{ t("theme.disabled") }}</p>
-  </div>
+    <!-- Ползунок темы: плавная смена цветов (0 = светлая, 1 = тёмная) -->
+    <div v-if="!sidebarCollapsed" class="border-t border-[var(--border)]  px-4 py-2.5">
+    <div class="flex items-center gap-2.5" :title="t('theme.switch')">
+    <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)]"><path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8ZM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0Zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13ZM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 1 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06Zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061ZM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8ZM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8Zm10.657-5.657a.75.75 0 0 1 0 1.06l-1.061 1.061a.75.75 0 1 1-1.06-1.06l1.06-1.061a.75.75 0 0 1 1.06 0ZM4.464 11.536a.75.75 0 0 1 0 1.06l-1.06 1.061a.75.75 0 0 1-1.061-1.06l1.06-1.061a.75.75 0 0 1 1.061 0Z"/></svg>
+    <input
+    type="range"
+    min="0"
+    max="1"
+    step="0.01"
+    :value="themeLevel"
+    :disabled="packThemeActive"
+    class="h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-lg bg-[var(--input)] accent-[var(--accent-deep)] disabled:opacity-50"
+    @input="setThemeLevel(Number(($event.target as HTMLInputElement).value))"
+    >
+    <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0 fill-[var(--tx-muted)]"><path d="M9.598 1.591a.749.749 0 0 1 .785-.175 7.001 7.001 0 1 1-8.967 8.967.75.75 0 0 1 .961-.96 5.5 5.5 0 0 0 7.046-7.046.75.75 0 0 1 .175-.786Zm1.616 1.945a7 7 0 0 1-7.678 7.678 5.499 5.499 0 1 0 7.678-7.678Z"/></svg>
+    </div>
+    <p v-if="packThemeActive" class="mt-1.5 text-[11px] leading-tight text-[var(--accent)]">{{ t("theme.disabled") }}</p>
+    </div>
 
-  <!-- Версия и перевод лаунчера -->
-  <div v-if="!sidebarCollapsed" class="flex items-center justify-between gap-2 border-t border-[var(--border)]  bg-[var(--panel)] px-3 py-2 text-[11px] text-[var(--tx-muted)]">
-  <span class="min-w-0 truncate">
-  {{ t("lang.byAuthor") }}
-  <span class="font-semibold" :class="activeLocaleAuthor ? 'text-[color:var(--tx)]' : ''">{{ activeLocaleAuthor || "—" }}</span>
-  <template v-if="activeLocaleVersion"> · v{{ activeLocaleVersion }}</template>
-  </span>
-  <span class="shrink-0 tabular-nums font-mono">{{ ram }} {{ t("units.gb") }} · v{{ launcherVer || "?" }}</span>
+    <!-- Версия и перевод лаунчера -->
+    <div v-if="!sidebarCollapsed" class="flex items-center justify-between gap-2 border-t border-[var(--border)]  bg-[var(--panel)] px-3 py-2 text-[11px] text-[var(--tx-muted)]">
+    <span class="min-w-0 truncate">
+    {{ t("lang.byAuthor") }}
+    <span class="font-semibold" :class="activeLocaleAuthor ? 'text-[color:var(--tx)]' : ''">{{ activeLocaleAuthor || "—" }}</span>
+    <template v-if="activeLocaleVersion"> · v{{ activeLocaleVersion }}</template>
+    </span>
+    <span class="shrink-0 tabular-nums font-mono">{{ ram }} {{ t("units.gb") }} · v{{ launcherVer || "?" }}</span>
+    </div>
   </div>
 
   <!-- Ручка изменения ширины панели -->

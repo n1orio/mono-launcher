@@ -21,8 +21,13 @@ const {
 } = ctx;
 
 // Свернутый ввод URL скриншота (основной путь — дропзона с выбором файла).
-const showShotUrl = ref(false);
-</script>
+ const showShotUrl = ref(false);
+ function toggleAuthlib() {
+   const m = authorDetail.value?.meta as Record<string, unknown> | null;
+   if (!m) { authorDetail.value!.meta = { use_authlib: true }; return; }
+   m.use_authlib = m.use_authlib !== true;
+ }
+ </script>
 
 <template>
   <div class="min-h-0 flex-1 overflow-y-auto pr-1">
@@ -126,15 +131,19 @@ const showShotUrl = ref(false);
   <input v-model="authorOverviewBanner" type="text" class="mt-1.5 w-full rounded-xl bg-[var(--input)] border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
   <img v-if="authorOverviewBanner.trim()" :src="authorOverviewBanner" class="mt-1.5 h-16 w-full rounded-md object-cover" loading="lazy" @error="($event.target as HTMLImageElement).style.display = 'none'" />
   </label>
-  <label class="col-span-2 block text-xs font-semibold text-[color:var(--tx-muted)]">
-  {{ t("author.boosty") }}
-  <input v-model="authorDetail.boosty_blog" type="text" class="mt-1.5 w-full rounded-xl bg-[var(--input)] border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
-  </label>
-  </div>
-  <div class="flex items-center gap-2 pt-1">
-  <button type="button" class="px-6 py-2.5 rounded-xl bg-[var(--accent-deep)] hover:brightness-110 text-white font-bold text-xs shadow-lg active:scale-95 transition-all disabled:opacity-50" :disabled="authorBusy || !authorDirty" @click="saveAuthorOverview">
-  {{ t("author.save") }}
-  </button>
+   <label class="col-span-2 block text-xs font-semibold text-[color:var(--tx-muted)]">
+   {{ t("author.boosty") }}
+   <input v-model="authorDetail.boosty_blog" type="text" class="mt-1.5 w-full rounded-xl bg-[var(--input)] border border-[var(--border)] px-3.5 py-2 text-xs text-[color:var(--tx)] placeholder-[var(--tx-muted)] focus:outline-none focus:border-[var(--accent)] transition-all" />
+   </label>
+   </div>
+   <div class="flex items-center gap-3 pt-1">
+   <label class="flex cursor-pointer items-center gap-2 text-xs text-[color:var(--tx-muted)]">
+   <input type="checkbox" class="accent-[var(--accent)]" :checked="(authorDetail.meta as Record<string, unknown> | null)?.use_authlib === true" @change="toggleAuthlib" />
+   {{ t("author.useAuthlib") }}
+   </label>
+   <button type="button" class="px-6 py-2.5 rounded-xl bg-[var(--accent-deep)] hover:brightness-110 text-white font-bold text-xs shadow-lg active:scale-95 transition-all disabled:opacity-50" :disabled="authorBusy || !authorDirty" @click="saveAuthorOverview">
+   {{ t("author.save") }}
+   </button>
   <button v-if="authorDirty" type="button" class="rounded-xl px-3 py-2 text-xs font-medium text-[color:var(--tx-muted)] hover:text-[color:var(--tx)] hover:bg-[var(--hover)]" @click="resetAuthorForm">
   {{ t("author.reset") }}
   </button>

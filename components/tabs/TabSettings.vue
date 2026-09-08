@@ -28,6 +28,7 @@ const {
   monoName,
   monoPass,
   monoBusy,
+  monoUseAuthlib,
   monoAuthBusy,
   handleMonoLogin,
   handleMonoRegister,
@@ -45,6 +46,7 @@ const {
   profileBusy,
   openProfileView,
   username,
+  saveDisplayName,
   handleOffline,
   msPolling,
   elyPolling,
@@ -387,6 +389,10 @@ async function copySkinApi() {
                       <AppIcon name="check-circle" class="h-4 w-4 shrink-0 fill-[#3fb950]" />
                     </p>
                   </div>
+                  <label class="flex items-center gap-2 text-[13px] text-[color:var(--tx-muted)] cursor-pointer">
+                    <input type="checkbox" v-model="monoUseAuthlib" class="accent-[var(--accent)]" />
+                    {{ t("settings.useAuthlib") }}
+                  </label>
                   <div class="flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -521,9 +527,17 @@ async function copySkinApi() {
                     type="button"
                     class="rounded-lg bg-[var(--input)] px-3 py-2 text-[13px] font-medium text-[color:var(--tx)] hover:bg-[var(--hover)] disabled:opacity-50"
                     :disabled="busy"
-                    @click="handleOffline"
+                    @click="saveDisplayName"
                   >
                     {{ t("settings.save") }}
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-lg bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-3 py-2 text-[13px] font-medium text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] disabled:opacity-50"
+                    :disabled="busy"
+                    @click="handleOffline"
+                  >
+                    Офлайн
                   </button>
                 </div>
 

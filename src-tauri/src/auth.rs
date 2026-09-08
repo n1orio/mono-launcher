@@ -164,6 +164,43 @@ pub async fn mono_logout(client: &reqwest::Client, access_token: &str) {
         .await;
 }
 
+/// Результат запроса игровой сессии.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MonoSessionToken {
+    pub token: String,
+    pub uuid: String,
+    pub username: String,
+    pub expires_at: String,
+}
+
+/// Запрашивает игровой токен сессии у бэкенда Mono.
+/// Токен подписывается HMAC-SHA256 и валиден 24 часа.
+pub async fn request_session_token(
+    client: &reqwest::Client,
+    access_token: &str,
+) -> Result<MonoSessionToken> {
+    let base = crate::config::backend_url();
+    let url = format!("{base}/auth/session");
+    let resp = client
+        .post(&url)
+        .bearer_auth(access_token)
+        .send()
+        .await
+        .context("Не удалось запросить игровую сессию")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        let msg = serde_json::from_str::<serde_json::Value>(&text)
+            .ok()
+            .and_then(|v| v["error"].as_str().map(|s| s.to_string()))
+            .unwrap_or_else(|| text.clone());
+        return Err(anyhow!("Ошибка получения сессии: {msg}"));
+    }
+    let token: MonoSessionToken =
+        serde_json::from_str(&text).context("Некорректный ответ сессии")?;
+    Ok(token)
+}
+
 /// Сборка, вернувшаяся с бэкенда после загрузки на storage.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonoPackPublic {
@@ -1770,6 +1807,26 @@ pub fn save_session(session: &UserSession) -> Result<()> {
     let data = serde_json::to_vec_pretty(session)?;
     std::fs::write(path, data)?;
     Ok(())
+}
+
+/// Сохраняет отображаемое имя в текущей сессии.
+pub fn save_display_name(name: &str) -> Result<()> {
+    let mut session = load_session()?;
+    match &mut session {
+        Some(s) => {
+            s.username = name.to_string();
+        }
+        None => {
+            session = Some(UserSession {
+                username: name.to_string(),
+                uuid: uuid::Uuid::new_v4().to_string(),
+                access_token: String::new(),
+                user_type: "offline".into(),
+                refresh_token: None,
+            });
+        }
+    }
+    save_session(session.as_ref().unwrap())
 }
 
 pub fn load_session() -> Result<Option<UserSession>> {

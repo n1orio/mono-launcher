@@ -538,7 +538,7 @@
   "mods.fSort": "Сартаванне",
   "mods.fWorld": "Свет для датапака",
   "mods.pickWorld": "Спачатку выберыце свет, у які паставіць датапак",
-  "curse.noKey": "CurseForge патрабуе API-ключ. Упішыце яго ў канстанту CURSEFORGE_API_KEY у src-tauri/src/curseforge.rs.",
+  "curse.noKey": "CurseForge часова недаступны — паспрабуйце пазней.",
   "curse.search": "Знайсці",
   "curse.searchPlaceholder": "Назва на CurseForge",
   "curse.help": "Увядзіце запыт, каб знайсці файл на CurseForge. Усталюецца апошняя версія, якая падыходзіць пад версію Minecraft зборкі.",
@@ -631,6 +631,7 @@
   "pack.exportAuthorSocials": "Сацсеткі (socials.json)",
   "pack.exportAuthorTheme": "Колеры тэмы (theme.json)",
   "pack.exportAuthorThemeAuto": "аўта-генерацыя",
+  "pack.saveTheme": "Захаваць тэму",
   "pack.exportAuthorAccentHint": "Устаўце адзін акцэнтны колер — тэма запоўніцца сама",
   "pack.exportAuthorAccentPicker": "Выбраць акцэнтны колер",
   "pack.exportThemeAccent": "Асноўны акцэнт",
@@ -652,6 +653,8 @@
   "pack.exportSocialUrlPh": "URL",
   "pack.exportSocialColorPh": "#hex",
   "pack.exportAuthorDone": "Архіў аўтарскай зборкі з README і інструкцыяй створаны",
+  "pack.themeSaved": "Тэму захавана",
+  "pack.themeErr": "Не ўдалося захаваць тэму: {e}",
   "pack.exportAuthorErr": "Не атрымалася стварыць аўтарскую зборку: {e}",
   "pack.versionMc": "Версія Minecraft",
   "pack.versionLoader": "Загрузчык",
@@ -973,5 +976,11 @@
   "console.autoscroll": "Аўтапракрутка",
   "files.colName": "Назва",
   "files.colSource": "Крыніца",
-  "files.colActions": "Дзеянні"
+  "files.colActions": "Дзеянні",
+  "empty.title": "Сардэчна запрашаем у Mono",
+  "empty.subtitle": "Стварыце першы збор або дадайце існуючы",
+  "empty.createPack": "Стварыць збор",
+  "empty.browseCatalog": "Каталог збораў",
+  "empty.noPackTitle": "Збор не выбраны",
+  "empty.noPackHint": "Выберыце збор злева або стварыце новы"
 }

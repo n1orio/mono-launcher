@@ -1,8 +1,8 @@
 <template>
-  <div class="flex h-10 shrink-0 items-center gap-2 px-4">
+  <div data-tauri-drag-region class="titlebar flex h-10 shrink-0 items-center gap-2 px-4">
     <!-- Windows: классические кнопки справа -->
     <template v-if="isWindows">
-      <div data-tauri-drag-region class="h-full min-w-8 flex-1"></div>
+      <div class="h-full min-w-8 flex-1"></div>
       <button type="button" class="flex h-9 w-10 items-center justify-center rounded-md text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx-strong)]" @click="appMinimize">
         <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current"><path d="M2 8a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 8Z"/></svg>
       </button>
@@ -25,10 +25,17 @@
       <button type="button" class="group flex h-3 w-3 items-center justify-center rounded-full bg-[var(--accent-strong)] transition-colors hover:bg-[var(--accent-strong)]/80" @click="appToggleMaximize">
         <svg viewBox="0 0 16 16" class="h-2 w-2 opacity-0 transition-opacity fill-black/60 group-hover:opacity-100"><path d="M1.5 2.5A1.5 1.5 0 0 1 3 1h10a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5H3A1.5 1.5 0 0 1 1.5 12.5v-10Zm1.5-.5a.5.5 0 0 0-.5.5v10a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5v-10a.5.5 0 0 0-.5-.5H3Z"/></svg>
       </button>
-      <div data-tauri-drag-region class="h-full flex-1"></div>
+      <div class="h-full flex-1"></div>
     </template>
   </div>
 </template>
+
+<style scoped>
+.titlebar button {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+</style>
 
 <script setup lang="ts">
 import { useLauncherCtx } from "~/composables/useLauncherContext";

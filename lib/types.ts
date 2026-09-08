@@ -18,6 +18,9 @@ export interface PackDescriptor {
   banner: string | null;
   /** Цвет аватарки (hex без #). Если задан — генерирует градиент при отсутствии иконки. */
   color: string | null;
+ /** Тема лаунчера из theme.json. */
+ theme?: AuthorTheme | null;
+ meta?: Record<string, unknown> | null;
 }
 
 /** Карточка проекта Modrinth (мод или модпак). */
@@ -133,7 +136,7 @@ export interface AuthorTheme {
   accentDeep?: string | null;
 }
 
-export interface AuthorPackConfig {
+ export interface AuthorPackConfig {
   name: string;
   author: string;
   description?: string | null;
@@ -142,6 +145,7 @@ export interface AuthorPackConfig {
   servers: AuthorServer[];
   socials: AuthorSocial[];
   theme?: AuthorTheme | null;
+  useAuthlib?: boolean;
 }
 
 /** Отдельный профиль Mono (не игровой аккаунт — лежит поверх аккаунтов). */

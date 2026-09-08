@@ -7,13 +7,14 @@ import {
   exportSourceList,
   exportAuthorPack,
   uploadPack,
+  readPackTheme,
 } from "~/lib/bridge";
 import type {
   AppStatus,
+  AuthorTheme,
   AuthorPackConfig,
   AuthorServer,
   AuthorSocial,
-  AuthorTheme,
   ExportSourceItem,
   MonoProfile,
   PackDescriptor,
@@ -292,11 +293,15 @@ export function useExport(deps: UseExportDeps) {
     authorMinRamMb.value = mr ? Math.round(mr / 1024) : null;
     authorServers.value = [{ name: "", ip: "", port: null, desc: "" }];
     authorSocials.value = [{ name: "", url: "", color: "" }];
-    authorTheme.value = {};
     authorAccent.value = "";
+    void loadExportList();
+    void (async () => {
+      const theme = await readPackTheme(packId.value!);
+      authorTheme.value = theme ?? {};
+      if (theme?.accent) authorAccent.value = theme.accent;
+    })();
     exportOpen.value = true;
     exportExpanded.value = new Set();
-    void loadExportList();
   }
 
   function addAuthorServer() {
@@ -337,41 +342,42 @@ export function useExport(deps: UseExportDeps) {
     return normalizeHex(hex ?? "") ?? "#000";
   }
 
-  function authorConfig(): AuthorPackConfig {
-    return {
-      name: authorName.value.trim() || activePack?.value?.name || "pack",
-      author: authorAuthor.value.trim(),
-      description: authorDesc.value.trim() ? authorDesc.value.trim() : null,
-      boostyBlog: authorBoosty.value.trim()
-        ? authorBoosty.value.trim()
-        : null,
-      minRam: authorMinRam.value ? (authorMinRamMb.value ?? null) : null,
-      servers: authorServers.value
-        .filter((s) => s.name.trim() || s.ip.trim())
-        .map((s) => ({
-          name: s.name.trim(),
-          ip: s.ip.trim(),
-          port: s.port ?? null,
-          desc: s.desc?.trim() ? s.desc.trim() : null,
-        })),
-      socials: authorSocials.value
-        .filter((s) => s.name.trim() && s.url.trim())
-        .map((s) => ({
-          name: s.name.trim(),
-          url: s.url.trim(),
-          color: s.color?.trim() ? s.color.trim() : null,
-        })),
-      theme: authorThemeFields.some(
-        (f) => (authorTheme.value[f.key] ?? "").trim(),
-      )
-        ? (Object.fromEntries(
-            authorThemeFields
-              .filter((f) => (authorTheme.value[f.key] ?? "").trim())
-              .map((f) => [f.key, authorTheme.value[f.key]!.trim()]),
-          ) as AuthorTheme)
-        : null,
-    };
-  }
+   function authorConfig(): AuthorPackConfig {
+     return {
+       name: authorName.value.trim() || activePack?.value?.name || "pack",
+       author: authorAuthor.value.trim(),
+       description: authorDesc.value.trim() ? authorDesc.value.trim() : null,
+       boostyBlog: authorBoosty.value.trim()
+         ? authorBoosty.value.trim()
+         : null,
+       minRam: authorMinRam.value ? (authorMinRamMb.value ?? null) : null,
+       servers: authorServers.value
+         .filter((s) => s.name.trim() || s.ip.trim())
+         .map((s) => ({
+           name: s.name.trim(),
+           ip: s.ip.trim(),
+           port: s.port ?? null,
+           desc: s.desc?.trim() ? s.desc.trim() : null,
+         })),
+       socials: authorSocials.value
+         .filter((s) => s.name.trim() && s.url.trim())
+         .map((s) => ({
+           name: s.name.trim(),
+           url: s.url.trim(),
+           color: s.color?.trim() ? s.color.trim() : null,
+         })),
+       theme: authorThemeFields.some(
+         (f) => (authorTheme.value[f.key] ?? "").trim(),
+       )
+         ? (Object.fromEntries(
+             authorThemeFields
+               .filter((f) => (authorTheme.value[f.key] ?? "").trim())
+               .map((f) => [f.key, authorTheme.value[f.key]!.trim()]),
+           ) as AuthorTheme)
+         : null,
+       useAuthlib: (activePack?.value as any)?.meta?.use_authlib === true,
+     };
+   }
 
   async function doAuthorExport() {
     if (exportBusy.value || !packId.value || !isTauri()) return;
