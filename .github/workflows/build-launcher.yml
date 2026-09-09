@@ -17,7 +17,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "$GITHUB_REF_NAME" /dev/null --repo n1orio/mono-launcher --clobber --draft 2>/dev/null || true
+          touch /tmp/empty
+          gh release upload "$GITHUB_REF_NAME" /tmp/empty --repo n1orio/mono-launcher --clobber 2>/dev/null || true
           gh release edit "$GITHUB_REF_NAME" --repo n1orio/mono-launcher --draft --notes "Сборка..." 2>/dev/null || true
       - name: Достать id релиза
         id: rel
