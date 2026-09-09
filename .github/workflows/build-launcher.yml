@@ -17,11 +17,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --repo n1orio/mono-launcher \
-            --title "Launcher v${GITHUB_REF_NAME#launcher-v}" \
-            --notes "Сборка..." \
-            --draft || true
+          gh release upload "$GITHUB_REF_NAME" /dev/null --repo n1orio/mono-launcher --clobber --draft 2>/dev/null || true
+          gh release edit "$GITHUB_REF_NAME" --repo n1orio/mono-launcher --draft --notes "Сборка..." 2>/dev/null || true
       - name: Достать id релиза
         id: rel
         env:
@@ -125,4 +122,4 @@ jobs:
           TAG="$GITHUB_REF_NAME"
           VER="${TAG#launcher-v}"
           BODY="$(node scripts/release-notes.mjs "$VER" "Mono Launcher.")" || exit 0
-          gh release edit "$TAG" --repo n1orio/mono-launcher --notes "$BODY"
+          gh release edit "$TAG" --repo n1orio/mono-launcher --notes "$BODY" || true
