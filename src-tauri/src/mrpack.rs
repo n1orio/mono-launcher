@@ -1,13 +1,15 @@
-use std::collections::HashMap;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+ use std::collections::{HashMap, HashSet};
+ use std::fs;
+ use std::io::{self, Read, Write};
+ use std::path::{Path, PathBuf};
+ use std::sync::atomic::{AtomicUsize, Ordering};
+ use std::sync::Arc;
+ use std::time::{Duration, Instant};
 
-use anyhow::{anyhow, Context, Result};
-use futures::future::try_join_all;
-use futures::StreamExt;
+ use anyhow::{anyhow, Context, Result};
+ use futures::future::try_join_all;
+ use futures::StreamExt;
+ use tokio::time::timeout;
 use reqwest::Client;
 use sha1::{Digest, Sha1};
 use sha2::{Sha256, Sha512};
@@ -276,50 +278,67 @@ async fn download_mrpack_once(
     Ok(())
 }
 
-/// Распаковывает `.mrpack` во временную папку и возвращает её путь.
-pub async fn extract_mrpack(app: &AppHandle, mrpack_path: &Path) -> Result<PathBuf> {
-    let tmp_dir = std::env::temp_dir().join(format!("mono-mrpack-{}", uuid::Uuid::new_v4()));
-    fs::create_dir_all(&tmp_dir)?;
+ /// Распаковывает `.mrpack` во временную папку и возвращает её путь.
+ pub async fn extract_mrpack(app: &AppHandle, mrpack_path: &Path) -> Result<PathBuf> {
+     let tmp_dir = std::env::temp_dir().join(format!("mono-mrpack-{}", uuid::Uuid::new_v4()));
+     fs::create_dir_all(&tmp_dir)?;
+     let app = app.clone();
+     let mrpack_path = mrpack_path.to_path_buf();
 
-    let file = fs::File::open(mrpack_path)?;
-    let mut archive = zip::ZipArchive::new(file).context("Не удалось открыть .mrpack как zip")?;
-    let total = archive.len();
+     let result = timeout(Duration::from_secs(300), tokio::task::spawn_blocking(move || {
+         let file = fs::File::open(mrpack_path)?;
+         let mut archive = zip::ZipArchive::new(file).context("Не удалось открыть .mrpack как zip")?;
+         let total = archive.len();
+         let mut extracted = 0u64;
+         let mut last_progress = 0u64;
+         let mut created_dirs = HashSet::new();
 
-    for i in 0..archive.len() {
-        let mut entry = archive.by_index(i)?;
-        let entry_name = entry
-            .enclosed_name()
-            .ok_or_else(|| anyhow!("Некорректное имя файла в архиве"))?;
-        let out_path = tmp_dir.join(entry_name);
+         for i in 0..archive.len() {
+             let mut entry = archive.by_index(i)?;
+             let entry_name = entry
+                 .enclosed_name()
+                 .ok_or_else(|| anyhow!("Некорректное имя файла в архиве"))?;
+             let out_path = tmp_dir.join(&entry_name);
 
-        emit_progress(
-            app,
-            &DownloadProgress {
-                phase: "Распаковка архива".into(),
-                current: i as u64,
-                total: total as u64,
-                file_index: i,
-                file_total: total,
-                current_file: entry.name().to_string(),
-                bytes_per_sec: 0,
-            },
-        );
+             if entry.is_dir() {
+                 fs::create_dir_all(&out_path)?;
+                 continue;
+             }
 
-        if entry.is_dir() {
-            fs::create_dir_all(&out_path)?;
-            continue;
-        }
+             if let Some(parent) = out_path.parent() {
+                 let parent_str = parent.to_string_lossy().to_string();
+                 if created_dirs.insert(parent_str.clone()) {
+                     fs::create_dir_all(parent)?;
+                 }
+             }
 
-        if let Some(parent) = out_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
+             let mut out = fs::File::create(&out_path)?;
+             let mut data = Vec::new();
+             entry.read_to_end(&mut data).map_err(|e| anyhow!("Ошибка чтения {}: {}", entry_name.display(), e))?;
+             out.write_all(&data).map_err(|e| anyhow!("Ошибка записи {}: {}", entry_name.display(), e))?;
+             extracted += 1;
 
-        let mut out = fs::File::create(&out_path)?;
-        std::io::copy(&mut entry, &mut out)?;
-    }
+             if extracted - last_progress >= 5 || extracted == total as u64 {
+                 emit_progress(
+                     &app,
+                     &DownloadProgress {
+                         phase: "Распаковка архива".into(),
+                         current: extracted,
+                         total: total as u64,
+                         file_index: i,
+                         file_total: total,
+                         current_file: entry.name().to_string(),
+                         bytes_per_sec: 0,
+                     },
+                 );
+                 last_progress = extracted;
+             }
+         }
+         Ok::<_, anyhow::Error>(tmp_dir)
+     })).await.map_err(|_| anyhow!("Таймаут распаковки .mrpack"))???;
 
-    Ok(tmp_dir)
-}
+     Ok(result)
+ }
 
 /// Читает `modrinth.index.json` из распакованного архива.
 pub fn parse_index(extract_dir: &Path) -> Result<(ModrinthIndex, PackInfo)> {

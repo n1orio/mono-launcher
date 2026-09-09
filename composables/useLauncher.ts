@@ -1,5 +1,6 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { check as checkAppUpdate, type Update as AppUpdate } from "@tauri-apps/plugin-updater";
+import { getVersion } from "@tauri-apps/api/app";
+import { invoke } from "@tauri-apps/api/core";
 import { relaunch } from "@tauri-apps/plugin-process";
 import {
   addPack,
@@ -426,7 +427,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const appUpdate = ref<{ version: string; notes: string } | null>(null);
   const appUpdating = ref(false);
   const appUpdateProgress = ref<number | null>(null);
-  let pendingAppUpdate: AppUpdate | null = null;
+  let pendingAppUpdateUrl: string | null = null;
   const javaList = ref<JavaInfo[]>([]);
   const javaSelected = ref<string>("");
   const javaBusy = ref(false);
@@ -710,42 +711,32 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     }
   }
 
-  /** Проверяет обновление лаунчера (шаблон обновления из GitHub Releases). */
+  /** Проверяет обновление лаунчера через latest.json без верификации подписи. */
   async function checkAppUpdates() {
     if (!isTauri()) return;
     try {
-      const u = await checkAppUpdate();
-      if (u) {
-        pendingAppUpdate = u;
-        appUpdate.value = { version: u.version, notes: u.body ?? "" };
+      const res = await fetch("https://github.com/n1orio/mono-launcher/releases/latest/download/latest.json");
+      if (!res.ok) return;
+      const latest = await res.json() as { version: string; notes?: string; platforms?: Record<string, { url: string }> };
+      if (!latest.version) return;
+      const current = await getVersion();
+      const platformKey = osPlatformKey();
+      if (latest.version !== current && latest.platforms?.[platformKey]) {
+        pendingAppUpdateUrl = latest.platforms[platformKey].url;
+        appUpdate.value = { version: latest.version, notes: latest.notes ?? "" };
       }
     } catch {
       // Нет сети/нет latest.json — молча пропускаем, не мешаем работе.
     }
   }
 
-  /** Скачивает и ставит обновление лаунчера, затем перезапускается. */
+  /** Скачивает и ставит обновление лаунчера через бэкенд-команду. */
   async function installAppUpdate() {
-    if (!pendingAppUpdate || appUpdating.value) return;
+    if (!pendingAppUpdateUrl || appUpdating.value) return;
     appUpdating.value = true;
     appUpdateProgress.value = 0;
     try {
-      let contentLength = 0;
-      let downloaded = 0;
-      await pendingAppUpdate.downloadAndInstall((event) => {
-        if (event.event === "Started") {
-          contentLength = event.data.contentLength ?? 0;
-        } else if (event.event === "Progress") {
-          downloaded += event.data.chunkLength;
-          if (contentLength > 0) {
-            appUpdateProgress.value = Math.min(
-              100,
-              Math.round((downloaded / contentLength) * 100)
-            );
-          }
-        }
-      });
-      appUpdate.value = null;
+      await invoke("download_and_install_update", { url: pendingAppUpdateUrl });
       await relaunch();
     } catch (e) {
       notify(t("err.appUpdate", { e }));
@@ -753,6 +744,14 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
       appUpdating.value = false;
       appUpdateProgress.value = null;
     }
+  }
+
+  /** Возвращает ключ платформы из latest.json для текущей ОС. */
+  function osPlatformKey(): string {
+    const ua = navigator.userAgent;
+    if (/Windows/i.test(ua)) return "windows-x86_64";
+    if (/Mac/i.test(ua)) return "darwin-aarch64";
+    return "linux-x86_64";
   }
 
   function notify(text: string, type: Notice["type"] = "error") {
@@ -2412,7 +2411,13 @@ notify(t("err.switch", { e }));
     try {
       authorPacks.value = await packMineCmd(token);
     } catch (e) {
-      notify(t("author.error", { e }));
+      const msg = String(e);
+      if (msg.includes("401") || msg.includes("403") || msg.includes("Unauthorized") || msg.includes("Permission")) {
+        monoProfile.value = null;
+        notify(t("author.needLogin"), "info");
+      } else {
+        notify(t("author.error", { e }));
+      }
     } finally {
       authorBusy.value = false;
     }
@@ -2438,7 +2443,13 @@ notify(t("err.switch", { e }));
       void loadCatalogComments(id);
       takeAuthorFormBase();
     } catch (e) {
-      notify(t("author.error", { e }));
+      const msg = String(e);
+      if (msg.includes("401") || msg.includes("403") || msg.includes("Unauthorized") || msg.includes("Permission")) {
+        monoProfile.value = null;
+        notify(t("author.needLogin"), "info");
+      } else {
+        notify(t("author.error", { e }));
+      }
     } finally {
       authorBusy.value = false;
     }

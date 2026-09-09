@@ -184,7 +184,18 @@ const {
   handleSelectVersion,
   selectAllFiles,
   createPackOpen,
+  monoProfile,
+  monoUseAuthlib,
+  handleMonoLogin,
 } = ctx;
+
+const packUseAuthlib = computed(() => {
+  const meta = activePack.value?.meta as Record<string, unknown> | null | undefined;
+  return meta?.use_authlib === true;
+});
+const needMonoLogin = computed(() => packUseAuthlib.value);
+const monoLoggedIn = computed(() => !!monoProfile.value?.access_token);
+
 import type { GameFolderKind, ModrinthSearchKind } from "~/lib/bridge";
 import type { GameFileEntry } from "~/lib/types";
 
@@ -625,6 +636,25 @@ async function enableAllFiles(enabled: boolean) {
         :title="t('files.unbindHint')"
         @click="confirmUnbindPack"
       >{{ unbindArmed ? t("files.unbindConfirm") : t("files.unbind") }}</button>
+    </div>
+  </div>
+
+  <!-- Authlib-injector notification: needs Mono account -->
+  <div
+    v-if="needMonoLogin"
+    class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
+  >
+    <div class="flex items-center gap-2 font-medium">
+      <AppIcon name="alert-circle" class="h-4 w-4 fill-current shrink-0" />
+      <span>{{ monoLoggedIn ? t("pack.authlibNeedsMonoLogged") : t("pack.authlibNeedsMono") }}</span>
+    </div>
+    <div class="flex items-center gap-3 shrink-0">
+      <button v-if="!monoLoggedIn" type="button" class="hover:underline font-semibold cursor-pointer" @click="handleMonoLogin">
+        {{ t("auth.login") }}
+      </button>
+      <button v-else type="button" class="hover:underline font-semibold cursor-pointer" @click="openExternal('/auth/mono')">
+        {{ t("pack.openAccount") }}
+      </button>
     </div>
   </div>
 

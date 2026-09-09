@@ -3841,13 +3841,30 @@ fn analyze_crash_command(pack_id: Option<String>) -> crash::CrashAnalysis {
 
 /// Версия лаунчера (из Cargo.toml) — для отчётов об ошибках.
 #[tauri::command]
-fn launcher_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
-}
+ fn launcher_version() -> String {
+     env!("CARGO_PKG_VERSION").to_string()
+ }
 
-/// Открывает URL во внешнем браузере.
-#[tauri::command]
-fn open_url(app: AppHandle, url: String) -> Result<(), String> {
+ #[tauri::command]
+ async fn download_and_install_update(
+     state: State<'_, AppState>,
+     url: String,
+ ) -> Result<(), String> {
+     let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+     let tmp_path = std::env::temp_dir().join("mono-launcher-update.bin");
+
+     let resp = state.client.get(&url).send().await
+         .map_err(|e| e.to_string())?;
+     let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+     tokio::fs::write(&tmp_path, &bytes).await.map_err(|e| e.to_string())?;
+
+     std::fs::rename(&tmp_path, &exe_path).map_err(|e| e.to_string())?;
+     Ok(())
+ }
+
+ /// Открывает URL во внешнем браузере.
+ #[tauri::command]
+ fn open_url(app: AppHandle, url: String) -> Result<(), String> {
     // Разрешаем только web/mailto — строки приходят из сторонних metadata
     // (socials.json и т.п.), нельзя допускать file:// и произвольных схем.
     let lower = url.to_ascii_lowercase();
@@ -4155,7 +4172,7 @@ pub fn run() {
             .connect_timeout(std::time::Duration::from_secs(10))
             .timeout(std::time::Duration::from_secs(20))
             .build()
-            .unwrap_or_else(|_| reqwest::Client::new()),
+            .unwrap_or_else(|_| reqwest::Client::builder().timeout(std::time::Duration::from_secs(20)).build().unwrap_or_else(|_| panic!("Failed to build reqwest client"))),
     };
 
     tauri::Builder::default()
@@ -4303,8 +4320,9 @@ login_offline_command,
             analyze_crash_command,
             open_pack_dir,
             get_pack_dir_command,
-            launcher_version,
-            open_url,
+             launcher_version,
+             download_and_install_update,
+             open_url,
             list_java_command,
             set_java_path_command,
             get_pack_java_command,

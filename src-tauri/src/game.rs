@@ -12,10 +12,13 @@ use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
+use std::time::Duration;
+
 use crate::auth::UserSession;
 use crate::config;
 use crate::jre::{ensure_java, find_java, java_major, required_java, JavaArch};
 use crate::mrpack::verify_sha1;
+
 
 /// GET + JSON с проверкой Content-Type и понятными ошибками.
 /// На случай, когда сервер отдаёт HTML/пустую страницу вместо JSON
@@ -862,9 +865,10 @@ pub async fn launch_game(
     let assets_root = root.join("assets");
     let libraries_dir = root.join("libraries");
     let versions_dir = root.join("versions-libs");
-    let client = reqwest::Client::new();
-
-    // Фиксируем факт запуска сборки для раздела «Недавние».
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 MonoLauncher/2.0")
+        .timeout(Duration::from_secs(300))
+        .build()?;
     config::mark_pack_launched(pack_id);
 
     // 1. Определяем версию Minecraft и модлоадер из активной установленной версии.
