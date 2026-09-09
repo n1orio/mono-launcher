@@ -84,6 +84,7 @@ The catalog tab has 4 source sub-tabs: `mono` (backend catalog), `author` (your 
 - Requires `TAURI_SIGNING_PRIVATE_KEY` + `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` + `MONO_CURSEFORGE_KEY` secrets
 - `update-manifest` job runs `scripts/make-updater-json.mjs` to create `latest.json` from signed assets
 - Release body updated from `CHANGELOG.md` via `scripts/release-notes.mjs`
+- **Critical**: `gh release create` creates `untagged-...` git tags on GitHub, causing `tauri-action` to upload artifacts to the wrong release. Fixed by using `gh release upload` + `gh release edit` in `prepare-release` job instead of `gh release create`. The `tagName` in `tauri-action` uses `launcher-v__VERSION__` which matches the actual tag.
 
 ## Adding Tauri Commands
 1. Define in relevant Rust module (`src-tauri/src/*.rs`)
