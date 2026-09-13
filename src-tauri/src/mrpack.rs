@@ -1050,7 +1050,7 @@ let marker_content = match fs::read_to_string(&marker) {
             }
         }
     }
-    out.sort_by(|a, b| a.version_id.cmp(&b.version_id));
+     out.sort_by(|a, b| b.version_id.cmp(&a.version_id));
     out
 }
 
@@ -1771,6 +1771,6 @@ mod tests {
         assert_eq!(len, 12);
         assert!(dest.exists());
         assert!(!part.exists());
-        let _ = fs::remove_dir_all(&dir);
-    }
-}
+     let _ = fs::remove_dir_all(&dir);
+     }
+ }
