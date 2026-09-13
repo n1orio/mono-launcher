@@ -1087,20 +1087,15 @@ pub async fn launch_game(
     .await?;
     let asset_index_id = resolve_assets(&client, &vanilla, &assets_root).await?;
      let client_jar = if matches!(loader.as_ref(), Some((name, _)) if name == "neoforge") {
-         // NeoForge: в classpath кладём «версионный» jar — копию ванильного клиента.
-         // Имя файла — `client.jar`, а НЕ `neoforge-<ver>.jar`, иначе JPMS
-         // создаст автоматический модуль `neoforge` из имени jar-файла
-         // (PathBasedLocator) и это будет дубликат реального модуля neoforge.
-         // FML находит этот jar через -DignoreList и launchId,
-         // а не через имя файла в classpath.
+         // NeoForge: не копируем ванильный client jar.
+         // Копия (versions/neoforge-<ver>/neoforge-<ver>.jar) создаёт
+         // JPMS-автоматический модуль, дублируя vanilla module minecraft
+         // — это split-package ошибка. Вместо этого используем оригинальный
+         // ванильный jar versions/<mc>/<mc>.jar как есть.
+         // FML находит libs через -DlibraryDirectory и ServiceLoader,
+         // а ванильный клиент загружается как module minecraft.
          let vanilla_jar = resolve_client_jar(&client, &vanilla, &versions_dir).await?;
-         let jar_dir = root.join("versions").join(&launch_id);
-         tokio::fs::create_dir_all(&jar_dir).await?;
-         let jar = jar_dir.join("client.jar");
-         if !jar.exists() {
-             tokio::fs::copy(&vanilla_jar, &jar).await?;
-         }
-         jar
+         vanilla_jar
      } else if let Some((name, ver)) = &loader {
         // forge использует свой патченый клиент; остальные — ванильный.
         match resolve_loader_client_jar(&client, name, ver, &libraries_dir).await? {
