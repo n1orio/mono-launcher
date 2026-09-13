@@ -1120,7 +1120,10 @@ pub async fn launch_game(
     classpath.extend(libs.classpath.into_iter().filter(|p| {
         if is_neoforge {
             let s = p.to_string_lossy();
-            !s.contains("neoforged/neoforge/")
+            // NeoForge jar и srg-клиент не должны быть на classpath:
+            // FML находит их через -DlibraryDirectory. Иначе JPMS видит
+            // два модуля `neoforge` и падает с ResolutionException.
+            !s.contains("neoforged/neoforge/") && !s.contains("net/minecraft/client/")
         } else {
             true
         }
