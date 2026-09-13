@@ -11,7 +11,7 @@
 - Виправлено `syncPackWithBackend`: `packBackendMeta` скидання при помилці/пустоті, remote versions коректно відстежуються
 - Виправлено `load()` `checkForUpdates`: тепер обирається остання версія за `created_at`, а не рядковою сортуванням `version`
 - Виправлено NeoForge JPMS падіння: виключено `net.neoforged:neoforge` ТА srg-клієнт (`net/minecraft/client/`) з classpath — FML знаходить їх через `-DlibraryDirectory`, інакше JPMS бачить два модулі `neoforge` і кидає `ResolutionException`
-- Виправлено зависання при оновленні збірки: `extract_mrpack` містив `let mut total: u64 = 0`, що перекривав `let total = archive.len()` (загальна кількість записів). Це викликало невірний `file_total`/`total`/`current` у `DownloadProgress` — показувались байти поточного файлу замість загальної кількості/байтів, через що фронтенд показував 100% поки розпаковка продовжувалась. Тож виправлено `apply_overrides` для пакетної відправки прогресу
+- Виправлено зависання при оновленні збірки: `extract_mrpack` містив `let mut total: u64 = 0`, що перекривав `let total = archive.len()`. `file_total`/`total`/`current` в `DownloadProgress` показували байти поточного файлу замість загальної кількості/байтів, через що фронтенд показував 100% поки розпаковка продовжувалась. Підрахунок `file_total` тепер ведеться тільки по файлах (без директорій), фінальний прогрес 100% завжди емітується після циклу. Також `handleInstall` та `installRemoteVersion` тепер збрасують `progress.value = null` у `finally`, щоб виджет завантаження закрився
 
 ## [2.0.0-alpha.7] — 2026-09-06
 

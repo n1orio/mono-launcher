@@ -11,7 +11,8 @@
 - Fixed `syncPackWithBackend`: `packBackendMeta` reset on error/empty, remote versions properly tracked
 - Fixed `load()` `checkForUpdates`: now picks latest version by `created_at` (not string-sorted `version`) to fix semver order
 - Fixed NeoForge JPMS crash: filtered `net.neoforged:neoforge` library AND srg client (`net/minecraft/client/`) from classpath — FML finds them via `-DlibraryDirectory`, otherwise JPMS sees two `neoforge` modules and throws `ResolutionException`
-- Fixed pack update hang during extraction: `extract_mrpack` had `let mut total: u64 = 0` shadowing `let total = archive.len()` (total entries). This caused `file_total`/`total`/`current` in `DownloadProgress` to show bytes of current file instead of total entries/bytes, making the frontend show 100% while extraction was still ongoing. Also fixed `apply_overrides` to batch progress emits instead of per-file
+- Fixed pack update hang during extraction: `extract_mrpack` variable shadowing made `file_total`/`total`/`current` in `DownloadProgress` show bytes-of-current-file instead of totals, making the frontend show 100% while backend was still extracting. Also fixed `apply_overrides` to batch progress emits. Now counts only non-directory entries for `file_total` and always emits final 100% progress after the loop
+- Fixed progress widget not closing after install: `handleInstall` and `installRemoteVersion` didn't reset `progress.value` to `null` in their `finally` blocks, leaving the loading widget stuck
 
 ## [2.0.0-alpha.8] — 2026-09-08
 
