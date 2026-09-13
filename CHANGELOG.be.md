@@ -11,6 +11,7 @@
 - Выправлена `syncPackWithBackend`: `packBackendMeta` скиданне пры памылцы/пустатэ, remote versions карэктна адстэжваюцца
 - Выправлена `load()` `checkForUpdates`: цяпер абіраецца апошняя версія паводле `created_at`, а не радкоўнага сартыраваньні `version`
 - NeoForge JPMS выпадзенне выправлена: `net.neoforged:neoforge` ТА srg-клент (`net/minecraft/client/`) выключаны з classpath — FML знаходзіць іх праз `-DlibraryDirectory`, інакше JPMS бачыць два модулі `neoforge` і кідае `ResolutionException`
+- Выправлена завісанне пры абнаўленні зборкі: `extract_mrpack` меў `let mut total: u64 = 0`, што перакрываў `let total = archive.len()` (агульная колькасць запісаў). Гэта выклікала няправільны `file_total`/`total`/`current` у `DownloadProgress` — паказваліся байты цячэння файлу замест агульнай колькасці/байтаў, што прыводзіла да таго, што інтэрфейс паказваў 100% пакуль распалоўка працягвалася. Тожож выправлена `apply_overrides` для пакетнай адпраўкі прагрэсу
 
 ## [2.0.0-alpha.7] — 2026-09-06
 

@@ -11,6 +11,7 @@
 - `syncPackWithBackend` korrigiert: `packBackendMeta` wird bei Fehler/Leere zurückgesetzt, remote versions korrekt verfolgt
 - `load()` `checkForUpdates` korrigiert: wählt nun die neueste Version nach `created_at`, nicht nach String-Sortierung von `version`
 - NeoForge JPMS Absturz behoben: `net.neoforged:neoforge` UND srg-Client (`net/minecraft/client/`) aus classpath ausgeschlossen — FML findet sie über `-DlibraryDirectory`, sonst sieht JPMS zwei `neoforge`-Module und wirft `ResolutionException`
+- Pack-Update-Hang beim Entpacken behoben: `extract_mrpack` hatte `let mut total: u64 = 0`, das `let total = archive.len()` (Gesamteinträge) überschrieb. Dies verursachte falsche `file_total`/`total`/`current` in `DownloadProgress` — es wurden Byte des aktuellen Files statt Gesamtzahl/Byte angezeigt, wodurch die UI 100% zeigte während Entpacken noch lief. Auch `apply_overrides` jetzt mit gebündelten Fortschrittsmeldungen
 
 ## [2.0.0-alpha.7] — 2026-09-06
 
