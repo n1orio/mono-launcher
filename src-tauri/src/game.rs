@@ -1109,10 +1109,22 @@ pub async fn launch_game(
         resolve_client_jar(&client, &vanilla, &versions_dir).await?
     };
 
-    // 6. Собираем classpath.
+        // 6. Собираем classpath.
     let mut classpath = Vec::new();
     classpath.push(client_jar);
-    classpath.extend(libs.classpath);
+    // NeoForge: библиотека `net.neoforged:neoforge` попадает в classpath
+    // через resolve_libraries, но она НЕ должна быть на classpath — FML
+    // находит её через -DlibraryDirectory. Иначе JPMS видит два модуля
+    // `neoforge` и падает с ResolutionException.
+    let is_neoforge = loader.as_ref().map(|(n, _)| n.as_str()) == Some("neoforge");
+    classpath.extend(libs.classpath.into_iter().filter(|p| {
+        if is_neoforge {
+            let s = p.to_string_lossy();
+            !s.contains("neoforged/neoforge/")
+        } else {
+            true
+        }
+    }));
     // Библиотеки, объявленные в mrpack сборки (напр. lwjgl-lmdb/zstd для Voxy).
     for lib in crate::mrpack::read_pack_libraries(pack_id) {
         if lib.exists() {
@@ -1120,6 +1132,10 @@ pub async fn launch_game(
             classpath.push(lib);
         }
     }
+    // Дедупликация classpath: клиентский jar не должен дублироваться
+    // среди библиотек (JPMS падает с "reads more than one module").
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    classpath.retain(|p| seen.insert(p.to_string_lossy().to_string()));
     let classpath_str = classpath
         .iter()
         .map(|p| p.to_string_lossy().to_string())
