@@ -289,6 +289,11 @@ async fn download_mrpack_once(
           let file = fs::File::open(mrpack_path)?;
           let mut archive = zip::ZipArchive::new(file).context("Не удалось открыть .mrpack как zip")?;
           let total_entries = archive.len();
+          // Считаем только файлы (без директорий) для корректного прогресса,
+          // т.к. extracted считает только файлы (continue при is_dir()).
+          let total_files = (0..total_entries)
+              .filter(|i| !archive.by_index(*i).map(|e| e.is_dir()).unwrap_or(true))
+              .count() as u64;
           let mut extracted = 0u64;
           let mut last_progress = 0u64;
           let mut created_dirs = HashSet::new();
@@ -342,7 +347,8 @@ async fn download_mrpack_once(
               extracted += 1;
               total_bytes_read += file_bytes_read;
 
-              if extracted - last_progress >= 5 || extracted == total_entries as u64 {
+              // Всегда эмитим прогресс при последнем файле или при каждых 5 файлах.
+              if extracted == total_files || extracted - last_progress >= 5 {
                   emit_progress(
                       &app,
                       &DownloadProgress {
@@ -350,7 +356,7 @@ async fn download_mrpack_once(
                           current: total_bytes_read,
                           total: total_bytes,
                           file_index: i,
-                           file_total: total_entries,
+                           file_total: total_files as usize,
                           current_file: entry.name().to_string(),
                           bytes_per_sec: 0,
                       },
@@ -358,6 +364,19 @@ async fn download_mrpack_once(
                   last_progress = extracted;
               }
           }
+          // Финальная отправка 100% — гарантирует, что фронтенд увидит завершение.
+          emit_progress(
+              &app,
+              &DownloadProgress {
+                  phase: "Распаковка архива".into(),
+                  current: total_bytes_read,
+                  total: total_bytes,
+                  file_index: total_entries.saturating_sub(1),
+                   file_total: total_files as usize,
+                  current_file: "".to_string(),
+                  bytes_per_sec: 0,
+              },
+          );
           Ok::<_, anyhow::Error>(tmp_dir)
       })).await.map_err(|_| anyhow!("Таймаут распаковки .mrpack"))???;
 

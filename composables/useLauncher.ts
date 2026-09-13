@@ -1752,6 +1752,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
       }
       return false;
     } finally {
+      progress.value = null;
       busy.value = false;
       remoteInstallingId.value = null;
       lastBytes = { value: 0, at: 0 };
@@ -2163,6 +2164,7 @@ watch(
         notify(t("err.install", { e }));
       }
     } finally {
+      progress.value = null;
       busy.value = false;
       lastBytes = { value: 0, at: 0 };
       speed = 0;
