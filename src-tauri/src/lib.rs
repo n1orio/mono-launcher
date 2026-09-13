@@ -2370,45 +2370,52 @@ async fn check_for_updates(
 /// Полное скачивание и установка сборки.
 /// Возвращает URL последней версии сборки с бэкенда, если сборка там найдена по URL.
 /// При любых ошибках возвращает None (установка идёт по исходной ссылке).
-async fn resolve_latest_url(client: &reqwest::Client, url: &str) -> Option<(String, String)> {
-    let norm = |u: &str| u.trim().trim_end_matches('/').to_lowercase();
-    let file = url.split('?').next()?.split('#').next()?.rsplit('/').next()?.to_string();
-    if file.is_empty() {
-        return None;
-    }
-    let base = crate::config::backend_url().trim_end_matches('/').to_string();
-    let cat: Vec<serde_json::Value> = client
-        .get(format!("{base}/packs"))
-        .send()
-        .await
-        .ok()?
-        .json()
-        .await
-        .ok()?;
-    let id = cat
-        .iter()
-        .filter_map(|c| {
-            let cu = c.get("url")?.as_str()?;
-            if norm(cu) == norm(url) || cu.ends_with(&format!("/{file}")) {
-                c.get("id")?.as_str().map(|s| s.to_string())
-            } else {
-                None
-            }
-        })
-        .next()?;
-    let detail: serde_json::Value = client
-        .get(format!("{base}/packs/{id}"))
-        .send()
-        .await
-        .ok()?
-        .json()
-        .await
-        .ok()?;
-    let v0 = detail.get("versions")?.get(0)?.clone();
-    let u = v0.get("url")?.as_str()?.to_string();
-    let label = v0.get("version").and_then(|x| x.as_str()).map(|x| x.to_string());
-    Some((u, label.unwrap_or_default()))
-}
+ async fn resolve_latest_url(client: &reqwest::Client, url: &str) -> Option<(String, String)> {
+     let norm = |u: &str| u.trim().trim_end_matches('/').to_lowercase();
+     let file = url.split('?').next()?.split('#').next()?.rsplit('/').next()?.to_string();
+     if file.is_empty() {
+         return None;
+     }
+     let base = crate::config::backend_url().trim_end_matches('/').to_string();
+     let cat: Vec<serde_json::Value> = client
+         .get(format!("{base}/packs"))
+         .send()
+         .await
+         .ok()?
+         .json()
+         .await
+         .ok()?;
+     let id = cat
+         .iter()
+         .filter_map(|c| {
+             let cu = c.get("url")?.as_str()?;
+             if norm(cu) == norm(url) || cu.ends_with(&format!("/{file}")) {
+                 c.get("id")?.as_str().map(|s| s.to_string())
+             } else {
+                 None
+             }
+         })
+         .next()?;
+     let detail: serde_json::Value = client
+         .get(format!("{base}/packs/{id}"))
+         .send()
+         .await
+         .ok()?
+         .json()
+         .await
+         .ok()?;
+     let mut versions = detail.get("versions")?.as_array()?.clone();
+     // Гарантируем порядок от новых к старым (зависимость от порядка API небезопасна)
+     versions.sort_by(|a, b| {
+         let ca = a.get("created_at").and_then(|v| v.as_str()).unwrap_or("");
+         let cb = b.get("created_at").and_then(|v| v.as_str()).unwrap_or("");
+         cb.cmp(ca)
+     });
+     let v0 = versions.first()?.clone();
+     let u = v0.get("url")?.as_str()?.to_string();
+     let label = v0.get("version").and_then(|x| x.as_str()).map(|x| x.to_string());
+     Some((u, label.unwrap_or_default()))
+ }
 
 #[tauri::command]
 async fn install_mrpack(
