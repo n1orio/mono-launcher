@@ -1079,7 +1079,7 @@ pub async fn launch_game(
     let libs = resolve_libraries(
         &client,
         &VersionJson {
-            libraries: merged_libraries,
+            libraries: merged_libraries.clone(),
             ..vanilla.clone()
         },
         &libraries_dir,
@@ -1120,10 +1120,10 @@ pub async fn launch_game(
     classpath.extend(libs.classpath.into_iter().filter(|p| {
         if is_neoforge {
             let s = p.to_string_lossy();
-            // NeoForge jar и srg-клиент не должны быть на classpath:
-            // FML находит их через -DlibraryDirectory. Иначе JPMS видит
-            // два модуля `neoforge` и падает с ResolutionException.
-            !s.contains("neoforged/neoforge/") && !s.contains("net/minecraft/client/")
+            // Все NeoForge артефакты не должны быть на classpath — FML
+            // находит их через -DlibraryDirectory. Иначе JPMS видит
+            // два+ модуля `neoforge` и падает с ResolutionException.
+            !s.contains("neoforged/")
         } else {
             true
         }
@@ -1212,6 +1212,9 @@ pub async fn launch_game(
         "${library_directory}".into(),
         libraries_dir.to_string_lossy().to_string(),
     );
+    // ${version_name} / ${version} — имя версии для запуска (neoforge-<ver>, forge-<ver>, vanilla id)
+    placeholders.insert("${version_name}".into(), launch_id.clone());
+    placeholders.insert("${version}".into(), launch_id.clone());
 
     // 8. Собираем финальные аргументы процесса.
     let mut final_args = Vec::new();
@@ -1325,7 +1328,7 @@ pub async fn launch_game(
     }
     final_args.push("-cp".into());
     final_args.push(classpath_str.clone());
-    final_args.push(main_class);
+    final_args.push(main_class.clone());
 
     // Авто-коннект: клиент читает --server/--port из аргументов main-класса.
     if let Some(srv) = &server_address {
@@ -1344,6 +1347,22 @@ pub async fn launch_game(
     }
 
     // 9. Запускаем с перехватом вывода (stdout/stderr -> событие "launch-log" + файл).
+    // Логируем полную команду и classpath для диагностики JPMS.
+    let merged_libs_names: Vec<String> = merged_libraries.iter().map(|l| l.name.clone()).collect();
+    let main_class_str = main_class.clone();
+    emit_log(&app, "sys", &format!("=== Launch command ==="));
+    emit_log(&app, "sys", &format!("java {}", final_args[1..].join(" ")));
+    emit_log(&app, "sys", &format!("=== Classpath ==="));
+    for (i, p) in classpath.iter().enumerate() {
+        emit_log(&app, "sys", &format!("  [{}] {}", i, p.display()));
+    }
+    emit_log(&app, "sys", &format!("=== Libraries in merged_libraries ==="));
+    for lib in &merged_libs_names {
+        emit_log(&app, "sys", &format!("  {}", lib));
+    }
+    emit_log(&app, "sys", &format!("=== Main class ==="));
+    emit_log(&app, "sys", &format!("{}", main_class_str));
+
     let mut cmd = Command::new(&final_args[0]);
     #[cfg(windows)]
     cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
