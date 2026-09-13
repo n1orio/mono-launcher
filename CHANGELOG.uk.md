@@ -10,6 +10,7 @@
 - Додано `packBackendMeta` — синхронізується з `meta` бекенду; використовується для перевірки `use_authlib`
 - Виправлено `syncPackWithBackend`: `packBackendMeta` скидання при помилці/пустоті, remote versions коректно відстежуються
 - Виправлено `load()` `checkForUpdates`: тепер обирається остання версія за `created_at`, а не рядковою сортуванням `version`
+- Виправлено NeoForge JPMS падіння: виключено `net.neoforged:neoforge` з classpath — FML знаходить її через `-DlibraryDirectory`, інакше JPMS бачить два модулі `neoforge` і кидає `ResolutionException`
 
 ## [2.0.0-alpha.7] — 2026-09-06
 
