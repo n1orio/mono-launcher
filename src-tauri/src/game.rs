@@ -1086,20 +1086,22 @@ pub async fn launch_game(
     )
     .await?;
     let asset_index_id = resolve_assets(&client, &vanilla, &assets_root).await?;
-    let client_jar = if matches!(loader.as_ref(), Some((name, _)) if name == "neoforge") {
-        // NeoForge: в classpath кладём «версионный» jar — копию ванильного клиента
-        // в versions/neoforge-<ver>/neoforge-<ver>.jar. Именно его исключает
-        // -DignoreList=…,${version_name}.jar (PR neoforged/NeoForge#1718). Патченые
-        // srg/extra/client jar'ы в classpath НЕ попадают — их находит сам FML.
-        let vanilla_jar = resolve_client_jar(&client, &vanilla, &versions_dir).await?;
-        let jar_dir = root.join("versions").join(&launch_id);
-        tokio::fs::create_dir_all(&jar_dir).await?;
-        let jar = jar_dir.join(format!("{launch_id}.jar"));
-        if !jar.exists() {
-            tokio::fs::copy(&vanilla_jar, &jar).await?;
-        }
-        jar
-    } else if let Some((name, ver)) = &loader {
+     let client_jar = if matches!(loader.as_ref(), Some((name, _)) if name == "neoforge") {
+         // NeoForge: в classpath кладём «версионный» jar — копию ванильного клиента.
+         // Имя файла — `client.jar`, а НЕ `neoforge-<ver>.jar`, иначе JPMS
+         // создаст автоматический модуль `neoforge` из имени jar-файла
+         // (PathBasedLocator) и это будет дубликат реального модуля neoforge.
+         // FML находит этот jar через -DignoreList и launchId,
+         // а не через имя файла в classpath.
+         let vanilla_jar = resolve_client_jar(&client, &vanilla, &versions_dir).await?;
+         let jar_dir = root.join("versions").join(&launch_id);
+         tokio::fs::create_dir_all(&jar_dir).await?;
+         let jar = jar_dir.join("client.jar");
+         if !jar.exists() {
+             tokio::fs::copy(&vanilla_jar, &jar).await?;
+         }
+         jar
+     } else if let Some((name, ver)) = &loader {
         // forge использует свой патченый клиент; остальные — ванильный.
         match resolve_loader_client_jar(&client, name, ver, &libraries_dir).await? {
             Some(jar) => jar,
@@ -1120,10 +1122,15 @@ pub async fn launch_game(
     classpath.extend(libs.classpath.into_iter().filter(|p| {
         if is_neoforge {
             let s = p.to_string_lossy();
-            // Все NeoForge артефакты не должны быть на classpath — FML
-            // находит их через -DlibraryDirectory. Иначе JPMS видит
-            // два+ модуля `neoforge` и падает с ResolutionException.
-            !s.contains("neoforged/")
+            // Исключаем ТОЛЬКО сам артефакт NeoForge mod
+            // (neoforge-*-universal.jar, neoforge-*-client.jar) —
+            // он находится в neoforged/neoforge/ и JPMS видит его
+            // как модуль `neoforge`. FML находит его через -DlibraryDirectory.
+            // fmlloader, fmlcore, bus, securejarhandler и т.д. ДОЛЖНЫ
+            // быть на classpath — они регистрируют forgeclient через
+            // java.util.ServiceLoader.
+            // srg-клиент тоже исключаем — он находится через provider.
+            !s.contains("neoforged/neoforge/") && !s.contains("net/minecraft/client/")
         } else {
             true
         }
