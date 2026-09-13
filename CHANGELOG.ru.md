@@ -10,7 +10,7 @@
 - Добавлен `packBackendMeta` — синхронизируется с `meta` бэкенда; используется для проверки `use_authlib`
 - Исправлен `syncPackWithBackend`: `packBackendMeta` сбрасывается при ошибке/пустоте, remote versions корректно отслеживаются
 - Исправлен `load()` `checkForUpdates`: теперь выбирается последняя версия по `created_at`, а не строковой сортировкой `version`
-- Исправлен NeoForge JPMS краш: исключены библиотека `net.neoforged:neoforge` И srg-клиент (`net/minecraft/client/`) из classpath — FML находит их через `-DlibraryDirectory`, иначе JPMS видит два модуля `neoforge` и бросает `ResolutionException`
+- Исправлен NeoForge JPMS краш: исключены ВСЕ `net.neoforged:*` артефакты из classpath (было только `neoforged/neoforge/`) — FML находит их через `-DlibraryDirectory`, иначе JPMS видит два+ модуля `neoforge` и бросает `ResolutionException`. Также добавлены `${version_name}`/`${version}` в placeholders, чтобы `--version \${version_name}` из `version.json` подставлялся корректно. Добавлено полное логирование команды запуска Java
 - Исправлено зависание при обновлении сборки: `extract_mrpack` содержал `let mut total: u64 = 0`, перекрывающее `let total = archive.len()`. При этом `file_total`/`total`/`current` в `DownloadProgress` показывали байты текущего файла вместо общего числа/байтов, из-за чего фронтенд показывал 100% пока распаковка продолжалась. Подсчёт `file_total` теперь ведётся только по файлам (без директорий), финальный прогресс 100% всегда эмитится после цикла. Также `handleInstall` и `installRemoteVersion` теперь сбрасывают `progress.value = null` в `finally`, чтобы виджет загрузки закрывался и кнопка возвращалась в «Играть»
 
 ## [2.0.0-alpha.8] — 2026-09-08

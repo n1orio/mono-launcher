@@ -10,7 +10,7 @@
 - Дададзены `packBackendMeta` — сінхранізуецца з `meta` бэкэнду; выкарыстоўваецца для праверкі `use_authlib`
 - Выправлена `syncPackWithBackend`: `packBackendMeta` скиданне пры памылцы/пустатэ, remote versions карэктна адстэжваюцца
 - Выправлена `load()` `checkForUpdates`: цяпер абіраецца апошняя версія паводле `created_at`, а не радкоўнага сартыраваньні `version`
-- NeoForge JPMS выпадзенне выправлена: `net.neoforged:neoforge` ТА srg-клент (`net/minecraft/client/`) выключаны з classpath — FML знаходзіць іх праз `-DlibraryDirectory`, інакше JPMS бачыць два модулі `neoforge` і кідае `ResolutionException`
+- NeoForge JPMS выпадзенне выправлена: выключаны ВСЕ `net.neoforged:*` артыфакты з classpath (было толькі `neoforged/neoforge/`) — FML знаходзіць іх праз `-DlibraryDirectory`, інакше JPMS бачыць два+ модулі `neoforge` і кідае `ResolutionException`. Таксама дададзены `${version_name}`/`${version}` у placeholders, каб `--version \${version_name}` з `version.json` падставляўся карэктна. Дададзена поўнае логаванне каманды запуску Java
 - Выправлена завісанне пры абнаўленні зборкі: `extract_mrpack` меў `let mut total: u64 = 0`, што перакрываў `let total = archive.len()`. `file_total`/`total`/`current` у `DownloadProgress` паказвалі байты цячэння файлу замест агульнай колькасці/байтаў, што прыводзіла да таго, што інтэрфейс паказваў 100% пакуль распалоўка працягвалася. `file_total` цяпер лічыць толькі файлы (без дырэкторый), фінальны прагрэс 100% заўсёды эмуецца пасля цыклу. Таксама `handleInstall` і `installRemoteVersion` цяпер збрашчваюць `progress.value = null` у `finally`, каб віджэт загрузкі закрыўся
 
 ## [2.0.0-alpha.7] — 2026-09-06

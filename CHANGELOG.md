@@ -10,7 +10,8 @@
 - Added `packBackendMeta` ref synced from backend `meta` field; used for `use_authlib` detection instead of relying solely on `activePack.value.meta`
 - Fixed `syncPackWithBackend`: `packBackendMeta` reset on error/empty, remote versions properly tracked
 - Fixed `load()` `checkForUpdates`: now picks latest version by `created_at` (not string-sorted `version`) to fix semver order
-- Fixed NeoForge JPMS crash: filtered `net.neoforged:neoforge` library AND srg client (`net/minecraft/client/`) from classpath — FML finds them via `-DlibraryDirectory`, otherwise JPMS sees two `neoforge` modules and throws `ResolutionException`
+- Fixed NeoForge JPMS crash: filtered all `net.neoforged:*` artifacts from classpath (was only `neoforged/neoforge/`) — FML finds them via `-DlibraryDirectory`, otherwise JPMS sees two+ modules `neoforge` and throws `ResolutionException`. Also added `${version_name}`/`${version}` to placeholders so NeoForge `version.json` `--version \${version_name}` gets substituted correctly
+- Added full Java launch command logging (command, classpath, libraries, main class) via `emit_log` for diagnosing JPMS issues
 - Fixed pack update hang during extraction: `extract_mrpack` variable shadowing made `file_total`/`total`/`current` in `DownloadProgress` show bytes-of-current-file instead of totals, making the frontend show 100% while backend was still extracting. Also fixed `apply_overrides` to batch progress emits. Now counts only non-directory entries for `file_total` and always emits final 100% progress after the loop
 - Fixed progress widget not closing after install: `handleInstall` and `installRemoteVersion` didn't reset `progress.value` to `null` in their `finally` blocks, leaving the loading widget stuck
 

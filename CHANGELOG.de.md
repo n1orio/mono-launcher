@@ -10,7 +10,7 @@
 - `packBackendMeta` hinzugefügt — synchronisiert sich mit dem Backend-`meta`; wird für die `use_authlib`-Prüfung verwendet
 - `syncPackWithBackend` korrigiert: `packBackendMeta` wird bei Fehler/Leere zurückgesetzt, remote versions korrekt verfolgt
 - `load()` `checkForUpdates` korrigiert: wählt nun die neueste Version nach `created_at`, nicht nach String-Sortierung von `version`
-- NeoForge JPMS Absturz behoben: `net.neoforged:neoforge` UND srg-Client (`net/minecraft/client/`) aus classpath ausgeschlossen — FML findet sie über `-DlibraryDirectory`, sonst sieht JPMS zwei `neoforge`-Module und wirft `ResolutionException`
+- NeoForge JPMS Absturz behoben: ALLE `net.neoforged:*`-Artefakte aus classpath ausgeschlossen (war nur `neoforged/neoforge/`) — FML findet sie über `-DlibraryDirectory`, sonst sieht JPMS zwei+ `neoforge`-Module und wirft `ResolutionException`. Auch `${version_name}`/`${version}` zu placeholders hinzugefügt, damit `--version \${version_name}` aus `version.json` korrekt ersetzt wird. Vollständiges Java-Launch-Command-Logging hinzugefügt
 - Pack-Update-Hang beim Entpacken behoben: `extract_mrpack` hatte `let mut total: u64 = 0`, das `let total = archive.len()` überschrieb. `file_total`/`total`/`current` in `DownloadProgress` zeigten Byte des aktuellen Files statt Gesamtzahl/Byte, wodurch die UI 100% zeigte während Entpacken noch lief. `file_total` zählt jetzt nur Dateien (ohne Verzeichnisse), der finale 100%-Fortschritt wird immer nach der Schleife gesendet. Auch `handleInstall` und `installRemoteVersion` setzen jetzt `progress.value = null` in `finally`, damit das Lade-Widget geschlossen wird und die Taste zu «Spielen» zurückkehrt
 
 ## [2.0.0-alpha.7] — 2026-09-06
