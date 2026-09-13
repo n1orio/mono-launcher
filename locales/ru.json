@@ -1,7 +1,7 @@
 {
   "__meta__": {
     "author": "n1orio",
-    "version": "2.0.0-alpha.6"
+    "version": "2.0.0-alpha.9"
   },
   "nav.releases": "Релизы и запуск",
   "nav.news": "Новости",
@@ -439,6 +439,7 @@
   "catalog.retry": "Повторить",
   "catalog.empty": "Каталог пока пуст — загрузите свою сборку через панель автора",
   "catalog.paid": "по подписке",
+  "catalog.authlib": "authlib-injector",
   "catalog.sponsored": "Спонсор",
   "catalog.sponsoredTitle": "Спонсорская сборка — показана в начале каталога",
   "catalog.ratingTitle": "Оценка: {rating} из 5",
@@ -968,6 +969,7 @@
   "catalog.backToCatalog": "Назад к каталогу",
   "curse.openPage": "На CurseForge",
   "pack.managed": "Эта сборка управляемая",
+  "pack.authlibOn": "В этой сборке включён authlib-injector",
   "pack.authlibNeedsMono": "Для запуска этой сборки нужно войти в аккаунт Mono",
   "pack.authlibNeedsMonoLogged": "Эта сборка требует authlib-injector (аккаунт Mono)",
   "pack.openAccount": "Открыть аккаунт Mono",

@@ -106,7 +106,7 @@ const {
   busy,
   gameRunning,
   progress,
-  updateInfo,
+  updateInfoByPack,
   launcherVer,
   versions,
   logEntries,
@@ -2938,21 +2938,36 @@ async function quickDownloadCpPack(p: CurseSearchHit, ev: Event) {
   }
 }
 
-/** Проверяет обновления установленных из Modrinth модов (с кешем на 5 минут). */
-const updatesCheckedAt = ref(0);
-const UPDATES_TTL_MS = 5 * 60 * 1000;
+/** Проверяет обновления установленных из Modrinth модов (per-pack с хешированием состояния). */
+const modUpdatesByPack = ref<Record<string, ModUpdate[]>>({});
+const modUpdatesCheckedAt = ref<Record<string, number>>({});
+const modUpdatesCheckedHash = ref<Record<string, string>>({});
+const MOD_CHECK_TTL_MS = 5 * 60 * 1000;
+function packCheckHash(): string {
+  const inst = status.value?.installed_versions ?? [];
+  return inst.join('|') + '|' + (status.value?.active_version ?? '');
+}
 async function refreshModUpdates(force = false) {
   if (!isTauri() || !packId.value || !status.value?.installed) {
-  modUpdates.value = [];
-  trackedMods.value = [];
-  return;
+    modUpdates.value = [];
+    trackedMods.value = [];
+    return;
   }
-  if (!force && updatesCheckedAt.value && Date.now() - updatesCheckedAt.value < UPDATES_TTL_MS) return;
+  const hash = packCheckHash();
+  const prevHash = modUpdatesCheckedHash.value[packId.value];
+  const prevTime = modUpdatesCheckedAt.value[packId.value] ?? 0;
+  if (!force && prevHash === hash && prevTime && Date.now() - prevTime < MOD_CHECK_TTL_MS) {
+    modUpdates.value = modUpdatesByPack.value[packId.value] ?? [];
+    return;
+  }
   try {
-  modUpdates.value = await modrinthCheckUpdates(packId.value);
-  updatesCheckedAt.value = Date.now();
+    const updates = await modrinthCheckUpdates(packId.value);
+    modUpdatesByPack.value = { ...modUpdatesByPack.value, [packId.value]: updates };
+    modUpdatesCheckedHash.value = { ...modUpdatesCheckedHash.value, [packId.value]: hash };
+    modUpdatesCheckedAt.value = { ...modUpdatesCheckedAt.value, [packId.value]: Date.now() };
+    modUpdates.value = updates;
   } catch {
-  modUpdates.value = [];
+    modUpdates.value = [];
   }
 }
 
@@ -4514,7 +4529,7 @@ async function addMonoPack(entry: PackCatalog) {
   if (addingPack.value || busy.value) return;
   addingPack.value = true;
   try {
-  const added = await addPack(entry.url, entry.name, entry.boosty_blog ?? undefined);
+  const added = await addPack(entry.url, entry.name, entry.boosty_blog ?? undefined, entry.id);
   await loadPacks();
   await load();
   refreshVersions();

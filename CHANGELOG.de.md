@@ -1,5 +1,16 @@
 # Änderungen
 
+## [2.0.0-alpha.9] — 2026-09-13
+
+### UI
+- Ersetzung von globalem `updateInfo` durch pack-weises `updateInfoByPack` (`Record<string, UpdateInfo>`) — Update-Badges und Buttons sind nur an die aktive Packung gebunden
+- `refreshModUpdates` wurde mit pack-weisem Zustandsmanagement und Hashing der installierten Versionen umgeschrieben — keine stale-Daten mehr beim Packungswechsel
+- `TabPlay.vue` korrigiert: `customModsFiles` verwendet nun `watch` auf `status.value?.custom_mods` für sofortige Reaktivität, Behebung der grünen Anzeige auf allen Packs
+- `currentPackUpdate` computed hinzugefügt und `handleUpdate` verwendet es statt `updateInfo.value`
+- `packBackendMeta` hinzugefügt — synchronisiert sich mit dem Backend-`meta`; wird für die `use_authlib`-Prüfung verwendet
+- `syncPackWithBackend` korrigiert: `packBackendMeta` wird bei Fehler/Leere zurückgesetzt, remote versions korrekt verfolgt
+- `load()` `checkForUpdates` korrigiert: wählt nun die neueste Version nach `created_at`, nicht nach String-Sortierung von `version`
+
 ## [2.0.0-alpha.7] — 2026-09-06
 
 ### Bibliothek

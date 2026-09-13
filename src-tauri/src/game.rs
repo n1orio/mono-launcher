@@ -1142,16 +1142,40 @@ pub async fn launch_game(
     };
 
     // 7. Плейсхолдеры.
+    // Идентичность игры при authlib-injector = аккаунт Mono (стабильный UUID на аккаунт),
+    // а не оффлайн-сессия по нику. Передаём в клиент ник, UUID и access-токен Mono.
+    let (identity_name, identity_uuid, identity_token) = if use_authlib {
+        match crate::auth::load_mono_profile() {
+            Ok(Some(p)) => (p.username, p.uuid, p.access_token),
+            _ => (
+                session.username.clone(),
+                session.uuid.clone(),
+                session.access_token.clone(),
+            ),
+        }
+    } else {
+        (
+            session.username.clone(),
+            session.uuid.clone(),
+            session.access_token.clone(),
+        )
+    };
     let mut placeholders: HashMap<String, String> = HashMap::new();
-    placeholders.insert("${auth_player_name}".into(), session.username.clone());
-    placeholders.insert("${auth_session}".into(), session.access_token.clone());
-    placeholders.insert("${auth_uuid}".into(), session.uuid.clone());
-    placeholders.insert("${auth_access_token}".into(), session.access_token.clone());
+    placeholders.insert("${auth_player_name}".into(), identity_name.clone());
+    placeholders.insert("${auth_session}".into(), identity_token.clone());
+    placeholders.insert("${auth_uuid}".into(), identity_uuid.clone());
+    placeholders.insert("${auth_access_token}".into(), identity_token);
     placeholders.insert("${auth_xuid}".into(), String::new());
     placeholders.insert("${clientid}".into(), String::new());
     placeholders.insert("${user_properties}".into(), "{}".into());
-     placeholders.insert("${user_type}".into(), if use_authlib && !session.access_token.is_empty() { "mojang".into() } else { session.user_type.clone() });
-    placeholders.insert("${version_name}".into(), launch_id.clone());
+    placeholders.insert(
+        "${user_type}".into(),
+        if use_authlib && !identity_name.is_empty() && !identity_uuid.is_empty() {
+            "mojang".into()
+        } else {
+            session.user_type.clone()
+        },
+    );
     placeholders.insert("${version_type}".into(), "release".into());
     placeholders.insert(
         "${assets_root}".into(),

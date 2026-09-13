@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useLauncherCtx } from '~/composables/useLauncherContext';
 const ctx = useLauncherCtx();
 const {
@@ -81,7 +81,13 @@ cpMore,
   modPackDetail,
   cpProject,
   closeModPackFullPage,
+  handleMonoLogin,
 } = ctx;
+
+const catalogVersions = computed(() => {
+  const vs = (catalogDetail.value?.versions ?? []) as any[];
+  return [...vs].sort((a: any, b: any) => (a.version < b.version ? 1 : a.version > b.version ? -1 : 0));
+});
 
 // Grid system for pack display
 const isCategoryExpanded = ref({'mono': false, 'modrinth': false, 'curse': false});
@@ -212,7 +218,7 @@ function backToCatalogList() {
   <div class="flex items-center gap-2 min-w-0">
   <img v-if="catalogDetail.icon_url" :src="catalogDetail.icon_url" class="h-8 w-8 shrink-0 rounded object-cover" />
   <h3 class="truncate text-base font-bold text-[color:var(--tx-strong)]">{{ catalogDetail.name }}</h3>
-  <span v-if="catalogDetail.versions?.length" class="shrink-0 rounded  bg-[var(--input-50)] px-1.5 py-0.5 text-xs font-mono text-[color:var(--accent)]">v{{ catalogDetail.versions[0].version }}</span>
+  <span v-if="catalogVersions.length" class="shrink-0 rounded  bg-[var(--input-50)] px-1.5 py-0.5 text-xs font-mono text-[color:var(--accent)]">v{{ catalogVersions[0].version }}</span>
   </div>
   <div class="ml-auto flex items-center gap-2 shrink-0">
   <template v-if="catalogDetail.author_user_id">
@@ -302,6 +308,25 @@ function backToCatalogList() {
   </button>
   </div>
 
+  <!-- Authlib-injector: нужен аккаунт Mono -->
+  <div
+    v-if="(catalogDetail.meta as any)?.use_authlib === true"
+    class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
+  >
+    <div class="flex items-center gap-2 font-medium">
+      <AppIcon name="alert-circle" class="h-4 w-4 fill-current shrink-0" />
+      <span>{{ monoProfile?.access_token ? t("pack.authlibNeedsMonoLogged") : t("pack.authlibNeedsMono") }}</span>
+    </div>
+    <div class="flex items-center gap-3 shrink-0">
+      <button v-if="!monoProfile?.access_token" type="button" class="hover:underline font-semibold cursor-pointer" @click="handleMonoLogin">
+        {{ t("auth.login") }}
+      </button>
+      <button v-else type="button" class="hover:underline font-semibold cursor-pointer" @click="openExternal('/auth/mono')">
+        {{ t("pack.openAccount") }}
+      </button>
+    </div>
+  </div>
+
   <div class="min-h-0 flex-1 overflow-y-auto pr-1">
   <!-- Description -->
   <div v-if="catalogDetailTab === 'description'" class="space-y-3">
@@ -330,8 +355,8 @@ function backToCatalogList() {
 
   <!-- Versions -->
   <div v-if="catalogDetailTab === 'versions'" class="space-y-2">
-  <div v-if="!catalogDetail.versions?.length" class="text-center py-8 text-[13px] text-[color:var(--tx-muted)]">{{ t("common.notFound") }}</div>
-  <div v-for="v in catalogDetail.versions" :key="v.id" class="rounded-xl  bg-[var(--panel)] shadow-sm p-3 flex items-center justify-between gap-3">
+  <div v-if="!catalogVersions.length" class="text-center py-8 text-[13px] text-[color:var(--tx-muted)]">{{ t("common.notFound") }}</div>
+  <div v-for="v in catalogVersions" :key="v.id" class="rounded-xl  bg-[var(--panel)] shadow-sm p-3 flex items-center justify-between gap-3">
   <div class="min-w-0">
   <div class="flex items-center gap-2">
   <span class="font-mono text-[13px] font-bold text-[var(--accent)]">v{{ v.version }}</span>
@@ -559,6 +584,16 @@ function backToCatalogList() {
   <path d="M7.75.5A4.5 4.5 0 0 1 11.5 5.5v.85A4.5 4.5 0 0 1 13 10v3A2.5 2.5 0 0 1 10.5 15.5h-6A2.5 2.5 0 0 1 2 13v-3a4.5 4.5 0 0 1 1.5-3.35V5.5A4.25 4.25 0 0 1 7.75.5Zm0 1.5a2.75 2.75 0 0 0-2.75 2.75v.5h5.5v-.5A2.75 2.75 0 0 0 7.75 2Z"/>
   </svg>
   {{ t("catalog.paid") }}
+  </span>
+  <span
+  v-if="(entry.meta as any)?.use_authlib === true"
+  class="inline-flex items-center gap-1 rounded-full  px-2 py-0.5 text-xs font-semibold text-[var(--accent)]"
+  :title="t('pack.authlibNeedsMonoLogged')"
+  >
+  <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
+  <path d="M8 .5 13.5 2.6v4.45c0 3.35-2.2 5.95-5.5 6.95-3.3-1-5.5-3.6-5.5-6.95V2.6L8 .5Zm0 1.7L4 3.7v3.35c0 2.6 1.7 4.6 4 5.5 2.3-.9 4-2.9 4-5.5V3.7L8 2.2Zm-.5 2.3v3.35l2.85 1.7.5-.9L8.5 6.95V4.5h-1Z"/>
+  </svg>
+  {{ t("catalog.authlib") }}
   </span>
   <span
   v-if="entry.min_ram_mb"

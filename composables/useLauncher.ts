@@ -234,7 +234,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const progress = ref<ProgressState | null>(null);
   /** Сколько файлов сборки уже обработано (монотонно — только растёт). */
   const filesDone = ref(0);
-  const updateInfo = ref<UpdateInfo | null>(null);
+  const updateInfoByPack = ref<Record<string, UpdateInfo>>({});
   const versions = ref<VersionsInfo | null>(null);
   const logEntries = ref<LaunchLogEntry[]>([]);
   const logRef = ref<HTMLElement | null>(null);
@@ -1181,13 +1181,11 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     loadBoostyGlobal();
     const u = await checkForUpdates(packId.value).catch(() => null);
     if (u && u.has_update && u.latest_version) {
-      updateInfo.value = {
-        current_version: u.current_version,
-        latest_version: u.latest_version,
-        has_update: true,
-      };
+      updateInfoByPack.value = { ...updateInfoByPack.value, [packId.value]: { current_version: u.current_version, latest_version: u.latest_version, has_update: true } };
     } else {
-      updateInfo.value = null;
+      const next = { ...updateInfoByPack.value };
+      delete next[packId.value];
+      updateInfoByPack.value = next;
     }
   }
 
@@ -1650,11 +1648,13 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   const remoteVersions = ref<PackVersionPublic[] | null>(null);
   const remoteVersionsLoading = ref(false);
   const remoteInstallingId = ref<string | null>(null);
+  /** meta активной сборки с бэкенда (use_authlib и пр.) — локальный дескриптор meta не хранит. */
+  const packBackendMeta = ref<Record<string, unknown> | null>(null);
   let resolvedBackendId: string | null = null;
 
   /** Резолвит бэкенд-сборку по URL дескриптора и синхронизирует имя/последнюю версию. */
   async function syncPackWithBackend(id?: string | null, opts?: { forceLatest?: boolean }): Promise<PackVersionPublic[] | null> {
-    if (!id || !isTauri()) return null;
+    if (!id || !isTauri()) { packBackendMeta.value = null; return null; }
     const p = packs.value.find((x) => x.id === id);
     const url = p?.url ?? activePack.value?.url ?? "";
     let backendId: string | null = null;
@@ -1676,10 +1676,12 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
      if (!d || d.id !== backendId) {
        resolvedBackendId = null;
        remoteVersions.value = [];
+       packBackendMeta.value = null;
        return [];
      }
      resolvedBackendId = backendId;
      remoteVersions.value = d.versions ?? [];
+     packBackendMeta.value = d.meta ?? null;
     if (p) {
       // Имя: только для автосгенерированных (имя == id, диплинк без name).
       if (p.name === p.id && d.name && d.name !== p.name) {
@@ -1701,6 +1703,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
     const id = packId.value;
     if (!id || !isTauri()) {
       remoteVersions.value = null;
+      packBackendMeta.value = null;
       return;
     }
     remoteVersionsLoading.value = true;
@@ -1709,6 +1712,7 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
       await syncPackWithBackend(id);
     } catch {
       remoteVersions.value = null;
+      packBackendMeta.value = null;
     } finally {
       remoteVersionsLoading.value = false;
     }
@@ -2205,7 +2209,8 @@ watch(
   }
 
   async function handleUpdate() {
-    const tag = updateInfo.value?.latest_version;
+    const info = updateInfoByPack.value[packId.value];
+    const tag = info?.latest_version;
     if (!tag) return;
     await handleInstall(tag);
   }
@@ -3233,7 +3238,7 @@ notify(t("err.switch", { e }));
     logEntries.value = [];
     pendingLog.length = 0;
     try {
-     const packMeta = activePack.value?.meta as Record<string, unknown> | null | undefined;
+     const packMeta = (packBackendMeta.value ?? activePack.value?.meta ?? null) as Record<string, unknown> | null | undefined;
      const packUseAuthlib = packMeta?.use_authlib !== undefined ? packMeta.use_authlib === true : monoUseAuthlib.value;
      await launchGame(
          packId.value,
@@ -3385,7 +3390,7 @@ notify(t("err.switch", { e }));
     busy,
     gameRunning,
     progress,
-    updateInfo,
+    updateInfoByPack,
     launcherVer,
     versions,
     logEntries,
@@ -3532,6 +3537,7 @@ notify(t("err.switch", { e }));
     remoteVersions,
     remoteVersionsLoading,
     remoteInstallingId,
+    packBackendMeta,
     installRemoteVersion,
     skinUrl,
     localSkin,

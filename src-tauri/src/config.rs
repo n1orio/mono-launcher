@@ -67,6 +67,9 @@ pub struct UserPack {
     /// Тема лаунчера из theme.json.
     #[serde(default)]
     pub theme: Option<AuthorTheme>,
+    /// UUID сборки в каталоге Mono (если добавлена из каталога).
+    #[serde(default, rename = "backendId", skip_serializing_if = "Option::is_none")]
+    pub backend_id: Option<String>,
 }
 
 fn default_kind() -> String {
@@ -74,7 +77,7 @@ fn default_kind() -> String {
 }
 
 /// Единое описание сборки.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PackInfo {
     pub id: String,
     pub name: String,
@@ -94,6 +97,9 @@ pub struct PackInfo {
     pub color: Option<String>,
     /// Тема лаунчера из theme.json.
     pub theme: Option<AuthorTheme>,
+    /// UUID сборки в каталоге Mono (если добавлена из каталога).
+    #[serde(default, rename = "backendId", skip_serializing_if = "Option::is_none")]
+    pub backend_id: Option<String>,
 }
 
 /// Первая пользовательская сборка как дефолтная (иначе пустая строка).
@@ -210,6 +216,7 @@ pub fn all_packs() -> Result<Vec<PackInfo>> {
                 banner,
                 color: p.color,
                 theme: p.theme,
+                backend_id: p.backend_id,
             }
         })
         .collect())
@@ -235,6 +242,7 @@ pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
                 banner,
                 color: p.color,
                 theme: p.theme,
+                backend_id: p.backend_id,
             }
         }))
 }
@@ -346,6 +354,7 @@ pub fn add_user_pack(
     min_ram_mb: Option<u32>,
     color: Option<&str>,
     theme: Option<AuthorTheme>,
+    backend_id: Option<&str>,
 ) -> Result<()> {
     let mut list = user_packs()?;
     if list.iter().any(|p| p.id == id) {
@@ -365,6 +374,7 @@ pub fn add_user_pack(
             .map(|c| c.trim().to_string())
             .filter(|c| !c.is_empty() && c.len() == 6),
         theme,
+        backend_id: backend_id.map(|s| s.to_string()),
     });
     save_user_packs(&list)
 }

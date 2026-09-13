@@ -85,6 +85,9 @@ pub struct PackDescriptor {
     pub color: Option<String>,
     /// Тема лаунчера из theme.json.
     pub theme: Option<crate::config::AuthorTheme>,
+    /// UUID сборки в каталоге Mono (если добавлена из каталога).
+    #[serde(rename = "backendId", skip_serializing_if = "Option::is_none")]
+    pub backend_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -173,6 +176,7 @@ fn list_packs() -> Result<Vec<PackDescriptor>, String> {
                     banner: p.banner,
                     color: p.color,
                     theme: p.theme,
+                    backend_id: p.backend_id.clone(),
                 })
                 .collect()
         })
@@ -193,11 +197,13 @@ fn save_pack_theme_command(pack_id: String, theme: crate::config::AuthorTheme) -
 
 /// Добавляет сборку по прямой ссылке на `.mrpack`.
 /// `blog` (из deep link) — ник блога на Boosty.
+/// `backendId` — UUID сборки в каталоге Mono (если добавлена из каталога).
 async fn add_pack_impl(
     client: &reqwest::Client,
     url: &str,
     name: Option<&str>,
     blog: Option<&str>,
+    backend_id: Option<&str>,
 ) -> Result<PackDescriptor, String> {
     let url = url.trim().to_string();
     if url.is_empty() {
@@ -224,7 +230,7 @@ async fn add_pack_impl(
         .unwrap_or_else(|| file_stem.clone());
     let pack_id = config::unique_pack_id(&config::sanitize_pack_name(&pack_name));
     let blog = blog.map(str::trim).filter(|b| !b.is_empty()).map(String::from);
-    config::add_user_pack(&pack_id, &pack_name, &url, "remote", blog.as_deref(), None, None, None)
+    config::add_user_pack(&pack_id, &pack_name, &url, "remote", blog.as_deref(), None, None, None, backend_id)
         .map_err(|e| e.to_string())?;
     // Синхронизация библиотеки на бэкенд (fire-and-forget).
     let c = client.clone();
@@ -257,6 +263,7 @@ async fn add_pack_impl(
         banner: None,
         color: None,
         theme: None,
+        backend_id: backend_id.map(|s| s.to_string()),
     })
 }
 
@@ -266,11 +273,12 @@ async fn add_pack_command(
     url: String,
     name: Option<String>,
     blog: Option<String>,
+    backendId: Option<String>,
 ) -> Result<PackDescriptor, String> {
     // Сериализуем с deep-link добавлением, иначе щустрый клик по UI и ссылка
     // могут прочитать/записать packs.json одновременно.
     let _guard = add_pack_lock().lock().await;
-    add_pack_impl(&state.client, &url, name.as_deref(), blog.as_deref()).await
+    add_pack_impl(&state.client, &url, name.as_deref(), blog.as_deref(), backendId.as_deref()).await
 }
 
 /// Добавляет сборку из локального .mrpack (drag&drop файла в окно).
@@ -298,7 +306,7 @@ async fn add_pack_file_command(
     );
     #[cfg(not(windows))]
     let url = format!("file://{}", abs.display());
-    add_pack_impl(&state.client, &url, name.as_deref(), None).await
+    add_pack_impl(&state.client, &url, name.as_deref(), None, None).await
 }
 
 /// Удаляет пользовательскую сборку (вместе с локальными данными).
@@ -783,6 +791,7 @@ config::add_user_pack(
              None,
              None,
              None,
+             None,
          )
          .map_err(|e| e.to_string())?;
     }
@@ -826,6 +835,7 @@ config::add_user_pack(
         banner: config::pack_banner_path(&pack_id),
         color: None,
         theme: None,
+        backend_id: None,
     })
 }
 
@@ -1268,6 +1278,7 @@ async fn modrinth_install_pack_command(
             banner,
             color: p.color.clone(),
             theme: None,
+            backend_id: None,
         })
     }
 config::add_user_pack(
@@ -1275,6 +1286,7 @@ config::add_user_pack(
           &project.title,
           &mrpack.url,
           "local",
+          None,
           None,
           None,
           None,
@@ -1324,6 +1336,7 @@ config::add_user_pack(
         banner,
         color: None,
         theme: None,
+        backend_id: None,
     })
 }
 
@@ -1679,7 +1692,7 @@ async fn create_local_pack_command(
     if banner.is_some() {
         copy_pack_asset(banner.as_deref(), &pack_dir.join("banner.png"))?;
     }
-    config::add_user_pack(&pack_id, &name, &url, "local", None, None, color.as_deref(), None).map_err(|e| e.to_string())?;
+    config::add_user_pack(&pack_id, &name, &url, "local", None, None, color.as_deref(), None, None).map_err(|e| e.to_string())?;
     let icon_path = config::pack_icon_path(&pack_id);
     let banner_path = config::pack_banner_path(&pack_id);
     Ok(PackDescriptor {
@@ -1695,6 +1708,7 @@ async fn create_local_pack_command(
         banner: banner_path,
         color: color.clone(),
         theme: None,
+        backend_id: None,
     })
 }
 
@@ -1904,12 +1918,13 @@ async fn ensure_pack_from_link(
                     banner: existing.banner,
                     color: existing.color.clone(),
                     theme: existing.theme,
+                    backend_id: existing.backend_id.clone(),
                 },
                 true,
             ));
         }
     }
-    add_pack_impl(client, pack_url, name, blog)
+    add_pack_impl(client, pack_url, name, blog, None)
         .await
         .map(|p| (p, false))
 }
@@ -2316,14 +2331,28 @@ async fn check_for_updates(
         .find(|v| Some(&v.version_id) == active.as_ref())
         .map(|v| v.version_id.clone());
 
-    // Ищем сборку на бэкенде по URL (подойдёт URL любой из прошлых версий —
-    // их URL сохраняются в pack_versions). Последняя версия на сервере = versions[0].
-    let latest = match auth::mono_pack_id_by_url(&_state.client, &pack.url).await {
-        Ok(Some(id)) => auth::mono_pack_detail(&_state.client, "", &id)
+    // Ищем сборку на бэкенде: сначала по backend_id (если пак из каталога),
+    // потом по URL (fallback для старых паков).
+    let backend_id = pack.backend_id.as_deref().filter(|s| !s.is_empty());
+    let latest = if let Some(id) = backend_id {
+        auth::mono_pack_detail(&_state.client, "", id)
             .await
             .ok()
-            .and_then(|d| d.versions.first().map(|v| v.version.clone())),
-        _ => None,
+            .and_then(|mut d| {
+                d.versions.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+                d.versions.first().map(|v| v.version.clone())
+            })
+    } else {
+        match auth::mono_pack_id_by_url(&_state.client, &pack.url).await {
+            Ok(Some(id)) => auth::mono_pack_detail(&_state.client, "", &id)
+                .await
+                .ok()
+                .and_then(|mut d| {
+                    d.versions.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+                    d.versions.first().map(|v| v.version.clone())
+                }),
+            _ => None,
+        }
     };
 
     // Обновление есть, если последняя версия на сервере отличается от активной

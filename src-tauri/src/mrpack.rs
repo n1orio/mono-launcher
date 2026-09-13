@@ -312,10 +312,23 @@ async fn download_mrpack_once(
                  }
              }
 
-             let mut out = fs::File::create(&out_path)?;
-             let mut data = Vec::new();
-             entry.read_to_end(&mut data).map_err(|e| anyhow!("Ошибка чтения {}: {}", entry_name.display(), e))?;
-             out.write_all(&data).map_err(|e| anyhow!("Ошибка записи {}: {}", entry_name.display(), e))?;
+              let mut out = fs::File::create(&out_path)?;
+              let limit = entry.size();
+              let mut data = Vec::new();
+              let mut buf = [0u8; 65536];
+              let mut total: u64 = 0;
+              while total < limit {
+                  let n = entry.read(&mut buf)?;
+                  if n == 0 { break; }
+                  let n = n as u64;
+                  if total + n > limit {
+                      data.extend_from_slice(&buf[..(limit - total) as usize]);
+                      break;
+                  }
+                  data.extend_from_slice(&buf[..n as usize]);
+                  total += n;
+              }
+              out.write_all(&data).map_err(|e| anyhow!("Ошибка записи {}: {}", entry_name.display(), e))?;
              extracted += 1;
 
              if extracted - last_progress >= 5 || extracted == total as u64 {
@@ -326,7 +339,7 @@ async fn download_mrpack_once(
                          current: extracted,
                          total: total as u64,
                          file_index: i,
-                         file_total: total,
+                          file_total: total as usize,
                          current_file: entry.name().to_string(),
                          bytes_per_sec: 0,
                      },
@@ -972,29 +985,27 @@ pub fn installed_details(pack_id: &str) -> Vec<InstalledVersion> {
                 let version_id = entry.file_name().to_string_lossy().to_string();
                 let mut name = version_id.clone();
                 let mut tag: Option<String> = None;
-                 let marker_content = match fs::read_to_string(&marker) {
-                     Ok(raw) => raw,
-                     Err(_) => continue,
-                 };
-                 let marker_json: serde_json::Value = match serde_json::from_str(&marker_content) {
-                     Ok(v) => v,
-                     Err(_) => continue,
-                 };
-                 let marker_version_id = marker_json["versionId"].as_str().unwrap_or("");
-                 if !marker_version_id.is_empty() && marker_version_id != version_id {
-                     continue;
-                 }
-                 let mut name = version_id.clone();
-                 let mut tag: Option<String> = None;
-                 if let Some(json) = marker_json.as_object() {
-                     name = json["name"].as_str().unwrap_or(&version_id).to_string();
-                     tag = json["sourceTag"]
-                         .as_str()
-                         .map(|s| s.to_string())
-                         .filter(|s| !s.is_empty());
-                 }
-                 let total_seconds = read_playtime(&dir);
-                out.push(InstalledVersion {
+let marker_content = match fs::read_to_string(&marker) {
+                      Ok(raw) => raw,
+                      Err(_) => continue,
+                  };
+                  let marker_json: serde_json::Value = match serde_json::from_str(&marker_content) {
+                      Ok(v) => v,
+                      Err(_) => continue,
+                  };
+                  let mut name = version_id.clone();
+                  let mut tag: Option<String> = None;
+                  if let Some(json) = marker_json.as_object() {
+                      name = json["name"].as_str().unwrap_or(&version_id).to_string();
+                      tag = json["sourceTag"]
+                          .as_str()
+                          .map(|s| s.to_string())
+                          .filter(|s| !s.is_empty());
+                  }
+                  // версия может быть переименована (label != version_id) —
+                  // не проверяем marker.versionId, sourceTag уже хранит бэкенд-лейбл
+                  let total_seconds = read_playtime(&dir);
+                  out.push(InstalledVersion {
                     version_id,
                     name,
                     source_tag: tag,

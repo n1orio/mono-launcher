@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0-alpha.9] — 2026-09-13
+
+### Frontend
+- Replaced global `updateInfo` with per-pack `updateInfoByPack` (`Record<string, UpdateInfo>`) so update badges and install buttons are bound to the active pack only
+- Rewrote `refreshModUpdates` to use per-pack state with SHA-hash caching of installed versions — no more stale mod-update data when switching packs
+- Fixed `TabPlay.vue`: `customModsFiles` now uses `watch` on `status.value?.custom_mods` for immediate reactivity, fixing the "verified" banner showing on all packs
+- Added `currentPackUpdate` computed in `TabPlay.vue` and made `handleUpdate` use it instead of `updateInfo.value`
+- Added `packBackendMeta` ref synced from backend `meta` field; used for `use_authlib` detection instead of relying solely on `activePack.value.meta`
+- Fixed `syncPackWithBackend`: `packBackendMeta` reset on error/empty, remote versions properly tracked
+- Fixed `load()` `checkForUpdates`: now picks latest version by `created_at` (not string-sorted `version`) to fix semver order
+
 ## [2.0.0-alpha.8] — 2026-09-08
 
 ### Backend

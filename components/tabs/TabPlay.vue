@@ -38,8 +38,7 @@ const {
   openExport,
   openAuthorExport,
   activePackRepo,
-  updateInfo,
-  handleUpdate,
+  updateInfoByPack,
   licenseInfo,
   licenseBusy,
   removeLicense,
@@ -187,21 +186,31 @@ const {
   monoProfile,
   monoUseAuthlib,
   handleMonoLogin,
+  packBackendMeta,
 } = ctx;
 
 const packUseAuthlib = computed(() => {
-  const meta = activePack.value?.meta as Record<string, unknown> | null | undefined;
+  const meta = (packBackendMeta.value ?? activePack.value?.meta ?? null) as Record<string, unknown> | null | undefined;
   return meta?.use_authlib === true;
 });
-const needMonoLogin = computed(() => packUseAuthlib.value);
 const monoLoggedIn = computed(() => !!monoProfile.value?.access_token);
 
 import type { GameFolderKind, ModrinthSearchKind } from "~/lib/bridge";
 import type { GameFileEntry } from "~/lib/types";
 
 // ---- Баннер сторонних (кастомных) файлов: safe / unchecked / dangerous ----
+const currentPackUpdate = computed(() => {
+  const id = activePack.value?.id;
+  return id ? updateInfoByPack.value[id] ?? null : null;
+});
+const customModsFiles = ref<any[]>([]);
+const hasCustomMods = ref(false);
+watch(() => status.value?.custom_mods, (mods) => {
+  customModsFiles.value = mods ?? [];
+  hasCustomMods.value = (mods?.length ?? 0) > 0;
+}, { immediate: true });
 const customModsState = computed(() => {
-  const files: any[] = status?.value?.custom_mods || [];
+  const files = customModsFiles.value;
   const unchecked = files.filter((f) => f.safe !== true && f.safe !== false);
   const dangerous = files.filter((f) => f.safe === false);
   if (files.length > 0 && unchecked.length === 0 && dangerous.length === 0) return "safe";
@@ -209,10 +218,15 @@ const customModsState = computed(() => {
   return "unchecked";
 });
 const customUncheckedCount = computed(() =>
-  (status?.value?.custom_mods || []).filter((f: any) => f.safe !== true && f.safe !== false).length
+  customModsFiles.value.filter((f: any) => f.safe !== true && f.safe !== false).length
 );
 
-// ---- Вкладка «Релизы»: hero активной версии + единый таймлайн без дублей ----
+async function handleUpdate() {
+    const tag = currentPackUpdate.value?.latest_version;
+    if (!tag) return;
+    await handleInstall(tag);
+  }
+  // ---- Вкладка «Релизы»: hero активной версии + единый таймлайн без дублей ----
 const normTag = (s: string | null | undefined) => (s ?? "").trim().replace(/^v/i, "");
 const withV = (s: string | null | undefined) => {
   const t = (s ?? "").trim();
@@ -225,15 +239,16 @@ const activeInstalled = computed(() => {
 });
 interface TimelineRow { tag: string; display: string; installed: any | null; remote: any | null }
 const versionTimeline = computed<TimelineRow[]>(() => {
-  const rows: TimelineRow[] = [];
-  const byTag = new Map<string, TimelineRow>();
- for (const rv of (remoteVersions?.value ?? []) as any[]) {
-     const tag = normTag(rv.version);
-     if (tag && byTag.has(tag)) continue;
-     const row: TimelineRow = { tag, display: withV(rv.version), installed: null, remote: rv };
-     rows.push(row);
-     if (tag) byTag.set(tag, row);
-   }
+   const rows: TimelineRow[] = [];
+   const byTag = new Map<string, TimelineRow>();
+  const byVer = (a: any, b: any) => (a.version < b.version ? 1 : a.version > b.version ? -1 : 0);
+  for (const rv of [...(remoteVersions?.value ?? [])].sort(byVer) as any[]) {
+      const tag = normTag(rv.version);
+      if (tag && byTag.has(tag)) continue;
+      const row: TimelineRow = { tag, display: withV(rv.version), installed: null, remote: rv };
+      rows.push(row);
+      if (tag) byTag.set(tag, row);
+    }
    for (const ins of (versions?.value?.installed ?? []) as any[]) {
      const tag = normTag(ins.source_tag ?? ins.version_id);
      if (!tag) { rows.push({ tag: ins.version_id, display: withV(ins.version_id), installed: ins, remote: null }); continue; }
@@ -480,11 +495,11 @@ async function enableAllFiles(enabled: boolean) {
 
 
 
-  <div v-if="updateInfo?.has_update && updateInfo.latest_version" class="mt-4 flex items-center justify-between gap-4 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-3.5 py-2.5 text-[13px] text-[var(--accent)]">
+  <div v-if="currentPackUpdate?.has_update && currentPackUpdate?.latest_version" class="mt-4 flex items-center justify-between gap-4 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-3.5 py-2.5 text-[13px] text-[var(--accent)]">
   <span class="min-w-0">
-  {{ t("update.available") }} <strong class="text-[var(--accent-strong)]">{{ updateInfo.latest_version }}</strong>
-  <span v-if="updateInfo.current_version" class="text-[color:var(--tx-muted)]">
-  {{ t("update.installed", { v: updateInfo.current_version }) }}
+  {{ t("update.available") }} <strong class="text-[var(--accent-strong)]">{{ currentPackUpdate.latest_version }}</strong>
+  <span v-if="currentPackUpdate.current_version" class="text-[color:var(--tx-muted)]">
+  {{ t("update.installed", { v: currentPackUpdate.current_version }) }}
   </span>
   </span>
   <button
@@ -639,14 +654,14 @@ async function enableAllFiles(enabled: boolean) {
     </div>
   </div>
 
-  <!-- Authlib-injector notification: needs Mono account -->
+  <!-- Authlib-injector Banner: включён в сборке, нужен аккаунт Mono -->
   <div
-    v-if="needMonoLogin"
+    v-if="packUseAuthlib"
     class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
   >
     <div class="flex items-center gap-2 font-medium">
-      <AppIcon name="alert-circle" class="h-4 w-4 fill-current shrink-0" />
-      <span>{{ monoLoggedIn ? t("pack.authlibNeedsMonoLogged") : t("pack.authlibNeedsMono") }}</span>
+      <AppIcon name="lock" class="h-4 w-4 fill-current shrink-0" />
+      <span>{{ t("pack.authlibOn") }}</span>
     </div>
     <div class="flex items-center gap-3 shrink-0">
       <button v-if="!monoLoggedIn" type="button" class="hover:underline font-semibold cursor-pointer" @click="handleMonoLogin">
@@ -660,7 +675,7 @@ async function enableAllFiles(enabled: boolean) {
 
   <!-- Verification Banner: вид зависит от состояния проверки -->
   <div
-    v-if="warnCustomMods && (status?.custom_mods?.length || 0) > 0"
+    v-if="warnCustomMods && hasCustomMods"
     class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all"
     :class="customModsState === 'safe'
       ? 'border-[#16a34a]/20 bg-[#16a34a]/10 text-[#16a34a]'
@@ -690,12 +705,12 @@ async function enableAllFiles(enabled: boolean) {
   </div>
 
   <!-- Expandable Custom Mods List -->
-  <div v-if="customModsOpen && customModsState === 'safe' && status?.custom_mods?.length" class="rounded-xl bg-[var(--input)]/30 border border-[var(--border)] p-3 mb-3 flex flex-col gap-1.5 text-xs">
-    <div class="font-bold text-[color:var(--tx)] mb-1">Кастомные файлы в сборке:</div>
-    <div v-for="f in (status?.custom_mods || [])" :key="f.path" class="flex items-center justify-between gap-2 py-1 px-2 rounded-lg bg-[var(--panel)] border border-[var(--border)] font-mono text-[11px] text-[color:var(--tx-muted)]">
-      <span class="truncate">{{ f.path }}</span>
-      <span class="shrink-0 flex items-center gap-1 bg-[#16a34a]/15 text-[#22c55e] border border-[#16a34a]/30 px-2 py-0.5 rounded text-[11px] font-semibold font-sans"><AppIcon name="check" class="h-3 w-3 fill-current" />Безопасно</span>
-    </div>
+<div v-if="customModsOpen && customModsState === 'safe' && customModsFiles.length" class="rounded-xl bg-[var(--input)]/30 border border-[var(--border)] p-3 mb-3 flex flex-col gap-1.5 text-xs">
+     <div class="font-bold text-[color:var(--tx)] mb-1">Кастомные файлы в сборке:</div>
+     <div v-for="f in customModsFiles" :key="f.path" class="flex items-center justify-between gap-2 py-1 px-2 rounded-lg bg-[var(--panel)] border border-[var(--border)] font-mono text-[11px] text-[color:var(--tx-muted)]">
+       <span class="truncate">{{ f.path }}</span>
+       <span class="shrink-0 flex items-center gap-1 bg-[#16a34a]/15 text-[#22c55e] border border-[#16a34a]/30 px-2 py-0.5 rounded text-[11px] font-semibold font-sans"><AppIcon name="check" class="h-3 w-3 fill-current" />Безопасно</span>
+     </div>
     <span class="text-[11px] text-[color:var(--tx-muted)]/70 mt-1 block">Файлы успешно прошли проверку на вредоносный код. Ответственность за совместимость и стабильность лежит на пользователе.</span>
   </div>
   </div>

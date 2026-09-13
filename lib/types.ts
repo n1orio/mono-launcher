@@ -18,9 +18,11 @@ export interface PackDescriptor {
   banner: string | null;
   /** Цвет аватарки (hex без #). Если задан — генерирует градиент при отсутствии иконки. */
   color: string | null;
- /** Тема лаунчера из theme.json. */
- theme?: AuthorTheme | null;
- meta?: Record<string, unknown> | null;
+  /** Тема лаунчера из theme.json. */
+  theme?: AuthorTheme | null;
+  meta?: Record<string, unknown> | null;
+  /** UUID сборки в каталоге Mono (если добавлена из каталога). */
+  backendId?: string | null;
 }
 
 /** Карточка проекта Modrinth (мод или модпак). */

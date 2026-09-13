@@ -1,5 +1,16 @@
 # Змены
 
+## [2.0.0-alpha.9] — 2026-09-13
+
+### Інтэрфейс
+- Замена глобальнага `updateInfo` на па-пакетны `updateInfoByPack` (`Record<string, UpdateInfo>`) — плашкі абнаўленняў і кнопкі прывязаныя толькі да актыўнай зборкі
+- Перапісаны `refreshModUpdates` з па-пакетным захаваннем стану і хешаваньнем усталяваных версій — больш няма stale-даных пры пераключэнні зборак
+- Выправлена `TabPlay.vue`: `customModsFiles` цяпер выкарыстоўвае `watch` на `status.value?.custom_mods` для мгненнай рэактыўнасці, выправлена адлюстраваньне зялёнай плашкі на ўсіх зборках
+- Дададзены `currentPackUpdate` computed і `handleUpdate` выкарыстоўвае яго замест `updateInfo.value`
+- Дададзены `packBackendMeta` — сінхранізуецца з `meta` бэкэнду; выкарыстоўваецца для праверкі `use_authlib`
+- Выправлена `syncPackWithBackend`: `packBackendMeta` скиданне пры памылцы/пустатэ, remote versions карэктна адстэжваюцца
+- Выправлена `load()` `checkForUpdates`: цяпер абіраецца апошняя версія паводле `created_at`, а не радкоўнага сартыраваньні `version`
+
 ## [2.0.0-alpha.7] — 2026-09-06
 
 ### Бібліятэка

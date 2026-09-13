@@ -1,7 +1,7 @@
 {
   "__meta__": {
     "author": "n1orio",
-    "version": "2.0.0-alpha.6"
+    "version": "2.0.0-alpha.9"
   },
   "nav.releases": "Релизы и запуск",
   "nav.news": "Новини",
@@ -438,6 +438,7 @@
   "catalog.retry": "Повторити",
   "catalog.empty": "Каталог поки порожній — завантажте свою збірку через панель автора",
   "catalog.paid": "за підпискою",
+  "catalog.authlib": "authlib-injector",
   "catalog.sponsored": "Спонсор",
   "catalog.sponsoredTitle": "Спонсорська збірка — розміщена на початку каталогу",
   "catalog.ratingTitle": "Оцінка: {rating} з 5",
@@ -965,6 +966,7 @@
   "catalog.backToCatalog": "Назад до каталогу",
   "curse.openPage": "На CurseForge",
   "pack.managed": "Керована збірка",
+  "pack.authlibOn": "У цій збірці ввімкнено authlib-injector",
   "mods.aboutProject": "Про проєкт",
   "mods.links": "Посилання",
   "mods.compat": "Сумісність",

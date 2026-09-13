@@ -1,7 +1,7 @@
 {
   "__meta__": {
     "author": "n1orio",
-    "version": "2.0.0-alpha.6"
+    "version": "2.0.0-alpha.9"
   },
   "nav.releases": "Releases & Launch",
   "nav.news": "News",
@@ -439,6 +439,7 @@
   "catalog.retry": "Retry",
   "catalog.empty": "The catalog is empty — upload your pack via the author panel",
   "catalog.paid": "subscription",
+  "catalog.authlib": "authlib-injector",
   "catalog.sponsored": "Sponsor",
   "catalog.sponsoredTitle": "Sponsored pack — featured at the top of the catalog",
   "catalog.ratingTitle": "Rating: {rating} of 5",
@@ -968,6 +969,7 @@
   "catalog.backToCatalog": "Back to catalog",
   "curse.openPage": "On CurseForge",
   "pack.managed": "Managed pack",
+  "pack.authlibOn": "This pack uses authlib-injector",
   "pack.authlibNeedsMono": "This build requires a Mono account to launch",
   "pack.authlibNeedsMonoLogged": "This build requires authlib-injector (Mono account)",
   "pack.openAccount": "Open Mono account",

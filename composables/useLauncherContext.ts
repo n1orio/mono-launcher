@@ -635,6 +635,7 @@ export interface LauncherCtx {
   remoteInstallingId: Ref<string | null>;
   remoteVersions: Ref<PackVersionPublic[] | null>;
   remoteVersionsLoading: Ref<any>;
+  packBackendMeta: Ref<Record<string, unknown> | null>;
   removeArmed: Ref<string | null>;
   removeAuthorServer: any;
   removeAuthorShot: any;
@@ -752,7 +753,7 @@ export interface LauncherCtx {
   updateAuthorMeta: (...args: any[]) => any;
   updateCollaborator: (...args: any[]) => any;
   updateFileDetail: any;
-  updateInfo: Ref<UpdateInfo | null>;
+  updateInfoByPack: Ref<Record<string, UpdateInfo>>;
   updateOneMod: any;
   updatingFileDetail: any;
   updatingMod: any;

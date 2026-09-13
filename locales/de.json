@@ -1,7 +1,7 @@
 {
   "__meta__": {
     "author": "n1orio",
-    "version": "2.0.0-alpha.6"
+    "version": "2.0.0-alpha.9"
   },
   "nav.releases": "Releases & Start",
   "nav.news": "Neuigkeiten",
@@ -442,6 +442,7 @@
   "catalog.retry": "Erneut versuchen",
   "catalog.empty": "Der Katalog ist leer – lade dein Paket über die Autoren-Panel hoch",
   "catalog.paid": "per Abo",
+  "catalog.authlib": "authlib-injector",
   "catalog.sponsored": "Sponsor",
   "catalog.sponsoredTitle": "Gesponsertes Pack — oben im Katalog angezeigt",
   "catalog.ratingTitle": "Bewertung: {rating} von 5",
@@ -965,6 +966,7 @@
   "catalog.backToCatalog": "Zurück zum Katalog",
   "curse.openPage": "Auf CurseForge",
   "pack.managed": "Verwaltetes Pack",
+  "pack.authlibOn": "Dieses Pack verwendet authlib-injector",
   "mods.aboutProject": "Über das Projekt",
   "mods.links": "Links",
   "mods.compat": "Kompatibilität",

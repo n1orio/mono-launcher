@@ -62,8 +62,8 @@ export function recentPacks(): Promise<string[]> {
   return invoke("recent_packs_command");
 }
 
-export function addPack(url: string, name?: string, blog?: string): Promise<PackDescriptor> {
-  return invoke("add_pack_command", { url, name: name ?? null, blog: blog ?? null });
+export function addPack(url: string, name?: string, blog?: string, backendId?: string): Promise<PackDescriptor> {
+  return invoke("add_pack_command", { url, name: name ?? null, blog: blog ?? null, backendId: backendId ?? null });
 }
 
 export function addPackFile(path: string, name?: string): Promise<PackDescriptor> {
