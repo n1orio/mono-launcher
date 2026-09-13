@@ -25,7 +25,7 @@ use sysinfo::System;
 use tauri::{AppHandle, Manager, State};
 use tauri::{Emitter, Listener};
 
-use crate::auth::{login_offline, save_display_name, save_session, UserSession};
+ use crate::auth::{login_offline, mono_pack_detail, save_display_name, save_session, UserSession};
 use crate::config::{default_pack_id, PackInfo, read_pack_theme};
 use crate::author::export_author_pack_command;
 use crate::export::{export_list_command, export_pack_command};
@@ -2458,22 +2458,39 @@ async fn install_mrpack(
         .timeout(Duration::from_secs(600))
         .build()
         .map_err(|e| e.to_string())?;
-    // Ручная установка конкретной версии (тег передан): URL уже выставлен клиентом.
-    // Иначе актуализируем URL: для сборок с бэкенда ставим последнюю версию.
-    let (url, label) = if let Some(t) = _tag.as_deref().filter(|t| !t.is_empty()) {
-        (pack.url.clone(), Some(t.to_string()))
-    } else {
-        let mut url = pack.url.clone();
-        let mut label: Option<String> = None;
-        if let Some((latest, lv)) = resolve_latest_url(&client, &pack.url).await {
-            if latest != url {
-                url = latest.clone();
-                let _ = config::set_pack_url(&pack.id, &latest);
-            }
-            label = Some(lv);
-        }
-        (url, label)
-    };
+     // Ручная установка конкретной версии (тег передан): URL уже выставлен клиентом.
+     // Иначе актуализируем URL: для сборок с бэкенда ставим последнюю версию.
+     let (url, label) = if let Some(t) = _tag.as_deref().filter(|t| !t.is_empty()) {
+         (pack.url.clone(), Some(t.to_string()))
+     } else {
+         let mut url = pack.url.clone();
+         let mut label: Option<String> = None;
+         // Сначала пробуем найти по URL (для прямых ссылок на .mrpack).
+         // Если не найдено — используем backend_id (для сборок из каталога).
+         let latest_url = if let Some((u, lv)) = resolve_latest_url(&client, &pack.url).await {
+             Some((u, lv))
+         } else if let Some(bid) = pack.backend_id.as_deref().filter(|s| !s.is_empty()) {
+             auth::mono_pack_detail(&client, "", bid)
+                 .await
+                 .ok()
+                 .and_then(|mut d| {
+                     d.versions.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+                     d.versions.first().map(|v| {
+                         (v.url.clone(), v.version.clone())
+                     })
+                 })
+         } else {
+             None
+         };
+         if let Some((latest, lv)) = latest_url {
+             if latest != url {
+                 url = latest.clone();
+                 let _ = config::set_pack_url(&pack.id, &latest);
+             }
+             label = Some(lv);
+         }
+         (url, label)
+     };
     // Бэкап мира/конфигов текущей активной версии перед обновлением.
     if let Some(active) = config::active_version(&pack.id).ok().filter(|v| !v.is_empty()) {
         match mrpack::backup_version(&pack.id, &active) {
