@@ -10,7 +10,7 @@
 - Дададзены `packBackendMeta` — сінхранізуецца з `meta` бэкэнду; выкарыстоўваецца для праверкі `use_authlib`
 - Выправлена `syncPackWithBackend`: `packBackendMeta` скиданне пры памылцы/пустатэ, remote versions карэктна адстэжваюцца
 - Выправлена `load()` `checkForUpdates`: цяпер абіраецца апошняя версія паводле `created_at`, а не радкоўнага сартыраваньні `version`
-- NeoForge JPMS выпадзенне выправлена: `net.neoforged:neoforge` выключана з classpath — FML знаходзіць яе праз `-DlibraryDirectory`, інакше JPMS бачыць два модулі `neoforge` і кідае `ResolutionException`
+- NeoForge JPMS выпадзенне выправлена: `net.neoforged:neoforge` ТА srg-клент (`net/minecraft/client/`) выключаны з classpath — FML знаходзіць іх праз `-DlibraryDirectory`, інакше JPMS бачыць два модулі `neoforge` і кідае `ResolutionException`
 
 ## [2.0.0-alpha.7] — 2026-09-06
 

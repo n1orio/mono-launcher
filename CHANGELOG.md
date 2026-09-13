@@ -10,7 +10,7 @@
 - Added `packBackendMeta` ref synced from backend `meta` field; used for `use_authlib` detection instead of relying solely on `activePack.value.meta`
 - Fixed `syncPackWithBackend`: `packBackendMeta` reset on error/empty, remote versions properly tracked
 - Fixed `load()` `checkForUpdates`: now picks latest version by `created_at` (not string-sorted `version`) to fix semver order
-- Fixed NeoForge JPMS crash: filtered `net.neoforged:neoforge` library from classpath — FML finds it via `-DlibraryDirectory`, otherwise JPMS sees two `neoforge` modules and throws `ResolutionException`
+- Fixed NeoForge JPMS crash: filtered `net.neoforged:neoforge` library AND srg client (`net/minecraft/client/`) from classpath — FML finds them via `-DlibraryDirectory`, otherwise JPMS sees two `neoforge` modules and throws `ResolutionException`
 
 ## [2.0.0-alpha.8] — 2026-09-08
 
