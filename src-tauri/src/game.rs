@@ -1017,15 +1017,35 @@ pub async fn launch_game(
         Some(lp) => merge_libraries(vanilla.libraries.clone(), lp.libraries.clone()),
         None => vanilla.libraries.clone(),
     };
-    let jvm_args = match &loader_profile {
-        Some(lp) => {
-            let mut v = split_args(&vanilla.arguments.jvm);
-            v.extend(split_args(&lp.arguments.jvm));
-            v
-        }
-        None => split_args(&vanilla.arguments.jvm),
-    };
-    let mut game_args = split_args(&vanilla.arguments.game);
+     let mut jvm_args = match &loader_profile {
+         Some(lp) => {
+             let mut v = split_args(&vanilla.arguments.jvm);
+             v.extend(split_args(&lp.arguments.jvm));
+             v
+         }
+         None => split_args(&vanilla.arguments.jvm),
+     };
+     // Для NeoForge/Forge: убираем `-cp ${classpath}` из arguments.jvm,
+     // т.к. лаунчер сам управляет classpath через `-cp <classpath_str>`.
+     // Дублирующий `-cp` создаёт конфликт с `-p` (module path) и
+     // приводит к изоляции модулей ModLauncher на Java 21.
+     if matches!(loader.as_ref(), Some((name, _)) if name == "neoforge" || name == "forge") {
+         let mut filtered = Vec::new();
+         let mut skip_next = false;
+         for a in jvm_args {
+             if skip_next {
+                 skip_next = false;
+                 continue;
+             }
+             if a == "-cp" {
+                 skip_next = true;
+                 continue;
+             }
+             filtered.push(a);
+         }
+         jvm_args = filtered;
+     }
+     let mut game_args = split_args(&vanilla.arguments.game);
     if let Some(lp) = &loader_profile {
         game_args.extend(split_args(&lp.arguments.game));
     }
@@ -1121,22 +1141,23 @@ pub async fn launch_game(
      // через resolve_libraries, но она НЕ должна быть на classpath — FML
      // находит её через -DlibraryDirectory. Иначе JPMS видит два модуля
      // `neoforge` и падает с ResolutionException.
+     // Кроме того, bootstraplauncher/securejarhandler/asm/JarJarFileSystems
+     // загружаются через -p (module path) из arguments.jvm — они НЕ должны
+     // быть на classpath, иначе JPMS видит их и в classpath, и в module path,
+     // что создаёт конфликт модулей и classloader crash на Java 21.
      classpath.extend(libs.classpath.into_iter().filter(|p| {
-        if is_neoforge {
-            let s = p.to_string_lossy();
-            // Исключаем ТОЛЬКО сам артефакт NeoForge mod
-            // (neoforge-*-universal.jar, neoforge-*-client.jar) —
-            // он находится в neoforged/neoforge/ и JPMS видит его
-            // как модуль `neoforge`. FML находит его через -DlibraryDirectory.
-            // fmlloader, fmlcore, bus, securejarhandler и т.д. ДОЛЖНЫ
-            // быть на classpath — они регистрируют forgeclient через
-            // java.util.ServiceLoader.
-            // srg-клиент тоже исключаем — он находится через provider.
-            !s.contains("neoforged/neoforge/") && !s.contains("net/minecraft/client/")
-        } else {
-            true
-        }
-    }));
+         if is_neoforge {
+             let s = p.to_string_lossy();
+             !s.contains("neoforged/neoforge/")
+                 && !s.contains("net/minecraft/client/")
+                 && !s.contains("cpw/mods/bootstraplauncher/")
+                 && !s.contains("cpw/mods/securejarhandler/")
+                 && !s.contains("org/ow2/asm/")
+                 && !s.contains("net/neoforged/JarJarFileSystems/")
+         } else {
+             true
+         }
+     }));
     // Библиотеки, объявленные в mrpack сборки (напр. lwjgl-lmdb/zstd для Voxy).
     for lib in crate::mrpack::read_pack_libraries(pack_id) {
         if lib.exists() {
@@ -1313,64 +1334,72 @@ pub async fn launch_game(
         natives_dir.to_string_lossy()
     ));
 
-    for a in jvm_args {
-        // `-XstartOnFirstThread` — macOS-специфичный флаг; на Linux/Windows он падает.
-        if a.starts_with("-XstartOnFirstThread") && !cfg!(target_os = "macos") {
-            continue;
-        }
-        // `--sun-misc-unsafe-memory-access=...` появился только в JDK 22+ (версия 26.2
-        // кладёт его в arguments.jvm). На Java ≤21 JVM не знает этот флаг и падает
-        // с «Unrecognized option», не создавая JVM.
-        if a.starts_with("--sun-misc-unsafe-memory-access=") && found_major.unwrap_or(0) < 22 {
-            continue;
-        }
-        final_args.push(replace_placeholders(&a, &placeholders));
-    }
+     // Логируем JVM-флаги из arguments.jvm ДО того как jvm_args будет потреблён
+     emit_log(&app, "sys", &format!("=== JVM Flags ==="));
+     for a in &jvm_args {
+         emit_log(&app, "sys", &format!("  {}", replace_placeholders(a, &placeholders)));
+     }
+     emit_log(&app, "sys", &format!("  -Xmx{}G", heap_gb));
+     emit_log(&app, "sys", &format!("  -Xms{}G", (heap_gb / 2).max(1)));
 
-    // Пользовательские JVM-флаги из настроек — добавляются последними, чтобы
-    // переопределять и дефолты лаунчера, и аргументы версии.
-    for a in crate::config::user_jvm_args() {
-        if a.starts_with("-XstartOnFirstThread") && !cfg!(target_os = "macos") {
-            continue;
-        }
-        final_args.push(replace_placeholders(&a, &placeholders));
-    }
-    final_args.push("-cp".into());
-    final_args.push(classpath_str.clone());
-    final_args.push(main_class.clone());
+     for a in jvm_args {
+         // `-XstartOnFirstThread` — macOS-специфичный флаг; на Linux/Windows он падает.
+         if a.starts_with("-XstartOnFirstThread") && !cfg!(target_os = "macos") {
+             continue;
+         }
+         // `--sun-misc-unsafe-memory-access=...` появился только в JDK 22+ (версия 26.2
+         // кладёт его в arguments.jvm). На Java ≤21 JVM не знает этот флаг и падает
+         // с «Unrecognized option», не создавая JVM.
+         if a.starts_with("--sun-misc-unsafe-memory-access=") && found_major.unwrap_or(0) < 22 {
+             continue;
+         }
+         final_args.push(replace_placeholders(&a, &placeholders));
+     }
 
-    // Авто-коннект: клиент читает --server/--port из аргументов main-класса.
-    if let Some(srv) = &server_address {
-        if !game_args.iter().any(|a| a == "--server") {
-            game_args.push("--server".into());
-            game_args.push(srv.host.clone());
-            if let Some(port) = srv.port {
-                game_args.push("--port".into());
-                game_args.push(port.to_string());
-            }
-        }
-    }
+     // Пользовательские JVM-флаги из настроек — добавляются последними, чтобы
+     // переопределять и дефолты лаунчера, и аргументы версии.
+     for a in crate::config::user_jvm_args() {
+         if a.starts_with("-XstartOnFirstThread") && !cfg!(target_os = "macos") {
+             continue;
+         }
+         final_args.push(replace_placeholders(&a, &placeholders));
+     }
+     final_args.push("-cp".into());
+     final_args.push(classpath_str.clone());
+     final_args.push(main_class.clone());
 
-    for a in game_args {
-        final_args.push(replace_placeholders(&a, &placeholders));
-    }
+     // Авто-коннект: клиент читает --server/--port из аргументов main-класса.
+     if let Some(srv) = &server_address {
+         if !game_args.iter().any(|a| a == "--server") {
+             game_args.push("--server".into());
+             game_args.push(srv.host.clone());
+             if let Some(port) = srv.port {
+                 game_args.push("--port".into());
+                 game_args.push(port.to_string());
+             }
+         }
+     }
 
-    // 9. Запускаем с перехватом вывода (stdout/stderr -> событие "launch-log" + файл).
-    // Логируем полную команду и classpath для диагностики JPMS.
-    let merged_libs_names: Vec<String> = merged_libraries.iter().map(|l| l.name.clone()).collect();
-    let main_class_str = main_class.clone();
-    emit_log(&app, "sys", &format!("=== Launch command ==="));
-    emit_log(&app, "sys", &format!("java {}", final_args[1..].join(" ")));
-    emit_log(&app, "sys", &format!("=== Classpath ==="));
-    for (i, p) in classpath.iter().enumerate() {
-        emit_log(&app, "sys", &format!("  [{}] {}", i, p.display()));
-    }
-    emit_log(&app, "sys", &format!("=== Libraries in merged_libraries ==="));
-    for lib in &merged_libs_names {
-        emit_log(&app, "sys", &format!("  {}", lib));
-    }
-    emit_log(&app, "sys", &format!("=== Main class ==="));
-    emit_log(&app, "sys", &format!("{}", main_class_str));
+     for a in game_args {
+         final_args.push(replace_placeholders(&a, &placeholders));
+     }
+
+     // 9. Запускаем с перехватом вывода (stdout/stderr -> событие "launch-log" + файл).
+     // Логируем полную команду и classpath для диагностики JPMS.
+     let merged_libs_names: Vec<String> = merged_libraries.iter().map(|l| l.name.clone()).collect();
+     let main_class_str = main_class.clone();
+     emit_log(&app, "sys", &format!("=== Launch command ==="));
+     emit_log(&app, "sys", &format!("java {}", final_args[1..].join(" ")));
+     emit_log(&app, "sys", &format!("=== Classpath ==="));
+     for (i, p) in classpath.iter().enumerate() {
+         emit_log(&app, "sys", &format!("  [{}] {}", i, p.display()));
+     }
+     emit_log(&app, "sys", &format!("=== Libraries in merged_libraries ==="));
+     for lib in &merged_libs_names {
+         emit_log(&app, "sys", &format!("  {}", lib));
+     }
+     emit_log(&app, "sys", &format!("=== Main class ==="));
+     emit_log(&app, "sys", &format!("{}", main_class_str));
 
     let mut cmd = Command::new(&final_args[0]);
     #[cfg(windows)]
