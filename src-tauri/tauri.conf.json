@@ -58,7 +58,7 @@
       }
     },
     "updater": {
-      "pubkey": "ZNIjcdWWo5aZmLUAcOWnsPhGwUT8Lfe9FFgG98us7bw=",
+      "pubkey": "RWTLO8tUJOUaCW6Ija9T7xUZccx3q3PMe0zT2nYFiiy9cTpwPBlOGvY2",
       "endpoints": [
         "https://github.com/n1orio/mono-launcher/releases/latest/download/latest.json"
       ]
