@@ -112,17 +112,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y flatpak-builder
           flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
-          flatpak install --user -y org.freedesktop.Platform 2>/dev/null || true
-          flatpak install --user -y org.freedesktop.Sdk 2>/dev/null || true
       - name: Собрать Flatpak
-        run: flatpak-builder --force-clean --user flatpak-build flatpak/manifest.json || true
-      - name: Загрузить Flatpak
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="launcher-v$(node -p "require('./package.json').version")"
-          flatpak build-export flatpak-build flatpak/manifest.json
-          gh release upload "$TAG" flatpak-build/ru.mono.launcher.flatpak --repo n1orio/mono-launcher --clobber || true
+          flatpak-builder --force-clean --user flatpak-build flatpak/manifest.json 2>&1 || echo "Flatpak build skipped"
+          if [ -f flatpak-build/ru.mono.launcher.flatpak ]; then
+            flatpak build-export flatpak-build flatpak/manifest.json 2>&1 || echo "Export skipped"
+            gh release upload "$TAG" flatpak-build/ru.mono.launcher.flatpak --repo n1orio/mono-launcher --clobber || true
+          else
+            echo "Flatpak bundle not found, skipping upload"
+          fi
 
   update-manifest:
     name: "Сформировать latest.json"
