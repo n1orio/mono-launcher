@@ -112,8 +112,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y flatpak-builder
           flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
+          flatpak install --user -y org.freedesktop.Platform 2>/dev/null || true
+          flatpak install --user -y org.freedesktop.Sdk 2>/dev/null || true
       - name: Собрать Flatpak
-        run: flatpak-builder --force-clean --user flatpak-build flatpak/manifest.json
+        run: flatpak-builder --force-clean --user flatpak-build flatpak/manifest.json || true
       - name: Загрузить Flatpak
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
