@@ -13,6 +13,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+      - name: Установить Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
       - name: Создать draft-релиз (идемпотентно)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
