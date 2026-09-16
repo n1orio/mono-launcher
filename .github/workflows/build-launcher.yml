@@ -95,10 +95,37 @@ jobs:
           args: ${{ matrix.args }}
           prerelease: false
 
+  flatpak:
+    name: "Собрать Flatpak"
+    runs-on: ubuntu-22.04
+    needs: prepare-release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Установить Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Установить flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak-builder
+          flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+      - name: Собрать Flatpak
+        run: flatpak-builder --force-clean --user flatpak-build flatpak/manifest.json
+      - name: Загрузить Flatpak
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="launcher-v$(node -p "require('./package.json').version")"
+          flatpak build-export flatpak-build flatpak/manifest.json
+          gh release upload "$TAG" flatpak-build/ru.mono.launcher.flatpak --repo n1orio/mono-launcher --clobber || true
+
   update-manifest:
     name: "Сформировать latest.json"
     runs-on: ubuntu-22.04
-    needs: build
+    needs: [build, flatpak]
     permissions:
       contents: write
     steps:
