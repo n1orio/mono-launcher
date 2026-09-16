@@ -17,15 +17,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          TAG="launcher-v$(node -p "require('./package.json').version")"
           touch /tmp/empty
-          gh release upload "$GITHUB_REF_NAME" /tmp/empty --repo n1orio/mono-launcher --clobber 2>/dev/null || true
-          gh release edit "$GITHUB_REF_NAME" --repo n1orio/mono-launcher --prerelease false --draft --notes "Сборка..." 2>/dev/null || true
+          gh release upload "$TAG" /tmp/empty --repo n1orio/mono-launcher --clobber 2>/dev/null || true
+          gh release edit "$TAG" --repo n1orio/mono-launcher --prerelease false --draft --notes "Сборка..." 2>/dev/null || true
       - name: Достать id релиза
         id: rel
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ID="$(gh api repos/n1orio/mono-launcher/releases --jq '[.[] | select(.tag_name=="$GITHUB_REF_NAME")] | first | .id')"
+          TAG="launcher-v$(node -p "require('./package.json').version")"
+          ID="$(gh api repos/n1orio/mono-launcher/releases --jq '[.[] | select(.tag_name=="$TAG")] | first | .id')"
           echo "release_id=$ID" >> "$GITHUB_OUTPUT"
           echo "release_id=$ID"
 
@@ -105,13 +107,15 @@ jobs:
       - name: Скачать ассеты релиза
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release download "$GITHUB_REF_NAME" --repo n1orio/mono-launcher --dir assets
+        run: |
+          TAG="launcher-v$(node -p "require('./package.json').version")"
+          gh release download "$TAG" --repo n1orio/mono-launcher --dir assets
 
       - name: Собрать и загрузить latest.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="$GITHUB_REF_NAME"
+          TAG="launcher-v$(node -p "require('./package.json').version")"
           BODY="$(gh release view "$TAG" --repo n1orio/mono-launcher --json body --jq .body || true)"
           TAG="$TAG" BODY="$BODY" node scripts/make-updater-json.mjs assets latest.json
           gh release upload "$TAG" latest.json --repo n1orio/mono-launcher --clobber
@@ -120,7 +124,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="$GITHUB_REF_NAME"
+          TAG="launcher-v$(node -p "require('./package.json').version")"
           VER="${TAG#launcher-v}"
           BODY="$(node scripts/release-notes.mjs "$VER" "Mono Launcher.")" || exit 0
           gh release edit "$TAG" --repo n1orio/mono-launcher --prerelease false --notes "$BODY" || true
