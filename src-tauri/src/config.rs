@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use dirs::data_dir;
 use serde::{Deserialize, Serialize};
 
@@ -115,17 +115,7 @@ pub fn default_pack_id() -> String {
 pub fn sanitize_pack_name(name: &str) -> String {
     let slug: String = name
         .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() {
-                c.to_ascii_lowercase()
-            } else if c == '-' || c == '_' {
-                '-'
-            } else if c.is_whitespace() {
-                '-'
-            } else {
-                '-'
-            }
-        })
+        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
         .collect();
     let slug: String = slug
         .split('-')
@@ -199,17 +189,17 @@ fn save_user_packs(list: &[UserPack]) -> Result<()> {
 
 /// Все сборки пользователя.
 pub fn all_packs() -> Result<Vec<PackInfo>> {
-    Ok(user_packs()?
-        .into_iter()
-        .map(|p| {
-            let icon = pack_icon_path(&p.id);
-            let banner = pack_banner_path(&p.id);
-            PackInfo {
-                id: p.id,
-                name: p.name,
-                url: p.url,
-                builtin: false,
-                kind: p.kind,
+     Ok(user_packs()?
+         .into_iter()
+         .map(|p| {
+             let icon = pack_icon_path(&p.id);
+             let banner = pack_banner_path(&p.id);
+             PackInfo {
+                 id: p.id,
+                 name: p.name,
+                 url: sanitize_pack_url(&p.url),
+                 builtin: false,
+                 kind: p.kind,
                 boosty_blog: p.boosty_blog,
                 min_ram_mb: p.min_ram_mb,
                 icon,
@@ -224,18 +214,18 @@ pub fn all_packs() -> Result<Vec<PackInfo>> {
 
 /// Ищет сборку пользователя по id.
 pub fn find_pack(id: &str) -> Result<Option<PackInfo>> {
-    Ok(user_packs()?
-        .into_iter()
-        .find(|p| p.id == id)
-        .map(|p| {
-            let icon = pack_icon_path(&p.id);
-            let banner = pack_banner_path(&p.id);
-            PackInfo {
-                id: p.id,
-                name: p.name,
-                url: p.url,
-                builtin: false,
-                kind: p.kind,
+     Ok(user_packs()?
+         .into_iter()
+         .find(|p| p.id == id)
+         .map(|p| {
+             let icon = pack_icon_path(&p.id);
+             let banner = pack_banner_path(&p.id);
+             PackInfo {
+                 id: p.id,
+                 name: p.name,
+                 url: sanitize_pack_url(&p.url),
+                 builtin: false,
+                 kind: p.kind,
                 boosty_blog: p.boosty_blog,
                 min_ram_mb: p.min_ram_mb,
                 icon,
@@ -285,7 +275,7 @@ pub fn set_pack_name(pack_id: &str, name: &str) -> Result<()> {
 
 /// Устанавливает новый URL сборки (для переключения на другую версию с сервера).
 pub fn set_pack_url(pack_id: &str, url: &str) -> Result<()> {
-    let url = url.trim();
+    let url = sanitize_pack_url(&url.trim());
     if !url.starts_with("http://") && !url.starts_with("https://") {
         return Err(anyhow::anyhow!("Некорректный URL"));
     }
@@ -363,7 +353,7 @@ pub fn add_user_pack(
     list.push(UserPack {
         id: id.to_string(),
         name: name.to_string(),
-        url: url.to_string(),
+        url: sanitize_pack_url(url),
         kind: if kind == "local" { "local".into() } else { "remote".into() },
         boosty_blog: boosty_blog
             .map(|b| b.trim().to_string())
@@ -402,6 +392,29 @@ pub fn remove_user_pack(id: &str) -> Result<bool> {
 /// 2) файл `<данные лаунчера>/backend-url` (одной строкой),
 /// 3) константа DEFAULT_BACKEND_URL.
 pub const DEFAULT_BACKEND_URL: &str = "http://2.27.200.74:8080";
+
+/// Публичный URL хранилища (для скачивания .mrpack).
+pub const DEFAULT_STORAGE_URL: &str = "http://2.27.200.74:8081";
+
+/// Санитизирует URL сборки: заменяет localhost на публичный адрес хранилища.
+pub fn sanitize_pack_url(url: &str) -> String {
+    if url.contains("localhost") || url.contains("127.0.0.1") {
+        let base = DEFAULT_STORAGE_URL.trim_end_matches('/');
+        if let Some(path) = url.strip_prefix("http://localhost:8081")
+            .or_else(|| url.strip_prefix("http://127.0.0.1:8081"))
+            .or_else(|| url.strip_prefix("https://localhost:8081"))
+            .or_else(|| url.strip_prefix("https://127.0.0.1:8081"))
+        {
+            return format!("{base}{path}");
+        }
+        if let Some(path) = url.strip_prefix("http://localhost:8080")
+            .or_else(|| url.strip_prefix("http://127.0.0.1:8080"))
+        {
+            return format!("{base}{path}");
+        }
+    }
+    url.to_string()
+}
 
 /// Внешний URL бэкенда Mono (без хвостового слэша).
 pub fn backend_url() -> String {
@@ -477,8 +490,44 @@ pub fn versions_root(pack_id: &str) -> Result<PathBuf> {
 }
 
 /// Папка игры конкретной версии.
-pub fn version_dir(pack_id: &str, version_id: &str) -> Result<PathBuf> {
-    Ok(versions_root(pack_id)?.join(version_id))
+pub fn version_dir(pack_id: &str, _version_id: &str) -> Result<PathBuf> {
+    active_game_dir(pack_id)
+}
+
+fn migrate_game_dir(root: &std::path::Path) -> Result<PathBuf> {
+    let game = root.join("game");
+    let legacy = root.join("versions");
+    if !game.exists() && legacy.exists() {
+        let active = match fs::read(root.join("active.json")) {
+            Ok(raw) => serde_json::from_slice::<serde_json::Value>(&raw)?["versionId"]
+                .as_str().unwrap_or_default().to_string(),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(e) => return Err(e.into()),
+        };
+        let mut candidates = Vec::new();
+        for entry in fs::read_dir(&legacy)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                candidates.push(entry);
+            }
+        }
+        let selected = candidates.iter().find(|entry| entry.file_name().to_string_lossy() == active)
+            .or_else(|| candidates.iter().find(|entry| entry.file_name() == "main"))
+            .or_else(|| (candidates.len() == 1).then(|| &candidates[0]));
+        if let Some(selected) = selected {
+            fs::rename(selected.path(), &game).with_context(|| format!("Не удалось перенести сборку в {}", game.display()))?;
+        } else if !candidates.is_empty() {
+            anyhow::bail!("Не удалось определить активную старую установку в {}. Старые данные сохранены", legacy.display());
+        }
+    }
+    if game.exists() && legacy.exists() {
+        let backup = root.join("legacy-versions-backup");
+        if backup.exists() {
+            anyhow::bail!("Старая папка версий и её резервная копия существуют одновременно в {}", root.display());
+        }
+        fs::rename(&legacy, &backup).context("Не удалось сохранить старые версии сборки")?;
+    }
+    Ok(game)
 }
 
 /// Файл активной версии сборки.
@@ -488,6 +537,14 @@ pub fn active_version_file(pack_id: &str) -> Result<PathBuf> {
 
 /// Возвращает активную версию или пустую строку.
 pub fn active_version(pack_id: &str) -> Result<String> {
+    let game = active_game_dir(pack_id)?;
+    if game.join(".mono-index.json").exists() {
+        let raw = fs::read(game.join(".mono-index.json"))?;
+        let index: serde_json::Value = serde_json::from_slice(&raw)?;
+        if let Some(version) = index["versionId"].as_str() {
+            return Ok(version.to_string());
+        }
+    }
     let path = active_version_file(pack_id)?;
     if !path.exists() {
         return Ok(String::new());
@@ -511,12 +568,9 @@ pub fn set_active_version(pack_id: &str, version_id: &str) -> Result<()> {
 
 /// Папка игры, которая используется при запуске (активная версия сборки).
 pub fn active_game_dir(pack_id: &str) -> Result<PathBuf> {
-    let active = active_version(pack_id)?;
-    if active.is_empty() {
-        Ok(versions_root(pack_id)?.join("main"))
-    } else {
-        version_dir(pack_id, &active)
-    }
+    static MIGRATION: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _guard = MIGRATION.lock().map_err(|_| anyhow::anyhow!("Ошибка блокировки миграции"))?;
+    migrate_game_dir(&pack_dir(pack_id)?)
 }
 
 /// Папка, куда распаковывается и кэшируется `.mrpack`.

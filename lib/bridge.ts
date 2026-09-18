@@ -140,10 +140,6 @@ export function listVersions(packId: string): Promise<VersionsInfo> {
   return invoke("list_versions", { packId });
 }
 
-export function switchVersion(packId: string, versionId: string): Promise<void> {
-  return invoke("switch_version", { packId, versionId });
-}
-
 export function getSystemInfo(): Promise<SystemInfo> {
   return invoke("system_info");
 }

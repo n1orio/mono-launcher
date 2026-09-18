@@ -1177,8 +1177,9 @@ pub async fn install_modpack(
         dependencies,
     };
 
-    let game_dir = crate::config::version_dir(pack_id, &version_id)?;
-    let mut custom = crate::mrpack::download_all_files(app, client, pack_id, &index, &game_dir).await?;
+    let install = crate::mrpack::PackInstall::begin(pack_id)?;
+    let game_dir = &install.dir;
+    let mut custom = crate::mrpack::download_all_files(app, client, pack_id, &index, game_dir).await?;
 
     crate::mrpack::emit_progress(
         app,
@@ -1187,10 +1188,10 @@ pub async fn install_modpack(
             ..Default::default()
         },
     );
-    crate::mrpack::apply_overrides(app, &extract_dir, &game_dir)?;
+    crate::mrpack::apply_overrides(app, &extract_dir, game_dir)?;
     crate::mrpack::collect_override_jars(&extract_dir, &mut custom)?;
 
-    crate::mrpack::write_install_marker(&game_dir, &index, Some(&manifest.version))?;
+    crate::mrpack::write_install_marker(game_dir, &index, Some(&manifest.version))?;
     std::fs::write(
         game_dir.join(".mono-index.json"),
         serde_json::to_vec_pretty(&index)?,
@@ -1199,6 +1200,7 @@ pub async fn install_modpack(
         game_dir.join(".mono-custom.json"),
         serde_json::to_vec_pretty(&custom)?,
     )?;
+    install.commit()?;
     crate::config::set_active_version(pack_id, &version_id)?;
 
     let _ = std::fs::remove_dir_all(&extract_dir);

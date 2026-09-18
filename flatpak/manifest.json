@@ -1,38 +1,72 @@
 {
   "app-id": "ru.mono.launcher",
   "branch": "stable",
-  "runtime": "org.freedesktop.Platform",
-  "runtime-version": "23.08",
-  "sdk": "org.freedesktop.Sdk",
-  "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "49",
+  "sdk": "org.gnome.Sdk",
+  "sdk-extensions": [
+    "org.freedesktop.Sdk.Extension.rust-stable",
+    "org.freedesktop.Sdk.Extension.node22"
+  ],
   "command": "mono-launcher",
+  "build-options": {
+    "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node22/bin",
+    "build-args": ["--share=network"],
+    "env": {
+      "CARGO_HOME": "/run/build/mono-launcher/.cargo",
+      "CARGO_TARGET_DIR": "/run/build/mono-launcher/target"
+    }
+  },
   "finish-args": [
     "--share=network",
+    "--share=ipc",
     "--socket=x11",
     "--socket=wayland",
+    "--socket=pulseaudio",
     "--device=dri",
     "--filesystem=host",
-    "--talk-name=org.freedesktop.FileManager1"
+    "--talk-name=org.freedesktop.FileManager1",
+    "--talk-name=org.kde.StatusNotifierWatcher"
   ],
   "modules": [
-    {
-      "name": "node",
-      "buildsystem": "simple",
-      "build-commands": ["npm ci"]
-    },
+    "shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json",
     {
       "name": "mono-launcher",
       "buildsystem": "simple",
       "build-commands": [
+        "npm ci --no-audit --no-fund",
         "npm run build",
-        "cd src-tauri && cargo build --release",
-        "install -Dm755 target/release/mono-launcher /app/bin/mono-launcher"
+        "cargo build --manifest-path src-tauri/Cargo.toml --release --locked -j ${FLATPAK_BUILDER_N_JOBS}",
+        "install -Dm755 target/release/mono-launcher /app/bin/mono-launcher",
+        "install -Dm644 ru.mono.launcher.desktop /app/share/applications/ru.mono.launcher.desktop",
+        "install -Dm644 src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/ru.mono.launcher.png"
       ],
       "sources": [
         {
-          "type": "archive",
-          "url": "https://github.com/n1orio/mono-launcher/archive/refs/heads/main.tar.gz",
-          "dest-filename": "mono-launcher.tar.gz"
+          "type": "dir",
+          "path": "../",
+          "skip": [
+            ".git",
+            ".flatpak-builder",
+            "flatpak-build",
+            "flatpak/.flatpak-builder",
+            "node_modules",
+            ".nuxt",
+            ".output",
+            ".data",
+            "dist",
+            "target",
+            "src-tauri/target",
+            "src-tauri/gen",
+            "curseforge-key.txt",
+            ".env",
+            ".env.local"
+          ]
+        },
+        {
+          "type": "inline",
+          "dest-filename": "ru.mono.launcher.desktop",
+          "contents": "[Desktop Entry]\nType=Application\nName=Mono Launcher\nExec=mono-launcher %u\nIcon=ru.mono.launcher\nTerminal=false\nCategories=Game;\nMimeType=x-scheme-handler/mono;\nStartupWMClass=mono-launcher\n"
         }
       ]
     }

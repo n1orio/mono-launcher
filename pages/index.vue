@@ -439,9 +439,12 @@ async function copyCrashAnalysis() {
 /** Открывает GitHub Issues сборки с предзаполненным краш-анализом. */
 function openCrashIssue() {
   const pack = activePack.value;
-  const rest = (pack?.url || "").replace(/^https?:\/\/github\.com\//, "");
+  const packUrl = pack?.url || "";
+  // Только для GitHub-репозиториев — иначе берём дефолтный URL лаунчера.
+  const isGitHub = /^https?:\/\/github\.com\//.test(packUrl);
+  const rest = isGitHub ? packUrl.replace(/^https?:\/\/github\.com\//, "") : "";
   const [owner, repo] = rest.split("/");
-  if (!owner || !repo || owner === "USER" || repo === "REPO") return;
+  if (!isGitHub || !owner || !repo || owner === "USER" || repo === "REPO") return;
   const a = crashAnalysis.value;
   if (!a) return;
   const v = crashView(a);
@@ -458,7 +461,12 @@ function openCrashIssue() {
   ]
   .filter(Boolean)
   .join("\n");
-  const url = `https://github.com/${owner}/${repo}/issues/new?title=${encodeURIComponent(t("reportPack.title", { name: pack?.name ?? "?" }))}&body=${encodeURIComponent(body)}`;
+  const bodyText = body.slice(0, 3000);
+  // Копируем тело в буфер, чтобы не перегружать URL GitHub Issues.
+  setTimeout(() => {
+    try { navigator.clipboard.writeText(bodyText).catch(() => {}); } catch { /* ignore */ }
+  }, 100);
+  const url = `https://github.com/${owner}/${repo}/issues/new?title=${encodeURIComponent(t("reportPack.title", { name: pack?.name ?? "?" }))}`;
   if (isTauri()) openExternal(url).catch(() => window.open(url, "_blank"));
   else window.open(url, "_blank");
 }

@@ -984,5 +984,6 @@
   "empty.createPack": "Pack erstellen",
   "empty.browseCatalog": "Katalog durchsuchen",
   "empty.noPackTitle": "Kein Pack ausgewählt",
-  "empty.noPackHint": "Wähle links ein Pack aus oder erstelle ein neues"
+  "empty.noPackHint": "Wähle links ein Pack aus oder erstelle ein neues",
+  "err.mrpackDownload": "Pack konnte nicht heruntergeladen werden: Server nicht erreichbar. Backend-Adresse in den Einstellungen prüfen."
 }

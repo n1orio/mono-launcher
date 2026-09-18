@@ -185,6 +185,34 @@ fn custom_file(file: &IndexFile) -> Option<CustomFile> {
 /// Проверяет, что путь файла из индекса сборки безопасен: относительный и без
 /// обхода каталогов (`..`, absolute, `.`). Предохраняет от записи за пределами
 /// `game_dir` враждебной сборкой.
+fn validate_windows_path(rel: &str) -> Result<()> {
+    for component in rel.split(['/', '\\']).filter(|part| !part.is_empty()) {
+        if component == "." {
+            continue;
+        }
+        let stem = component
+            .split('.')
+            .next()
+            .unwrap_or_default()
+            .trim_end_matches(' ')
+            .to_uppercase();
+        let reserved = matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$")
+            || ["COM", "LPT"].iter().any(|prefix| {
+                stem.strip_prefix(prefix).is_some_and(|suffix| {
+                    matches!(suffix, "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³")
+                })
+            });
+        if component.chars().any(|c| c < ' ' || "<>:\"|?*".contains(c))
+            || component.ends_with([' ', '.'])
+            || component.encode_utf16().count() > 255
+            || reserved
+        {
+            anyhow::bail!("Несовместимое с Windows имя в сборке: {rel:?} (компонент {component:?}). Исправьте имя в исходной сборке и экспортируйте .mrpack заново");
+        }
+    }
+    Ok(())
+}
+
 fn safe_rel_path(rel: &str) -> Result<&str> {
     if rel.is_empty() {
         return Err(anyhow!("Пустой путь в индексе сборки"));
@@ -199,11 +227,14 @@ fn safe_rel_path(rel: &str) -> Result<&str> {
             _ => return Err(anyhow!("Недопустимый путь в индексе сборки: {rel}")),
         }
     }
+    if cfg!(windows) {
+        validate_windows_path(rel)?;
+    }
     Ok(rel)
 }
 
 /// Скачивает `.mrpack` по конкретному URL во временный файл (с повторами
-/// при обрыве потока — CDN/GitHub иногда режут соединение на середине).
+/// при обрыве потока — сервер иногда режет соединение на середине).
 pub async fn download_mrpack(
     app: &AppHandle,
     client: &Client,
@@ -222,6 +253,12 @@ pub async fn download_mrpack(
         return Ok(path);
     }
 
+    let part = part_path(&path);
+    match tokio::fs::remove_file(&part).await {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e).with_context(|| format!("Не удалось удалить старую недокачанную сборку {}", part.display())),
+    }
     let mut last_err: Option<anyhow::Error> = None;
     for attempt in 0..3 {
         match download_mrpack_once(app, client, url, &path).await {
@@ -268,8 +305,8 @@ async fn download_mrpack_once(
         }
     })
     .await
-    .with_context(|| {
-        format!("GitHub не отдал .mrpack (возможно, релиз удалён или переименован): {url}")
+        .with_context(|| {
+        "Не удалось скачать .mrpack: сервер недоступен. Проверьте адрес бэкенда в настройках."
     })?;
     // У .mrpack нет эталонного хэша — переносим как есть.
     tokio::fs::rename(&part, path)
@@ -313,21 +350,24 @@ async fn download_mrpack_once(
               let entry_name = entry
                   .enclosed_name()
                   .ok_or_else(|| anyhow!("Некорректное имя файла в архиве"))?;
-              let out_path = tmp_dir.join(&entry_name);
+               if cfg!(windows) {
+                   validate_windows_path(entry.name())?;
+               }
+               let out_path = tmp_dir.join(&entry_name);
 
-              if entry.is_dir() {
-                  fs::create_dir_all(&out_path)?;
+               if entry.is_dir() {
+                   fs::create_dir_all(&out_path).with_context(|| format!("Не удалось создать папку {}", out_path.display()))?;
                   continue;
               }
 
               if let Some(parent) = out_path.parent() {
                   let parent_str = parent.to_string_lossy().to_string();
                   if created_dirs.insert(parent_str.clone()) {
-                      fs::create_dir_all(parent)?;
-                  }
-              }
+                       fs::create_dir_all(parent).with_context(|| format!("Не удалось создать папку {}", parent.display()))?;
+                   }
+               }
 
-              let mut out = fs::File::create(&out_path)?;
+               let mut out = fs::File::create(&out_path).with_context(|| format!("Не удалось распаковать файл {}", out_path.display()))?;
               let limit = entry.size();
               let mut data = Vec::new();
               let mut buf = [0u8; 65536];
@@ -577,7 +617,7 @@ async fn download_file(
     hashes: &HashMap<String, String>,
 ) -> Result<u64> {
     let _permit = semaphore.acquire().await?;
-    fs::create_dir_all(dest.parent().unwrap_or(Path::new(".")))?;
+    fs::create_dir_all(dest.parent().unwrap_or(Path::new("."))).with_context(|| format!("Не удалось создать папку {}", dest.parent().unwrap_or(Path::new(".")).display()))?;
     let mut last_err: Option<anyhow::Error> = None;
     for attempt in 0..3 {
         match download_file_once(client, url, dest, &ctx, hashes).await {
@@ -987,16 +1027,13 @@ pub fn add_playtime(pack_id: &str, version_id: &str, seconds: u64) -> u64 {
 
 /// Суммарное время игры во всех установленных версиях сборки (секунды).
 pub fn pack_playtime_seconds(pack_id: &str) -> u64 {
-    let Ok(root) = config::versions_root(pack_id) else {
-        return 0;
-    };
-    let Ok(dirs) = fs::read_dir(&root) else {
-        return 0;
-    };
-    dirs.flatten()
-        .filter(|e| e.path().is_dir())
-        .map(|e| read_playtime(&e.path()))
-        .sum()
+    let current = config::active_game_dir(pack_id).map(|dir| read_playtime(&dir)).unwrap_or(0);
+    let archived = config::pack_dir(pack_id).ok()
+        .and_then(|root| fs::read_dir(root.join("legacy-versions-backup")).ok())
+        .map(|entries| entries.flatten().filter(|entry| entry.path().is_dir())
+            .map(|entry| read_playtime(&entry.path())).sum::<u64>())
+        .unwrap_or(0);
+    current.saturating_add(archived)
 }
 
 /// Список установленных версий (папки с маркером) для конкретной сборки.
@@ -1009,49 +1046,19 @@ pub fn installed_versions(pack_id: &str) -> Vec<String> {
 
 /// Детали установленных версий.
 pub fn installed_details(pack_id: &str) -> Vec<InstalledVersion> {
-    let mut out = Vec::new();
-    if let Ok(root) = config::versions_root(pack_id) {
-        if let Ok(entries) = fs::read_dir(root) {
-            for entry in entries.flatten() {
-                let dir = entry.path();
-                let marker = dir.join(INSTALL_MARKER);
-                if !marker.exists() {
-                    continue;
-                }
-                let version_id = entry.file_name().to_string_lossy().to_string();
-                let mut name = version_id.clone();
-                let mut tag: Option<String> = None;
-let marker_content = match fs::read_to_string(&marker) {
-                      Ok(raw) => raw,
-                      Err(_) => continue,
-                  };
-                  let marker_json: serde_json::Value = match serde_json::from_str(&marker_content) {
-                      Ok(v) => v,
-                      Err(_) => continue,
-                  };
-                  let mut name = version_id.clone();
-                  let mut tag: Option<String> = None;
-                  if let Some(json) = marker_json.as_object() {
-                      name = json["name"].as_str().unwrap_or(&version_id).to_string();
-                      tag = json["sourceTag"]
-                          .as_str()
-                          .map(|s| s.to_string())
-                          .filter(|s| !s.is_empty());
-                  }
-                  // версия может быть переименована (label != version_id) —
-                  // не проверяем marker.versionId, sourceTag уже хранит бэкенд-лейбл
-                  let total_seconds = read_playtime(&dir);
-                  out.push(InstalledVersion {
-                    version_id,
-                    name,
-                    source_tag: tag,
-                    total_seconds,
-                });
-            }
-        }
-    }
-     out.sort_by(|a, b| b.version_id.cmp(&a.version_id));
-    out
+    let Ok(dir) = config::active_game_dir(pack_id) else { return Vec::new() };
+    let Some(marker) = fs::read(dir.join(INSTALL_MARKER)).ok()
+        .and_then(|raw| serde_json::from_slice::<serde_json::Value>(&raw).ok()) else {
+        return Vec::new();
+    };
+    let version_id = config::active_version(pack_id).unwrap_or_default();
+    if version_id.is_empty() { return Vec::new(); }
+    vec![InstalledVersion {
+        name: marker["name"].as_str().unwrap_or(&version_id).to_string(),
+        source_tag: marker["sourceTag"].as_str().filter(|tag| !tag.is_empty()).map(str::to_string),
+        total_seconds: read_playtime(&dir),
+        version_id,
+    }]
 }
 
 /// Сколько установленных версий сборки держать на диске (включая активную).
@@ -1525,7 +1532,81 @@ pub fn read_pack_libraries(pack_id: &str) -> Vec<PathBuf> {
     }
 }
 
-/// Устанавливается в отдельную папку, которая затем становится активной.
+pub(crate) struct PackInstall {
+    pub dir: PathBuf,
+    game: PathBuf,
+}
+
+fn copy_install_tree(src: &Path, dst: &Path) -> Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let kind = entry.file_type()?;
+        let target = dst.join(entry.file_name());
+        if kind.is_symlink() {
+            anyhow::bail!("Перед обновлением уберите символическую ссылку {}", entry.path().display());
+        } else if kind.is_dir() {
+            copy_install_tree(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), &target).with_context(|| format!("Не удалось сохранить {}", entry.path().display()))?;
+        }
+    }
+    Ok(())
+}
+
+impl PackInstall {
+    pub(crate) fn begin(pack_id: &str) -> Result<Self> {
+        let game = config::active_game_dir(pack_id)?;
+        let dir = config::pack_dir(pack_id)?.join(format!(".install-{}", uuid::Uuid::new_v4()));
+        let install = Self { dir, game };
+        fs::create_dir_all(&install.dir)?;
+        if install.game.exists() {
+            copy_install_tree(&install.game, &install.dir)?;
+            for name in ["mods", "natives"] {
+                let path = install.dir.join(name);
+                if path.exists() { fs::remove_dir_all(path)?; }
+            }
+            if let Ok(raw) = fs::read(install.game.join(".mono-index.json")) {
+                let old: ModrinthIndex = serde_json::from_slice(&raw)?;
+                for file in old.files {
+                    let rel = safe_rel_path(&file.path)?;
+                    if rel.starts_with("saves/") || rel.starts_with("config/") { continue; }
+                    let dest = install.dir.join(rel);
+                    if dest.is_file() { fs::remove_file(dest)?; }
+                }
+            }
+            let marker = install.dir.join(INSTALL_MARKER);
+            if marker.exists() { fs::remove_file(marker)?; }
+        }
+        Ok(install)
+    }
+
+    pub(crate) fn commit(self) -> Result<()> {
+        let rollback = self.game.with_file_name(".game-rollback");
+        if rollback.exists() {
+            fs::remove_dir_all(&rollback).context("Не удалось очистить резервную папку предыдущего обновления")?;
+        }
+        let had_game = self.game.exists();
+        if had_game {
+            fs::rename(&self.game, &rollback).context("Не удалось обновить сборку. Закройте Minecraft и файлы сборки")?;
+        }
+        if let Err(error) = fs::rename(&self.dir, &self.game) {
+            if had_game {
+                fs::rename(&rollback, &self.game).context("Не удалось восстановить сборку из .game-rollback")?;
+            }
+            return Err(error).context("Не удалось завершить обновление сборки");
+        }
+        if had_game { let _ = fs::remove_dir_all(rollback); }
+        Ok(())
+    }
+}
+
+impl Drop for PackInstall {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.dir);
+    }
+}
+
 pub async fn install_mrpack(
     app: AppHandle,
     client: &Client,
@@ -1554,8 +1635,9 @@ pub async fn install_mrpack(
     let (index, info) = parse_index(&extract_dir)?;
 
     // Своя папка на каждую версию, чтобы можно было переключаться.
-    let game_dir = config::version_dir(pack_id, &info.version_id)?;
-    let mut custom = download_all_files(&app, client, pack_id, &index, &game_dir).await?;
+    let install = PackInstall::begin(pack_id)?;
+    let game_dir = &install.dir;
+    let mut custom = download_all_files(&app, client, pack_id, &index, game_dir).await?;
 
     emit_progress(
         &app,
@@ -1573,11 +1655,11 @@ pub async fn install_mrpack(
             ..Default::default()
         },
     );
-    apply_overrides(&app, &extract_dir, &game_dir)?;
+    apply_overrides(&app, &extract_dir, game_dir)?;
     collect_override_jars(&extract_dir, &mut custom)?;
 
     // Маркер установки + копия индекса в папке версии.
-    write_install_marker(&game_dir, &index, source_tag)?;
+    write_install_marker(game_dir, &index, source_tag)?;
     fs::write(
         game_dir.join(".mono-index.json"),
         serde_json::to_vec_pretty(&index)?,
@@ -1591,6 +1673,7 @@ pub async fn install_mrpack(
         serde_json::to_vec_pretty(&pack_libs)?,
     )?;
 
+    install.commit()?;
     config::set_active_version(pack_id, &info.version_id)?;
 
     // Копируем метаданные сборки (theme.json, pack.json, servers.json, socials.json)
@@ -1622,6 +1705,22 @@ mod tests {
             file_size: 0,
             env: None,
         }
+    }
+
+    #[test]
+    fn windows_paths_accept_version_and_unicode_names() {
+        for path in ["1.5.2", "mods/example-1.5.2.jar", "overrides/config/Настройки.json", "./config/options.txt", "config/COM10.json"] {
+            validate_windows_path(path).unwrap();
+        }
+    }
+
+    #[test]
+    fn windows_paths_report_incompatible_components() {
+        for path in ["config/mod:settings.json", "logs/12:30.log", "mods/aux.jar", "config/NUL", "config/COM1.txt", "config/lpt².log", "config/end.", "config/end ", "config/a?.json", "config/a\0b"] {
+            let err = validate_windows_path(path).unwrap_err();
+            assert!(err.to_string().contains(&format!("{path:?}")));
+        }
+        assert!(validate_windows_path(&"a".repeat(256)).is_err());
     }
 
     #[test]

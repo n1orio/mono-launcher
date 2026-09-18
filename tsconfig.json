@@ -5,6 +5,8 @@
     "dist",
     ".output",
     ".data",
+    ".flatpak-builder",
+    "flatpak-build",
     "src-tauri/target",
     "src-tauri/gen"
   ]

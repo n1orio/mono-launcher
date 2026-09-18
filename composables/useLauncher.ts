@@ -63,7 +63,6 @@ import {
   boostyLoginBegin,
   boostyPoll,
   boostyLoginCancel,
-  switchVersion,
   takePendingPackAdd,
   toggleGameFile,
   verifyGame,
@@ -922,7 +921,14 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
 
   function openBugReportIssue() {
     const title = t("reportPack.title", { name: activePack.value?.name ?? "?" });
-    const url = `${bugRepo.value}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(bugBody.value)}`;
+    const body = bugBody.value.slice(0, 5000);
+    // Копируем тело в буфер обмена, чтобы не перегружать URL GitHub Issues.
+    setTimeout(() => {
+      try {
+        navigator.clipboard.writeText(body).catch(() => {});
+      } catch { /* ignore */ }
+    }, 100);
+    const url = `${bugRepo.value}?title=${encodeURIComponent(title)}`;
     if (isTauri()) {
       openExternal(url).catch(() => window.open(url, "_blank"));
     } else {
@@ -2219,20 +2225,7 @@ watch(
 
   async function handleSelectVersion(tag: string) {
     if (!isTauri() || !tag || !packId.value) return;
-    const found = versions.value?.installed.find(
-      (v) => v.source_tag === tag || v.version_id === tag
-    );
-    if (found) {
-      try {
-        await switchVersion(packId.value, tag);
-        await load();
-        refreshVersions();
-      } catch (e) {
-notify(t("err.switch", { e }));
-      }
-    } else {
-      await handleInstall(tag);
-    }
+    await handleInstall(tag);
   }
 
   async function handleOffline() {

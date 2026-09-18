@@ -2,6 +2,7 @@ export default defineNuxtConfig({
   ssr: false,
   compatibilityDate: "2026-08-09",
   devtools: { enabled: false },
+  ignore: ["**/.flatpak-builder", "**/flatpak-build", "**/src-tauri"],
 
   components: {
     dirs: [
@@ -24,7 +25,7 @@ export default defineNuxtConfig({
     server: {
       strictPort: true,
       watch: {
-        ignored: ["**/src-tauri/**"],
+        ignored: [/(^|[\\/])(?:\.flatpak-builder|flatpak-build|src-tauri)(?:[\\/]|$)/],
       },
     },
   },

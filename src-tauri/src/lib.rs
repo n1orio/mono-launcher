@@ -205,7 +205,7 @@ async fn add_pack_impl(
     blog: Option<&str>,
     backend_id: Option<&str>,
 ) -> Result<PackDescriptor, String> {
-    let url = url.trim().to_string();
+    let url = config::sanitize_pack_url(&url.trim());
     if url.is_empty() {
         return Err("URL не может быть пустым.".into());
     }
@@ -2282,24 +2282,6 @@ async fn get_news_command(
     Ok(items)
 }
 
-/// Переключает активную версию сборки (по тегу GitHub или versionId).
-#[tauri::command]
-async fn switch_version(pack_id: Option<String>, version_id: String) -> Result<(), String> {
-    let pack = resolve_pack(pack_id)?;
-    if version_id.is_empty() {
-        return Err("Пустая версия".into());
-    }
-    // Разрешаем передавать как versionId, так и тег релиза.
-    let resolved = mrpack::installed_details(&pack.id)
-        .iter()
-        .find(|v| {
-            v.version_id == version_id || v.source_tag.as_deref() == Some(version_id.as_str())
-        })
-        .map(|v| v.version_id.clone())
-        .ok_or_else(|| format!("Версия {version_id} не установлена"))?;
-    config::set_active_version(&pack.id, &resolved).map_err(|e| e.to_string())
-}
-
 /// Возвращает информацию о памяти системы.
 #[tauri::command]
 fn system_info() -> Result<SystemInfo, String> {
@@ -2508,7 +2490,7 @@ async fn install_mrpack(
     }
     let installed = mrpack::install_mrpack(app, &client, &pack.id, &url, None)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("{e:#}"))?;
     // Метка версии: у экспортированных .mrpack внутри часто лежит дефолтная 1.0.0 —
     // показываем метку бэкенда, чтобы «Активная версия» была честной.
     if let Some(tag) = label.filter(|t| !t.is_empty() && *t != installed.version_id) {
@@ -4315,7 +4297,6 @@ pub fn run() {
             take_pending_pack_add,
             check_for_updates,
             list_versions,
-            switch_version,
             system_info,
             install_mrpack,
             get_status,
