@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop">
+  <id>ru.mono.launcher</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Mono Launcher</name>
+  <summary>Minecraft modpack launcher</summary>
+  <description>
+    <p>Official launcher for Mono Minecraft modpacks. Download, install and play modpacks from Mono backend.</p>
+  </description>
+  <url type="homepage">https://github.com/n1orio/mono-launcher</url>
+  <url type="bugtracker">https://github.com/n1orio/mono-launcher/issues</url>
+  <screenshot type="default">
+    <image>https://raw.githubusercontent.com/n1orio/mono-launcher/main/src-tauri/icons/128x128.png</image>
+  </screenshot>
+  <icon type="stock">ru.mono.launcher</icon>
+  <launchable type="desktop">ru.mono.launcher.desktop</launchable>
+  <categories>
+    <category>Game</category>
+  </categories>
+  <keywords>
+    <keyword>minecraft</keyword>
+    <keyword>modpack</keyword>
+    <keyword>launcher</keyword>
+  </keywords>
+</component>
