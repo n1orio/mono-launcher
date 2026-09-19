@@ -722,7 +722,7 @@ async function enableAllFiles(enabled: boolean) {
   </div>
 
   <!-- Сабтабы: релизы / моды / ресурспаки / шейдеры / миры / консоль -->
-  <div class="nice-scrollbar mb-4 flex w-fit max-w-full shrink-0 items-center gap-1 overflow-x-auto rounded-xl bg-[var(--panel)] p-1">
+  <div class="nice-scrollbar flex w-fit max-w-full shrink-0 items-center gap-1 overflow-x-auto rounded-xl bg-[var(--panel)] p-1">
   <template v-for="st in playSubTabsVisible" :key="st.kind">
   <button
   type="button"
