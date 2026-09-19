@@ -1835,7 +1835,6 @@ async function enableAllFiles(enabled: boolean) {
   </div>
   </div>
   </div>
-  </div>
 
   <!-- Контекстное меню: ПКМ по файлу/моду -->
   <Teleport to="body">
