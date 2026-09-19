@@ -205,8 +205,8 @@ const currentPackUpdate = computed(() => {
 });
 const customModsFiles = ref<any[]>([]);
 const hasCustomMods = ref(false);
-const menuOpen = ref(false);
 const showBadges = ref(true);
+const menuOpen = ref(false);
 watch(() => status.value?.custom_mods, (mods) => {
   customModsFiles.value = mods ?? [];
   hasCustomMods.value = (mods?.length ?? 0) > 0;
@@ -369,7 +369,7 @@ async function enableAllFiles(enabled: boolean) {
   <span v-if="activePack?.author && loaderLabel" class="opacity-40">·</span>
   <span v-if="loaderLabel">{{ loaderLabel }}</span>
   </p>
-  <div v-if="showBadges" class="mt-2.5 flex flex-wrap items-center gap-1.5">
+  <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
   <span
   v-if="activePack?.minRam"
   class="inline-flex items-center gap-1 rounded-full  px-2 py-0.5 text-[13px] font-semibold"
@@ -408,7 +408,7 @@ async function enableAllFiles(enabled: boolean) {
   <div class="flex shrink-0 flex-col items-end gap-2 pb-1">
   <button
   type="button"
-  class="flex items-center justify-center gap-2 rounded-xl px-8 py-3.5 text-base font-bold tracking-wide text-white shadow-md transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+  class="flex items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold tracking-wide text-white shadow-md transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
   :class="status?.installed
   ? gameRunning
   ? 'bg-[#b91c1c] hover:bg-[#dc2626]'
@@ -642,8 +642,8 @@ async function enableAllFiles(enabled: boolean) {
 
   <!-- Managed pack Banner: там же и в том же корпусе, что баннер проверки -->
   <div
-    v-if="packLocked && showBadges"
-    class="rounded-xl border px-3.5 py-2 my-1 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
+    v-if="packLocked"
+    class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
     :title="t('files.locked')"
   >
     <div class="flex items-center gap-2 font-medium">
@@ -662,8 +662,8 @@ async function enableAllFiles(enabled: boolean) {
 
   <!-- Authlib-injector Banner: включён в сборке, нужен аккаунт Mono -->
   <div
-    v-if="packUseAuthlib && showBadges"
-    class="rounded-xl border px-3.5 py-2 my-1 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
+    v-if="packUseAuthlib"
+    class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
   >
     <div class="flex items-center gap-2 font-medium">
       <AppIcon name="lock" class="h-4 w-4 fill-current shrink-0" />
@@ -718,6 +718,7 @@ async function enableAllFiles(enabled: boolean) {
        <span class="shrink-0 flex items-center gap-1 bg-[#16a34a]/15 text-[#22c55e] border border-[#16a34a]/30 px-2 py-0.5 rounded text-[11px] font-semibold font-sans"><AppIcon name="check" class="h-3 w-3 fill-current" />Безопасно</span>
      </div>
     <span class="text-[11px] text-[color:var(--tx-muted)]/70 mt-1 block">Файлы успешно прошли проверку на вредоносный код. Ответственность за совместимость и стабильность лежит на пользователе.</span>
+  </div>
   </div>
 
   <!-- Сабтабы: релизы / моды / ресурспаки / шейдеры / миры / консоль -->
