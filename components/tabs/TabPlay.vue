@@ -719,7 +719,6 @@ async function enableAllFiles(enabled: boolean) {
      </div>
     <span class="text-[11px] text-[color:var(--tx-muted)]/70 mt-1 block">Файлы успешно прошли проверку на вредоносный код. Ответственность за совместимость и стабильность лежит на пользователе.</span>
   </div>
-  </div>
 
   <!-- Сабтабы: релизы / моды / ресурспаки / шейдеры / миры / консоль -->
   <div class="nice-scrollbar flex w-fit max-w-full shrink-0 items-center gap-1 overflow-x-auto rounded-xl bg-[var(--panel)] p-1">
