@@ -339,7 +339,7 @@ async function enableAllFiles(enabled: boolean) {
 
   <!-- Header сборки -->
   <div class="mb-3 shrink-0 border-b border-[var(--border)] pb-3">
-  <div v-if="activeBanner && bannerOk" class="relative mb-4 h-44 w-full overflow-hidden rounded-xl ">
+  <div v-if="activeBanner && bannerOk" class="relative mb-2 h-44 w-full overflow-hidden rounded-xl ">
   <img
   :src="activeBanner"
   :alt="activePack?.name ?? ''"
@@ -347,7 +347,7 @@ async function enableAllFiles(enabled: boolean) {
   @error="bannerOk = false"
   />
     </div>
-  <div class="flex flex-wrap items-end justify-between gap-x-4 gap-y-3" :class="activeBanner && bannerOk ? '-mt-7 px-4' : ''">
+  <div class="flex flex-wrap items-end justify-between gap-x-4 gap-y-1" :class="activeBanner && bannerOk ? '-mt-7 px-4' : ''">
   <!-- Левая часть: иконка сборки + название + мета -->
   <div class="flex min-w-0 flex-1 items-end gap-4">
   <img
@@ -501,7 +501,7 @@ async function enableAllFiles(enabled: boolean) {
 
 
 
-  <div v-if="currentPackUpdate?.has_update && currentPackUpdate?.latest_version" class="mt-4 flex items-center justify-between gap-4 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-3.5 py-2.5 text-[13px] text-[var(--accent)]">
+  <div v-if="currentPackUpdate?.has_update && currentPackUpdate?.latest_version" class="mt-2 flex items-center justify-between gap-4 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-3.5 py-2 text-[13px] text-[var(--accent)]">
   <span class="min-w-0">
   {{ t("update.available") }} <strong class="text-[var(--accent-strong)]">{{ currentPackUpdate.latest_version }}</strong>
   <span v-if="currentPackUpdate.current_version" class="text-[color:var(--tx-muted)]">
@@ -643,7 +643,7 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Managed pack Banner: там же и в том же корпусе, что баннер проверки -->
   <div
     v-if="packLocked && showBadges"
-    class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
+    class="rounded-xl border px-3.5 py-2 my-1 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
     :title="t('files.locked')"
   >
     <div class="flex items-center gap-2 font-medium">
@@ -663,7 +663,7 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Authlib-injector Banner: включён в сборке, нужен аккаунт Mono -->
   <div
     v-if="packUseAuthlib && showBadges"
-    class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
+    class="rounded-xl border px-3.5 py-2 my-1 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
   >
     <div class="flex items-center gap-2 font-medium">
       <AppIcon name="lock" class="h-4 w-4 fill-current shrink-0" />
