@@ -340,11 +340,11 @@ onBeforeUnmount(() => {
             <div
               v-for="pack in item.packs"
               :key="pack.id"
-              class="relative aspect-square w-full"
+              class="relative w-full"
             >
               <ModpackCard
                 :pack="pack"
-                class="w-full h-full shadow-md !border-none !ring-0"
+                class="w-full shadow-md !border-none !ring-0"
                 :class="{ 'opacity-30 scale-95': draggingPackId === pack.id }"
                 @pointerdown="onCardPointerDown(pack.id, $event)"
                 @click="handlePackClick(pack.id)"
@@ -385,7 +385,7 @@ onBeforeUnmount(() => {
           <div
             v-else-if="item.type === 'pack'"
             :data-drop-target="item.pack.id"
-            class="aspect-square w-full rounded-2xl transition-all duration-200"
+            class="w-full rounded-2xl transition-all duration-200"
             :class="{
               'opacity-30 scale-95': draggingPackId === item.pack.id,
               'ring-2 ring-[var(--accent)] scale-105 shadow-xl': hoverTargetId === item.pack.id
@@ -393,7 +393,8 @@ onBeforeUnmount(() => {
           >
             <ModpackCard
               :pack="item.pack"
-              class="w-full h-full"
+              class="w-full shadow-md !border-none !ring-0"
+              :class="{ 'opacity-30 scale-95': draggingPackId === item.pack.id }"
               @pointerdown="onCardPointerDown(item.pack.id, $event)"
               @click="handlePackClick(item.pack.id)"
               @contextmenu="openLibMenu"
