@@ -643,7 +643,7 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Managed pack Banner: там же и в том же корпусе, что баннер проверки -->
   <div
     v-if="packLocked"
-    class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
+    class="rounded-xl border px-3.5 py-2 my-1 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
     :title="t('files.locked')"
   >
     <div class="flex items-center gap-2 font-medium">
@@ -663,7 +663,7 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Authlib-injector Banner: включён в сборке, нужен аккаунт Mono -->
   <div
     v-if="packUseAuthlib"
-    class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
+    class="rounded-xl border px-3.5 py-2 my-1 text-xs flex items-center justify-between transition-all border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
   >
     <div class="flex items-center gap-2 font-medium">
       <AppIcon name="lock" class="h-4 w-4 fill-current shrink-0" />
@@ -711,7 +711,7 @@ async function enableAllFiles(enabled: boolean) {
   </div>
 
   <!-- Expandable Custom Mods List -->
-<div v-if="customModsOpen && customModsState === 'safe' && customModsFiles.length" class="rounded-xl bg-[var(--input)]/30 border border-[var(--border)] p-3 mb-3 flex flex-col gap-1.5 text-xs">
+<div v-if="customModsOpen && customModsState === 'safe' && customModsFiles.length" class="rounded-xl bg-[var(--input)]/30 border border-[var(--border)] p-3 mb-1 flex flex-col gap-1.5 text-xs">
      <div class="font-bold text-[color:var(--tx)] mb-1">Кастомные файлы в сборке:</div>
      <div v-for="f in customModsFiles" :key="f.path" class="flex items-center justify-between gap-2 py-1 px-2 rounded-lg bg-[var(--panel)] border border-[var(--border)] font-mono text-[11px] text-[color:var(--tx-muted)]">
        <span class="truncate">{{ f.path }}</span>
