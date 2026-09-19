@@ -205,6 +205,8 @@ const currentPackUpdate = computed(() => {
 });
 const customModsFiles = ref<any[]>([]);
 const hasCustomMods = ref(false);
+const menuOpen = ref(false);
+const showBadges = ref(true);
 watch(() => status.value?.custom_mods, (mods) => {
   customModsFiles.value = mods ?? [];
   hasCustomMods.value = (mods?.length ?? 0) > 0;
@@ -352,14 +354,14 @@ async function enableAllFiles(enabled: boolean) {
   v-if="activePack?.icon"
   :src="convertFileSrc(activePack.icon)"
   :alt="activePack.name"
-  class="h-[60px] w-[60px] shrink-0 rounded-2xl bg-[var(--panel)] object-cover shadow-lg"
+  class="h-[90px] w-[90px] shrink-0 rounded-2xl bg-[var(--panel)] object-cover shadow-lg"
   @error="(e: any) => (e.target.style.display = 'none')"
   />
-  <div v-else class="w-[60px] h-[60px] rounded-2xl flex items-center justify-center text-white font-black text-xl select-none shrink-0 shadow-lg" :style="{ background: packGradient(activePack?.name || 'T') }">
+  <div v-else class="w-[90px] h-[90px] rounded-2xl flex items-center justify-center text-white font-black text-2xl select-none shrink-0 shadow-lg" :style="{ background: packGradient(activePack?.name || 'T') }">
   <span>{{ (activePack?.name || 'T')[0].toUpperCase() }}</span>
   </div>
   <div class="min-w-0 pb-1">
-  <h1 class="truncate text-3xl font-bold leading-tight tracking-tight text-[color:var(--tx-strong)]">
+  <h1 class="truncate text-4xl font-bold leading-tight tracking-tight text-[color:var(--tx-strong)]">
   {{ activePack?.name ?? t("pack.none") }}
   </h1>
   <p v-if="activePack?.author || loaderLabel" class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[13px] text-[color:var(--tx-muted)]">
@@ -367,7 +369,7 @@ async function enableAllFiles(enabled: boolean) {
   <span v-if="activePack?.author && loaderLabel" class="opacity-40">·</span>
   <span v-if="loaderLabel">{{ loaderLabel }}</span>
   </p>
-  <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
+  <div v-if="showBadges" class="mt-2.5 flex flex-wrap items-center gap-1.5">
   <span
   v-if="activePack?.minRam"
   class="inline-flex items-center gap-1 rounded-full  px-2 py-0.5 text-[13px] font-semibold"
@@ -406,7 +408,7 @@ async function enableAllFiles(enabled: boolean) {
   <div class="flex shrink-0 flex-col items-end gap-2 pb-1">
   <button
   type="button"
-  class="flex items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold tracking-wide text-white shadow-md transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+  class="flex items-center justify-center gap-2 rounded-xl px-8 py-3.5 text-base font-bold tracking-wide text-white shadow-md transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
   :class="status?.installed
   ? gameRunning
   ? 'bg-[#b91c1c] hover:bg-[#dc2626]'
@@ -422,26 +424,30 @@ async function enableAllFiles(enabled: boolean) {
   <template v-if="!status?.installed">{{ busy ? t("side.installing") : t("side.downloadPlay") }}</template>
   <template v-else>{{ busy ? t("side.launching") : gameRunning ? t("side.stopGame") : t("side.play") }}</template>
   </button>
-  <div class="flex items-center gap-1.5">
+  <div class="relative">
   <button
   type="button"
   class="flex items-center gap-1.5 rounded-lg  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
-  :title="t('pack.openDir')"
-  @click="handleOpenPackDir"
+  title="Меню"
+  @click="menuOpen = !menuOpen"
   >
+  <AppIcon name="three-dots" class="h-4 w-4 fill-current" />
+  </button>
+  <div v-if="menuOpen" class="absolute right-0 top-[calc(100%+4px)] z-50 flex flex-col overflow-hidden rounded-xl bg-[var(--panel)] border border-[var(--border)] shadow-xl p-1">
+  <button type="button" class="flex items-center gap-2 rounded px-3 py-2 text-[13px] text-left text-[color:var(--tx)] hover:bg-[var(--hover)]" @click="menuOpen = false; handleOpenPackDir">
   <AppIcon name="folder" class="h-4 w-4 fill-current" />
-  {{ t("pack.folder") }}
+  Открыть папку
   </button>
-  <button
-  v-if="activePack?.url"
-  type="button"
-  class="flex items-center gap-1.5 rounded-lg  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
-  :title="t('pack.copyLink')"
-  @click="copyPackDeepLink(activePack)"
-  >
+  <button v-if="activePack?.url" type="button" class="flex items-center gap-2 rounded px-3 py-2 text-[13px] text-left text-[color:var(--tx)] hover:bg-[var(--hover)]" @click="menuOpen = false; copyPackDeepLink(activePack)">
   <AppIcon name="link" class="h-4 w-4 fill-current" />
-  {{ t("pack.copyLink") }}
+  Скопировать диплинк
   </button>
+  <button type="button" class="flex items-center gap-2 rounded px-3 py-2 text-[13px] text-left text-[color:var(--tx)] hover:bg-[var(--hover)] border-t border-[var(--border)]" @click="menuOpen = false; showBadges = !showBadges">
+  <AppIcon name="eye" class="h-4 w-4 fill-current" />
+  {{ showBadges ? 'Скрыть плашки' : 'Показать плашки' }}
+  </button>
+  </div>
+  </div>
   <template v-if="activePack?.kind === 'local' && status?.installed">
   <div ref="exportMenuRef" class="relative">
   <button
