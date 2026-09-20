@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.0-alpha.12] — 2026-09-19
+
+### Frontend
+- Added `useCustomModsChecker` composable — verification banner with 7 states (none/loading/unchecked/scanning/safe/dangerous/error), auto-scan on file discovery, per-pack reactivity, and dismiss support via `warnCustomMods`
+- Removed framework file filter — all custom mods are now correctly flagged (no more missing badges)
+- Increased pack icon from 60px to 80px in TabPlay header
+- Increased Play button size (`px-8 py-3 text-base`) for better usability
+- Replaced separate folder/copy-link/export buttons with single kebab menu (⋮) placed left of Play button
+- Fixed 100px gap between header title and verification banners — badges now properly nested inside the header wrapper
+- Added `useI18n` locale key `pack.actions` for kebab menu tooltip
+
+### Rust
+- (no backend changes in this release)
+
 ## [2.0.0-alpha.9] — 2026-09-13
 
 ### Frontend

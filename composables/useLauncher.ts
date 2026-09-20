@@ -229,7 +229,16 @@ export function useLauncher(options: { keepPackId?: boolean } = {}) {
   );
   const session = ref<UserSession | null>(null);
   const busy = ref(false);
-  const gameRunning = ref(false);
+  /** Множество ID сборок, в которых сейчас запущена игра. */
+  const runningPacks = ref(new Set<string>());
+  /** Проверить, запущена ли игра в конкретной сборке. */
+  function isPackRunning(packId: string): boolean {
+    return runningPacks.value.has(packId);
+  }
+  /** Запущена ли хоть одна игра. */
+  const anyGameRunning = computed(() => runningPacks.value.size > 0);
+  /** Запущена ли хоть одна игра (обратная совместимость). */
+  const gameRunning = computed(() => runningPacks.value.size > 0);
   const progress = ref<ProgressState | null>(null);
   /** Сколько файлов сборки уже обработано (монотонно — только растёт). */
   const filesDone = ref(0);
@@ -1988,7 +1997,11 @@ async function selectPack(id: string) {
       }
     }).then((fn) => (unlistenModsChangedSync = fn));
     onGameExited((e) => {
-      gameRunning.value = false;
+      if (packId.value) {
+        const next = new Set(runningPacks.value);
+        next.delete(packId.value);
+        runningPacks.value = next;
+      }
       if (!e.success) {
         const code =
           e.code > 0
@@ -3220,7 +3233,7 @@ watch(
       notify(t("err.loginFirst"), "info");
       return;
     }
-    if (gameRunning.value) {
+    if (isPackRunning(packId.value)) {
       notify(t("err.gameRunning"), "info");
       return;
     }
@@ -3245,7 +3258,7 @@ watch(
          packUseAuthlib,
        );
       crashMarkerNotified = false;
-      gameRunning.value = true;
+      runningPacks.value = new Set(runningPacks.value).add(packId.value);
     } catch (e) {
       notify(t("err.launch", { e }));
     } finally {
@@ -3260,10 +3273,13 @@ watch(
 
   /** «Остановить»: завершает запущенную игру. */
   async function handleStop() {
-    if (!gameRunning.value) return;
+    if (!packId.value || !isPackRunning(packId.value)) return;
     busy.value = true;
     try {
       await stopGame();
+      const next = new Set(runningPacks.value);
+      next.delete(packId.value);
+      runningPacks.value = next;
     } catch (e) {
       notify(t("err.stop", { e }), "error");
     } finally {
@@ -3384,6 +3400,9 @@ watch(
     session,
     busy,
     gameRunning,
+    runningPacks,
+    isPackRunning,
+    anyGameRunning,
     progress,
     updateInfoByPack,
     launcherVer,

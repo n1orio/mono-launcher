@@ -7,7 +7,7 @@ mod discord_rp;
 mod export;
 mod files;
 mod game;
-mod http_cache;
+// mod http_cache; // мёртвый модуль — закомментирован
 mod jre;
 mod license;
 mod modrinth;

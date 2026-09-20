@@ -16,6 +16,7 @@ const {
   systemRam,
   busy,
   gameRunning,
+  isPackRunning,
   handleStop,
   handlePlay,
   handleInstall,
@@ -49,11 +50,6 @@ const {
   saveLicense,
   warnCustomMods,
   customModsOpen,
-  customScanBusy,
-  scanActiveCustomMods,
-  customBannerClass,
-  customBannerNoteClass,
-  customBannerState,
   playSubTabsVisible,
   playSubTab,
   subTabCount,
@@ -198,28 +194,29 @@ const monoLoggedIn = computed(() => !!monoProfile.value?.access_token);
 import type { GameFolderKind, ModrinthSearchKind } from "~/lib/bridge";
 import type { GameFileEntry } from "~/lib/types";
 
-// ---- Баннер сторонних (кастомных) файлов: safe / unchecked / dangerous ----
+/** Запущена ли игра в текущей сборке (per-pack). */
+const thisPackRunning = computed(() => isPackRunning(packId?.value ?? ""));
+
+// ---- Баннер сторонних (кастомных) файлов: мини-движок useCustomModsChecker ----
+import { useCustomModsChecker } from "~/composables/useCustomModsChecker";
+
 const currentPackUpdate = computed(() => {
   const id = activePack.value?.id;
   return id ? updateInfoByPack.value[id] ?? null : null;
 });
-const customModsFiles = ref<any[]>([]);
-const hasCustomMods = ref(false);
-watch(() => status.value?.custom_mods, (mods) => {
-  customModsFiles.value = mods ?? [];
-  hasCustomMods.value = (mods?.length ?? 0) > 0;
-}, { immediate: true });
-const customModsState = computed(() => {
-  const files = customModsFiles.value;
-  const unchecked = files.filter((f) => f.safe !== true && f.safe !== false);
-  const dangerous = files.filter((f) => f.safe === false);
-  if (files.length > 0 && unchecked.length === 0 && dangerous.length === 0) return "safe";
-  if (dangerous.length > 0) return "dangerous";
-  return "unchecked";
+const {
+  state: customState,
+  uncheckedCount: customUncheckedCount,
+  dangerousCount: customDangerCount,
+  totalCount: customTotalCount,
+  files: customFiles,
+  scanning: customScanBusy,
+  errorMessage: customError,
+  runScan: scanActiveCustomMods,
+} = useCustomModsChecker({
+  status,
+  packId,
 });
-const customUncheckedCount = computed(() =>
-  customModsFiles.value.filter((f: any) => f.safe !== true && f.safe !== false).length
-);
 
 async function handleUpdate() {
     const tag = currentPackUpdate.value?.latest_version;
@@ -352,10 +349,10 @@ async function enableAllFiles(enabled: boolean) {
   v-if="activePack?.icon"
   :src="convertFileSrc(activePack.icon)"
   :alt="activePack.name"
-  class="h-[60px] w-[60px] shrink-0 rounded-2xl bg-[var(--panel)] object-cover shadow-lg"
+  class="h-[80px] w-[80px] shrink-0 rounded-2xl bg-[var(--panel)] object-cover shadow-lg"
   @error="(e: any) => (e.target.style.display = 'none')"
   />
-  <div v-else class="w-[60px] h-[60px] rounded-2xl flex items-center justify-center text-white font-black text-xl select-none shrink-0 shadow-lg" :style="{ background: packGradient(activePack?.name || 'T') }">
+  <div v-else class="w-[80px] h-[80px] rounded-2xl flex items-center justify-center text-white font-black text-2xl select-none shrink-0 shadow-lg" :style="{ background: packGradient(activePack?.name || 'T') }">
   <span>{{ (activePack?.name || 'T')[0].toUpperCase() }}</span>
   </div>
   <div class="min-w-0 pb-1">
@@ -402,63 +399,41 @@ async function enableAllFiles(enabled: boolean) {
   </div>
   </div>
 
-  <!-- Правая часть: главное действие + вторичные кнопки -->
-  <div class="flex shrink-0 flex-col items-end gap-2 pb-1">
+  <!-- Правая часть: ⋮ кнопка + главное действие -->
+  <div class="flex shrink-0 flex-row items-center gap-2 pb-1">
+  <!-- Kebab menu слева от Play -->
+  <div ref="exportMenuRef" class="relative">
   <button
   type="button"
-  class="flex items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold tracking-wide text-white shadow-md transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
-  :class="status?.installed
-  ? gameRunning
-  ? 'bg-[#b91c1c] hover:bg-[#dc2626]'
-  : 'bg-[#16a34a] hover:bg-[#15803d] text-white shadow-lg'
-  : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)]'"
-  :disabled="busy"
-  @click="status?.installed ? (gameRunning ? handleStop() : handlePlay()) : handleInstall()"
+  class="flex items-center justify-center rounded-lg bg-[var(--input)] px-2.5 py-2.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+  :title="t('pack.actions')"
+  @click="exportMenuOpen = !exportMenuOpen"
   >
-  <AppIcon v-if="busy" name="spinner" class="h-4 w-4 fill-current" />
-  <AppIcon v-else-if="status?.installed && !gameRunning" name="play" class="h-4 w-4 fill-current" />
-  <AppIcon v-else-if="gameRunning" name="stop" class="h-4 w-4 fill-current" />
-  <AppIcon v-else name="arrow-down" class="h-4 w-4 fill-current" />
-  <template v-if="!status?.installed">{{ busy ? t("side.installing") : t("side.downloadPlay") }}</template>
-  <template v-else>{{ busy ? t("side.launching") : gameRunning ? t("side.stopGame") : t("side.play") }}</template>
+  <svg viewBox="0 0 16 16" class="h-5 w-5 fill-current"><path d="M8 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm0 5.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3ZM6.5 12a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0Z"/></svg>
   </button>
-  <div class="flex items-center gap-1.5">
+  <div
+  v-if="exportMenuOpen"
+  class="absolute right-0 top-[calc(100%+4px)] z-50 flex w-44 flex-col overflow-hidden rounded-xl bg-[var(--panel)] p-1 shadow-xl"
+  @click="exportMenuOpen = false"
+  >
   <button
   type="button"
-  class="flex items-center gap-1.5 rounded-lg  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
-  :title="t('pack.openDir')"
+  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click="handleOpenPackDir"
   >
-  <AppIcon name="folder" class="h-4 w-4 fill-current" />
+  <AppIcon name="folder" class="h-4 w-4 fill-current opacity-70" />
   {{ t("pack.folder") }}
   </button>
   <button
   v-if="activePack?.url"
   type="button"
-  class="flex items-center gap-1.5 rounded-lg  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
-  :title="t('pack.copyLink')"
+  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   @click="copyPackDeepLink(activePack)"
   >
-  <AppIcon name="link" class="h-4 w-4 fill-current" />
+  <AppIcon name="link" class="h-4 w-4 fill-current opacity-70" />
   {{ t("pack.copyLink") }}
   </button>
-  <template v-if="activePack?.kind === 'local' && status?.installed">
-  <div ref="exportMenuRef" class="relative">
-  <button
-  type="button"
-  class="flex items-center gap-1.5 rounded-lg  bg-[var(--input)] px-2.5 py-1.5 text-[13px] font-medium text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
-  :title="t('pack.exportTitle')"
-  :disabled="exportBusy"
-  @click="exportMenuOpen = !exportMenuOpen"
-  >
-  <AppIcon name="arrow-up" class="h-4 w-4 fill-current" />
-  <span>{{ t("pack.exportBtn") }}</span>
-  <AppIcon name="chevron-down" class="h-3 w-3 fill-current opacity-60" />
-  </button>
-  <div
-  v-if="exportMenuOpen"
-  class="absolute right-0 top-[calc(100%+4px)] z-50 flex w-44 flex-col overflow-hidden rounded-xl  bg-[var(--panel)] shadow-sm p-1 shadow-xl"
-  >
+  <div class="mx-3 border-t border-[var(--border)]"></div>
   <button
   type="button"
   class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
@@ -469,6 +444,7 @@ async function enableAllFiles(enabled: boolean) {
   .mrpack
   </button>
   <button
+  v-if="activePack?.kind === 'local'"
   type="button"
   class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
   :disabled="exportBusy"
@@ -477,24 +453,31 @@ async function enableAllFiles(enabled: boolean) {
   <AppIcon name="plus" class="h-4 w-4 fill-current opacity-70" />
   {{ t("pack.exportAuthorShort") }}
   </button>
+  </div>
+  </div>
+  <!-- Play / Stop кнопка -->
   <button
   type="button"
-  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] text-[color:var(--tx)] transition-colors hover:bg-[var(--hover)]"
-  :disabled="exportBusy"
-  @click="exportMenuOpen = false; openExport('curseforge')"
+  class="flex items-center justify-center gap-2 rounded-xl px-8 py-3 text-base font-bold tracking-wide text-white shadow-md transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+  :class="status?.installed
+  ? thisPackRunning
+  ? 'bg-[#b91c1c] hover:bg-[#dc2626]'
+  : 'bg-[#16a34a] hover:bg-[#15803d] text-white shadow-lg'
+  : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)]'"
+  :disabled="busy"
+  @click="status?.installed ? (thisPackRunning ? handleStop() : handlePlay()) : handleInstall()"
   >
-  <AppIcon name="cloud-download" class="h-4 w-4 fill-current opacity-70" />
-  CurseForge
+  <AppIcon v-if="busy" name="spinner" class="h-4 w-4 fill-current" />
+  <AppIcon v-else-if="status?.installed && !thisPackRunning" name="play" class="h-4 w-4 fill-current" />
+  <AppIcon v-else-if="thisPackRunning" name="stop" class="h-4 w-4 fill-current" />
+  <AppIcon v-else name="arrow-down" class="h-4 w-4 fill-current" />
+  <template v-if="!status?.installed">{{ busy ? t("side.installing") : t("side.downloadPlay") }}</template>
+  <template v-else>{{ busy ? t("side.launching") : thisPackRunning ? t("side.stopGame") : t("side.play") }}</template>
   </button>
   </div>
   </div>
-  </template>
-  </div>
-  </div>
-  </div>
 
-
-
+  <!-- Обновление -->
   <div v-if="currentPackUpdate?.has_update && currentPackUpdate?.latest_version" class="mt-4 flex items-center justify-between gap-4 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-3.5 py-2.5 text-[13px] text-[var(--accent)]">
   <span class="min-w-0">
   {{ t("update.available") }} <strong class="text-[var(--accent-strong)]">{{ currentPackUpdate.latest_version }}</strong>
@@ -673,48 +656,111 @@ async function enableAllFiles(enabled: boolean) {
     </div>
   </div>
 
-  <!-- Verification Banner: вид зависит от состояния проверки -->
-  <div
-    v-if="warnCustomMods && hasCustomMods"
-    class="rounded-xl border px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all"
-    :class="customModsState === 'safe'
-      ? 'border-[#16a34a]/20 bg-[#16a34a]/10 text-[#16a34a]'
-      : customModsState === 'dangerous'
-        ? 'border-red-500/30 bg-red-500/10 text-red-300'
-        : 'border-amber-500/30 bg-amber-500/10 text-amber-300'"
-  >
-    <div class="flex items-center gap-2 font-medium">
-      <AppIcon v-if="customModsState === 'safe'" name="shield-check" class="h-4 w-4 fill-current shrink-0" />
-      <AppIcon v-else-if="customModsState === 'dangerous'" name="alert-circle" class="h-4 w-4 fill-current shrink-0" />
-      <AppIcon v-else name="shield_alert" class="h-4 w-4 fill-current shrink-0" />
-      <span v-if="customModsState === 'safe'">Сторонние файлы проверены сканером (угроз не найдено)</span>
-      <span v-else-if="customModsState === 'dangerous'">Сканер обнаружил опасные файлы — запуск небезопасен</span>
-      <span v-else>{{ tp("customMods.unchecked", customUncheckedCount) }}</span>
+  <!-- === ПЛАШКА ПРОВЕРКИ МОДОВ (мини-движок useCustomModsChecker) === -->
+  <!-- none = не показываем; safe = только если warnCustomMods -->
+  <!-- Плашка: scanning/error всегда, unchecked/dangerous/safe — только с warnCustomMods -->
+  <template v-if="customState === 'scanning' || customState === 'error' || (warnCustomMods && (customState !== 'none'))">
+    <!-- scanning -->
+    <div
+      v-if="customState === 'scanning'"
+      class="rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-300 px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all"
+    >
+      <div class="flex items-center gap-2 font-medium">
+        <AppIcon name="spinner" class="h-4 w-4 fill-current shrink-0 animate-spin" />
+        <span>Сканирование файлов…</span>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <span class="text-sky-400/70">{{ customTotalCount }} файлов</span>
+      </div>
     </div>
-    <div class="flex items-center gap-3 shrink-0">
-      <button type="button" class="hover:underline font-semibold cursor-pointer disabled:opacity-50" :disabled="customScanBusy" @click="scanActiveCustomMods">
-        {{ customModsState === 'safe' ? 'Пересканировать' : 'Сканировать' }}
-      </button>
-      <button v-if="customModsState === 'safe'" type="button" class="hover:underline font-semibold cursor-pointer" @click="customModsOpen = !customModsOpen">
-        {{ customModsOpen ? 'Скрыть список' : 'Список' }}
-      </button>
-      <button type="button" class="text-current opacity-60 hover:opacity-100 ml-1 flex items-center" @click="warnCustomMods = false" aria-label="Закрыть">
-        <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
-      </button>
+
+    <!-- unchecked -->
+    <div
+      v-if="customState === 'unchecked'"
+      class="rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all"
+    >
+      <div class="flex items-center gap-2 font-medium">
+        <AppIcon name="shield-alert" class="h-4 w-4 fill-current shrink-0" />
+        <span>{{ tp("customMods.unchecked", customUncheckedCount) }}</span>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <button type="button" class="hover:underline font-semibold cursor-pointer disabled:opacity-50" :disabled="customScanBusy" @click="scanActiveCustomMods">
+          Сканировать
+        </button>
+        <button type="button" class="text-current opacity-60 hover:opacity-100 flex items-center" @click="warnCustomMods = false" aria-label="Скрыть">
+          <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
+        </button>
+      </div>
     </div>
-  </div>
 
-  <!-- Expandable Custom Mods List -->
-<div v-if="customModsOpen && customModsState === 'safe' && customModsFiles.length" class="rounded-xl bg-[var(--input)]/30 border border-[var(--border)] p-3 mb-3 flex flex-col gap-1.5 text-xs">
-     <div class="font-bold text-[color:var(--tx)] mb-1">Кастомные файлы в сборке:</div>
-     <div v-for="f in customModsFiles" :key="f.path" class="flex items-center justify-between gap-2 py-1 px-2 rounded-lg bg-[var(--panel)] border border-[var(--border)] font-mono text-[11px] text-[color:var(--tx-muted)]">
-       <span class="truncate">{{ f.path }}</span>
-       <span class="shrink-0 flex items-center gap-1 bg-[#16a34a]/15 text-[#22c55e] border border-[#16a34a]/30 px-2 py-0.5 rounded text-[11px] font-semibold font-sans"><AppIcon name="check" class="h-3 w-3 fill-current" />Безопасно</span>
-     </div>
-    <span class="text-[11px] text-[color:var(--tx-muted)]/70 mt-1 block">Файлы успешно прошли проверку на вредоносный код. Ответственность за совместимость и стабильность лежит на пользователе.</span>
-  </div>
-  </div>
+    <!-- dangerous -->
+    <div
+      v-if="customState === 'dangerous'"
+      class="rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all"
+    >
+      <div class="flex items-center gap-2 font-medium">
+        <AppIcon name="alert-circle" class="h-4 w-4 fill-current shrink-0" />
+        <span>Сканер обнаружил опасные файлы ({{ customDangerCount }}) — запуск небезопасен</span>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <button type="button" class="hover:underline font-semibold cursor-pointer disabled:opacity-50" :disabled="customScanBusy" @click="scanActiveCustomMods">
+          Пересканировать
+        </button>
+      </div>
+    </div>
 
+    <!-- safe (только если включена настройка) -->
+    <div
+      v-if="customState === 'safe' && warnCustomMods"
+      class="rounded-xl border border-[#16a34a]/20 bg-[#16a34a]/10 text-[#16a34a] px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all"
+    >
+      <div class="flex items-center gap-2 font-medium">
+        <AppIcon name="shield-check" class="h-4 w-4 fill-current shrink-0" />
+        <span>Сторонние файлы проверены — угроз не найдено</span>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <button type="button" class="hover:underline font-semibold cursor-pointer" @click="customModsOpen = !customModsOpen">
+          {{ customModsOpen ? 'Скрыть' : 'Список' }}
+        </button>
+        <button type="button" class="hover:underline font-semibold cursor-pointer disabled:opacity-50" :disabled="customScanBusy" @click="scanActiveCustomMods">
+          Пересканировать
+        </button>
+        <button type="button" class="text-current opacity-60 hover:opacity-100 flex items-center" @click="warnCustomMods = false" aria-label="Закрыть">
+          <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
+        </button>
+      </div>
+    </div>
+
+    <!-- error -->
+    <div
+      v-if="customState === 'error'"
+      class="rounded-xl border border-red-500/50 bg-red-500/20 text-red-200 px-3.5 py-2.5 my-3 text-xs flex items-center justify-between transition-all"
+    >
+      <div class="flex items-center gap-2 font-medium">
+        <AppIcon name="alert-circle" class="h-4 w-4 fill-current shrink-0" />
+        <span>Ошибка сканирования: {{ customError || 'Неизвестная ошибка' }}</span>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <button type="button" class="hover:underline font-semibold cursor-pointer disabled:opacity-50" :disabled="customScanBusy" @click="scanActiveCustomMods">
+          Повторить
+        </button>
+        <button type="button" class="text-current opacity-60 hover:opacity-100 flex items-center" @click="warnCustomMods = false" aria-label="Закрыть">
+          <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
+        </button>
+      </div>
+    </div>
+  </template>
+
+  <!-- Expandable Custom Mods List (для safe) -->
+  <div v-if="customModsOpen && customState === 'safe' && customFiles.length" class="rounded-xl bg-[var(--input)]/30 border border-[var(--border)] p-3 mb-3 flex flex-col gap-1.5 text-xs">
+    <div class="font-bold text-[color:var(--tx)] mb-1">Проверенные сторонние файлы:</div>
+    <div v-for="f in customFiles" :key="f.path" class="flex items-center justify-between gap-2 py-1 px-2 rounded-lg bg-[var(--panel)] border border-[var(--border)] font-mono text-[11px] text-[color:var(--tx-muted)]">
+      <span class="truncate">{{ f.path }}</span>
+      <span class="shrink-0 flex items-center gap-1 bg-[#16a34a]/15 text-[#22c55e] border border-[#16a34a]/30 px-2 py-0.5 rounded text-[11px] font-semibold font-sans"><AppIcon name="check" class="h-3 w-3 fill-current" />Безопасно</span>
+    </div>
+    <span class="text-[11px] text-[color:var(--tx-muted)]/70 mt-1 block">Файлы проверены на вредоносный код. Ответственность за совместимость лежит на пользователе.</span>
+  </div>
+  </div>
   <!-- Сабтабы: релизы / моды / ресурспаки / шейдеры / миры / консоль -->
   <div class="nice-scrollbar mb-4 flex w-fit max-w-full shrink-0 items-center gap-1 overflow-x-auto rounded-xl bg-[var(--panel)] p-1">
   <template v-for="st in playSubTabsVisible" :key="st.kind">
@@ -1321,7 +1367,7 @@ async function enableAllFiles(enabled: boolean) {
   <button
   type="button"
   class="flex items-center gap-1.5 rounded-md bg-[#238636] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#2ea043] disabled:cursor-not-allowed disabled:opacity-50"
-  :disabled="gameRunning"
+  :disabled="thisPackRunning"
   @click="playOnServer(s)"
   >
   <svg viewBox="0 0 16 16" class="h-3 w-3 fill-current">
@@ -1829,7 +1875,6 @@ async function enableAllFiles(enabled: boolean) {
   </div>
   </div>
   </div>
-  </div>
 
   <!-- Контекстное меню: ПКМ по файлу/моду -->
   <Teleport to="body">
@@ -1876,4 +1921,5 @@ async function enableAllFiles(enabled: boolean) {
     </div>
   </div>
   </Teleport>
+</div>
 </template>

@@ -330,6 +330,8 @@ export interface LauncherCtx {
   gameFileIcon: any;
   gameFiles: any;
   gameRunning: Ref<any>;
+  isPackRunning: (packId: string) => boolean;
+  anyGameRunning: Ref<boolean>;
   getLocaleMeta: any;
   handleAddPack: (...args: any[]) => any;
   handleClearLog: (...args: any[]) => any;

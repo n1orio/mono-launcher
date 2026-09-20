@@ -82,7 +82,7 @@
   type="button"
   class="flex h-7 w-7 items-center justify-center rounded-md bg-[#238636] text-white shadow-sm transition-all hover:scale-105 hover:bg-[#2ea043] disabled:opacity-50 disabled:hover:scale-100"
   :title="t('side.play')"
-  :disabled="busy || gameRunning"
+  :disabled="busy"
   @click.stop="playFromSidebar(p.id)"
   >
    <AppIcon name="play" class="h-4 w-4 fill-current" />
@@ -297,6 +297,7 @@ const {
   session,
   busy,
   gameRunning,
+  isPackRunning,
   launcherVer,
   tab,
   packId,
@@ -352,7 +353,7 @@ const ctxMenuStyle = computed(() => {
 
 /** Запуск сборки прямо из сайдбара: выбрать → играть/установить. */
 async function playFromSidebar(id: string) {
-  if (busy.value || gameRunning.value) return;
+  if (busy.value) return;
   if (id !== packId.value) await selectPack(id);
   tab.value = "play";
   if (status.value?.installed) {

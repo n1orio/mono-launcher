@@ -1,5 +1,18 @@
 # Änderungen
 
+## [2.0.0-alpha.12] — 2026-09-19
+
+### UI
+- Neues `useCustomModsChecker`-Composable — Prüfbanner mit 7 Zuständen (none/loading/unchecked/scanning/safe/dangerous/error), Auto-Scan bei Dateierkennung, per-pack Reaktivität, Ausblenden über die Einstellung `warnCustomMods`
+- Framework-Filter entfernt — alle benutzerdefinierten Mods werden jetzt korrekt erfasst (fehlende Banner behoben)
+- Paket-Symbol von 60px auf 80px in der TabPlay-Kopfzeile vergrößert
+- Play-Button vergrößert (`px-8 py-3 text-base`)
+- Separate Ordner/Link/Export-Buttons durch ein Drei-Punkte-Menü (⋮) links vom Play-Button ersetzt
+- 100px Abstand zwischen Titel und Prüfbannern behoben — Banner sind jetzt korrekt im Header-Container verschachtelt
+
+### Rust
+- (keine Änderungen in dieser Version)
+
 ## [2.0.0-alpha.9] — 2026-09-13
 
 ### UI

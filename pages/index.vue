@@ -105,6 +105,7 @@ const {
   session,
   busy,
   gameRunning,
+  isPackRunning,
   progress,
   updateInfoByPack,
   launcherVer,
@@ -1089,11 +1090,11 @@ watch(playSubTab, (t) => {
   if (t === "releases") void refreshRemoteVersions();
 });
 
-watch([gameRunning, progress, percent, activePack], () => {
+watch([isPackRunning, progress, percent, activePack], () => {
   if (isSearchWin.value || isFileDetailWin.value || !isTauri()) return;
   const win = getCurrentWindow();
   let title = mainBaseTitle;
-  if (gameRunning.value && activePack.value?.name) {
+  if (packId.value && isPackRunning(packId.value) && activePack.value?.name) {
   title = `▶ ${activePack.value.name}`;
   } else if (progress.value) {
   const p = percent.value;

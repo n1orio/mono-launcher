@@ -57,10 +57,22 @@ export default defineNuxtConfig({
   },
 
   // SPA-приложение внутри Tauri: генерируем чистый статический вывод в dist/.
+  // Отключаем пререндеринг: при статической генерации Nuxt пытается выполнять
+  // browser-код в Node.js, что зависает на browser-only API (window, navigator и т.д.).
+  routeRules: {
+    '/': { prerender: false },
+    '/**': { prerender: false },
+  },
+
   nitro: {
     preset: "static",
     output: {
       publicDir: "dist",
+    },
+    prerender: {
+      autoSubfolderIndex: false,
+      crawlLinks: false,
+      routes: [],
     },
   },
 
