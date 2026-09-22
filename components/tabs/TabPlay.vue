@@ -614,7 +614,7 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Managed pack Banner: там же и в том же корпусе, что баннер проверки -->
   <div
     v-if="packLocked"
-    class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] text-[var(--accent)]"
+    class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-[var(--accent)]/85 text-white"
     :title="t('files.locked')"
   >
     <div class="flex items-center gap-2 font-medium">
@@ -634,7 +634,7 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Authlib-injector Banner: включён в сборке, нужен аккаунт Mono -->
   <div
     v-if="packUseAuthlib"
-    class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] text-[var(--accent)]"
+    class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-[var(--accent)]/85 text-white"
   >
     <div class="flex items-center gap-2 font-medium">
       <AppIcon name="lock" class="h-4 w-4 fill-current shrink-0" />
@@ -657,7 +657,7 @@ async function enableAllFiles(enabled: boolean) {
     <!-- scanning -->
     <div
       v-if="customState === 'scanning'"
-      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-sky-500/8 text-sky-300"
+      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-sky-500/85 text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="spinner" class="h-4 w-4 fill-current shrink-0 animate-spin" />
@@ -671,7 +671,7 @@ async function enableAllFiles(enabled: boolean) {
     <!-- unchecked -->
     <div
       v-if="customState === 'unchecked'"
-      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-amber-500/8 text-amber-300"
+      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-amber-500/85 text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="shield-alert" class="h-4 w-4 fill-current shrink-0" />
@@ -690,7 +690,7 @@ async function enableAllFiles(enabled: boolean) {
     <!-- dangerous -->
     <div
       v-if="customState === 'dangerous'"
-      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-red-500/8 text-red-300"
+      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-red-500/85 text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="alert-circle" class="h-4 w-4 fill-current shrink-0" />
@@ -706,7 +706,7 @@ async function enableAllFiles(enabled: boolean) {
     <!-- safe (только если включена настройка) -->
     <div
       v-if="customState === 'safe' && warnCustomMods"
-      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-[#16a34a]/8 text-[#16a34a]"
+      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-[#16a34a]/85 text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="shield-check" class="h-4 w-4 fill-current shrink-0" />
@@ -728,7 +728,7 @@ async function enableAllFiles(enabled: boolean) {
     <!-- error -->
     <div
       v-if="customState === 'error'"
-      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-red-500/10 text-red-200"
+      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-red-500/85 text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="alert-circle" class="h-4 w-4 fill-current shrink-0" />
