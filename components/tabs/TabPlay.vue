@@ -455,6 +455,18 @@ async function enableAllFiles(enabled: boolean) {
   </button>
   </div>
   </div>
+  <!-- Update кнопка (только если доступно обновление) -->
+  <button
+  v-if="status?.installed && !thisPackRunning && currentPackUpdate?.has_update"
+  type="button"
+  class="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-bold tracking-wide text-white shadow-md transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 bg-sky-600 hover:bg-sky-500"
+  :disabled="busy"
+  @click="handleUpdate"
+  >
+  <AppIcon v-if="busy" name="spinner" class="h-4 w-4 fill-current" />
+  <AppIcon v-else name="cloud-download" class="h-4 w-4 fill-current" />
+  {{ busy ? t("side.updating") : t("update.btn") }}
+  </button>
   <!-- Play / Stop кнопка -->
   <button
   type="button"
@@ -462,47 +474,19 @@ async function enableAllFiles(enabled: boolean) {
   :class="status?.installed
   ? thisPackRunning
   ? 'bg-[#b91c1c] hover:bg-[#dc2626]'
-  : currentPackUpdate?.has_update
-    ? 'bg-[#f0883e] hover:bg-[#e07a30] text-white shadow-lg'
-    : 'bg-[#16a34a] hover:bg-[#15803d] text-white shadow-lg'
+  : 'bg-[#16a34a] hover:bg-[#15803d] text-white shadow-lg'
   : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)]'"
   :disabled="busy"
-  @click="status?.installed
-    ? (thisPackRunning
-      ? handleStop()
-      : currentPackUpdate?.has_update
-        ? handleUpdate()
-        : handlePlay())
-    : handleInstall()"
+  @click="status?.installed ? (thisPackRunning ? handleStop() : handlePlay()) : handleInstall()"
   >
   <AppIcon v-if="busy" name="spinner" class="h-4 w-4 fill-current" />
-  <AppIcon v-else-if="!status?.installed" name="arrow-down" class="h-4 w-4 fill-current" />
-  <AppIcon v-else-if="currentPackUpdate?.has_update" name="cloud-download" class="h-4 w-4 fill-current" />
+  <AppIcon v-else-if="status?.installed && !thisPackRunning" name="play" class="h-4 w-4 fill-current" />
   <AppIcon v-else-if="thisPackRunning" name="stop" class="h-4 w-4 fill-current" />
-  <AppIcon v-else name="play" class="h-4 w-4 fill-current" />
+  <AppIcon v-else name="arrow-down" class="h-4 w-4 fill-current" />
   <template v-if="!status?.installed">{{ busy ? t("side.installing") : t("side.downloadPlay") }}</template>
-  <template v-else-if="currentPackUpdate?.has_update && !thisPackRunning">{{ busy ? t("side.updating") : t("update.btn") }}</template>
   <template v-else>{{ busy ? t("side.launching") : thisPackRunning ? t("side.stopGame") : t("side.play") }}</template>
   </button>
   </div>
-  </div>
-
-  <!-- Обновление -->
-  <div v-if="currentPackUpdate?.has_update && currentPackUpdate?.latest_version" class="mt-4 flex items-center justify-between gap-4 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_10%,transparent)] px-3.5 py-2.5 text-[13px] text-[var(--accent)]">
-  <span class="min-w-0">
-  {{ t("update.available") }} <strong class="text-[var(--accent-strong)]">{{ currentPackUpdate.latest_version }}</strong>
-  <span v-if="currentPackUpdate.current_version" class="text-[color:var(--tx-muted)]">
-  {{ t("update.installed", { v: currentPackUpdate.current_version }) }}
-  </span>
-  </span>
-  <button
-  type="button"
-  class="shrink-0 rounded-md  bg-[color-mix(in_srgb,var(--accent-deep)_20%,transparent)] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--accent-deep)_40%,transparent)] disabled:opacity-50"
-  :disabled="busy"
-  @click="handleUpdate"
-  >
-  {{ t("update.btn") }}
-  </button>
   </div>
 
   <!-- Подписка Boosty: статус/привязка токена -->
