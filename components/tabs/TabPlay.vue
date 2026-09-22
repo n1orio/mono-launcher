@@ -337,7 +337,7 @@ async function enableAllFiles(enabled: boolean) {
   </div>
 
   <!-- Header сборки -->
-  <div class="mb-6 shrink-0 border-b border-[var(--border)]  pb-5">
+  <div class="shrink-0 pb-2">
   <div v-if="activeBanner && bannerOk" class="relative mb-4 h-44 w-full overflow-hidden rounded-xl ">
   <img
   :src="activeBanner"
@@ -409,7 +409,7 @@ async function enableAllFiles(enabled: boolean) {
   <div ref="exportMenuRef" class="relative">
   <button
   type="button"
-  class="flex items-center justify-center rounded-lg bg-[var(--input)] px-2.5 py-2.5 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
+  class="flex items-center justify-center rounded-xl bg-[var(--input)] px-3 py-3 text-[13px] font-medium text-[color:var(--tx-muted)] transition-colors hover:bg-[var(--hover)] hover:text-[color:var(--tx)]"
   :title="t('pack.actions')"
   @click="exportMenuOpen = !exportMenuOpen"
   >
@@ -618,7 +618,7 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Managed pack Banner: там же и в том же корпусе, что баннер проверки -->
   <div
     v-if="packLocked && !collapsedManagedPack"
-    class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
+    class="rounded-xl px-3 py-2.5 my-2 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
     :title="t('files.locked')"
   >
     <div class="flex items-center gap-2 font-medium">
@@ -641,7 +641,7 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Authlib-injector Banner: включён в сборке, нужен аккаунт Mono -->
   <div
     v-if="packUseAuthlib && !collapsedAuthlib"
-    class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
+    class="rounded-xl px-3 py-2.5 my-2 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
   >
     <div class="flex items-center gap-2 font-medium">
       <AppIcon name="lock" class="h-4 w-4 fill-current shrink-0" />
@@ -667,7 +667,7 @@ async function enableAllFiles(enabled: boolean) {
     <!-- scanning -->
     <div
       v-if="customState === 'scanning'"
-      class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
+      class="rounded-xl px-3 py-2.5 my-2 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="spinner" class="h-4 w-4 fill-current shrink-0 animate-spin" />
@@ -684,7 +684,7 @@ async function enableAllFiles(enabled: boolean) {
     <!-- unchecked -->
     <div
       v-if="customState === 'unchecked'"
-      class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-amber-500/85 text-white"
+      class="rounded-xl px-3 py-2.5 my-2 text-sm flex items-center justify-between transition-all bg-amber-500/85 text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="shield-alert" class="h-4 w-4 fill-current shrink-0" />
@@ -703,7 +703,7 @@ async function enableAllFiles(enabled: boolean) {
     <!-- dangerous -->
     <div
       v-if="customState === 'dangerous'"
-      class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-red-500/85 text-white"
+      class="rounded-xl px-3 py-2.5 my-2 text-sm flex items-center justify-between transition-all bg-red-500/85 text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="alert-circle" class="h-4 w-4 fill-current shrink-0" />
@@ -722,7 +722,7 @@ async function enableAllFiles(enabled: boolean) {
     <!-- safe — раскрывается в плашку со списком файлов -->
     <div
       v-if="customState === 'safe' && warnCustomMods"
-      class="rounded-xl px-4 py-3 my-3 text-xs flex flex-col transition-all bg-[#16a34a]/85 text-white"
+      class="rounded-xl px-3 py-2.5 my-2 text-sm flex flex-col transition-all bg-[#16a34a]/85 text-white"
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2 font-medium">
@@ -757,7 +757,7 @@ async function enableAllFiles(enabled: boolean) {
     <!-- error -->
     <div
       v-if="customState === 'error'"
-      class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-red-500/85 text-white"
+      class="rounded-xl px-3 py-2.5 my-2 text-sm flex items-center justify-between transition-all bg-red-500/85 text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="alert-circle" class="h-4 w-4 fill-current shrink-0" />
