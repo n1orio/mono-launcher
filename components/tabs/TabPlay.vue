@@ -614,7 +614,7 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Managed pack Banner: там же и в том же корпусе, что баннер проверки -->
   <div
     v-if="packLocked"
-    class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
+    class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
     :title="t('files.locked')"
   >
     <div class="flex items-center gap-2 font-medium">
@@ -634,7 +634,7 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Authlib-injector Banner: включён в сборке, нужен аккаунт Mono -->
   <div
     v-if="packUseAuthlib"
-    class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
+    class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
   >
     <div class="flex items-center gap-2 font-medium">
       <AppIcon name="lock" class="h-4 w-4 fill-current shrink-0" />
@@ -657,7 +657,7 @@ async function enableAllFiles(enabled: boolean) {
     <!-- scanning -->
     <div
       v-if="customState === 'scanning'"
-      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-sky-500/85 text-white"
+      class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-sky-500/85 text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="spinner" class="h-4 w-4 fill-current shrink-0 animate-spin" />
@@ -671,7 +671,7 @@ async function enableAllFiles(enabled: boolean) {
     <!-- unchecked -->
     <div
       v-if="customState === 'unchecked'"
-      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-amber-500/85 text-white"
+      class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-amber-500/85 text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="shield-alert" class="h-4 w-4 fill-current shrink-0" />
@@ -690,7 +690,7 @@ async function enableAllFiles(enabled: boolean) {
     <!-- dangerous -->
     <div
       v-if="customState === 'dangerous'"
-      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-red-500/85 text-white"
+      class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-red-500/85 text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="alert-circle" class="h-4 w-4 fill-current shrink-0" />
@@ -703,32 +703,45 @@ async function enableAllFiles(enabled: boolean) {
       </div>
     </div>
 
-    <!-- safe (только если включена настройка) -->
+    <!-- safe — раскрывается в плашку со списком файлов -->
     <div
       v-if="customState === 'safe' && warnCustomMods"
-      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-[#16a34a]/85 text-white"
+      class="rounded-xl px-4 py-3 my-3 text-xs flex flex-col transition-all bg-[#16a34a]/85 text-white"
     >
-      <div class="flex items-center gap-2 font-medium">
-        <AppIcon name="shield-check" class="h-4 w-4 fill-current shrink-0" />
-        <span>Сторонние файлы проверены — угроз не найдено</span>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 font-medium">
+          <AppIcon name="shield-check" class="h-4 w-4 fill-current shrink-0" />
+          <span>Сторонние файлы проверены — угроз не найдено</span>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+          <button type="button" class="hover:underline font-semibold cursor-pointer" @click="customModsOpen = !customModsOpen">
+            {{ customModsOpen ? 'Скрыть' : 'Список' }}
+          </button>
+          <button type="button" class="hover:underline font-semibold cursor-pointer disabled:opacity-50" :disabled="customScanBusy" @click="scanActiveCustomMods">
+            Пересканировать
+          </button>
+          <button type="button" class="text-white/60 hover:text-white flex items-center" @click="warnCustomMods = false" aria-label="Закрыть">
+            <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
+          </button>
+        </div>
       </div>
-      <div class="flex items-center gap-3 shrink-0">
-        <button type="button" class="hover:underline font-semibold cursor-pointer" @click="customModsOpen = !customModsOpen">
-          {{ customModsOpen ? 'Скрыть' : 'Список' }}
-        </button>
-        <button type="button" class="hover:underline font-semibold cursor-pointer disabled:opacity-50" :disabled="customScanBusy" @click="scanActiveCustomMods">
-          Пересканировать
-        </button>
-        <button type="button" class="text-current opacity-60 hover:opacity-100 flex items-center" @click="warnCustomMods = false" aria-label="Закрыть">
-          <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
-        </button>
-      </div>
+      <!-- Раскрытый список файлов (внутри плашки) -->
+      <template v-if="customModsOpen && customFiles.length">
+        <div class="mt-3 border-t border-white/20"></div>
+        <div class="mt-3 flex flex-col gap-1.5 text-[13px]">
+          <div v-for="f in customFiles" :key="f.path" class="flex items-center justify-between gap-2 py-1.5 px-2.5 rounded-lg bg-black/20 font-mono text-white/80">
+            <span class="truncate">{{ f.path }}</span>
+            <span class="shrink-0 flex items-center gap-1 bg-[#16a34a]/30 text-white px-2 py-0.5 rounded text-xs font-semibold font-sans"><AppIcon name="check" class="h-3 w-3 fill-current" />Безопасно</span>
+          </div>
+        </div>
+        <span class="text-white/50 text-[12px] mt-2 block">Файлы проверены на вредоносный код. Ответственность за совместимость лежит на пользователе.</span>
+      </template>
     </div>
 
     <!-- error -->
     <div
       v-if="customState === 'error'"
-      class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-red-500/85 text-white"
+      class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-red-500/85 text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="alert-circle" class="h-4 w-4 fill-current shrink-0" />
@@ -744,17 +757,8 @@ async function enableAllFiles(enabled: boolean) {
       </div>
     </div>
   </template>
+  </div>
 
-  <!-- Expandable Custom Mods List (для safe) -->
-  <div v-if="customModsOpen && customState === 'safe' && customFiles.length" class="rounded-xl bg-[var(--input)]/30 border border-[var(--border)] p-3 mb-3 flex flex-col gap-1.5 text-xs">
-    <div class="font-bold text-[color:var(--tx)] mb-1">Проверенные сторонние файлы:</div>
-    <div v-for="f in customFiles" :key="f.path" class="flex items-center justify-between gap-2 py-1 px-2 rounded-lg bg-[var(--panel)] border border-[var(--border)] font-mono text-[11px] text-[color:var(--tx-muted)]">
-      <span class="truncate">{{ f.path }}</span>
-      <span class="shrink-0 flex items-center gap-1 bg-[#16a34a]/15 text-[#22c55e] border border-[#16a34a]/30 px-2 py-0.5 rounded text-[11px] font-semibold font-sans"><AppIcon name="check" class="h-3 w-3 fill-current" />Безопасно</span>
-    </div>
-    <span class="text-[11px] text-[color:var(--tx-muted)]/70 mt-1 block">Файлы проверены на вредоносный код. Ответственность за совместимость лежит на пользователе.</span>
-  </div>
-  </div>
   <!-- Сабтабы: релизы / моды / ресурспаки / шейдеры / миры / консоль -->
   <div class="nice-scrollbar mb-4 flex w-fit max-w-full shrink-0 items-center gap-1 overflow-x-auto rounded-xl bg-[var(--panel)] p-1">
   <template v-for="st in playSubTabsVisible" :key="st.kind">
