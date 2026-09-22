@@ -614,7 +614,7 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Managed pack Banner: там же и в том же корпусе, что баннер проверки -->
   <div
     v-if="packLocked"
-    class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-[var(--accent)]/85 text-white"
+    class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
     :title="t('files.locked')"
   >
     <div class="flex items-center gap-2 font-medium">
@@ -634,7 +634,7 @@ async function enableAllFiles(enabled: boolean) {
   <!-- Authlib-injector Banner: включён в сборке, нужен аккаунт Mono -->
   <div
     v-if="packUseAuthlib"
-    class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-[var(--accent)]/85 text-white"
+    class="rounded-xl px-3.5 py-2 my-3 text-xs flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
   >
     <div class="flex items-center gap-2 font-medium">
       <AppIcon name="lock" class="h-4 w-4 fill-current shrink-0" />
