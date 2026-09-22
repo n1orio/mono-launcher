@@ -616,6 +616,43 @@ async function enableAllFiles(enabled: boolean) {
   </template>
   </div>
 
+  <!-- Свёрнутые плашки (всегда сверху) -->
+  <div
+    v-if="(packLocked && collapsedManagedPack) || (packUseAuthlib && collapsedAuthlib) || (customState === 'safe' && warnCustomMods && collapsedSafeMods)"
+    class="flex flex-wrap items-center gap-2 my-2"
+  >
+    <button
+      v-if="packLocked && collapsedManagedPack"
+      type="button"
+      class="rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5 bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all cursor-pointer shrink-0"
+      @click="collapsedManagedPack = false"
+    >
+      <AppIcon name="lock" class="h-3 w-3 fill-current" />
+      <span>{{ t("pack.managed") }}</span>
+      <AppIcon name="plus" class="h-3 w-3 fill-current" />
+    </button>
+    <button
+      v-if="packUseAuthlib && collapsedAuthlib"
+      type="button"
+      class="rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5 bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all cursor-pointer shrink-0"
+      @click="collapsedAuthlib = false"
+    >
+      <AppIcon name="lock" class="h-3 w-3 fill-current" />
+      <span>{{ t("pack.authlibOn") }}</span>
+      <AppIcon name="plus" class="h-3 w-3 fill-current" />
+    </button>
+    <button
+      v-if="customState === 'safe' && warnCustomMods && collapsedSafeMods"
+      type="button"
+      class="rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5 bg-[#16a34a]/20 text-[#16a34a] hover:bg-[#16a34a]/35 transition-all cursor-pointer shrink-0"
+      @click="collapsedSafeMods = false"
+    >
+      <AppIcon name="shield-check" class="h-3 w-3 fill-current" />
+      <span>Сторонние файлы</span>
+      <AppIcon name="plus" class="h-3 w-3 fill-current" />
+    </button>
+  </div>
+
   <!-- Managed pack Banner: развёрнутая -->
   <div
     v-if="packLocked && !collapsedManagedPack"
@@ -658,46 +695,6 @@ async function enableAllFiles(enabled: boolean) {
       </button>
     </div>
   </div>
-  <!-- Свёрнутые плашки в одну строку -->
-  <div
-    v-if="(packLocked && collapsedManagedPack) || (packUseAuthlib && collapsedAuthlib) || (customState === 'safe' && warnCustomMods && collapsedSafeMods)"
-    class="flex flex-wrap items-center gap-2 my-2"
-  >
-    <!-- Managed pack: пилюля -->
-    <button
-      v-if="packLocked && collapsedManagedPack"
-      type="button"
-      class="rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5 bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all cursor-pointer shrink-0"
-      @click="collapsedManagedPack = false"
-    >
-      <AppIcon name="lock" class="h-3 w-3 fill-current" />
-      <span>{{ t("pack.managed") }}</span>
-      <AppIcon name="plus" class="h-3 w-3 fill-current" />
-    </button>
-    <!-- Authlib: пилюля -->
-    <button
-      v-if="packUseAuthlib && collapsedAuthlib"
-      type="button"
-      class="rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5 bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all cursor-pointer shrink-0"
-      @click="collapsedAuthlib = false"
-    >
-      <AppIcon name="lock" class="h-3 w-3 fill-current" />
-      <span>{{ t("pack.authlibOn") }}</span>
-      <AppIcon name="plus" class="h-3 w-3 fill-current" />
-    </button>
-    <!-- safe: пилюля -->
-    <button
-      v-if="customState === 'safe' && warnCustomMods && collapsedSafeMods"
-      type="button"
-      class="rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5 bg-[#16a34a]/20 text-[#16a34a] hover:bg-[#16a34a]/35 transition-all cursor-pointer shrink-0"
-      @click="collapsedSafeMods = false"
-    >
-      <AppIcon name="shield-check" class="h-3 w-3 fill-current" />
-      <span>Сторонние файлы</span>
-      <AppIcon name="plus" class="h-3 w-3 fill-current" />
-    </button>
-  </div>
-
   <!-- === ПЛАШКА ПРОВЕРКИ МОДОВ (мини-движок useCustomModsChecker) === -->
   <!-- none = не показываем; safe = только если warnCustomMods -->
   <!-- Плашка: scanning/error всегда, unchecked/dangerous/safe — только с warnCustomMods -->
