@@ -193,9 +193,10 @@ const monoLoggedIn = computed(() => !!monoProfile.value?.access_token);
 
 import type { GameFolderKind, ModrinthSearchKind } from "~/lib/bridge";
 
-// Складные плашки managed pack и authlib
+// Складные плашки managed pack, authlib и безопасных файлов
 const collapsedManagedPack = ref(false);
 const collapsedAuthlib = ref(false);
+const collapsedSafeMods = ref(false);
 import type { GameFileEntry } from "~/lib/types";
 
 /** Запущена ли игра в текущей сборке (per-pack). */
@@ -742,7 +743,7 @@ async function enableAllFiles(enabled: boolean) {
 
     <!-- safe — раскрывается в плашку со списком файлов -->
     <div
-      v-if="customState === 'safe' && warnCustomMods"
+      v-if="customState === 'safe' && warnCustomMods && !collapsedSafeMods"
       class="rounded-xl px-3 py-2.5 my-2 text-sm flex flex-col transition-all bg-[#16a34a]/85 text-white"
     >
       <div class="flex items-center justify-between">
@@ -757,8 +758,8 @@ async function enableAllFiles(enabled: boolean) {
           <button type="button" class="hover:underline font-semibold cursor-pointer disabled:opacity-50" :disabled="customScanBusy" @click="scanActiveCustomMods">
             Пересканировать
           </button>
-          <button type="button" class="text-white/60 hover:text-white flex items-center" @click="warnCustomMods = false" aria-label="Закрыть">
-            <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
+          <button type="button" class="text-white/60 hover:text-white flex items-center" @click="collapsedSafeMods = true" aria-label="Свернуть">
+            <AppIcon name="chevron-down" class="h-3.5 w-3.5 fill-current" />
           </button>
         </div>
       </div>
@@ -774,6 +775,17 @@ async function enableAllFiles(enabled: boolean) {
         <span class="text-white/50 text-[12px] mt-2 block">Файлы проверены на вредоносный код. Ответственность за совместимость лежит на пользователе.</span>
       </template>
     </div>
+    <!-- safe: пилюля для восстановления -->
+    <button
+      v-if="customState === 'safe' && warnCustomMods && collapsedSafeMods"
+      type="button"
+      class="rounded-full px-2.5 py-1 my-2 text-xs flex items-center gap-1.5 bg-[#16a34a]/20 text-[#16a34a] hover:bg-[#16a34a]/35 transition-all cursor-pointer shrink-0"
+      @click="collapsedSafeMods = false"
+    >
+      <AppIcon name="shield-check" class="h-3 w-3 fill-current" />
+      <span>Сторонние файлы</span>
+      <AppIcon name="plus" class="h-3 w-3 fill-current" />
+    </button>
 
     <!-- error -->
     <div
