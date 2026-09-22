@@ -463,7 +463,7 @@ async function enableAllFiles(enabled: boolean) {
   <button
   v-if="status?.installed && !thisPackRunning && currentPackUpdate?.has_update"
   type="button"
-  class="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-bold tracking-wide text-white shadow-md transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 bg-sky-600 hover:bg-sky-500"
+  class="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-bold tracking-wide text-white shadow-md transition-all active:scale-[0.98] focus-visible:outline focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent-strong)_85%,transparent)]"
   :disabled="busy"
   @click="handleUpdate"
   >
