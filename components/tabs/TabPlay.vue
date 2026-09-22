@@ -616,6 +616,19 @@ async function enableAllFiles(enabled: boolean) {
   </div>
 
   <!-- Managed pack Banner: там же и в том же корпусе, что баннер проверки -->
+  <!-- Свёрнутая плашка -->
+  <div
+    v-if="packLocked && collapsedManagedPack"
+    class="rounded-xl px-3 py-2 my-2 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white/70 cursor-pointer select-none"
+    @click="collapsedManagedPack = false"
+  >
+    <div class="flex items-center gap-2">
+      <AppIcon name="lock" class="h-3.5 w-3.5 fill-current shrink-0" />
+      <span class="font-medium">{{ t("pack.managed") }}</span>
+    </div>
+    <AppIcon name="chevron-right" class="h-3.5 w-3.5 fill-current" />
+  </div>
+  <!-- Развёрнутая плашка -->
   <div
     v-if="packLocked && !collapsedManagedPack"
     class="rounded-xl px-3 py-2.5 my-2 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
@@ -632,13 +645,26 @@ async function enableAllFiles(enabled: boolean) {
         :title="t('files.unbindHint')"
         @click="confirmUnbindPack"
       >{{ unbindArmed ? t("files.unbindConfirm") : t("files.unbind") }}</button>
-      <button type="button" class="text-white/60 hover:text-white flex items-center" @click="collapsedManagedPack = true" aria-label="Закрыть">
-        <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
+      <button type="button" class="text-white/60 hover:text-white flex items-center" @click="collapsedManagedPack = true" aria-label="Свернуть">
+        <AppIcon name="chevron-down" class="h-3.5 w-3.5 fill-current" />
       </button>
     </div>
   </div>
 
   <!-- Authlib-injector Banner: включён в сборке, нужен аккаунт Mono -->
+  <!-- Свёрнутая плашка -->
+  <div
+    v-if="packUseAuthlib && collapsedAuthlib"
+    class="rounded-xl px-3 py-2 my-2 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white/70 cursor-pointer select-none"
+    @click="collapsedAuthlib = false"
+  >
+    <div class="flex items-center gap-2">
+      <AppIcon name="lock" class="h-3.5 w-3.5 fill-current shrink-0" />
+      <span class="font-medium">{{ t("pack.authlibOn") }}</span>
+    </div>
+    <AppIcon name="chevron-right" class="h-3.5 w-3.5 fill-current" />
+  </div>
+  <!-- Развёрнутая плашка -->
   <div
     v-if="packUseAuthlib && !collapsedAuthlib"
     class="rounded-xl px-3 py-2.5 my-2 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
@@ -654,8 +680,8 @@ async function enableAllFiles(enabled: boolean) {
       <button v-else type="button" class="hover:underline font-semibold cursor-pointer" @click="openExternal('/auth/mono')">
         {{ t("pack.openAccount") }}
       </button>
-      <button type="button" class="text-white/60 hover:text-white flex items-center" @click="collapsedAuthlib = true" aria-label="Закрыть">
-        <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
+      <button type="button" class="text-white/60 hover:text-white flex items-center" @click="collapsedAuthlib = true" aria-label="Свернуть">
+        <AppIcon name="chevron-down" class="h-3.5 w-3.5 fill-current" />
       </button>
     </div>
   </div>
