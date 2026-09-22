@@ -462,16 +462,26 @@ async function enableAllFiles(enabled: boolean) {
   :class="status?.installed
   ? thisPackRunning
   ? 'bg-[#b91c1c] hover:bg-[#dc2626]'
-  : 'bg-[#16a34a] hover:bg-[#15803d] text-white shadow-lg'
+  : currentPackUpdate?.has_update
+    ? 'bg-[#f0883e] hover:bg-[#e07a30] text-white shadow-lg'
+    : 'bg-[#16a34a] hover:bg-[#15803d] text-white shadow-lg'
   : 'bg-[var(--accent-deep)] hover:bg-[var(--accent-hover)]'"
   :disabled="busy"
-  @click="status?.installed ? (thisPackRunning ? handleStop() : handlePlay()) : handleInstall()"
+  @click="status?.installed
+    ? (thisPackRunning
+      ? handleStop()
+      : currentPackUpdate?.has_update
+        ? handleUpdate()
+        : handlePlay())
+    : handleInstall()"
   >
   <AppIcon v-if="busy" name="spinner" class="h-4 w-4 fill-current" />
-  <AppIcon v-else-if="status?.installed && !thisPackRunning" name="play" class="h-4 w-4 fill-current" />
+  <AppIcon v-else-if="!status?.installed" name="arrow-down" class="h-4 w-4 fill-current" />
+  <AppIcon v-else-if="currentPackUpdate?.has_update" name="cloud-download" class="h-4 w-4 fill-current" />
   <AppIcon v-else-if="thisPackRunning" name="stop" class="h-4 w-4 fill-current" />
-  <AppIcon v-else name="arrow-down" class="h-4 w-4 fill-current" />
+  <AppIcon v-else name="play" class="h-4 w-4 fill-current" />
   <template v-if="!status?.installed">{{ busy ? t("side.installing") : t("side.downloadPlay") }}</template>
+  <template v-else-if="currentPackUpdate?.has_update && !thisPackRunning">{{ busy ? t("side.updating") : t("update.btn") }}</template>
   <template v-else>{{ busy ? t("side.launching") : thisPackRunning ? t("side.stopGame") : t("side.play") }}</template>
   </button>
   </div>
