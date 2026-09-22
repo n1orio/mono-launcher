@@ -224,9 +224,11 @@ const {
 });
 
 async function handleUpdate() {
-    const tag = currentPackUpdate.value?.latest_version;
-    if (!tag) return;
-    await handleInstall(tag);
+    await handleInstall();
+    // Явно очищаем флаг обновления после установки
+    const next = { ...updateInfoByPack.value };
+    delete next[packId.value];
+    updateInfoByPack.value = next;
   }
   // ---- Вкладка «Релизы»: hero активной версии + единый таймлайн без дублей ----
 const normTag = (s: string | null | undefined) => (s ?? "").trim().replace(/^v/i, "");
