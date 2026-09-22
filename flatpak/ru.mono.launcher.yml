@@ -7,6 +7,8 @@ sdk-extensions:
   - org.freedesktop.Sdk.Extension.node22
 
 command: mono-launcher
+rename-desktop-file: ru.mono.launcher.desktop
+rename-appdata-file: ru.mono.launcher.appdata.xml
 
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node22/bin
@@ -43,23 +45,14 @@ modules:
       - install -Dm644 src-tauri/icons/128x128.png
         /app/share/icons/hicolor/128x128/apps/ru.mono.launcher.png
     sources:
-      - type: dir
-        path: ../
-        skip:
-          - .git
-          - .flatpak-builder
-          - flatpak-build
-          - flatpak/.flatpak-builder
-          - node_modules
-          - .nuxt
-          - .output
-          - .data
-          - dist
-          - target
-          - src-tauri/target
-          - src-tauri/gen
-          - curseforge-key.txt
-          - .env
-          - .env.local
+      - type: archive
+        url: https://github.com/n1orio/mono-launcher/archive/refs/tags/launcher-v2.0.0-alpha.13.tar.gz
+        sha256: 460bad76b6fb677f10c9634f44df6b395afc4ba06ced3cc2b84e7d6ed1d0831e
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/n1orio/mono-launcher/releases/latest
+          tag-query: .tag_name
+          version-query: .tag_name
+          url-query: '"https://github.com/n1orio/mono-launcher/archive/refs/tags/" + .tag_name + ".tar.gz"'
       - type: file
         path: ru.mono.launcher.desktop
