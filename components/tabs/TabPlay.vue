@@ -615,75 +615,58 @@ async function enableAllFiles(enabled: boolean) {
   </template>
   </div>
 
-  <!-- Managed pack Banner: там же и в том же корпусе, что баннер проверки -->
-  <!-- Свёрнутая плашка -->
+  <!-- Managed pack Banner -->
   <div
-    v-if="packLocked && collapsedManagedPack"
-    class="rounded-xl px-3 py-2 my-2 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white/70 cursor-pointer select-none"
-    @click="collapsedManagedPack = false"
-  >
-    <div class="flex items-center gap-2">
-      <AppIcon name="lock" class="h-3.5 w-3.5 fill-current shrink-0" />
-      <span class="font-medium">{{ t("pack.managed") }}</span>
-    </div>
-    <AppIcon name="chevron-right" class="h-3.5 w-3.5 fill-current" />
-  </div>
-  <!-- Развёрнутая плашка -->
-  <div
-    v-if="packLocked && !collapsedManagedPack"
+    v-if="packLocked"
     class="rounded-xl px-3 py-2.5 my-2 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
-    :title="t('files.locked')"
   >
-    <div class="flex items-center gap-2 font-medium">
+    <div class="flex items-center gap-2 font-medium min-w-0">
       <AppIcon name="lock" class="h-4 w-4 fill-current shrink-0" />
       <span>{{ t("pack.managed") }}</span>
     </div>
-    <div class="flex items-center gap-3 shrink-0">
+    <div class="flex items-center gap-3 shrink-0" v-show="!collapsedManagedPack">
       <button
         type="button"
         class="hover:underline font-semibold cursor-pointer"
         :title="t('files.unbindHint')"
         @click="confirmUnbindPack"
       >{{ unbindArmed ? t("files.unbindConfirm") : t("files.unbind") }}</button>
-      <button type="button" class="text-white/60 hover:text-white flex items-center" @click="collapsedManagedPack = true" aria-label="Свернуть">
-        <AppIcon name="chevron-down" class="h-3.5 w-3.5 fill-current" />
-      </button>
     </div>
+    <button
+      type="button"
+      class="text-white/60 hover:text-white flex items-center shrink-0"
+      @click="collapsedManagedPack = !collapsedManagedPack"
+      aria-label="Свернуть"
+    >
+      <AppIcon :name="collapsedManagedPack ? 'chevron-right' : 'chevron-down'" class="h-3.5 w-3.5 fill-current" />
+    </button>
   </div>
 
   <!-- Authlib-injector Banner: включён в сборке, нужен аккаунт Mono -->
-  <!-- Свёрнутая плашка -->
   <div
-    v-if="packUseAuthlib && collapsedAuthlib"
-    class="rounded-xl px-3 py-2 my-2 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white/70 cursor-pointer select-none"
-    @click="collapsedAuthlib = false"
-  >
-    <div class="flex items-center gap-2">
-      <AppIcon name="lock" class="h-3.5 w-3.5 fill-current shrink-0" />
-      <span class="font-medium">{{ t("pack.authlibOn") }}</span>
-    </div>
-    <AppIcon name="chevron-right" class="h-3.5 w-3.5 fill-current" />
-  </div>
-  <!-- Развёрнутая плашка -->
-  <div
-    v-if="packUseAuthlib && !collapsedAuthlib"
+    v-if="packUseAuthlib"
     class="rounded-xl px-3 py-2.5 my-2 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
   >
-    <div class="flex items-center gap-2 font-medium">
+    <div class="flex items-center gap-2 font-medium min-w-0">
       <AppIcon name="lock" class="h-4 w-4 fill-current shrink-0" />
       <span>{{ t("pack.authlibOn") }}</span>
     </div>
-    <div class="flex items-center gap-3 shrink-0">
+    <div class="flex items-center gap-3 shrink-0" v-show="!collapsedAuthlib">
       <button v-if="!monoLoggedIn" type="button" class="hover:underline font-semibold cursor-pointer" @click="handleMonoLogin">
         {{ t("auth.login") }}
       </button>
       <button v-else type="button" class="hover:underline font-semibold cursor-pointer" @click="openExternal('/auth/mono')">
         {{ t("pack.openAccount") }}
       </button>
-      <button type="button" class="text-white/60 hover:text-white flex items-center" @click="collapsedAuthlib = true" aria-label="Свернуть">
-        <AppIcon name="chevron-down" class="h-3.5 w-3.5 fill-current" />
-      </button>
     </div>
+    <button
+      type="button"
+      class="text-white/60 hover:text-white flex items-center shrink-0"
+      @click="collapsedAuthlib = !collapsedAuthlib"
+      aria-label="Свернуть"
+    >
+      <AppIcon :name="collapsedAuthlib ? 'chevron-right' : 'chevron-down'" class="h-3.5 w-3.5 fill-current" />
+    </button>
   </div>
 
   <!-- === ПЛАШКА ПРОВЕРКИ МОДОВ (мини-движок useCustomModsChecker) === -->
