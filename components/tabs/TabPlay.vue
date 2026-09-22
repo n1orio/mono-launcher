@@ -192,6 +192,10 @@ const packUseAuthlib = computed(() => {
 const monoLoggedIn = computed(() => !!monoProfile.value?.access_token);
 
 import type { GameFolderKind, ModrinthSearchKind } from "~/lib/bridge";
+
+// Складные плашки managed pack и authlib
+const collapsedManagedPack = ref(false);
+const collapsedAuthlib = ref(false);
 import type { GameFileEntry } from "~/lib/types";
 
 /** Запущена ли игра в текущей сборке (per-pack). */
@@ -613,7 +617,7 @@ async function enableAllFiles(enabled: boolean) {
 
   <!-- Managed pack Banner: там же и в том же корпусе, что баннер проверки -->
   <div
-    v-if="packLocked"
+    v-if="packLocked && !collapsedManagedPack"
     class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
     :title="t('files.locked')"
   >
@@ -628,12 +632,15 @@ async function enableAllFiles(enabled: boolean) {
         :title="t('files.unbindHint')"
         @click="confirmUnbindPack"
       >{{ unbindArmed ? t("files.unbindConfirm") : t("files.unbind") }}</button>
+      <button type="button" class="text-white/60 hover:text-white flex items-center" @click="collapsedManagedPack = true" aria-label="Закрыть">
+        <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
+      </button>
     </div>
   </div>
 
   <!-- Authlib-injector Banner: включён в сборке, нужен аккаунт Mono -->
   <div
-    v-if="packUseAuthlib"
+    v-if="packUseAuthlib && !collapsedAuthlib"
     class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
   >
     <div class="flex items-center gap-2 font-medium">
@@ -647,6 +654,9 @@ async function enableAllFiles(enabled: boolean) {
       <button v-else type="button" class="hover:underline font-semibold cursor-pointer" @click="openExternal('/auth/mono')">
         {{ t("pack.openAccount") }}
       </button>
+      <button type="button" class="text-white/60 hover:text-white flex items-center" @click="collapsedAuthlib = true" aria-label="Закрыть">
+        <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
+      </button>
     </div>
   </div>
 
@@ -657,14 +667,17 @@ async function enableAllFiles(enabled: boolean) {
     <!-- scanning -->
     <div
       v-if="customState === 'scanning'"
-      class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-sky-500/85 text-white"
+      class="rounded-xl px-4 py-3 my-3 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] text-white"
     >
       <div class="flex items-center gap-2 font-medium">
         <AppIcon name="spinner" class="h-4 w-4 fill-current shrink-0 animate-spin" />
         <span>Сканирование файлов…</span>
       </div>
       <div class="flex items-center gap-3 shrink-0">
-        <span class="text-sky-400/70">{{ customTotalCount }} файлов</span>
+        <span class="text-white/60">{{ customTotalCount }} файлов</span>
+        <button type="button" class="text-white/60 hover:text-white flex items-center" @click="warnCustomMods = false" aria-label="Закрыть">
+          <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
+        </button>
       </div>
     </div>
 
@@ -699,6 +712,9 @@ async function enableAllFiles(enabled: boolean) {
       <div class="flex items-center gap-3 shrink-0">
         <button type="button" class="hover:underline font-semibold cursor-pointer disabled:opacity-50" :disabled="customScanBusy" @click="scanActiveCustomMods">
           Пересканировать
+        </button>
+        <button type="button" class="text-white/60 hover:text-white flex items-center" @click="warnCustomMods = false" aria-label="Закрыть">
+          <AppIcon name="x" class="h-3.5 w-3.5 fill-current" />
         </button>
       </div>
     </div>
