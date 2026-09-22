@@ -788,17 +788,6 @@ async function enableAllFiles(enabled: boolean) {
         <span class="text-white/50 text-[12px] mt-2 block">Файлы проверены на вредоносный код. Ответственность за совместимость лежит на пользователе.</span>
       </template>
     </div>
-    <!-- safe: пилюля для восстановления -->
-    <button
-      v-if="customState === 'safe' && warnCustomMods && collapsedSafeMods"
-      type="button"
-      class="rounded-full px-2.5 py-1 my-2 text-xs flex items-center gap-1.5 bg-[#16a34a]/20 text-[#16a34a] hover:bg-[#16a34a]/35 transition-all cursor-pointer shrink-0"
-      @click="collapsedSafeMods = false"
-    >
-      <AppIcon name="shield-check" class="h-3 w-3 fill-current" />
-      <span>Сторонние файлы</span>
-      <AppIcon name="plus" class="h-3 w-3 fill-current" />
-    </button>
 
     <!-- error -->
     <div
