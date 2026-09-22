@@ -1,5 +1,16 @@
 # Änderungen
 
+## [2.0.0-alpha.13] — 2026-09-22
+
+### UI
+- Alle Badges verwenden jetzt die gleiche Akzentfarbe
+- Badges für verwaltete Pakete, Authlib und benutzerdefinierte Mods sind jetzt einklappbar (▼/▶)
+- Badge-Größe reduziert: `px-4 py-3` → `px-3 py-2.5`
+- ⋮-Button jetzt gleich groß wie der Play-Button
+- Trennlinie zwischen Badges und Tabs entfernt
+- Eingeklappte Pillen in einer Zeile oben gruppiert
+- Fehler behoben: "Update"-Button blieb nach Installation sichtbar
+
 ## [2.0.0-alpha.12] — 2026-09-19
 
 ### UI

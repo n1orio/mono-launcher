@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.0-alpha.13] — 2026-09-22
+
+### Frontend
+- All badges now use consistent accent color (`bg-[color-mix(in_srgb,var(--accent)_85%,transparent)]`) — scanning, managed pack, authlib all same blue
+- All badges made collapsible: managed pack, authlib-injector, and safe custom-mods check have chevron toggle (▼/▶) — collapsed state shows a tiny pill button to restore
+- Badges reduced from `px-4 py-3` to `px-3 py-2.5` for more compact layout
+- Kebab menu (⋮) button now matches Play button size (`rounded-xl px-3 py-3`)
+- Removed header border separator between badges and sub-tabs (Rleases / Mods / …)
+- Collapsed pill buttons grouped into a single `flex-row` container at the top
+- Update button now uses `var(--accent)` instead of `sky-600` for consistent color
+- Fixed "Update" button not disappearing after install: `handleUpdate()` no longer passes a version tag — Rust resolves latest URL from backend automatically
+
 ## [2.0.0-alpha.12] — 2026-09-19
 
 ### Frontend
