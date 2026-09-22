@@ -615,18 +615,6 @@ async function enableAllFiles(enabled: boolean) {
   </template>
   </div>
 
-  <!-- Managed pack Banner: свёрнутая (только заголовок + ▶) -->
-  <div
-    v-if="packLocked && collapsedManagedPack"
-    class="rounded-xl px-3 py-1.5 my-1 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_60%,transparent)] text-white/60 cursor-pointer select-none"
-    @click="collapsedManagedPack = false"
-  >
-    <div class="flex items-center gap-2">
-      <AppIcon name="lock" class="h-3 w-3 fill-current shrink-0" />
-      <span>{{ t("pack.managed") }}</span>
-    </div>
-    <AppIcon name="chevron-right" class="h-3 w-3 fill-current" />
-  </div>
   <!-- Managed pack Banner: развёрнутая -->
   <div
     v-if="packLocked && !collapsedManagedPack"
@@ -648,19 +636,18 @@ async function enableAllFiles(enabled: boolean) {
       </button>
     </div>
   </div>
-
-  <!-- Authlib-injector Banner: свёрнутая (только заголовок + ▶) -->
-  <div
-    v-if="packUseAuthlib && collapsedAuthlib"
-    class="rounded-xl px-3 py-1.5 my-1 text-sm flex items-center justify-between transition-all bg-[color-mix(in_srgb,var(--accent)_60%,transparent)] text-white/60 cursor-pointer select-none"
-    @click="collapsedAuthlib = false"
+  <!-- Managed pack: пилюля для восстановления -->
+  <button
+    v-if="packLocked && collapsedManagedPack"
+    type="button"
+    class="rounded-full px-2.5 py-1 my-2 text-xs flex items-center gap-1.5 bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all cursor-pointer shrink-0"
+    @click="collapsedManagedPack = false"
   >
-    <div class="flex items-center gap-2">
-      <AppIcon name="lock" class="h-3 w-3 fill-current shrink-0" />
-      <span>{{ t("pack.authlibOn") }}</span>
-    </div>
-    <AppIcon name="chevron-right" class="h-3 w-3 fill-current" />
-  </div>
+    <AppIcon name="lock" class="h-3 w-3 fill-current" />
+    <span>{{ t("pack.managed") }}</span>
+    <AppIcon name="plus" class="h-3 w-3 fill-current" />
+  </button>
+
   <!-- Authlib-injector Banner: развёрнутая -->
   <div
     v-if="packUseAuthlib && !collapsedAuthlib"
@@ -682,6 +669,17 @@ async function enableAllFiles(enabled: boolean) {
       </button>
     </div>
   </div>
+  <!-- Authlib: пилюля для восстановления -->
+  <button
+    v-if="packUseAuthlib && collapsedAuthlib"
+    type="button"
+    class="rounded-full px-2.5 py-1 my-2 text-xs flex items-center gap-1.5 bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all cursor-pointer shrink-0"
+    @click="collapsedAuthlib = false"
+  >
+    <AppIcon name="lock" class="h-3 w-3 fill-current" />
+    <span>{{ t("pack.authlibOn") }}</span>
+    <AppIcon name="plus" class="h-3 w-3 fill-current" />
+  </button>
 
   <!-- === ПЛАШКА ПРОВЕРКИ МОДОВ (мини-движок useCustomModsChecker) === -->
   <!-- none = не показываем; safe = только если warnCustomMods -->
